@@ -1,0 +1,17 @@
+# ForgeMind bot dependencies (project virtualenv).
+#
+#   .venv\Scripts\python.exe -m pip install -r requirements.txt
+#
+# Telegram bot
+aiogram==3.30.0
+python-dotenv==1.2.2
+
+# DXF pipeline: dxf_analyzer.py and render_dxf.py run in this
+# virtualenv, so both libraries are needed here.
+ezdxf==1.4.4
+pillow==12.3.0
+
+# NOTE: the STEP pipeline (analyzer.py, render_shaded.py) does
+# NOT run here. Those scripts are executed by freecadcmd.exe and
+# use the numpy and Pillow bundled with FreeCAD, so installing
+# them in this virtualenv is not required for STEP support.

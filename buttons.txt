@@ -1,0 +1,105 @@
+﻿
+C:\ForgeMind\bot.py:21:    InlineKeyboardButton,
+C:\ForgeMind\bot.py:315:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:317:                callback_data=f"lang:{code}"
+C:\ForgeMind\bot.py:1210:    return InlineKeyboardButton(
+C:\ForgeMind\bot.py:1241:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1243:                callback_data=f"bom:{token}"
+C:\ForgeMind\bot.py:1250:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1252:                callback_data=f"detail:{token}"
+C:\ForgeMind\bot.py:1262:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1264:                callback_data=f"mfg:{token}"
+C:\ForgeMind\bot.py:1274:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1276:                callback_data=f"draw:{token}"
+C:\ForgeMind\bot.py:1283:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1289:                callback_data=f"holes:{token}"
+C:\ForgeMind\bot.py:1573:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1575:                callback_data="draw:{}:{:g}".format(token, value)
+C:\ForgeMind\bot.py:1587:        InlineKeyboardButton(
+C:\ForgeMind\bot.py:1589:            callback_data="draw:{}:0".format(token)
+C:\ForgeMind\bot.py:1788:            InlineKeyboardButton(
+C:\ForgeMind\bot.py:1790:                callback_data="lang:menu"
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\client\bot.py:580:        :param url: URL that will be opened by the user'
+s client. If you have created a :class:`aiogram.types.game.Game` and accepted the conditions via `@BotFather <https://t
+.me/botfather>`_, specify the URL that opens your game - note that this will only work if the query comes from a `https
+://core.telegram.org/bots/api#inlinekeyboardbutton <https://core.telegram.org/bots/api#inlinekeyboardbutton>`_ *callbac
+k_game* button.
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\enums\button_style.py:9:      * https://core.telegram.org/bots/api#inlinek
+eyboardbutton
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:100:        callback_data = self.__separator__.jo
+in(result)
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:101:        if len(callback_data.encode()) > MAX_
+CALLBACK_LENGTH:
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:104:                f"len({callback_data!r}.encod
+e()) > {MAX_CALLBACK_LENGTH}"
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:107:        return callback_data
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:149:        return CallbackQueryFilter(callback_d
+ata=cls, rule=rule)
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:161:        "callback_data",
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:168:        callback_data: type[CallbackData],
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:172:        :param callback_data: Expected type o
+f callback data
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:175:        self.callback_data = callback_data
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:180:            callback_data=self.callback_data,
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:188:            callback_data = self.callback_dat
+a.unpack(query.data)
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:192:        if self.rule is None or self.rule.res
+olve(callback_data):
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\filters\callback_data.py:193:            return {"callback_data": callback
+_data}
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\handlers\callback_query.py:38:    def callback_data(self) -> str | None:
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\methods\answer_callback_query.py:27:    """URL that will be opened by the 
+user's client. If you have created a :class:`aiogram.types.game.Game` and accepted the conditions via `@BotFather <http
+s://t.me/botfather>`_, specify the URL that opens your game - note that this will only work if the query comes from a `
+https://core.telegram.org/bots/api#inlinekeyboardbutton <https://core.telegram.org/bots/api#inlinekeyboardbutton>`_ *ca
+llback_game* button"""
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\callback_query.py:92:        :param url: URL that will be opened by 
+the user's client. If you have created a :class:`aiogram.types.game.Game` and accepted the conditions via `@BotFather <
+https://t.me/botfather>`_, specify the URL that opens your game - note that this will only work if the query comes from
+ a `https://core.telegram.org/bots/api#inlinekeyboardbutton <https://core.telegram.org/bots/api#inlinekeyboardbutton>`_
+ *callback_game* button
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_button.py:15:class InlineKeyboardButton(MutableTeleg
+ramObject):
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_button.py:19:    Source: https://core.telegram.org/b
+ots/api#inlinekeyboardbutton
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_button.py:30:    callback_data: str | None = None
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_button.py:60:            callback_data: str | None =
+ None,
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_button.py:80:                callback_data=callback_
+data,
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_markup.py:8:    from .inline_keyboard_button import 
+InlineKeyboardButton
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_markup.py:18:    inline_keyboard: list[list[InlineKe
+yboardButton]]
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_markup.py:19:    """Array of button rows, each repre
+sented by an Array of :class:`aiogram.types.inline_keyboard_button.InlineKeyboardButton` objects"""
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\inline_keyboard_markup.py:28:            inline_keyboard: list[list[
+InlineKeyboardButton]],
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\__init__.py:111:from .inline_keyboard_button import InlineKeyboardBu
+tton
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\types\__init__.py:440:    "InlineKeyboardButton",
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:9:from aiogram.filters.callback_data import CallbackData
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:13:    InlineKeyboardButton,
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:28:ButtonType = TypeVar("ButtonType", InlineKeyboardButt
+on, KeyboardButton)
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:48:        if not issubclass(button_type, (InlineKeyboar
+dButton, KeyboardButton)):
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:153:            >>> builder = KeyboardBuilder(button_typ
+e=InlineKeyboardButton)
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:249:        if isinstance(callback_data := kwargs.get("c
+allback_data"), CallbackData):
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:250:            kwargs["callback_data"] = callback_data.
+pack()
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:258:        inline_keyboard = cast(list[list[InlineKeybo
+ardButton]], self.export())  # type: ignore
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:293:class InlineKeyboardBuilder(KeyboardBuilder[InlineKe
+yboardButton]):
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:309:        callback_data: str | CallbackData | None = N
+one,
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:327:                callback_data=callback_data,
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:344:    def __init__(self, markup: list[list[InlineKeybo
+ardButton]] | None = None) -> None:
+C:\ForgeMind\.venv\Lib\site-packages\aiogram\utils\keyboard.py:345:        super().__init__(button_type=InlineKeyboardB
+utton, markup=markup)
+
+
