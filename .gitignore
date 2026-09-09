@@ -1,0 +1,14 @@
+# The bot token lives in .env, so it stays on the machine that runs
+# the bot and never goes into the repository. Copy .env.example and
+# fill it in on each machine instead.
+.env
+
+# The working directory: uploaded models, renders, drawings, logs.
+files/
+*.log
+
+# Virtualenv and Python leftovers.
+.venv/
+venv/
+__pycache__/
+*.pyc
