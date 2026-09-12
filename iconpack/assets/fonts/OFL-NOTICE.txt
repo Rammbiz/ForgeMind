@@ -1,0 +1,5 @@
+Fonts in this directory are used only at build time to rasterise letter marks.
+They are not embedded in the produced APK.
+
+Inter, Montserrat, Manrope - SIL Open Font License 1.1
+https://scripts.sil.org/OFL

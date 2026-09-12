@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Лайв Такт</string>
+    <string name="tagline">Набір іконок у стилі живих скляних карток — з упізнаваними логотипами застосунків.</string>
+    <string name="section_apply">Застосувати</string>
+    <string name="apply_nova">Nova Launcher</string>
+    <string name="apply_lawnchair">Lawnchair</string>
+    <string name="apply_smart">Smart Launcher</string>
+    <string name="apply_adw">Інший лаунчер</string>
+    <string name="apply_missing_nova">Nova Launcher не знайдено. Відкрийте Налаштування → Вигляд → Тема іконок.</string>
+    <string name="apply_missing_lawnchair">Lawnchair не знайдено. Відкрийте Налаштування → Вигляд → Набір іконок.</string>
+    <string name="apply_missing_smart">Smart Launcher не знайдено. Відкрийте Налаштування → Глобальний вигляд → Набір іконок.</string>
+    <string name="apply_manual">Оберіть «Лайв Такт» у налаштуваннях теми іконок вашого лаунчера.</string>
+    <string name="how_title">Якщо лаунчера немає у списку</string>
+    <string name="how_body">Відкрийте налаштування свого лаунчера, знайдіть розділ «Тема іконок» або «Набір іконок» і виберіть «Лайв Такт». Застосунки без власної іконки в наборі теж отримають картку — їхній оригінальний логотип ляже на скляну підкладку.</string>
+    <string name="footer">Іконки намальовані з нуля. Усі назви та логотипи належать їхнім власникам.</string>
+</resources>

@@ -1,0 +1,5 @@
+tools/
+build/work/
+build/keystore/
+__pycache__/
+*.pyc

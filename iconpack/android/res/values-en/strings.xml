@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Live Takt</string>
+    <string name="tagline">An icon pack of live glass cards, each carrying the app\'s own mark.</string>
+    <string name="section_apply">Apply</string>
+    <string name="apply_nova">Nova Launcher</string>
+    <string name="apply_lawnchair">Lawnchair</string>
+    <string name="apply_smart">Smart Launcher</string>
+    <string name="apply_adw">Other launcher</string>
+    <string name="apply_missing_nova">Nova Launcher not found. Open Settings → Look and feel → Icon theme.</string>
+    <string name="apply_missing_lawnchair">Lawnchair not found. Open Settings → Appearance → Icon pack.</string>
+    <string name="apply_missing_smart">Smart Launcher not found. Open Settings → Global appearance → Icon pack.</string>
+    <string name="apply_manual">Pick “Live Takt” in your launcher\'s icon theme settings.</string>
+    <string name="how_title">If your launcher is not listed</string>
+    <string name="how_body">Open your launcher settings, find “Icon theme” or “Icon pack” and choose Live Takt. Apps without a hand-drawn icon still get a card: their original logo is placed on the glass backplate.</string>
+    <string name="footer">All icons are drawn from scratch. App names and logos belong to their owners.</string>
+</resources>
