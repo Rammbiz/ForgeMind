@@ -111,6 +111,13 @@ def band_field(size, angle_deg, offset, width):
     return np.exp(-(d / width) ** 2).astype(np.float32)
 
 
+def ellipse_field(size, cx, cy, rx, ry, edge=0.22):
+    """Soft-edged ellipse - the shape of a reflection sitting on the glass."""
+    x, y = _coords(size)
+    d = np.sqrt(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2)
+    return (1.0 - smoothstep(1.0 - edge, 1.0 + edge * 0.35, d)).astype(np.float32)
+
+
 def blur(field, sigma):
     im = Image.fromarray((np.clip(field, 0, 1) * 255).astype(np.uint8), "L")
     im = im.filter(ImageFilter.GaussianBlur(sigma))
@@ -150,7 +157,7 @@ class Card:
     """Style parameters for one tile."""
 
     def __init__(self, top, bottom, glow=None, glow_strength=0.34,
-                 rim=0.55, sheen=0.11, key=0.20, shadow=0.34):
+                 rim=0.72, sheen=0.15, key=0.22, shadow=0.34, glass=1.35):
         self.top = hex_rgb(top) if isinstance(top, str) else top
         self.bottom = hex_rgb(bottom) if isinstance(bottom, str) else bottom
         self.glow = hex_rgb(glow) if isinstance(glow, str) else glow
@@ -159,6 +166,9 @@ class Card:
         self.sheen = sheen
         self.key = key
         self.shadow = shadow
+        # How much of the glass treatment to lay on: gloss cap, refracted
+        # edges, the bounce along the bottom.
+        self.glass = glass
 
     @classmethod
     def brand(cls, color, **kw):
@@ -177,14 +187,26 @@ class Card:
     def porcelain(cls, glow=None, **kw):
         """Neutral light glass - for dark or outline marks."""
         kw.setdefault("glow_strength", 0.22)
-        kw.setdefault("rim", 0.75)
-        kw.setdefault("key", 0.12)
+        kw.setdefault("rim", 0.85)
+        kw.setdefault("key", 0.14)
+        kw.setdefault("sheen", 0.10)
         return cls("#FDFDFE", "#DFE4ED", glow=glow, **kw)
 
 
 def render_card(card, size=SIZE, inset=INSET):
-    """Return (rgb, alpha) float arrays for the bare tile."""
+    """Return (rgb, alpha) float arrays for the bare tile.
+
+    The stack reads like a piece of glass lit from the upper left: body
+    gradient, accent bloom under the mark, key light, a gloss cap where the
+    light source reflects, a specular streak, refraction brightening the edges,
+    and finally the rim - bright on top, a thinner bounce along the bottom.
+    """
     alpha, f = squircle(size, inset)
+    white = np.ones((1, 1, 3), dtype=np.float32)
+    black = np.zeros((1, 1, 3), dtype=np.float32)
+    glass = card.glass
+    vert = linear_field(size, 90.0)
+    half = (size - 2 * inset) / 2.0
 
     ramp = linear_field(size, 118.0)
     rgb = card.top[None, None, :] * (1.0 - ramp[..., None]) + card.bottom[None, None, :] * ramp[..., None]
@@ -194,28 +216,38 @@ def render_card(card, size=SIZE, inset=INSET):
         bloom = radial_field(size, 0.5, 0.44, 0.68, power=2.2) * card.glow_strength
         rgb = _screen(rgb, card.glow[None, None, :], bloom)
 
-    # Key light from the top left, then a diagonal sheen streak across it.
-    white = np.ones((1, 1, 3), dtype=np.float32)
+    # Key light from the top left.
     rgb = _screen(rgb, white, radial_field(size, 0.22, 0.06, 1.05, power=2.6) * card.key)
-    rgb = _screen(rgb, white, band_field(size, 34.0, -0.20, 0.13) * card.sheen)
+
+    # Gloss cap: the reflection of the light source across the top of the pane,
+    # strongest at the very top and fading before it reaches the middle.
+    cap = ellipse_field(size, 0.5, -0.24, 0.98, 0.80, edge=0.26) * alpha
+    cap = cap * (1.0 - smoothstep(0.04, 0.56, vert)) ** 1.3
+    rgb = _screen(rgb, white, cap * 0.30 * glass)
+
+    # Specular streak running across the upper third.
+    rgb = _screen(rgb, white, band_field(size, 34.0, -0.21, 0.11) * alpha * card.sheen)
+    rgb = _screen(rgb, white, band_field(size, 34.0, -0.05, 0.045) * alpha * card.sheen * 0.55)
 
     # Falloff into the bottom right corner keeps the tile from floating flat.
-    rgb = _over(rgb, np.zeros((1, 1, 3), dtype=np.float32),
-                radial_field(size, 0.92, 1.02, 0.95, power=1.7) * 0.20)
+    rgb = _over(rgb, black, radial_field(size, 0.92, 1.02, 0.95, power=1.7) * 0.21)
 
-    # Glass rim: bright along the top edge, a thin bounce along the bottom.
-    half = (size - 2 * inset) / 2.0
-    rim_w = 1.7 / half
-    rim = smoothstep(1.0 - rim_w, 1.0 - rim_w * 0.25, f) * alpha
-    vert = linear_field(size, 90.0)
-    rim_top = rim * (1.0 - smoothstep(0.0, 0.62, vert)) * card.rim
-    rim_bottom = rim * smoothstep(0.45, 1.0, vert) * (card.rim * 0.26)
+    # Refraction: light gathers in the thickness of the glass near the edges,
+    # and pools along the bottom where it bounces back up through the body.
+    thickness = smoothstep(1.0 - 9.0 / half, 1.0 - 1.6 / half, f) * alpha
+    rgb = _screen(rgb, white, thickness * smoothstep(0.30, 1.0, vert) * 0.20 * glass)
+    rgb = _screen(rgb, white, thickness * (1.0 - smoothstep(0.0, 0.35, vert)) * 0.10 * glass)
+
+    # A darker line just inside the top rim reads as the edge of the pane.
+    inner = smoothstep(1.0 - 5.0 / half, 1.0 - 1.8 / half, f) * alpha
+    rgb = _over(rgb, black, inner * (1.0 - smoothstep(0.0, 0.30, vert)) * 0.16 * glass)
+
+    # Rim: bright hairline on top, thinner bounce along the bottom edge.
+    rim_w = 1.9 / half
+    rim = smoothstep(1.0 - rim_w, 1.0 - rim_w * 0.2, f) * alpha
+    rim_top = rim * (1.0 - smoothstep(0.0, 0.58, vert)) * card.rim
+    rim_bottom = rim * smoothstep(0.40, 1.0, vert) * (card.rim * 0.42)
     rgb = _screen(rgb, white, rim_top + rim_bottom)
-
-    # A hair of inner shading under the top rim gives the glass some thickness.
-    inner = smoothstep(1.0 - rim_w * 3.6, 1.0 - rim_w * 1.2, f) * alpha
-    rgb = _over(rgb, np.zeros((1, 1, 3), dtype=np.float32),
-                inner * smoothstep(0.35, 1.0, vert) * 0.10)
 
     return np.clip(rgb, 0, 1), alpha
 

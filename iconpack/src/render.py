@@ -63,7 +63,7 @@ ICONBACK_TINTS = [
 
 def render_iconback(index, size=SIZE):
     top, bottom, glow = ICONBACK_TINTS[index]
-    card = style.Card(top, bottom, glow=glow, glow_strength=0.26)
+    card = style.Card(top, bottom, glow=glow, glow_strength=0.26, glass=0.55)
     return style.compose(card, None, size=size)
 
 
@@ -76,20 +76,46 @@ def render_iconmask(size=SIZE):
 
 
 def render_iconupon(size=SIZE):
-    """The glass on top: rim light and sheen, so foreign icons sit under it too."""
+    """The pane that goes on top: reflection, rim and bounce.
+
+    Launchers draw this over an app's own icon, so an app the pack does not
+    draw by hand ends up under the same glass as the rest.  Everything here is
+    deliberately weaker than on a hand-drawn tile: the overlay paints straight
+    onto foreign artwork instead of being screened into a known colour, so the
+    same values would read as a metal bezel.
+    """
     alpha, f = style.squircle(size, style.INSET)
     half = (size - 2 * style.INSET) / 2.0
-    rim_w = 1.7 / half
     vert = style.linear_field(size, 90.0)
 
-    rim = style.smoothstep(1.0 - rim_w, 1.0 - rim_w * 0.25, f) * alpha
-    a = rim * (1.0 - style.smoothstep(0.0, 0.62, vert)) * 0.55
-    a = a + rim * style.smoothstep(0.45, 1.0, vert) * 0.14
-    a = a + style.band_field(size, 34.0, -0.22, 0.12) * alpha * 0.10
-    a = a + style.radial_field(size, 0.2, 0.05, 1.0, power=2.6) * alpha * 0.10
+    # Light: gloss cap across the top, refraction pooling along the bottom,
+    # the specular streak, and the rim itself.
+    cap = style.ellipse_field(size, 0.5, -0.24, 0.98, 0.80, edge=0.26) * alpha
+    cap = cap * (1.0 - style.smoothstep(0.04, 0.56, vert)) ** 1.3
+    light = cap * 0.10
 
-    rgb = np.ones((size, size, 3), dtype=np.float32)
-    data = np.concatenate([rgb * 255.0, np.clip(a, 0, 1)[..., None] * 255.0], axis=2)
+    thickness = style.smoothstep(1.0 - 9.0 / half, 1.0 - 1.6 / half, f) * alpha
+    light = light + thickness * style.smoothstep(0.30, 1.0, vert) * 0.15
+    light = light + thickness * (1.0 - style.smoothstep(0.0, 0.35, vert)) * 0.07
+    light = light + style.band_field(size, 34.0, -0.21, 0.11) * alpha * 0.07
+
+    rim_w = 1.9 / half
+    rim = style.smoothstep(1.0 - rim_w, 1.0 - rim_w * 0.2, f) * alpha
+    light = light + rim * (1.0 - style.smoothstep(0.0, 0.58, vert)) * 0.38
+    light = light + rim * style.smoothstep(0.40, 1.0, vert) * 0.16
+
+    # Shade: the line just inside the top edge, and the far corner falling off.
+    inner = style.smoothstep(1.0 - 5.0 / half, 1.0 - 1.8 / half, f) * alpha
+    dark = inner * (1.0 - style.smoothstep(0.0, 0.30, vert)) * 0.13
+    dark = dark + style.radial_field(size, 0.92, 1.02, 0.95, power=1.7) * alpha * 0.11
+
+    light = np.clip(light, 0, 1)
+    dark = np.clip(dark, 0, 1)
+    total = np.clip(light + dark, 0, 1)
+    safe = np.where(total > 1e-6, total, 1.0)
+    rgb = (light / safe)[..., None] * np.ones(3, dtype=np.float32)
+
+    data = np.concatenate([rgb * 255.0, total[..., None] * 255.0], axis=2)
     return Image.fromarray(data.astype(np.uint8), "RGBA")
 
 
