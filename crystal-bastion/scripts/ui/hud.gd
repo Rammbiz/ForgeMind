@@ -31,6 +31,7 @@ var _pressing := false
 var _touches := {}
 var _pinch_dist := 0.0
 var _pinching := false
+var _suppress_tap := false   # the gesture became a pinch: its final release is not a tap
 var _gold_shown := 0.0
 var _preview: VBoxContainer
 var _preview_key := ""
@@ -355,8 +356,9 @@ func _on_world_input(event: InputEvent) -> void:
 				_dragging = false
 				_press_pos = mb.position
 				_last_drag = mb.position
+				_suppress_tap = _touches.size() > 1
 			else:
-				if _pressing and not _dragging and not _pinching:
+				if _pressing and not _dragging and not _pinching and not _suppress_tap:
 					_hide_hint()
 					game.world_tap(mb.position)
 				_pressing = false
@@ -382,6 +384,7 @@ func _input(event: InputEvent) -> void:
 			_touches.erase(st.index)
 		if _touches.size() >= 2:
 			_pinching = true
+			_suppress_tap = true
 			_pinch_dist = _touch_spread()
 			close_menus()
 		elif _touches.is_empty():
