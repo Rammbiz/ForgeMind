@@ -5,8 +5,11 @@ Synthesizes every sound effect and music loop that scripts/autoload/audio.gd
 expects and writes them to assets/audio/{sfx,music}:
 
   sfx/<name>.wav    16-bit mono 44.1 kHz one-shots, peak-normalized to -3 dBFS
-  sfx/laser.ogg     seamless 1.0 s loop (every component is periodic in 1 s)
-  music/<name>.ogg  stereo Vorbis loops built from whole bars
+  sfx/laser.ogg     seamless 1.0 s loop (every component is periodic in 1 s), set to -14 LUFS
+  music/<name>.ogg  stereo Vorbis loops built from whole bars, mastered to -18 LUFS
+
+The .wav.import files keep the one-shots uncompressed in Godot (compress/mode=0, about 1.6 MB):
+the default QOA codec only reaches 17-22 dB SNR on the noisy ones (explosion, arrow, tesla).
 
 Everything is plain numpy DSP (additive, wavetable, modal and FM synthesis,
 FFT-domain filters). Music is rendered into a buffer one loop long: note tails
@@ -695,6 +698,36 @@ def a_weighted_rms(x):
 	return rms(sfilt(x, a_weighting, circular=True))
 
 
+def k_weighting(f):
+	"""Magnitude of the ITU-R BS.1770 K-weighting pre-filter (high shelf + high-pass) at SR,
+	designed the way libebur128 / ffmpeg's ebur128 filter do it."""
+	def biquad(b, a):
+		z = np.exp(-1j * TAU * f / SR)
+		return np.abs((b[0] + b[1] * z + b[2] * z * z) / (a[0] + a[1] * z + a[2] * z * z))
+
+	k = np.tan(np.pi * 1681.974450955533 / SR)
+	q = 0.7071752369554196
+	vh = 10.0 ** (3.999843853973347 / 20.0)
+	vb = vh ** 0.4996667741545416
+	shelf = biquad([vh + vb * k / q + k * k, 2.0 * (k * k - vh), vh - vb * k / q + k * k],
+			[1.0 + k / q + k * k, 2.0 * (k * k - 1.0), 1.0 - k / q + k * k])
+	k = np.tan(np.pi * 38.13547087602444 / SR)
+	q = 0.5003270373238773
+	a0 = 1.0 + k / q + k * k
+	highpass = biquad([1.0, -2.0, 1.0], [1.0, 2.0 * (k * k - 1.0) / a0, (1.0 - k / q + k * k) / a0])
+	return shelf * highpass
+
+
+def loudness(x):
+	"""Ungated BS.1770 loudness (LUFS) of a loop. Mono counts as played on both speakers,
+	as Godot outputs a mono stream at full level on each channel."""
+	x = np.atleast_2d(x)
+	if x.shape[0] == 1:
+		x = np.vstack([x, x])
+	y = sfilt(x, k_weighting, circular=True)
+	return -0.691 + 10.0 * np.log10(np.sum(np.mean(y * y, axis=-1)) + 1e-20)
+
+
 def soft_limit(x, ceiling, knee=0.6):
 	k = knee * ceiling
 	a = np.abs(x)
@@ -702,6 +735,11 @@ def soft_limit(x, ceiling, knee=0.6):
 	m = a > k
 	y[m] = np.sign(x[m]) * (k + (ceiling - k) * np.tanh((a[m] - k) / (ceiling - k)))
 	return y
+
+
+# every track is mastered to the same BS.1770 loudness so level changes between menu and maps
+# come only from the crossfade
+MUSIC_LUFS = -18.0
 
 
 class Mix:
@@ -755,8 +793,8 @@ class Mix:
 		return out
 
 	def render(self, rt60=2.4, predelay=0.025, damp=0.5, delay=(0.75, 1.0, 0.3, 3000.0, 0.3),
-			loudness=-25.5, ceiling=-3.5):
-		"""Fold, add delay + reverb, then master. `loudness` is the A-weighted RMS target (dBFS)."""
+			lufs=MUSIC_LUFS, ceiling=-3.5):
+		"""Fold, add delay + reverb, then master. `lufs` is the integrated loudness target."""
 		L = self.L
 		dry = self.fold(self.dry)
 		rv = self.fold(self.rev)
@@ -780,7 +818,7 @@ class Mix:
 			out[ch] = out[ch] + circ_conv(rv[ch], ir)
 		# master: clean lows, soften the very top, level, gentle limiting
 		out = sfilt(out, lambda f: hp(32.0, 2)(f) * lp(12500.0, 1)(f), circular=True)
-		out *= dbg(loudness) / a_weighted_rms(0.5 * (out[0] + out[1]))
+		out *= dbg(lufs - loudness(out))
 		out = soft_limit(out, dbg(ceiling))
 		return out
 
@@ -895,7 +933,7 @@ def music_menu():
 		m.add(dr_swell(r, 2 * b, 0.9), m.t(roll_bar + 1) - 2 * b, gain=0.15, rev=0.3, stem="drums")
 		m.add(dr_cymbal(r, 0.5, 1.2), m.t(roll_bar + 1), gain=0.10, pan=0.2, rev=0.35, stem="drums")
 	print("    stems:", m.stem_report())
-	return m.render(rt60=2.6, delay=(0.75, 1.0, 0.28, 2800.0, 0.3), loudness=-25.5)
+	return m.render(rt60=2.6, delay=(0.75, 1.0, 0.28, 2800.0, 0.3))
 
 
 # =========================================================================
@@ -995,7 +1033,7 @@ def music_meadow():
 	m.add(dr_swell(r, 2 * b, 0.6), m.t(9) - 2 * b, gain=0.14, rev=0.3, stem="drums")
 	m.add(dr_swell(r, 2 * b, 0.6), m.t(25) - 2 * b, gain=0.14, rev=0.3, stem="drums")
 	print("    stems:", m.stem_report())
-	return m.render(rt60=1.8, delay=(0.75, 0.5, 0.22, 3500.0, 0.25), loudness=-25.5)
+	return m.render(rt60=1.8, delay=(0.75, 0.5, 0.22, 3500.0, 0.25))
 
 
 # =========================================================================
@@ -1083,7 +1121,7 @@ def music_canyon():
 	wind *= 0.55 + 0.45 * np.sin(TAU * 2.0 / loop_s * t + 1.0)
 	m.add(np.vstack([wind, np.roll(wind, ns(0.37))]), 0.0, gain=0.028, rev=0.0, stem="wind")
 	print("    stems:", m.stem_report())
-	return m.render(rt60=2.8, delay=(0.75, 1.0, 0.33, 2600.0, 0.35), loudness=-25.5)
+	return m.render(rt60=2.8, delay=(0.75, 1.0, 0.33, 2600.0, 0.35))
 
 
 # =========================================================================
@@ -1158,7 +1196,7 @@ def music_frost():
 	wind *= 0.5 + 0.5 * np.sin(TAU * 3.0 / loop_s * t + 2.0)
 	m.add(np.vstack([wind, np.roll(wind, ns(0.53))]), 0.0, gain=0.025, rev=0.0, stem="wind")
 	print("    stems:", m.stem_report())
-	return m.render(rt60=4.2, damp=0.65, delay=(0.75, 1.5, 0.42, 3200.0, 0.4), loudness=-26.5)
+	return m.render(rt60=4.2, damp=0.65, delay=(0.75, 1.5, 0.42, 3200.0, 0.4))
 
 
 # =========================================================================
@@ -1268,12 +1306,16 @@ def sfx_laser():
 	n = SR
 	t = np.arange(n) / SR
 	hum = np.zeros(n)
+	# buzzy beam: a 900 Hz / 2 kHz formant over a 110 Hz series keeps most of the energy in the
+	# range phone speakers reproduce; only a light 55 Hz sub remains for headphones
+	formants = [(900.0, 1.0, 1.1), (2000.0, 0.45, 1.5)]
 	for f0, g in ((110, 1.0), (111, 0.6)):
-		for k in range(1, 21):
-			fk = f0 * k
-			hum += g * np.sin(TAU * fk * t + r.uniform(0, TAU)) / k ** 1.3 * lp(1400.0, 2)(fk)
-	hum += 0.35 * np.sin(TAU * 55 * t)
-	shimmer = 0.1 * (np.sin(TAU * 1320 * t) + np.sin(TAU * 1324 * t + 1.0)) * (0.6 + 0.4 * np.sin(TAU * 6 * t))
+		for k in range(1, 31):
+			fk = float(f0 * k)
+			amp = formant_gain(np.array([fk]), formants, 0.3)[0] / k ** 0.85 * lp(3000.0, 2)(fk)
+			hum += g * np.sin(TAU * fk * t + r.uniform(0, TAU)) * amp
+	hum += 0.12 * np.sin(TAU * 55 * t)
+	shimmer = 0.12 * (np.sin(TAU * 1320 * t) + np.sin(TAU * 1324 * t + 1.0)) * (0.6 + 0.4 * np.sin(TAU * 6 * t))
 	sizzle = fnoise(n, r, band(1500, 5000, 2), circular=True) * 0.06 * (0.7 + 0.3 * np.sin(TAU * 12 * t))
 	return hum * (1.0 + 0.12 * np.sin(TAU * 7 * t)) + shimmer + sizzle
 
@@ -1322,20 +1364,22 @@ def sfx_build():
 	x = np.zeros(n)
 
 	def thunk(scale):
+		# stone/wood knock: the 400-1500 Hz modes carry it on phone speakers, the 85 Hz drop adds weight
 		m = ns(0.35)
-		s = modal(m, [170 * scale, 410 * scale, 655 * scale, 1020 * scale], [1.0, 0.55, 0.3, 0.18],
-				[0.11, 0.06, 0.04, 0.025], r, attack=0.0008)
-		s += fnoise(m, r, band(600, 3000, 1)) * env_perc(m, 0.0005, 0.006) * 0.5
+		s = modal(m, [170 * scale, 410 * scale, 655 * scale, 1020 * scale, 1480 * scale], [0.75, 0.6, 0.5, 0.4, 0.25],
+				[0.1, 0.06, 0.045, 0.03, 0.02], r, attack=0.0008)
+		s += fnoise(m, r, band(700, 3500, 1)) * env_perc(m, 0.0005, 0.007) * 0.8
 		tt = tvec(m)
-		s += np.sin(TAU * phase_of(85.0 * scale * (1 + 0.3 * np.exp(-tt / 0.01)), m)) * env_perc(m, 0.001, 0.05)
+		s += 0.5 * np.sin(TAU * phase_of(85.0 * scale * (1 + 0.3 * np.exp(-tt / 0.01)), m)) * env_perc(m, 0.001, 0.05)
 		return s
 
 	place(x, thunk(1.0), 0)
 	place(x, thunk(1.25) * 0.6, ns(0.1))
 	for i, f in enumerate((2093.0, 2637.0, 3136.0, 4186.0)):
 		p = modal(ns(0.4), [f, f * 2.76], [1.0, 0.2], [0.12, 0.05], r)
-		place(x, p * 0.16 * (1.0 - 0.15 * i), ns(0.17 + 0.04 * i))
-	return x
+		place(x, p * 0.3 * (1.0 - 0.15 * i), ns(0.17 + 0.04 * i))
+	# soft saturation tames the knock's peak so the whole sound sits louder at the same peak level
+	return np.tanh(2.0 * x / np.max(np.abs(x)))
 
 
 def sfx_upgrade():
@@ -1424,18 +1468,18 @@ def sfx_leak():
 	n = ns(0.7)
 	t = tvec(n)
 	thud = np.sin(TAU * phase_of(70.0 + 80.0 * np.exp(-t / 0.03), n)) * env_perc(n, 0.002, 0.12)
-	thud += fnoise(n, r, band(150, 1200, 1)) * env_perc(n, 0.001, 0.02) * 0.4
-	x = thud
+	thud += fnoise(n, r, band(250, 2000, 1)) * env_perc(n, 0.001, 0.02) * 0.5
+	x = 0.6 * thud
 	for t0, fa, fb, g in ((0.0, 233.0, 175.0, 1.0), (0.24, 196.0, 147.0, 0.8)):
 		m = ns(0.35)
 		tt = tvec(m)
 		f = fa * (fb / fa) ** np.clip(tt / 0.25, 0, 1)
-		amps = np.zeros(15)
-		amps[0::2] = 1.0 / np.arange(1, 16, 2)
-		tab = harmonic_table(amps * lp(1800, 2)(np.arange(1, 16) * fa))
-		bw = table_read(tab, phase_of(f, m)) * env_note(m, 0.01, 0.2, 0.1, sustain=0.7, settle=0.08)
+		# brassy "bwaa": full harmonic series with a ~1 kHz formant so it reads on phone speakers
+		k = np.arange(1, 25)
+		amps = formant_gain(k * fa, [(950.0, 1.0, 1.3), (2300.0, 0.35, 1.8)], 0.2) / k ** 0.8 * lp(4200, 2)(k * fa)
+		bw = table_read(harmonic_table(amps), phase_of(f, m)) * env_note(m, 0.01, 0.2, 0.1, sustain=0.7, settle=0.08)
 		place(x, 0.7 * g * bw, ns(t0))
-	return x
+	return np.tanh(1.8 * x / np.max(np.abs(x)))
 
 
 def small_reverb(x, name, rt60=1.2, wet=0.18):
@@ -1520,7 +1564,9 @@ SFX = {
 	"build": sfx_build, "upgrade": sfx_upgrade, "sell": sfx_sell, "wave": sfx_wave, "boss": sfx_boss,
 	"leak": sfx_leak, "victory": sfx_victory, "defeat": sfx_defeat, "click": sfx_click, "error": sfx_error,
 }
-LOOPED_SFX = {"laser"}
+# loudness (LUFS) of looped SFX; audio.gd plays the laser at -9 dB on the SFX bus, which puts the
+# hum a few dB under the music on headphones and roughly level with it on a phone speaker
+LOOPED_SFX = {"laser": -14.0}
 # fade-out length (s) for sounds whose tails are still ringing at the end
 SFX_FADE_OUT = {"upgrade": 0.15, "sell": 0.12, "frost": 0.12, "boss": 0.12, "victory": 0.3, "defeat": 0.3}
 MUSIC = {"menu": music_menu, "meadow": music_meadow, "canyon": music_canyon, "frost": music_frost}
@@ -1536,9 +1582,13 @@ def finalize_sfx(x, peak_db=-3.0, fade_out=0.03):
 	return x * (dbg(peak_db) / (np.max(np.abs(x)) + 1e-12))
 
 
-def finalize_loop(x, peak_db=-3.0):
+def finalize_loop(x, lufs, max_peak_db=-3.0):
+	"""Level a looping sound by loudness, not peak: it plays continuously under the music."""
 	x = sfilt(x - np.mean(x), hp(25.0, 2), circular=True)
-	return x * (dbg(peak_db) / (np.max(np.abs(x)) + 1e-12))
+	x = x * dbg(lufs - loudness(x))
+	peak = 20.0 * np.log10(np.max(np.abs(x)) + 1e-12)
+	assert peak <= max_peak_db, "loop peaks at %.1f dBFS at %.1f LUFS" % (peak, lufs)
+	return x
 
 
 def write_wav(path, x):
@@ -1588,11 +1638,12 @@ def main(argv):
 		t0 = time.time()
 		raw = fn()
 		if name in LOOPED_SFX:
-			x = finalize_loop(raw)
+			x = finalize_loop(raw, LOOPED_SFX[name])
 			path = os.path.join(SFX_DIR, name + ".ogg")
 			write_ogg(path, x, 6)
 			dec = decoded_frames(path, 1)
-			info = "loop frames %d (decoded %d), seam %.2f" % (len(x), dec.shape[1], loop_click_metric(dec))
+			info = "%.1f LUFS, peak %.1f dBFS, loop frames %d (decoded %d), seam %.2f" % (
+					loudness(x), 20 * np.log10(np.max(np.abs(x))), len(x), dec.shape[1], loop_click_metric(dec))
 		else:
 			x = finalize_sfx(raw, fade_out=SFX_FADE_OUT.get(name, 0.03))
 			path = os.path.join(SFX_DIR, name + ".wav")
@@ -1612,8 +1663,8 @@ def main(argv):
 		dec = decoded_frames(path, 2)
 		size = os.path.getsize(path)
 		total += size
-		print("music %-10s %5.2fs %7.1f KB  rms %.1f dBFS (A %.1f), peak %.1f dBFS, frames %d (decoded %d), seam %.2f  (%.1fs)" % (
-				name, x.shape[1] / SR, size / 1024, 20 * np.log10(rms(x)), 20 * np.log10(a_weighted_rms(x.mean(axis=0))),
+		print("music %-10s %5.2fs %7.1f KB  %.1f LUFS, peak %.1f dBFS, frames %d (decoded %d), seam %.2f  (%.1fs)" % (
+				name, x.shape[1] / SR, size / 1024, loudness(x),
 				20 * np.log10(np.max(np.abs(x))),
 				x.shape[1], dec.shape[1], loop_click_metric(dec), time.time() - t0))
 	print("total written: %.2f MB" % (total / 1048576.0))
