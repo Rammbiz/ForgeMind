@@ -26,6 +26,8 @@ func _ready() -> void:
 			g.setup(int(args.get("level", "1")) - 1)
 			main.call("set_scene_now", g)
 			await get_tree().process_frame
+			if not args.has("hint"):
+				g.hud._hint.visible = false
 			var play := float(args.get("play", "0"))
 			if play > 0.0:
 				var bot := Bot.new()
@@ -66,6 +68,16 @@ func _ready() -> void:
 					g.hud.open_pause()
 				"result":
 					g._finish(true)
+	if args.has("icons") and screen == "game":
+		await get_tree().create_timer(1.0).timeout
+		var hud: Hud = (main.get("current") as Game).hud
+		var dir := str(args["icons"])
+		DirAccess.make_dir_recursive_absolute(dir)
+		for k in hud._icons:
+			(hud._icons[k] as Texture2D).get_image().save_png("%s/tower_%s.png" % [dir, k])
+		for k in hud._enemy_icons:
+			(hud._enemy_icons[k] as Texture2D).get_image().save_png("%s/enemy_%s.png" % [dir, k])
+		print("ICONS saved to ", dir)
 	var frames := int(args.get("frames", "40"))
 	for i in frames:
 		await get_tree().process_frame
