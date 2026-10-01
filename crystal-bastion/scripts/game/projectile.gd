@@ -82,7 +82,8 @@ func _add_trail(c: Color, size: float, amount: int) -> void:
 	add_child(_trail)
 
 
-func _process(delta: float) -> void:
+func _process(raw_delta: float) -> void:
+	var delta := Game.step(raw_delta)
 	match kind:
 		"ball":
 			_t += delta

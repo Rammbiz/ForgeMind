@@ -93,6 +93,13 @@ func _exit_tree() -> void:
 	Audio.reset_laser()
 
 
+## Gameplay time step for one frame. A long hitch (first-use shader compile, a GC
+## pause) is capped so it slows the game for a moment instead of letting enemies
+## jump through a tower's range at 2x/3x speed.
+static func step(delta: float) -> float:
+	return minf(delta, 0.1 * Engine.time_scale)
+
+
 func is_running() -> bool:
 	return state == State.PLAYING or state == State.PREP
 
@@ -170,7 +177,8 @@ func spawn_enemy(type: String, path_idx: int, hp_mult: float, start_dist := 0.0)
 	return e
 
 
-func _process(delta: float) -> void:
+func _process(raw_delta: float) -> void:
+	var delta := Game.step(raw_delta)
 	if not is_running():
 		return
 	_update_spawners(delta)

@@ -73,7 +73,8 @@ func _collect_meshes(n: Node) -> void:
 		_collect_meshes(ch)
 
 
-func _process(delta: float) -> void:
+func _process(raw_delta: float) -> void:
+	var delta := Game.step(raw_delta)
 	if not alive:
 		return
 	if slow_time > 0.0:

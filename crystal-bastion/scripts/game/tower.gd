@@ -104,7 +104,8 @@ func muzzle_position() -> Vector3:
 	return _muzzle.global_position if _muzzle else global_position + Vector3(0, 0.8, 0)
 
 
-func _process(delta: float) -> void:
+func _process(raw_delta: float) -> void:
+	var delta := Game.step(raw_delta)
 	_t += delta
 	_animate(delta)
 	if game == null or not game.is_running():
