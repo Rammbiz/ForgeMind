@@ -121,6 +121,7 @@ func _impact() -> void:
 		"arrow":
 			if is_instance_valid(target) and target.alive:
 				game.effects.hit_spark(target_pos, Color(1.0, 0.9, 0.6))
+				Audio.play("hit", -10.0, 0.15)
 				target.take_damage(damage, dmg_type)
 		"shard":
 			game.effects.frost_nova(target_pos - Vector3(0, 0.15, 0), splash)
