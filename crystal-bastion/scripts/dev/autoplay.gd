@@ -1,6 +1,10 @@
 extends Node
 ## Headless balance test: a bot plays levels at high speed and prints results.
-## Usage: godot --headless --fixed-fps 60 -- --autotest=all [--skill=1.0] [--speed=3]
+## Usage: godot --headless --fixed-fps 60 -- --autotest=all [--level=N] [--skill=1.0] [--speed=3]
+##        [--seed=N] [--early] [--botlog] [--botdebug] [--hpx=K]
+## --skill: 1.0 ~ good player, 0.6 ~ casual. --seed (default 1) makes a run reproducible.
+## --botlog prints every build / upgrade, --botdebug also the bot's per-stream reasoning.
+## --hpx=1.2 scales every enemy's health (to measure how much margin a skill level has).
 
 var args := {}
 var _levels: Array[int] = []
@@ -34,10 +38,19 @@ func _next_level() -> void:
 	_bot = Bot.new()
 	_bot.skill = float(args.get("skill", "1.0"))
 	_bot.call_early = args.has("early")
+	_bot.verbose = args.has("botlog") or args.has("botdebug")
+	_bot.debug = args.has("botdebug")
+	_bot.set_seed(int(args.get("seed", "1")) * 7919 + _levels[_cur])
+	# The game itself draws from the global RNG (enemy animation phase, which
+	# bobs flyers and so shifts aim points; effects): seed it too so a run is
+	# reproducible.
+	seed(int(args.get("seed", "1")) * 104729 + _levels[_cur])
 	_game = Game.new()
 	_game.setup(_levels[_cur])
 	get_parent().call("set_scene_now", _game)
 	_game.finished.connect(_on_finished)
+	if args.has("hpx"):
+		_game.enemies_root.child_entered_tree.connect(_on_enemy_spawned)
 	_elapsed = 0.0
 	_last_wave = -1
 	await get_tree().process_frame
@@ -61,12 +74,21 @@ func _process(delta: float) -> void:
 		_on_finished(false, 0)
 
 
+func _on_enemy_spawned(node: Node) -> void:
+	var e := node as Enemy
+	if e:
+		e.max_hp *= float(args["hpx"])
+		e.hp = e.max_hp
+
+
 func _on_finished(won: bool, stars: int) -> void:
 	var levels_lvls := {}
 	for t: Tower in _game.towers.values():
-		levels_lvls[t.type] = levels_lvls.get(t.type, 0) + 1
+		levels_lvls[t.type] = str(levels_lvls.get(t.type, "")) + str(t.level + 1)
 	var r := {
-		"level": _game.level_index + 1, "won": won, "stars": stars, "lives": _game.lives,
+		"level": _game.level_index + 1, "skill": _bot.skill, "seed": int(args.get("seed", "1")),
+		"hpx": float(args.get("hpx", "1")),
+		"won": won, "stars": stars, "lives": _game.lives,
 		"wave": _game.wave, "kills": _game.stats["kills"], "gold_earned": _game.stats["gold_earned"],
 		"gold_left": _game.gold, "towers": levels_lvls, "time": int(_elapsed),
 	}

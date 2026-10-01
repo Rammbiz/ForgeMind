@@ -20,9 +20,9 @@ const TOWERS := {
 		"color": Color(0.95, 0.45, 0.25),
 		"air": false, "ground": true, "dmg_type": "phys",
 		"levels": [
-			{"cost": 100, "damage": 20.0, "rate": 0.5, "range": 2.4, "splash": 0.9, "proj_speed": 6.5},
-			{"cost": 80, "damage": 34.0, "rate": 0.55, "range": 2.6, "splash": 1.0, "proj_speed": 7.0},
-			{"cost": 140, "damage": 58.0, "rate": 0.6, "range": 2.9, "splash": 1.15, "proj_speed": 7.5},
+			{"cost": 90, "damage": 18.0, "rate": 0.65, "range": 2.5, "splash": 1.1, "proj_speed": 7.0},
+			{"cost": 75, "damage": 30.0, "rate": 0.7, "range": 2.7, "splash": 1.2, "proj_speed": 7.5},
+			{"cost": 130, "damage": 50.0, "rate": 0.75, "range": 3.0, "splash": 1.35, "proj_speed": 8.0},
 		],
 	},
 	"frost": {
@@ -30,9 +30,9 @@ const TOWERS := {
 		"color": Color(0.45, 0.85, 1.0),
 		"air": true, "ground": true, "dmg_type": "magic",
 		"levels": [
-			{"cost": 85, "damage": 3.0, "rate": 0.9, "range": 2.3, "splash": 0.75, "slow": 0.35, "slow_time": 1.6, "proj_speed": 9.0},
-			{"cost": 70, "damage": 6.0, "rate": 1.0, "range": 2.5, "splash": 0.85, "slow": 0.45, "slow_time": 1.8, "proj_speed": 10.0},
-			{"cost": 110, "damage": 10.0, "rate": 1.1, "range": 2.8, "splash": 1.0, "slow": 0.55, "slow_time": 2.0, "proj_speed": 11.0},
+			{"cost": 80, "damage": 4.0, "rate": 1.0, "range": 2.4, "splash": 1.05, "slow": 0.4, "slow_time": 2.2, "proj_speed": 9.0},
+			{"cost": 70, "damage": 6.0, "rate": 1.0, "range": 2.6, "splash": 1.15, "slow": 0.46, "slow_time": 2.4, "proj_speed": 10.0},
+			{"cost": 110, "damage": 9.0, "rate": 1.0, "range": 2.8, "splash": 1.25, "slow": 0.52, "slow_time": 2.6, "proj_speed": 11.0},
 		],
 	},
 	"tesla": {
@@ -40,9 +40,9 @@ const TOWERS := {
 		"color": Color(0.55, 0.7, 1.0),
 		"air": true, "ground": true, "dmg_type": "magic",
 		"levels": [
-			{"cost": 125, "damage": 14.0, "rate": 0.75, "range": 2.3, "chains": 3, "chain_range": 1.5},
-			{"cost": 100, "damage": 22.0, "rate": 0.85, "range": 2.5, "chains": 4, "chain_range": 1.6},
-			{"cost": 160, "damage": 34.0, "rate": 0.95, "range": 2.8, "chains": 5, "chain_range": 1.7},
+			{"cost": 115, "damage": 13.0, "rate": 0.75, "range": 2.3, "chains": 3, "chain_range": 1.5},
+			{"cost": 100, "damage": 19.0, "rate": 0.85, "range": 2.5, "chains": 4, "chain_range": 1.6},
+			{"cost": 160, "damage": 29.0, "rate": 0.95, "range": 2.8, "chains": 5, "chain_range": 1.7},
 		],
 	},
 	"laser": {
@@ -50,9 +50,9 @@ const TOWERS := {
 		"color": Color(0.85, 0.45, 1.0),
 		"air": true, "ground": true, "dmg_type": "magic",
 		"levels": [
-			{"cost": 150, "dps": 9.0, "ramp": 3.0, "ramp_time": 2.5, "range": 2.8},
-			{"cost": 120, "dps": 15.0, "ramp": 3.0, "ramp_time": 2.5, "range": 3.0},
-			{"cost": 190, "dps": 25.0, "ramp": 3.0, "ramp_time": 2.5, "range": 3.3},
+			{"cost": 140, "dps": 10.0, "ramp": 3.0, "ramp_time": 2.5, "range": 2.8},
+			{"cost": 120, "dps": 17.0, "ramp": 3.0, "ramp_time": 2.5, "range": 3.0},
+			{"cost": 180, "dps": 28.0, "ramp": 3.0, "ramp_time": 2.5, "range": 3.3},
 		],
 	},
 }
@@ -66,7 +66,7 @@ const ENEMIES := {
 	"bat": {"name": "ENEMY_BAT", "hp": 28.0, "speed": 1.35, "reward": 5, "armor": 0.0, "flying": true, "lives": 1, "size": 0.3, "color": Color(0.6, 0.35, 0.8)},
 	"splitter": {"name": "ENEMY_SPLITTER", "hp": 75.0, "speed": 0.85, "reward": 6, "armor": 0.0, "flying": false, "lives": 2, "size": 0.42, "color": Color(0.85, 0.4, 0.75), "split": "slimelet", "split_count": 3},
 	"slimelet": {"name": "ENEMY_SLIME", "hp": 16.0, "speed": 1.3, "reward": 1, "armor": 0.0, "flying": false, "lives": 1, "size": 0.22, "color": Color(0.95, 0.55, 0.85)},
-	"golem": {"name": "ENEMY_GOLEM", "hp": 900.0, "speed": 0.45, "reward": 60, "armor": 0.3, "flying": false, "lives": 5, "size": 0.6, "color": Color(0.55, 0.52, 0.5), "boss": true},
+	"golem": {"name": "ENEMY_GOLEM", "hp": 800.0, "speed": 0.45, "reward": 70, "armor": 0.3, "flying": false, "lives": 5, "size": 0.6, "color": Color(0.55, 0.52, 0.5), "boss": true},
 }
 
 # Wave group: [enemy_type, count, gap_seconds, start_delay, spawn_index (-1 = alternate)]
@@ -85,7 +85,7 @@ const LEVELS := [
 			"x..#######..t.Cx",
 			"xx.....t....r.xx",
 		],
-		"start_gold": 220, "lives": 20, "hp_scale": 1.0,
+		"start_gold": 220, "lives": 20, "hp_scale": 1.05, "hp_growth": 0.009,
 		"towers": ["arrow", "cannon", "frost"],
 		"music": "meadow",
 		"theme": {
@@ -117,8 +117,8 @@ const LEVELS := [
 			[["bat", 12, 0.7, 0.0, -1], ["beetle", 4, 1.8, 3.0, -1]],
 			[["runner", 20, 0.35, 0.0, -1], ["splitter", 4, 2.0, 5.0, -1]],
 			[["beetle", 10, 1.2, 0.0, -1], ["bat", 10, 0.8, 4.0, -1]],
-			[["slime", 20, 0.4, 0.0, -1], ["splitter", 8, 1.2, 3.0, -1], ["runner", 10, 0.5, 8.0, -1]],
-			[["golem", 1, 0.0, 0.0, -1], ["slime", 16, 0.6, 2.0, -1], ["bat", 8, 0.8, 6.0, -1]],
+			[["slime", 14, 0.45, 0.0, -1], ["splitter", 5, 1.3, 3.0, -1], ["runner", 8, 0.5, 8.0, -1]],
+			[["golem", 1, 0.0, 0.0, -1], ["slime", 14, 0.6, 2.0, -1], ["bat", 8, 0.8, 6.0, -1]],
 		],
 	},
 	{
@@ -135,7 +135,7 @@ const LEVELS := [
 			"S####..r.......x",
 			"xx....t.....r.xx",
 		],
-		"start_gold": 260, "lives": 20, "hp_scale": 1.15,
+		"start_gold": 280, "lives": 20, "hp_scale": 0.85, "hp_growth": 0.0082,
 		"towers": ["arrow", "cannon", "frost", "tesla"],
 		"music": "canyon",
 		"theme": {
@@ -155,25 +155,25 @@ const LEVELS := [
 		},
 		"waves": [
 			[["slime", 8, 1.0, 0.0, -1]],
-			[["slime", 8, 0.9, 0.0, 0], ["runner", 6, 0.7, 2.0, 1]],
-			[["beetle", 3, 2.0, 0.0, 0], ["slime", 10, 0.8, 0.0, 1]],
-			[["runner", 16, 0.45, 0.0, -1]],
-			[["bat", 8, 0.9, 0.0, -1], ["slime", 10, 0.7, 3.0, -1]],
-			[["splitter", 6, 1.5, 0.0, -1], ["runner", 8, 0.5, 4.0, 0]],
-			[["beetle", 8, 1.3, 0.0, -1]],
-			[["slime", 24, 0.35, 0.0, -1], ["bat", 6, 0.8, 5.0, 1]],
-			[["runner", 20, 0.35, 0.0, -1], ["beetle", 5, 1.5, 3.0, 0]],
-			[["golem", 1, 0.0, 0.0, 0], ["splitter", 6, 1.4, 2.0, 1]],
+			[["slime", 6, 0.9, 0.0, 0], ["runner", 5, 0.8, 2.0, 1]],
+			[["slime", 12, 0.8, 0.0, -1]],
+			[["runner", 12, 0.5, 0.0, -1]],
+			[["beetle", 3, 2.0, 0.0, -1], ["slime", 10, 0.8, 2.0, -1]],
+			[["bat", 8, 0.9, 0.0, -1], ["slime", 8, 0.8, 3.0, -1]],
+			[["splitter", 5, 1.6, 0.0, -1], ["runner", 6, 0.5, 4.0, -1]],
+			[["beetle", 6, 1.4, 0.0, -1], ["bat", 6, 0.9, 3.0, -1]],
+			[["slime", 22, 0.4, 0.0, -1], ["runner", 8, 0.5, 5.0, -1]],
+			[["golem", 1, 0.0, 0.0, 0], ["splitter", 4, 1.5, 2.0, 1]],
 			[["bat", 16, 0.6, 0.0, -1]],
-			[["beetle", 10, 1.0, 0.0, -1], ["runner", 12, 0.4, 4.0, -1]],
-			[["splitter", 12, 1.0, 0.0, -1]],
-			[["slime", 30, 0.3, 0.0, -1], ["bat", 12, 0.6, 4.0, -1]],
-			[["beetle", 14, 0.9, 0.0, -1], ["splitter", 6, 1.2, 5.0, -1]],
-			[["runner", 30, 0.25, 0.0, -1], ["bat", 10, 0.6, 3.0, -1]],
-			[["golem", 2, 6.0, 0.0, -1], ["slime", 20, 0.5, 2.0, -1]],
-			[["beetle", 16, 0.8, 0.0, -1], ["bat", 16, 0.5, 3.0, -1]],
-			[["splitter", 16, 0.8, 0.0, -1], ["runner", 20, 0.3, 5.0, -1]],
-			[["golem", 3, 5.0, 0.0, -1], ["beetle", 12, 0.9, 3.0, -1], ["bat", 16, 0.5, 8.0, -1]],
+			[["beetle", 9, 1.1, 0.0, -1], ["runner", 10, 0.45, 4.0, -1]],
+			[["splitter", 10, 1.0, 0.0, -1]],
+			[["slime", 26, 0.35, 0.0, -1], ["bat", 10, 0.6, 4.0, -1]],
+			[["beetle", 11, 0.9, 0.0, -1], ["splitter", 5, 1.2, 5.0, -1]],
+			[["runner", 30, 0.28, 0.0, -1], ["bat", 10, 0.6, 3.0, -1]],
+			[["golem", 2, 6.0, 0.0, -1], ["slime", 18, 0.5, 2.0, -1]],
+			[["beetle", 14, 0.8, 0.0, -1], ["bat", 14, 0.5, 3.0, -1]],
+			[["splitter", 12, 0.8, 0.0, -1], ["runner", 16, 0.32, 5.0, -1]],
+			[["golem", 2, 6.0, 0.0, -1], ["beetle", 6, 0.9, 3.0, -1], ["bat", 10, 0.5, 8.0, -1]],
 		],
 	},
 	{
@@ -190,7 +190,7 @@ const LEVELS := [
 			"xC#########..t.x",
 			"xx...t....r...xx",
 		],
-		"start_gold": 300, "lives": 20, "hp_scale": 1.3,
+		"start_gold": 320, "lives": 20, "hp_scale": 0.66, "hp_growth": 0.0095,
 		"towers": ["arrow", "cannon", "frost", "tesla", "laser"],
 		"music": "frost",
 		"theme": {
@@ -210,30 +210,30 @@ const LEVELS := [
 		},
 		"waves": [
 			[["slime", 10, 0.9, 0.0, -1]],
-			[["bat", 8, 0.9, 0.0, 0], ["runner", 8, 0.6, 2.0, 1]],
-			[["beetle", 4, 1.6, 0.0, -1], ["slime", 12, 0.7, 2.0, -1]],
-			[["runner", 18, 0.4, 0.0, -1]],
+			[["runner", 8, 0.7, 0.0, 0], ["slime", 6, 1.0, 1.0, 1]],
+			[["bat", 10, 0.9, 0.0, -1]],
+			[["beetle", 4, 1.6, 0.0, -1], ["slime", 10, 0.7, 2.0, -1]],
+			[["runner", 16, 0.45, 0.0, -1]],
 			[["bat", 14, 0.7, 0.0, -1]],
-			[["splitter", 8, 1.2, 0.0, -1], ["slime", 12, 0.6, 3.0, -1]],
-			[["beetle", 10, 1.1, 0.0, -1]],
-			[["runner", 24, 0.3, 0.0, -1], ["bat", 8, 0.7, 4.0, -1]],
-			[["splitter", 10, 1.0, 0.0, -1], ["beetle", 6, 1.4, 5.0, -1]],
-			[["golem", 1, 0.0, 0.0, 0], ["golem", 1, 0.0, 4.0, 1], ["bat", 10, 0.7, 2.0, -1]],
-			[["slime", 36, 0.25, 0.0, -1]],
+			[["splitter", 6, 1.3, 0.0, -1], ["slime", 10, 0.6, 3.0, -1]],
+			[["beetle", 9, 1.2, 0.0, -1], ["slime", 6, 0.8, 4.0, -1]],
+			[["runner", 22, 0.35, 0.0, -1], ["bat", 8, 0.7, 4.0, -1]],
+			[["golem", 1, 0.0, 0.0, 0], ["golem", 1, 0.0, 4.0, 1], ["bat", 6, 0.7, 2.0, -1]],
+			[["splitter", 8, 1.0, 0.0, -1], ["beetle", 4, 1.4, 5.0, -1]],
+			[["slime", 36, 0.26, 0.0, -1], ["runner", 6, 0.5, 6.0, -1]],
 			[["bat", 22, 0.45, 0.0, -1]],
-			[["beetle", 16, 0.8, 0.0, -1]],
-			[["runner", 30, 0.25, 0.0, -1], ["splitter", 8, 1.0, 4.0, -1]],
-			[["golem", 2, 4.0, 0.0, -1], ["beetle", 10, 1.0, 2.0, -1]],
-			[["bat", 30, 0.35, 0.0, -1]],
-			[["splitter", 20, 0.7, 0.0, -1], ["runner", 16, 0.4, 3.0, -1]],
-			[["beetle", 22, 0.6, 0.0, -1], ["bat", 14, 0.5, 4.0, -1]],
-			[["slime", 50, 0.2, 0.0, -1], ["runner", 30, 0.25, 4.0, -1]],
-			[["golem", 3, 4.0, 0.0, -1], ["splitter", 12, 0.9, 3.0, -1]],
-			[["bat", 40, 0.3, 0.0, -1], ["beetle", 10, 0.9, 5.0, -1]],
-			[["beetle", 30, 0.5, 0.0, -1]],
-			[["splitter", 24, 0.6, 0.0, -1], ["bat", 20, 0.4, 4.0, -1]],
-			[["runner", 50, 0.18, 0.0, -1], ["golem", 2, 5.0, 5.0, -1]],
-			[["golem", 5, 3.5, 0.0, -1], ["beetle", 20, 0.7, 2.0, -1], ["bat", 24, 0.4, 6.0, -1]],
+			[["beetle", 15, 0.8, 0.0, -1], ["slime", 10, 0.5, 4.0, -1]],
+			[["golem", 2, 4.0, 0.0, -1], ["runner", 18, 0.35, 2.0, -1]],
+			[["splitter", 12, 0.85, 0.0, -1], ["bat", 10, 0.5, 4.0, -1]],
+			[["runner", 30, 0.25, 0.0, -1], ["beetle", 9, 1.0, 4.0, -1]],
+			[["bat", 30, 0.38, 0.0, -1]],
+			[["beetle", 18, 0.7, 0.0, -1], ["splitter", 8, 1.0, 4.0, -1]],
+			[["golem", 3, 4.0, 0.0, -1], ["slime", 30, 0.3, 2.0, -1]],
+			[["bat", 30, 0.35, 0.0, -1], ["runner", 26, 0.28, 4.0, -1]],
+			[["beetle", 26, 0.52, 0.0, -1], ["bat", 12, 0.5, 5.0, -1]],
+			[["splitter", 20, 0.65, 0.0, -1], ["runner", 24, 0.25, 4.0, -1]],
+			[["slime", 44, 0.2, 0.0, -1], ["beetle", 14, 0.7, 3.0, -1], ["bat", 16, 0.45, 6.0, -1]],
+			[["golem", 4, 3.5, 0.0, -1], ["beetle", 16, 0.7, 2.0, -1], ["bat", 20, 0.4, 6.0, -1]],
 		],
 	},
 ]
@@ -255,15 +255,16 @@ func tower_max_level(type: String) -> int:
 	return TOWERS[type]["levels"].size() - 1
 
 
-## Health multiplier applied to every enemy in the given (0-based) wave.
+## Health multiplier applied to every enemy in the given (0-based) wave:
+## hp_scale sets the level's base toughness, hp_growth how steeply late waves ramp.
 func wave_hp_mult(level_index: int, wave: int) -> float:
 	var lvl: Dictionary = get_level(level_index)
-	return float(lvl["hp_scale"]) * (1.0 + 0.12 * wave + 0.012 * wave * wave)
+	return float(lvl["hp_scale"]) * (1.0 + 0.1 * wave + float(lvl["hp_growth"]) * wave * wave)
 
 
 ## Bonus gold for clearing a wave.
 func wave_bonus(wave: int) -> int:
-	return 8 + wave * 2
+	return 10 + wave * 3
 
 
 ## Stars for finishing a level with the given lives left.

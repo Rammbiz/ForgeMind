@@ -123,7 +123,8 @@ func _process(delta: float) -> void:
 		_update_beam(delta)
 	elif target != null and _cooldown <= 0.0:
 		_fire()
-		_cooldown = 1.0 / float(stats["rate"])
+		# Carry this frame's overshoot so the fire rate does not depend on FPS / game speed.
+		_cooldown = maxf(_cooldown, -delta) + 1.0 / float(stats["rate"])
 
 
 func _in_range(e: Enemy) -> bool:
