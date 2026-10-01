@@ -8,8 +8,10 @@ expects and writes them to assets/audio/{sfx,music}:
   sfx/laser.ogg     seamless 1.0 s loop (every component is periodic in 1 s), set to -14 LUFS
   music/<name>.ogg  stereo Vorbis loops built from whole bars, mastered to -18 LUFS
 
-The .wav.import files keep the one-shots uncompressed in Godot (compress/mode=0, about 1.6 MB):
+The .wav.import files keep the short one-shots uncompressed in Godot (compress/mode=0):
 the default QOA codec only reaches 17-22 dB SNR on the noisy ones (explosion, arrow, tesla).
+The three long tonal jingles (victory, defeat, boss) use QOA (compress/mode=2) to keep the
+arm64 APK under 30 MB; QOA is transparent enough on tonal material.
 
 Everything is plain numpy DSP (additive, wavetable, modal and FM synthesis,
 FFT-domain filters). Music is rendered into a buffer one loop long: note tails
