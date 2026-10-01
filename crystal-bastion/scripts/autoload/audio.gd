@@ -19,6 +19,7 @@ var _music_b: AudioStreamPlayer
 var _music_name := ""
 var _laser_player: AudioStreamPlayer
 var _laser_users := 0
+var _fades := {}   # AudioStreamPlayer -> Tween currently fading it
 
 
 func _ready() -> void:
@@ -134,10 +135,10 @@ func play_music(track: String, fade := 1.5) -> void:
 	var fresh := _music_b
 	_music_a = fresh
 	_music_b = old
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(old, "volume_db", -60.0, fade)
-	tw.chain().tween_callback(old.stop)
+	_fade_out(old, fade)
+	_kill_fade(fresh)
 	if stream == null:
+		fresh.stop()
 		return
 	if stream is AudioStreamOggVorbis:
 		(stream as AudioStreamOggVorbis).loop = true
@@ -146,10 +147,26 @@ func play_music(track: String, fade := 1.5) -> void:
 	fresh.play()
 	var tw2 := create_tween()
 	tw2.tween_property(fresh, "volume_db", 0.0, fade)
+	_fades[fresh] = tw2
 
 
 func stop_music(fade := 1.0) -> void:
 	_music_name = ""
+	_fade_out(_music_a, fade)
+
+
+## Fades a player out and stops it. Any earlier fade on the same player is cancelled first,
+## so a quick track change can never stop the track that just started.
+func _fade_out(p: AudioStreamPlayer, fade: float) -> void:
+	_kill_fade(p)
 	var tw := create_tween()
-	tw.tween_property(_music_a, "volume_db", -60.0, fade)
-	tw.tween_callback(_music_a.stop)
+	tw.tween_property(p, "volume_db", -60.0, fade)
+	tw.tween_callback(p.stop)
+	_fades[p] = tw
+
+
+func _kill_fade(p: AudioStreamPlayer) -> void:
+	var old_tw: Tween = _fades.get(p, null)
+	if old_tw and old_tw.is_valid():
+		old_tw.kill()
+	_fades.erase(p)

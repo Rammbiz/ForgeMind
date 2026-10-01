@@ -227,7 +227,8 @@ func on_enemy_killed(e: Enemy) -> void:
 	if split_type != "":
 		var count := int(e.def.get("split_count", 2))
 		for i in count:
-			var child := spawn_enemy(split_type, e.path_index, GameData.wave_hp_mult(level_index, maxi(wave - 1, 0)), maxf(e.dist - 0.15 * i, 0.0))
+			# Children inherit the parent's wave strength, not whatever wave is current now.
+			var child := spawn_enemy(split_type, e.path_index, e.hp_mult, maxf(e.dist - 0.15 * i, 0.0))
 			child.spawn_in = 0.2
 
 
@@ -334,9 +335,9 @@ func enemies_in_radius(pos: Vector3, radius: float, air: bool, ground: bool) -> 
 
 # ------------------------------------------------------------------ economy & towers
 
-func add_gold(amount: int) -> void:
+func add_gold(amount: int, earned := true) -> void:
 	gold += amount
-	if amount > 0:
+	if amount > 0 and earned:
 		stats["gold_earned"] += amount
 	gold_changed.emit(gold)
 
@@ -387,7 +388,7 @@ func sell_tower(t: Tower) -> void:
 	if not is_instance_valid(t):
 		return
 	var value := t.sell_value()
-	add_gold(value)
+	add_gold(value, false)
 	towers.erase(t.cell)
 	map.show_deco(t.cell)
 	effects.build_puff(t.position)

@@ -23,6 +23,7 @@ var slow_factor := 1.0
 var slow_time := 0.0
 var hit_flash := 0.0
 var spawn_in := 0.0
+var hp_mult := 1.0
 var _curve: Curve3D
 var _model: Node3D
 var _anim_t := 0.0
@@ -35,10 +36,11 @@ static var _flash_mat: StandardMaterial3D
 static var _frost_mat: StandardMaterial3D
 
 
-func setup(p_game: Game, p_type: String, p_path: int, hp_mult: float) -> void:
+func setup(p_game: Game, p_type: String, p_path: int, p_hp_mult: float) -> void:
 	game = p_game
 	type = p_type
 	def = GameData.ENEMIES[type]
+	hp_mult = p_hp_mult
 	max_hp = float(def["hp"]) * hp_mult
 	hp = max_hp
 	speed = float(def["speed"])
@@ -145,8 +147,10 @@ func apply_slow(factor: float, duration: float) -> void:
 	if not alive:
 		return
 	var f := 1.0 - factor * (0.6 if boss else 1.0)
-	slow_factor = minf(slow_factor, f) if slow_time > 0.0 else f
-	slow_time = maxf(slow_time, duration)
+	# A weaker slow must not extend a stronger one that is still running.
+	if slow_time <= 0.0 or f <= slow_factor + 0.001:
+		slow_factor = f
+		slow_time = maxf(slow_time, duration)
 	_set_frost(true)
 
 

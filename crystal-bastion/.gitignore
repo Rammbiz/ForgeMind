@@ -9,3 +9,6 @@ build/
 *.jks
 *.idsig
 export_credentials.cfg
+
+# Non-secret debug key used by CI so test builds keep one signature (not for store releases)
+!tools/ci-debug.keystore

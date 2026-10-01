@@ -23,6 +23,10 @@ var _hint: PanelContainer
 var _vignette: ColorRect
 var _menu: Control
 var _modal: Control
+var _modal_kind := ""          # "pause", "settings" or "result"
+var _hint_label: Label
+var _safe_check := 0.0
+var _last_safe_area := Rect2i()
 var _icons := {}
 var _press_pos := Vector2.ZERO
 var _last_drag := Vector2.ZERO
@@ -59,6 +63,7 @@ func bind(g: Game) -> void:
 	_build_hint()
 	_apply_safe_area()
 	get_viewport().size_changed.connect(_apply_safe_area)
+	Loc.language_changed.connect(_on_language_changed)
 	game.gold_changed.connect(_on_gold_changed)
 	game.lives_changed.connect(_on_lives_changed)
 	game.wave_changed.connect(_on_wave_changed)
@@ -205,16 +210,23 @@ func _build_hint() -> void:
 	_hint = PanelContainer.new()
 	_hint.theme_type_variation = "TipPanel"
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := UIKit.label(Loc.t("HINT_BUILD") + "\n" + Loc.t("HINT_START"), 22, UIKit.TEXT)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_child(l)
+	_hint_label = UIKit.label(Loc.t("HINT_BUILD") + "\n" + Loc.t("HINT_START"), 22, UIKit.TEXT)
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.add_child(_hint_label)
 	root.add_child(_hint)
 	if game.level_index > 0:
 		_hint.visible = false
 
 
+func _on_language_changed() -> void:
+	_wave_label.text = Loc.f("WAVE_FMT", [game.wave, game.waves.size()])
+	_hint_label.text = Loc.t("HINT_BUILD") + "\n" + Loc.t("HINT_START")
+	_preview_key = ""
+
+
 var _safe := Rect2()
 func _apply_safe_area() -> void:
+	_last_safe_area = DisplayServer.get_display_safe_area()
 	var vp := root.get_viewport_rect().size
 	var screen := Vector2(DisplayServer.screen_get_size())
 	var safe := Rect2(Vector2.ZERO, vp)
@@ -252,6 +264,12 @@ func _layout_controls() -> void:
 func _process(delta: float) -> void:
 	if game == null:
 		return
+	# A 180° flip (sensor landscape) moves the notch without resizing the viewport.
+	_safe_check -= delta
+	if _safe_check <= 0.0:
+		_safe_check = 0.5
+		if OS.has_feature("mobile") and DisplayServer.get_display_safe_area() != _last_safe_area:
+			_apply_safe_area()
 	_layout_controls()
 	var real_delta := delta / maxf(Engine.time_scale, 0.001)
 	_gold_shown = move_toward(_gold_shown, game.gold, maxf(absf(game.gold - _gold_shown) * real_delta * 8.0, real_delta * 30.0))
@@ -424,6 +442,8 @@ func _notification(what: int) -> void:
 func _on_back() -> void:
 	if _menu:
 		close_menus()
+	elif _modal and _modal_kind == "settings":
+		_back_to_pause()
 	elif _modal and game.is_running():
 		_resume()
 	elif game.is_running():
@@ -626,6 +646,7 @@ func _close_modal() -> void:
 	if _modal and is_instance_valid(_modal):
 		_modal.queue_free()
 	_modal = null
+	_modal_kind = ""
 
 
 func open_pause() -> void:
@@ -634,6 +655,7 @@ func open_pause() -> void:
 	Audio.play("click", -4.0)
 	get_tree().paused = true
 	var panel := _make_modal()
+	_modal_kind = "pause"
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	panel.add_child(v)
@@ -668,6 +690,7 @@ func _back_to_pause() -> void:
 
 func _open_settings_from_pause() -> void:
 	var panel := _make_modal()
+	_modal_kind = "settings"
 	var s := SettingsPanel.new()
 	s.closed.connect(_back_to_pause)
 	panel.add_child(s)
@@ -680,6 +703,7 @@ func show_result(won: bool, stars: int) -> void:
 	if not is_instance_valid(self):
 		return
 	var panel := _make_modal()
+	_modal_kind = "result"
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	v.custom_minimum_size.x = 520

@@ -64,24 +64,33 @@ func _switch(next: Node, instant := false) -> void:
 		next.queue_free()
 		return
 	_busy = true
+	if current:
+		# Freeze the outgoing scene so nothing fires, leaks or hums during the fade.
+		current.process_mode = Node.PROCESS_MODE_DISABLED
+		Audio.reset_laser()
 	get_tree().paused = false
+	Engine.time_scale = 1.0
 	if current and not instant:
 		_fade.mouse_filter = Control.MOUSE_FILTER_STOP
-		var tw := create_tween()
+		var tw := _fade_tween()
 		tw.tween_property(_fade, "color:a", 1.0, 0.25)
 		await tw.finished
 	if current:
 		current.queue_free()
 		await get_tree().process_frame
-	Engine.time_scale = 1.0
 	current = next
 	add_child(next)
 	move_child(next, 0)
 	await get_tree().process_frame
-	var tw2 := create_tween()
+	var tw2 := _fade_tween()
 	tw2.tween_property(_fade, "color:a", 0.0, 0.35)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_busy = false
+
+
+## Transition tweens must run even if the new scene pauses the tree or changes time scale.
+func _fade_tween() -> Tween:
+	return _fade.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS).set_ignore_time_scale(true)
 
 
 ## Used by dev tools: switch immediately without fades.

@@ -13,6 +13,7 @@ var _vibro_btn: Button
 
 
 func _ready() -> void:
+	_reset_armed = false
 	add_theme_constant_override("separation", 14)
 	custom_minimum_size.x = 560
 	var title := UIKit.label(Loc.t("SETTINGS"), 44, UIKit.GOLD, true, 8)

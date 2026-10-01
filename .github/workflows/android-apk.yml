@@ -99,16 +99,13 @@ jobs:
           "$HOME/.cache/godot-ci/godot" --version
           cat "$tdir/version.txt"
 
-      - name: Cache debug keystore (stable debug signature between runs)
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
-
       - name: Debug keystore
+        # A non-secret, committed debug key keeps the signature identical across all branches,
+        # tags and cache evictions, so testers can install new builds over old ones.
         run: |
-          ks="$HOME/.android/debug.keystore"
+          ks="$GITHUB_WORKSPACE/crystal-bastion/tools/ci-debug.keystore"
           if [ ! -f "$ks" ]; then
+            ks="$HOME/.android/debug.keystore"
             mkdir -p "$(dirname "$ks")"
             keytool -genkeypair -keystore "$ks" -storepass android -keypass android \
               -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
@@ -119,6 +116,12 @@ jobs:
             echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey"
             echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android"
           } >> "$GITHUB_ENV"
+
+      - name: Stamp version code
+        # Every build gets a higher versionCode, so newer APKs install over older ones.
+        run: |
+          sed -i -e "s|^version/code=.*|version/code=${GITHUB_RUN_NUMBER}|" crystal-bastion/export_presets.cfg
+          grep '^version/code' crystal-bastion/export_presets.cfg
 
       - name: Stamp version from tag
         if: startsWith(github.ref, 'refs/tags/v')

@@ -43,7 +43,14 @@ func _process(delta: float) -> void:
 
 
 func _has_point(point: Vector2) -> bool:
-	return point.distance_to(_circle_center()) <= radius + 10.0
+	var c := _circle_center()
+	if point.distance_to(c) <= radius + 10.0:
+		return true
+	# The caption pill under the circle is part of the button too.
+	if caption != "":
+		var w := UIKit.font(true).get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x + (26.0 if caption_icon != "" else 0.0) + 24.0
+		return Rect2(Vector2(c.x - w * 0.5, c.y + radius), Vector2(w, 36.0)).has_point(point)
+	return false
 
 
 func _circle_center() -> Vector2:

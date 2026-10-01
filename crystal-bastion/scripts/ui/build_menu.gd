@@ -44,6 +44,7 @@ func _build_tip() -> void:
 	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tip.add_child(v)
 	_tip_title = UIKit.label("", 24, UIKit.GOLD, true)
 	_tip_desc = UIKit.label("", 19, UIKit.TEXT_DIM)
@@ -64,6 +65,8 @@ func _process(_delta: float) -> void:
 		b.disabled = not afford
 		b.caption_color = UIKit.TEXT if afford else UIKit.RED
 		b.armed = type == armed_type
+	if armed_type != "":
+		_update_tip_stats()
 	_layout()
 
 
@@ -92,9 +95,10 @@ func _layout() -> void:
 		i += 1
 	if _tip.visible:
 		_tip.reset_size()
-		var tp := center + Vector2(-_tip.size.x * 0.5, 56.0)
+		# Below the lowest button's price pill, or above the whole menu if there is no room.
+		var tp := center + Vector2(-_tip.size.x * 0.5, max_c.y + 42.0 + 40.0)
 		if tp.y + _tip.size.y > vp.y - 8.0:
-			tp.y = center.y - RADIUS_PX - 60.0 - _tip.size.y
+			tp.y = center.y + min_c.y - 50.0 - _tip.size.y
 		tp.x = clampf(tp.x, 8.0, vp.x - _tip.size.x - 8.0)
 		tp.y = clampf(tp.y, 8.0, vp.y - _tip.size.y - 8.0)
 		_tip.position = tp
@@ -118,11 +122,18 @@ func _on_pick(type: String) -> void:
 	_tip_title.text = Loc.t(GameData.TOWERS[type]["name"])
 	var desc := Loc.t(GameData.TOWERS[type]["desc"])
 	_tip_desc.text = desc
-	_tip_stats.text = Hud.stats_line(type, 0) + ("   •   " + Loc.t("TAP_AGAIN") if game.gold >= game.tower_cost(type) else "   •   " + Loc.t("NOT_ENOUGH_GOLD"))
+	_update_tip_stats()
 	_tip.visible = true
 	_tip.reset_size()
 	if game.gold < game.tower_cost(type):
 		Audio.play("error")
+
+
+func _update_tip_stats() -> void:
+	var afford := game.gold >= game.tower_cost(armed_type)
+	var text := Hud.stats_line(armed_type, 0) + "   •   " + (Loc.t("TAP_AGAIN") if afford else Loc.t("NOT_ENOUGH_GOLD"))
+	if _tip_stats.text != text:
+		_tip_stats.text = text
 
 
 func close() -> void:

@@ -35,7 +35,7 @@ func load_data() -> void:
 				for i in unlocked - 1:
 					stars[i] = 3 - i % 2
 		return
-	if cfg.load(PATH) != OK:
+	if cfg.load(PATH) != OK and cfg.load(PATH + ".bak") != OK:
 		return
 	unlocked = clampi(int(cfg.get_value("progress", "unlocked", 1)), 1, GameData.level_count())
 	var saved: Array = cfg.get_value("progress", "stars", [])
@@ -61,7 +61,15 @@ func save_data() -> void:
 	cfg.set_value("settings", "quality", quality)
 	cfg.set_value("settings", "show_damage", show_damage)
 	cfg.set_value("settings", "vibration", vibration)
-	cfg.save(PATH)
+	# Write to a temp file and swap it in, keeping the previous save as a backup,
+	# so a crash mid-write can never wipe the player's progress.
+	var main := ProjectSettings.globalize_path(PATH)
+	if cfg.save(main + ".tmp") != OK:
+		return
+	if FileAccess.file_exists(main):
+		DirAccess.remove_absolute(main + ".bak")
+		DirAccess.rename_absolute(main, main + ".bak")
+	DirAccess.rename_absolute(main + ".tmp", main)
 
 
 func record_result(level_index: int, earned_stars: int) -> void:
