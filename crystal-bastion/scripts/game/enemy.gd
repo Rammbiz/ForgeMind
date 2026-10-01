@@ -29,6 +29,8 @@ var _anim_t := 0.0
 var _meshes: Array[MeshInstance3D] = []
 var _frost_overlay := false
 
+const VISUAL_SCALE := 1.0
+
 static var _flash_mat: StandardMaterial3D
 static var _frost_mat: StandardMaterial3D
 
@@ -58,7 +60,7 @@ func _ready() -> void:
 	add_child(_model)
 	_collect_meshes(_model)
 	spawn_in = 0.35
-	_model.scale = Vector3.ONE * 0.01
+	_model.scale = Vector3.ONE * 0.01 * VISUAL_SCALE
 	_update_transform(0.0)
 
 
@@ -89,7 +91,7 @@ func _process(delta: float) -> void:
 	if spawn_in > 0.0:
 		spawn_in = maxf(spawn_in - delta, 0.0)
 		var k := 1.0 - spawn_in / 0.35
-		_model.scale = Vector3.ONE * (k * k * (3.0 - 2.0 * k))
+		_model.scale = Vector3.ONE * (k * k * (3.0 - 2.0 * k)) * VISUAL_SCALE
 	if hit_flash > 0.0:
 		hit_flash -= delta
 		if hit_flash <= 0.0:

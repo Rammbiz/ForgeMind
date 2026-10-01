@@ -12,9 +12,68 @@ const BRASS := Color(0.85, 0.62, 0.3)
 const COPPER := Color(0.85, 0.45, 0.25)
 
 
+static var _templates := {}
+
+
+## Returns a fresh copy of a cached, baked model. Building + baking happens once per key.
+static func _instance(key: String, build: Callable) -> Node3D:
+	if not _templates.has(key):
+		var tpl: Node3D = build.call()
+		Mats.bake(tpl)
+		_stable_names(tpl, [0])
+		_meta_to_paths(tpl)
+		_templates[key] = tpl
+	var inst := (_templates[key] as Node3D).duplicate() as Node3D
+	_meta_to_nodes(inst)
+	return inst
+
+
+## Auto-generated names ("@Node3D@123") differ between duplicates; give every node a fixed one.
+static func _stable_names(n: Node, counter: Array) -> void:
+	for ch in n.get_children():
+		if str(ch.name).begins_with("@"):
+			counter[0] += 1
+			ch.name = "n%d" % counter[0]
+		_stable_names(ch, counter)
+
+
+static func _meta_to_paths(root: Node3D) -> void:
+	for k in root.get_meta_list():
+		var v: Variant = root.get_meta(k)
+		if v is Node:
+			root.set_meta(k, root.get_path_to(v))
+		elif v is Array and not (v as Array).is_empty() and (v as Array)[0] is Node:
+			var paths: Array[NodePath] = []
+			for n: Node in v:
+				paths.append(root.get_path_to(n))
+			root.set_meta(k, paths)
+
+
+static func _meta_to_nodes(root: Node3D) -> void:
+	for k in root.get_meta_list():
+		var v: Variant = root.get_meta(k)
+		if v is NodePath:
+			root.set_meta(k, root.get_node(v))
+		elif v is Array and not (v as Array).is_empty() and (v as Array)[0] is NodePath:
+			var nodes: Array[Node3D] = []
+			for pth: NodePath in v:
+				nodes.append(root.get_node(pth))
+			root.set_meta(k, nodes)
+
+
+static func clear_templates() -> void:
+	for k in _templates:
+		(_templates[k] as Node).free()
+	_templates.clear()
+
+
 # ================================================================= towers
 
 static func tower(type: String, level: int) -> Node3D:
+	return _instance("tower|%s|%d" % [type, level], _build_tower.bind(type, level))
+
+
+static func _build_tower(type: String, level: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Model"
 	match type:
@@ -214,6 +273,10 @@ static func _laser_tower(root: Node3D, level: int) -> void:
 # ================================================================= enemies
 
 static func enemy(type: String, color: Color, size: float) -> Node3D:
+	return _instance("enemy|%s|%s|%.3f" % [type, color.to_html(), size], _build_enemy.bind(type, color, size))
+
+
+static func _build_enemy(type: String, color: Color, size: float) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Model"
 	match type:

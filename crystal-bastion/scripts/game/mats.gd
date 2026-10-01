@@ -67,6 +67,7 @@ static func vertex_colored(rough := 0.92) -> StandardMaterial3D:
 		return _mats[key]
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
 	m.roughness = rough
 	_mats[key] = m
 	return m
@@ -239,3 +240,143 @@ static func part(parent: Node3D, mesh: Mesh, mat: Material, pos := Vector3.ZERO,
 
 static func clear_cache() -> void:
 	_mats.clear()
+
+
+# ---------------------------------------------------------------- baking
+
+static var _bake_mats := {}
+
+
+## Merges the plain MeshInstance3D children of `node` (and of every pivot Node3D below it)
+## into one MeshInstance3D per material class. Cuts draw calls 5-10x, which matters a lot
+## on mobile GPUs. Pivot nodes (used for animation) are preserved.
+static func bake(node: Node3D) -> void:
+	for ch in node.get_children():
+		if ch is Node3D and not ch is GeometryInstance3D and not ch is Light3D:
+			bake(ch)
+	var groups := {}
+	var merged: Array[MeshInstance3D] = []
+	for ch in node.get_children():
+		var mi := ch as MeshInstance3D
+		if mi == null or mi.get_child_count() > 0 or mi.has_meta("no_bake"):
+			continue
+		var mat := mi.material_override as StandardMaterial3D
+		if mat == null or mat.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED \
+				or mat.shading_mode != BaseMaterial3D.SHADING_MODE_PER_PIXEL \
+				or mat.billboard_mode != BaseMaterial3D.BILLBOARD_DISABLED \
+				or mat.vertex_color_use_as_albedo or mat.albedo_texture != null:
+			continue
+		var cls := _mat_class(mat)
+		var shadow := mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var key := "%s|%s" % [cls, shadow]
+		if not groups.has(key):
+			groups[key] = {"cls": cls, "shadow": shadow, "v": PackedVector3Array(), "n": PackedVector3Array(), "c": PackedColorArray()}
+		var g: Dictionary = groups[key]
+		var col := mat.albedo_color
+		col.a = clampf(mat.emission_energy_multiplier / 4.0, 0.0, 1.0) if cls == "glow" else 1.0
+		_append_mesh(g, mi.mesh, mi.transform, col)
+		merged.append(mi)
+	if merged.size() < 2 and groups.size() <= 1:
+		return
+	for key in groups:
+		var g: Dictionary = groups[key]
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = g["v"]
+		arrays[Mesh.ARRAY_NORMAL] = g["n"]
+		arrays[Mesh.ARRAY_COLOR] = g["c"]
+		var am := ArrayMesh.new()
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var out := MeshInstance3D.new()
+		out.name = "Baked_" + str(g["cls"])
+		out.mesh = am
+		out.material_override = _bake_material(g["cls"])
+		if not g["shadow"]:
+			out.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(out)
+	for mi in merged:
+		node.remove_child(mi)
+		mi.free()
+
+
+static func _mat_class(mat: StandardMaterial3D) -> String:
+	if mat.emission_enabled:
+		return "glow"
+	if mat.metallic >= 0.3:
+		return "metal"
+	if mat.rim_enabled:
+		return "rim"
+	if mat.roughness < 0.5:
+		return "gloss"
+	return "matte"
+
+
+static func _append_mesh(g: Dictionary, mesh: Mesh, xf: Transform3D, col: Color) -> void:
+	if mesh == null:
+		return
+	var nb := xf.basis.inverse().transposed()
+	var flip := xf.basis.determinant() < 0.0
+	var v: PackedVector3Array = g["v"]
+	var n: PackedVector3Array = g["n"]
+	var c: PackedColorArray = g["c"]
+	for si in mesh.get_surface_count():
+		var arr := mesh.surface_get_arrays(si)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var norms: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var count := idx.size() if not idx.is_empty() else verts.size()
+		for i in count:
+			var k := i
+			if flip:
+				# Swap the last two vertices of each triangle to keep the winding.
+				var m := i % 3
+				k = i + (1 if m == 1 else (-1 if m == 2 else 0))
+			var vi := idx[k] if not idx.is_empty() else k
+			v.append(xf * verts[vi])
+			n.append((nb * norms[vi]).normalized() if norms.size() > vi else Vector3.UP)
+			c.append(col)
+	g["v"] = v
+	g["n"] = n
+	g["c"] = c
+
+
+static func _bake_material(cls: String) -> Material:
+	if _bake_mats.has(cls):
+		return _bake_mats[cls]
+	var m: Material
+	if cls == "glow":
+		var sh := Shader.new()
+		sh.code = """
+shader_type spatial;
+void fragment() {
+	vec3 c = COLOR.rgb;
+	vec3 lin = mix(pow((c + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), c * (1.0 / 12.92), lessThan(c, vec3(0.04045)));
+	ALBEDO = lin;
+	EMISSION = lin * COLOR.a * 4.0;
+	ROUGHNESS = 0.3;
+}
+"""
+		var sm := ShaderMaterial.new()
+		sm.shader = sh
+		m = sm
+	else:
+		var sm2 := StandardMaterial3D.new()
+		sm2.vertex_color_use_as_albedo = true
+		sm2.vertex_color_is_srgb = true
+		match cls:
+			"metal":
+				sm2.metallic = 0.65
+				sm2.metallic_specular = 0.6
+				sm2.roughness = 0.35
+			"rim":
+				sm2.roughness = 0.4
+				sm2.rim_enabled = true
+				sm2.rim = 0.25
+				sm2.rim_tint = 0.5
+			"gloss":
+				sm2.roughness = 0.3
+			_:
+				sm2.roughness = 0.85
+		m = sm2
+	_bake_mats[cls] = m
+	return m

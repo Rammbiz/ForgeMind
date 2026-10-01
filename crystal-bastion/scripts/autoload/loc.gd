@@ -62,6 +62,7 @@ const STRINGS := {
 	"RANGE": ["Дальність", "Range"],
 	"RATE": ["Темп", "Rate"],
 	"DPS": ["Шкода/с", "DPS"],
+	"PER_SEC": ["/с", "/s"],
 	"TAP_AGAIN": ["Торкніться ще раз", "Tap again"],
 	"NO_AIR": ["Не б'є летючих", "Can't hit air"],
 	"NOT_ENOUGH_GOLD": ["Бракує золота", "Not enough gold"],

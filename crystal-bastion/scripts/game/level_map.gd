@@ -18,7 +18,10 @@ var exit_cell := Vector2i(-1, -1)
 var path_cells: Array = []     # Array[Array[Vector2i]] per spawn
 var curves: Array[Curve3D] = []
 var path_lengths: Array[float] = []
-var deco := {}            # Vector2i -> Array[Node3D]
+const DECOR_CHUNK := 4
+var _decor_parts := {}    # chunk Vector2i -> Array of [cell, mesh, material, Transform3D, casts_shadow]
+var _decor_nodes := {}    # chunk Vector2i -> Node3D (baked)
+var _hidden := {}         # cells whose decorations are hidden (tower built there)
 var crystal: Node3D
 var crystal_core: MeshInstance3D
 var _crystal_flash := 0.0
@@ -26,7 +29,6 @@ var _portals: Array[Node3D] = []
 var _clouds: Array[Node3D] = []
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
-var _tree_sway: Array[Node3D] = []
 var _water: MeshInstance3D
 
 
@@ -361,26 +363,25 @@ void fragment() {
 # ------------------------------------------------------------------ decorations
 
 func _build_decorations() -> void:
-	var tufts := Mats.solid((theme["grass_b"] as Color).darkened(0.18), 0.9)
+	var tufts := Mats.solid((theme["grass_b"] as Color).darkened(0.12), 0.9)
+	var stem := Mats.solid((theme["grass_b"] as Color).darkened(0.25), 0.9)
 	var flowers: Array = theme["flowers"]
 	for c: Vector2i in cells:
 		var ch: String = cells[c]
-		var base := cell_to_world(c)
-		var list: Array[Node3D] = []
+		# Scratch holder (never enters the tree); its meshes are harvested into chunk batches.
+		var holder := Node3D.new()
+		holder.position = cell_to_world(c)
 		match ch:
 			".":
-				var holder := Node3D.new()
-				holder.position = base
-				add_child(holder)
-				list.append(holder)
-				var n_tuft := _rng.randi_range(0, 3)
+				var n_tuft := _rng.randi_range(1, 3)
 				for i in n_tuft:
-					var p := Vector3(_rng.randf_range(-0.4, 0.4), 0.04, _rng.randf_range(-0.4, 0.4))
-					Mats.part(holder, Mats.cone(0.05, 0.12, 4), tufts, p, Vector3(0, _rng.randf() * 90, _rng.randf_range(-15, 15)), Vector3.ONE, false)
+					var p := Vector3(_rng.randf_range(-0.38, 0.38), 0.0, _rng.randf_range(-0.38, 0.38))
+					for b in 3:
+						Mats.part(holder, Mats.cone(0.028, 0.15, 3), tufts, p + Vector3((b - 1) * 0.03, 0.06, 0.0), Vector3(_rng.randf_range(-12, 12), _rng.randf() * 120, (b - 1) * 22.0), Vector3.ONE, false)
 				if _rng.randf() < 0.45:
 					var fc: Color = flowers[_rng.randi() % flowers.size()]
 					var p2 := Vector3(_rng.randf_range(-0.38, 0.38), 0.0, _rng.randf_range(-0.38, 0.38))
-					Mats.part(holder, Mats.cyl(0.008, 0.008, 0.1, 3), tufts, p2 + Vector3(0, 0.05, 0), Vector3.ZERO, Vector3.ONE, false)
+					Mats.part(holder, Mats.cyl(0.008, 0.008, 0.1, 3), stem, p2 + Vector3(0, 0.05, 0), Vector3.ZERO, Vector3.ONE, false)
 					Mats.part(holder, Mats.sphere(0.035, -1, 6, 3), Mats.solid(fc, 0.6), p2 + Vector3(0, 0.11, 0), Vector3.ZERO, Vector3.ONE, false)
 				if _rng.randf() < 0.12:
 					var p3 := Vector3(_rng.randf_range(-0.35, 0.35), 0.02, _rng.randf_range(-0.35, 0.35))
@@ -391,26 +392,66 @@ func _build_decorations() -> void:
 					Mats.part(holder, Mats.sphere(0.15, 0.2, 7, 4), bush, p4)
 					Mats.part(holder, Mats.sphere(0.1, 0.14, 6, 3), Mats.solid(theme["foliage_b"], 0.85), p4 + Vector3(0.1, 0.03, 0.05))
 			"t":
-				_add_tree(base + Vector3(_rng.randf_range(-0.12, 0.12), 0, _rng.randf_range(-0.12, 0.12)), _rng.randf_range(0.85, 1.15))
+				_add_tree(holder, Vector3(_rng.randf_range(-0.12, 0.12), 0, _rng.randf_range(-0.12, 0.12)), _rng.randf_range(0.85, 1.15))
 				if _rng.randf() < 0.5:
-					_add_tree(base + Vector3(_rng.randf_range(-0.35, 0.35), 0, _rng.randf_range(-0.35, 0.35)), _rng.randf_range(0.5, 0.7))
+					_add_tree(holder, Vector3(_rng.randf_range(-0.35, 0.35), 0, _rng.randf_range(-0.35, 0.35)), _rng.randf_range(0.5, 0.7))
 			"r":
-				_add_rocks(base)
+				_add_rocks(holder)
 			"#":
 				if _rng.randf() < 0.3:
 					var p := Vector3(_rng.randf_range(-0.42, 0.42), 0.01, _rng.randf_range(-0.42, 0.42))
 					if absf(p.x) > 0.3 or absf(p.z) > 0.3:
-						Mats.part(self, Mats.sphere(0.04, 0.03, 5, 2), Mats.solid((theme["path"] as Color).darkened(0.25)), base + p, Vector3.ZERO, Vector3.ONE, false)
-		if not list.is_empty():
-			deco[c] = list
+						Mats.part(holder, Mats.sphere(0.04, 0.03, 5, 2), Mats.solid((theme["path"] as Color).darkened(0.25)), p, Vector3.ZERO, Vector3.ONE, false)
+		_harvest(c, holder, Transform3D.IDENTITY)
+		holder.free()
+	for key in _decor_parts:
+		_rebuild_chunk(key)
 
 
-func _add_tree(pos: Vector3, s: float) -> void:
+func _harvest(c: Vector2i, node: Node3D, parent_xf: Transform3D) -> void:
+	var xf := parent_xf * node.transform
+	for ch in node.get_children():
+		if ch is MeshInstance3D:
+			var mi := ch as MeshInstance3D
+			var key := _chunk_of(c)
+			if not _decor_parts.has(key):
+				_decor_parts[key] = []
+			_decor_parts[key].append([c, mi.mesh, mi.material_override, xf * mi.transform, mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF])
+		elif ch is Node3D:
+			_harvest(c, ch, xf)
+
+
+func _chunk_of(c: Vector2i) -> Vector2i:
+	return Vector2i(c.x / DECOR_CHUNK, c.y / DECOR_CHUNK)
+
+
+## Rebuilds one batched decoration chunk, skipping cells that are covered by towers.
+func _rebuild_chunk(key: Vector2i) -> void:
+	if _decor_nodes.has(key):
+		(_decor_nodes[key] as Node).queue_free()
+	var node := Node3D.new()
+	node.name = "Decor_%d_%d" % [key.x, key.y]
+	for part: Array in _decor_parts.get(key, []):
+		if _hidden.has(part[0]):
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[1]
+		mi.material_override = part[2]
+		mi.transform = part[3]
+		if not part[4]:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(mi)
+	Mats.bake(node)
+	add_child(node)
+	_decor_nodes[key] = node
+
+
+func _add_tree(parent: Node3D, pos: Vector3, s: float) -> void:
 	var root := Node3D.new()
 	root.position = pos
 	root.rotation.y = _rng.randf() * TAU
 	root.scale = Vector3.ONE * s
-	add_child(root)
+	parent.add_child(root)
 	var foliage := Mats.solid(theme["foliage"], 0.8)
 	var foliage_b := Mats.solid(theme["foliage_b"], 0.8)
 	var trunk := Mats.solid(theme["trunk"], 0.9)
@@ -440,17 +481,26 @@ func _add_tree(pos: Vector3, s: float) -> void:
 		_:
 			Mats.part(root, Mats.cyl(0.05, 0.07, 0.3, 5), trunk, Vector3(0, 0.15, 0))
 			Mats.part(root, Mats.cone(0.3, 0.6, 7), foliage, Vector3(0, 0.55, 0))
-	_tree_sway.append(root)
 
 
-func _add_rocks(base: Vector3) -> void:
+func _add_rocks(parent: Node3D) -> void:
+	if str(theme.get("rocks", "")) == "ice":
+		# Glowing ice crystal cluster (night level eye-candy).
+		var n_c := _rng.randi_range(3, 5)
+		for i in n_c:
+			var h := _rng.randf_range(0.25, 0.6) * (1.3 if i == 0 else 1.0)
+			var p := Vector3(_rng.randf_range(-0.22, 0.22), h * 0.35, _rng.randf_range(-0.22, 0.22))
+			var tilt := Vector3(_rng.randf_range(-25, 25), _rng.randf() * 180, _rng.randf_range(-25, 25))
+			Mats.part(parent, Mats.crystal(h * 0.22, h), Mats.glow(Color(0.45, 0.85, 1.0), 0.9 + _rng.randf() * 0.6), p, tilt, Vector3.ONE, false)
+		Mats.part(parent, Mats.sphere(0.2, 0.18, 6, 3), Mats.solid(theme["rock"], 0.9), Vector3(0, 0.03, 0))
+		return
 	var mat := Mats.solid(theme["rock"], 0.95)
 	var mat2 := Mats.solid((theme["rock"] as Color).lightened(0.12), 0.95)
 	var n := _rng.randi_range(2, 3)
 	for i in n:
 		var r := _rng.randf_range(0.14, 0.26) * (1.4 if i == 0 else 1.0)
-		var p := base + Vector3(_rng.randf_range(-0.22, 0.22), r * 0.35, _rng.randf_range(-0.22, 0.22))
-		Mats.part(self, Mats.sphere(r, r * 1.3, 6, 3), mat if i % 2 == 0 else mat2, p, Vector3(_rng.randf() * 20, _rng.randf() * 180, 0))
+		var p := Vector3(_rng.randf_range(-0.22, 0.22), r * 0.35, _rng.randf_range(-0.22, 0.22))
+		Mats.part(parent, Mats.sphere(r, r * 1.3, 6, 3), mat if i % 2 == 0 else mat2, p, Vector3(_rng.randf() * 20, _rng.randf() * 180, 0))
 
 
 func _near_path(c: Vector2i) -> bool:
@@ -461,13 +511,17 @@ func _near_path(c: Vector2i) -> bool:
 
 
 func hide_deco(c: Vector2i) -> void:
-	for n: Node3D in deco.get(c, []):
-		n.visible = false
+	if _hidden.has(c):
+		return
+	_hidden[c] = true
+	_rebuild_chunk(_chunk_of(c))
 
 
 func show_deco(c: Vector2i) -> void:
-	for n: Node3D in deco.get(c, []):
-		n.visible = true
+	if not _hidden.has(c):
+		return
+	_hidden.erase(c)
+	_rebuild_chunk(_chunk_of(c))
 
 
 # ------------------------------------------------------------------ portals & crystal
@@ -530,6 +584,7 @@ func _build_portals() -> void:
 		light.omni_range = 2.0
 		light.position = Vector3(0, 0.6, 0)
 		root.add_child(light)
+		Mats.bake(root)
 		_portals.append(root)
 
 
@@ -568,6 +623,7 @@ func _build_crystal() -> void:
 		var a := TAU * i / 6.0
 		Mats.part(crystal, Mats.crystal(0.07, 0.3), Mats.glow(Color(0.4, 0.95, 1.0), 1.3), Vector3(cos(a) * 0.36, 0.3, sin(a) * 0.36), Vector3(rad_to_deg(sin(a)) * 0.35, 0, -rad_to_deg(cos(a)) * 0.35), Vector3.ONE, false)
 	crystal_core = Mats.part(crystal, Mats.crystal(0.26, 0.9), _crystal_mat(Color(0.35, 0.95, 1.0)), Vector3(0, 1.0, 0))
+	crystal_core.set_meta("no_bake", true)
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.4, 0.9, 1.0)
 	light.light_energy = 1.6
@@ -589,6 +645,7 @@ func _build_crystal() -> void:
 	parts.color_ramp = _ramp(Color(0.6, 1.0, 1.0, 1.0), Color(0.3, 0.8, 1.0, 0.0))
 	parts.position = Vector3(0, 0.8, 0)
 	crystal.add_child(parts)
+	Mats.bake(crystal)
 
 
 func _crystal_mat(c: Color) -> StandardMaterial3D:
@@ -626,8 +683,6 @@ func _build_clouds() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = theme["clouds"]
 	mat.roughness = 1.0
-	mat.emission_enabled = true
-	mat.emission = (theme["clouds"] as Color) * 0.35
 	var count := 14
 	for i in count:
 		var cloud := Node3D.new()
@@ -641,6 +696,7 @@ func _build_clouds() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		cloud.scale = Vector3.ONE * _rng.randf_range(0.8, 1.5)
 		cloud.set_meta("speed", _rng.randf_range(0.05, 0.15))
+		Mats.bake(cloud)
 		add_child(cloud)
 		_clouds.append(cloud)
 
@@ -697,9 +753,6 @@ func _process(delta: float) -> void:
 		var lim := width * 1.1
 		if cloud.position.x > lim:
 			cloud.position.x = -lim
-	for i in _tree_sway.size():
-		var tr := _tree_sway[i]
-		tr.rotation.z = sin(_t * 1.3 + i * 0.7) * 0.025
 	if crystal_core:
 		crystal_core.rotation.y += delta * 0.8
 		crystal_core.position.y = 1.0 + sin(_t * 1.6) * 0.06

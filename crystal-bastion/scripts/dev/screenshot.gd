@@ -42,6 +42,13 @@ func _ready() -> void:
 						think = 0.5
 						bot.think(g)
 				Engine.time_scale = 1.0
+			if args.has("zoom"):
+				g.cam.zoom_by(float(args["zoom"]))
+				g.cam.dist = g.cam._target_dist
+			if args.has("focus"):
+				var f := str(args["focus"]).split(",")
+				g.cam._target_focus = Vector3(float(f[0]), 0, float(f[1]))
+				g.cam.focus = g.cam._target_focus
 			var ui := str(args.get("ui", ""))
 			match ui:
 				"build":
@@ -65,5 +72,5 @@ func _ready() -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(out)
-	print("SHOT saved ", out, " ", img.get_size())
+	print("SHOT saved ", out, " ", img.get_size(), " draw_calls=", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), " objects=", Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME), " prims=", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
 	get_tree().quit(0)

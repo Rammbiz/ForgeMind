@@ -183,7 +183,7 @@ func _process(delta: float) -> void:
 		_finish(true)
 	_dmg_flush -= delta
 	if _dmg_flush <= 0.0:
-		_dmg_flush = 0.25
+		_dmg_flush = 0.4
 		_flush_damage_numbers()
 
 
@@ -207,7 +207,7 @@ func _flush_damage_numbers() -> void:
 			pos = (entry[0] as Enemy).aim_point()
 		var amount: float = entry[1]
 		if amount >= 1.0:
-			hud.float_text(pos + Vector3(0, 0.35, 0), str(int(round(amount))), Color(1.0, 0.95, 0.85), 0.8)
+			hud.float_text(pos + Vector3(0, 0.35, 0), str(int(round(amount))), Color(1.0, 0.95, 0.85, 0.9), 0.7)
 	_dmg_accum.clear()
 
 

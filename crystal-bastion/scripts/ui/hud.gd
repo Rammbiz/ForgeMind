@@ -32,6 +32,9 @@ var _touches := {}
 var _pinch_dist := 0.0
 var _pinching := false
 var _gold_shown := 0.0
+var _preview: VBoxContainer
+var _preview_key := ""
+var _enemy_icons := {}
 
 
 func bind(g: Game) -> void:
@@ -167,6 +170,11 @@ func _build_controls() -> void:
 	_wave_hint = UIKit.label("", 22, UIKit.GOLD, true, 6)
 	_wave_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_wave_hint)
+	_preview = VBoxContainer.new()
+	_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview.add_theme_constant_override("separation", 6)
+	_preview.alignment = BoxContainer.ALIGNMENT_END
+	root.add_child(_preview)
 
 
 func _build_banner() -> void:
@@ -226,6 +234,8 @@ func _layout_controls() -> void:
 	_pause_btn.position = Vector2(right - 88, top + 6)
 	_speed_btn.position = Vector2(right - 170, top + 6)
 	_wave_btn.position = Vector2(right - 140, bottom - 166)
+	_preview.reset_size()
+	_preview.position = Vector2(right - 150 - _preview.size.x, bottom - 50 - _preview.size.y)
 	_wave_hint.reset_size()
 	_wave_hint.position = Vector2(right - 84 - _wave_hint.size.x * 0.5, bottom - 196)
 	_banner.reset_size()
@@ -266,6 +276,55 @@ func _process(delta: float) -> void:
 		_wave_btn.pulse = false
 		_wave_hint.text = ""
 	_wave_btn.visible = game.is_running() and game.wave < game.waves.size()
+	_update_preview(can)
+
+
+## Shows the composition of the next wave next to the wave button.
+func _update_preview(can_call: bool) -> void:
+	var show := can_call and game.wave < game.waves.size() and _modal == null
+	var key := "%d|%s|%d" % [game.wave, show, _enemy_icons.size()]
+	if key == _preview_key:
+		return
+	_preview_key = key
+	for c in _preview.get_children():
+		c.queue_free()
+	_preview.visible = show
+	if not show:
+		return
+	var counts := {}
+	var order: Array[String] = []
+	for g: Array in game.waves[game.wave]:
+		var t: String = g[0]
+		if not counts.has(t):
+			order.append(t)
+			counts[t] = 0
+		counts[t] += int(g[1])
+	for t in order:
+		var chip := PanelContainer.new()
+		chip.theme_type_variation = "HudPanel"
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 6)
+		chip.add_child(h)
+		var tex: Texture2D = _enemy_icons.get(t, null)
+		if tex:
+			var tr := TextureRect.new()
+			tr.texture = tex
+			tr.custom_minimum_size = Vector2(40, 40)
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			h.add_child(tr)
+		else:
+			var dot := Icons.make("skull", 32, GameData.ENEMIES[t]["color"])
+			h.add_child(dot)
+		var def: Dictionary = GameData.ENEMIES[t]
+		if def.get("flying", false):
+			h.add_child(Icons.make("wing", 24, Color(0.8, 0.85, 1.0)))
+		if def.get("boss", false):
+			h.add_child(Icons.make("skull", 24, UIKit.RED))
+		var l := UIKit.label("×%d" % counts[t], 24, UIKit.TEXT, true, 5)
+		h.add_child(l)
+		_preview.add_child(chip)
 
 
 func _pulse(l: Label, flash := UIKit.GOLD) -> void:
@@ -475,26 +534,7 @@ func _render_tower_icons() -> void:
 		return
 	var vps := {}
 	for type: String in GameData.TOWER_ORDER:
-		var vp := SubViewport.new()
-		vp.size = Vector2i(160, 160)
-		vp.transparent_bg = true
-		vp.own_world_3d = true
-		vp.msaa_3d = Viewport.MSAA_4X
-		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-		add_child(vp)
-		var env := Environment.new()
-		env.background_mode = Environment.BG_CLEAR_COLOR
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = Color(0.75, 0.8, 0.95)
-		env.ambient_light_energy = 0.7
-		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-		var we := WorldEnvironment.new()
-		we.environment = env
-		vp.add_child(we)
-		var light := DirectionalLight3D.new()
-		light.rotation_degrees = Vector3(-45, -40, 0)
-		light.light_energy = 1.3
-		vp.add_child(light)
+		var vp := _icon_viewport(160)
 		var model := Models.tower(type, 1)
 		model.rotation_degrees.y = -30.0
 		vp.add_child(model)
@@ -503,6 +543,19 @@ func _render_tower_icons() -> void:
 		vp.add_child(cam)
 		cam.look_at_from_position(Vector3(0, 1.75, 2.9), Vector3(0, 0.55, 0))
 		vps[type] = vp
+	for etype: String in GameData.ENEMIES:
+		var def: Dictionary = GameData.ENEMIES[etype]
+		var size: float = def["size"]
+		var vp2 := _icon_viewport(96)
+		var em := Models.enemy(etype, def["color"], size)
+		em.rotation_degrees.y = 35.0
+		vp2.add_child(em)
+		var cam2 := Camera3D.new()
+		cam2.fov = 30.0
+		vp2.add_child(cam2)
+		var h := size * (1.2 if etype != "golem" else 2.2)
+		cam2.look_at_from_position(Vector3(0, h + size * 1.6 + 0.2, size * 4.2 + 0.5), Vector3(0, h * 0.55, 0))
+		vps["enemy:" + etype] = vp2
 	await RenderingServer.frame_post_draw
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
@@ -510,8 +563,35 @@ func _render_tower_icons() -> void:
 		var vp: SubViewport = vps[type]
 		var img := vp.get_texture().get_image()
 		if img and not img.is_empty():
-			_icons[type] = ImageTexture.create_from_image(img)
+			if type.begins_with("enemy:"):
+				_enemy_icons[type.trim_prefix("enemy:")] = ImageTexture.create_from_image(img)
+			else:
+				_icons[type] = ImageTexture.create_from_image(img)
 		vp.queue_free()
+
+
+func _icon_viewport(px: int) -> SubViewport:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(px, px)
+	vp.transparent_bg = true
+	vp.own_world_3d = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.75, 0.8, 0.95)
+	env.ambient_light_energy = 0.55
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-45, -40, 0)
+	light.light_energy = 1.1
+	vp.add_child(light)
+	return vp
 
 
 # ------------------------------------------------------------------ modals
@@ -658,5 +738,5 @@ static func stats_line(type: String, lvl: int) -> String:
 		parts.append("%s %d" % [Loc.t("DPS"), int(s["dps"])])
 	parts.append("%s %.1f" % [Loc.t("RANGE"), float(s["range"])])
 	if s.has("rate"):
-		parts.append("%s %.1f/s" % [Loc.t("RATE"), float(s["rate"])])
+		parts.append("%s %.1f%s" % [Loc.t("RATE"), float(s["rate"]), Loc.t("PER_SEC")])
 	return "   ".join(parts)

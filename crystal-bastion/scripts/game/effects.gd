@@ -81,7 +81,7 @@ func burst(pos: Vector3, color: Color, amount := 16, speed := 2.5, size := 0.08,
 func flash(pos: Vector3, color: Color, radius := 0.5, life := 0.25) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = Mats.sphere(1.0, -1, 12, 6, false)
-	mi.material_override = Mats.flat_color(Color(color.r, color.g, color.b, 0.85), true)
+	mi.material_override = Mats.flat_color(Color(color.r, color.g, color.b, 0.5), true)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = pos
 	mi.scale = Vector3.ONE * radius * 0.3
@@ -120,7 +120,7 @@ func hit_spark(pos: Vector3, color: Color) -> void:
 func death(pos: Vector3, color: Color, size: float) -> void:
 	burst(pos + Vector3(0, size * 0.6, 0), color, 18 + int(size * 20), 2.4 + size * 2.0, 0.09 + size * 0.15, 0.6, -5.0, false)
 	burst(pos + Vector3(0, size * 0.6, 0), Color(1, 1, 1), 8, 1.8, 0.07, 0.35, -1.0)
-	flash(pos + Vector3(0, size * 0.6, 0), color.lightened(0.3), size * 1.6, 0.2)
+	flash(pos + Vector3(0, size * 0.6, 0), color.lightened(0.2), size * 1.1, 0.16)
 
 
 func coin_pop(pos: Vector3) -> void:

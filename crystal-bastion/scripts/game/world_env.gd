@@ -20,7 +20,8 @@ static func make_environment(theme: Dictionary, quality_high: bool) -> WorldEnvi
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = theme["ambient"]
 	env.ambient_light_energy = float(theme["ambient_energy"])
-	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	# Linear keeps the stylized palette vivid; lighting is tuned so lit albedo stays below 1.
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = float(theme.get("exposure", 1.0))
 	env.glow_enabled = quality_high
 	env.glow_intensity = 0.4
@@ -40,8 +41,8 @@ static func make_environment(theme: Dictionary, quality_high: bool) -> WorldEnvi
 	env.fog_height = -2.0
 	env.fog_height_density = 0.12
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.28
-	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.08
+	env.adjustment_contrast = 1.03
 	_dev_override(env, "CB_ENV")
 	var we := WorldEnvironment.new()
 	we.environment = env

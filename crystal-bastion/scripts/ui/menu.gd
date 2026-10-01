@@ -231,8 +231,10 @@ func _level_card(i: int) -> Control:
 	v.add_child(thumb)
 	var num := UIKit.label("%d" % (i + 1), 22, UIKit.GOLD, true)
 	num.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var name_l := UIKit.label(Loc.t(level["name"]), 32, UIKit.TEXT if not locked else UIKit.TEXT_DIM, true, 6)
+	var name_l := UIKit.label(Loc.t(level["name"]), 28, UIKit.TEXT if not locked else UIKit.TEXT_DIM, true, 6)
 	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_l.custom_minimum_size.x = 280
 	v.add_child(name_l)
 	var sub := UIKit.label(Loc.t(level["subtitle"]) if not locked else Loc.t("LOCKED_HINT"), 20, UIKit.TEXT_DIM)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
