@@ -1,0 +1,9 @@
+# Godot cache / imports
+.godot/
+*.import.tmp
+# Build outputs
+build/
+*.apk
+*.aab
+*.keystore
+export_credentials.cfg
