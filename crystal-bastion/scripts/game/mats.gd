@@ -349,8 +349,12 @@ static func _bake_material(cls: String) -> Material:
 		sh.code = """
 shader_type spatial;
 void fragment() {
-	vec3 c = COLOR.rgb;
-	vec3 lin = mix(pow((c + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), c * (1.0 / 12.92), lessThan(c, vec3(0.04045)));
+	// Vertex colors hold sRGB albedo. gl_compatibility already works in sRGB
+	// (OUTPUT_IS_SRGB), so only convert for the linear renderers.
+	vec3 lin = COLOR.rgb;
+	if (!OUTPUT_IS_SRGB) {
+		lin = mix(pow((lin + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), lin * (1.0 / 12.92), lessThan(lin, vec3(0.04045)));
+	}
 	ALBEDO = lin;
 	EMISSION = lin * COLOR.a * 4.0;
 	ROUGHNESS = 0.3;

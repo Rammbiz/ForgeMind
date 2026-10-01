@@ -498,10 +498,21 @@ func show_ghost(c: Vector2i, type: String, lvl := 0) -> void:
 	_set_ghost_material(_ghost)
 
 
+static var _ghost_mat: StandardMaterial3D
+
+
 func _set_ghost_material(n: Node) -> void:
+	if _ghost_mat == null:
+		_ghost_mat = StandardMaterial3D.new()
+		_ghost_mat.vertex_color_use_as_albedo = true
+		_ghost_mat.vertex_color_is_srgb = true
+		_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ghost_mat.albedo_color = Color(0.75, 1.0, 0.85, 0.5)
+		_ghost_mat.emission_enabled = true
+		_ghost_mat.emission = Color(0.2, 0.45, 0.3)
 	for ch in n.get_children():
 		if ch is MeshInstance3D:
-			(ch as MeshInstance3D).transparency = 0.45
+			(ch as MeshInstance3D).material_override = _ghost_mat
 			(ch as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_set_ghost_material(ch)
 

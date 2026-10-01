@@ -571,9 +571,10 @@ func _build_portals() -> void:
 		parts.spread = 12
 		parts.initial_velocity_min = 0.35
 		parts.initial_velocity_max = 0.8
-		parts.gravity = Vector3.ZERO
-		parts.orbit_velocity_min = 0.3
-		parts.orbit_velocity_max = 0.6
+		# In 3D the tangential axis is cross(radial, gravity), so gravity must not be zero.
+		parts.gravity = Vector3(0, 0.05, 0)
+		parts.tangential_accel_min = 1.2
+		parts.tangential_accel_max = 2.2
 		parts.color_ramp = _ramp(Color(0.95, 0.55, 1.0, 1.0), Color(0.45, 0.15, 1.0, 0.0))
 		parts.position = Vector3(0, 0.06, 0)
 		root.add_child(parts)

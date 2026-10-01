@@ -19,7 +19,7 @@ func _process(delta: float) -> void:
 			mi.queue_free()
 			_lightning.remove_at(i)
 		else:
-			mi.transparency = 1.0 - k
+			(mi.material_override as StandardMaterial3D).albedo_color.a = k
 	for arr in [_rings, _flashes]:
 		for i in range(arr.size() - 1, -1, -1):
 			var r: Dictionary = arr[i]
@@ -28,7 +28,9 @@ func _process(delta: float) -> void:
 			var n: Node3D = r["node"]
 			var e := 1.0 - pow(1.0 - k, 3.0)
 			n.scale = Vector3.ONE * lerpf(r["from"], r["to"], e)
-			(n as GeometryInstance3D).transparency = k
+			# GeometryInstance3D.transparency is ignored by gl_compatibility: fade the material.
+			var m := (n as GeometryInstance3D).material_override as StandardMaterial3D
+			m.albedo_color.a = float(r["alpha"]) * (1.0 - k)
 			if k >= 1.0:
 				n.queue_free()
 				arr.remove_at(i)
@@ -81,23 +83,23 @@ func burst(pos: Vector3, color: Color, amount := 16, speed := 2.5, size := 0.08,
 func flash(pos: Vector3, color: Color, radius := 0.5, life := 0.25) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = Mats.sphere(1.0, -1, 12, 6, false)
-	mi.material_override = Mats.flat_color(Color(color.r, color.g, color.b, 0.5), true)
+	mi.material_override = Mats.flat_color(Color(color.r, color.g, color.b, 0.5), true).duplicate()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = pos
 	mi.scale = Vector3.ONE * radius * 0.3
 	add_child(mi)
-	_flashes.append({"node": mi, "t": 0.0, "life": life, "from": radius * 0.3, "to": radius})
+	_flashes.append({"node": mi, "t": 0.0, "life": life, "from": radius * 0.3, "to": radius, "alpha": 0.5})
 
 
 func ring(pos: Vector3, color: Color, radius := 1.0, life := 0.45) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = Mats.torus(0.88, 1.0, 32, 3)
-	mi.material_override = Mats.flat_color(Color(color.r, color.g, color.b, 0.9), true)
+	mi.material_override = Mats.flat_color(Color(color.r, color.g, color.b, 0.9), true).duplicate()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = pos + Vector3(0, 0.05, 0)
 	mi.scale = Vector3.ONE * 0.1
 	add_child(mi)
-	_rings.append({"node": mi, "t": 0.0, "life": life, "from": 0.1, "to": radius})
+	_rings.append({"node": mi, "t": 0.0, "life": life, "from": 0.1, "to": radius, "alpha": 0.9})
 
 
 func explosion(pos: Vector3, radius: float) -> void:
@@ -190,7 +192,7 @@ func lightning(points: Array[Vector3], color: Color, life := 0.18, width := 0.05
 		im.surface_end()
 	var mi := MeshInstance3D.new()
 	mi.mesh = im
-	mi.material_override = _lightning_mat()
+	mi.material_override = _lightning_mat().duplicate()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	_lightning.append({"mesh": mi, "t": 0.0, "life": life})
