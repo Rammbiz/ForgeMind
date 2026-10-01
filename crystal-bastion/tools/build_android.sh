@@ -46,8 +46,14 @@ command -v "$GODOT" >/dev/null 2>&1 || die "Godot binary '$GODOT' not found (set
 
 # --- Godot version + export templates ------------------------------------------------
 GODOT_VERSION="$("$GODOT" --version 2>/dev/null | tail -n 1)"     # e.g. 4.7.2.stable.official.ed1daf0bf
-TEMPLATE_VERSION="$(echo "$GODOT_VERSION" | cut -d. -f1-4)"      # e.g. 4.7.2.stable
-MAJOR_MINOR="$(echo "$GODOT_VERSION" | cut -d. -f1-2)"            # e.g. 4.7
+# Templates live in <major>.<minor>[.<patch>].<status>[.mono]: "4.7.2.stable", but "4.8.stable"
+# for an x.y.0 release (Godot omits a zero patch), so the build/hash suffix is cut by pattern.
+if [[ "$GODOT_VERSION" =~ ^([0-9]+)\.([0-9]+)(\.[0-9]+)?\.[A-Za-z][A-Za-z0-9_]*(\.mono)? ]]; then
+	TEMPLATE_VERSION="${BASH_REMATCH[0]}"                          # e.g. 4.7.2.stable
+	MAJOR_MINOR="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"             # e.g. 4.7
+else
+	die "could not parse the Godot version '$GODOT_VERSION'"
+fi
 [[ "$MAJOR_MINOR" == "4.7" ]] || echo "warning: project targets Godot 4.7, found $GODOT_VERSION" >&2
 TEMPLATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/$TEMPLATE_VERSION"
 for t in android_debug.apk android_release.apk; do
@@ -96,7 +102,8 @@ if [[ "$MODE" == "debug" ]]; then
 			mkdir -p "$(dirname "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH")"
 			"$JAVA_HOME/bin/keytool" -genkeypair -keystore "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH" \
 				-storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 \
-				-validity 10000 -dname "CN=Android Debug,O=Android,C=US" >/dev/null 2>&1
+				-validity 10000 -dname "CN=Android Debug,O=Android,C=US" >/dev/null 2>&1 \
+				|| die "keytool could not create $GODOT_ANDROID_KEYSTORE_DEBUG_PATH"
 		fi
 	fi
 	[[ -f "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH" ]] || die "debug keystore $GODOT_ANDROID_KEYSTORE_DEBUG_PATH not found"

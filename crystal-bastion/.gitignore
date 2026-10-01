@@ -6,4 +6,6 @@ build/
 *.apk
 *.aab
 *.keystore
+*.jks
+*.idsig
 export_credentials.cfg

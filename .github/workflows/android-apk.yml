@@ -5,8 +5,8 @@
 # - If the repository secrets ANDROID_KEYSTORE_BASE64 (base64 of the .jks/.keystore),
 #   ANDROID_KEYSTORE_PASSWORD (store password == key password) and ANDROID_KEY_ALIAS are
 #   set: also a signed release APK artifact "crystal-bastion-release-apk".
-# - Tags v*: version/name is taken from the tag, version/code from the run number, and the
-#   APKs are attached to the GitHub Release for that tag.
+# - Tags v* (version-like, e.g. v1.2.0): version/name is taken from the tag, version/code from
+#   the run number, and the APKs are attached to the GitHub Release for that tag.
 #
 # The heavy lifting is crystal-bastion/tools/build_android.sh, the same script used locally.
 name: Android APK
@@ -124,6 +124,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           name="${GITHUB_REF_NAME#v}"
+          # The name goes into a sed replacement and a quoted cfg value: only allow version-like
+          # tags (v1.2.3, v1.2.3-beta.1, v1.2.3+4) so '&', '|', '"' or '\' cannot corrupt it.
+          if [[ ! "$name" =~ ^[0-9][0-9A-Za-z.+_-]*$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not a version tag (expected e.g. v1.2.3)"
+            exit 1
+          fi
           sed -i -e "s|^version/name=.*|version/name=\"${name}\"|" \
                  -e "s|^version/code=.*|version/code=${GITHUB_RUN_NUMBER}|" crystal-bastion/export_presets.cfg
           grep '^version/' crystal-bastion/export_presets.cfg
