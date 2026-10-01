@@ -37,6 +37,8 @@ func _ready() -> void:
 	_music_a = _make_music_player()
 	_music_b = _make_music_player()
 	_laser_player = AudioStreamPlayer.new()
+	# Beam hum belongs to the gameplay: it must stop while the game is paused.
+	_laser_player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	_laser_player.bus = "SFX"
 	_laser_player.volume_db = -9.0
 	add_child(_laser_player)
