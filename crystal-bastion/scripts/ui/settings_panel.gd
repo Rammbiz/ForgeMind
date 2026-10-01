@@ -9,6 +9,7 @@ var _reset_btn: Button
 var _lang_btn: Button
 var _quality_btn: Button
 var _damage_btn: Button
+var _vibro_btn: Button
 
 
 func _ready() -> void:
@@ -22,6 +23,8 @@ func _ready() -> void:
 	_lang_btn = _toggle_row("globe", Loc.t("LANGUAGE"), Loc.t("LANG_NAME"), _on_lang)
 	_quality_btn = _toggle_row("gear", Loc.t("GRAPHICS"), Loc.t("QUALITY_HIGH") if Save.quality == "high" else Loc.t("QUALITY_LOW"), _on_quality)
 	_damage_btn = _toggle_row("target", Loc.t("DAMAGE_NUMBERS"), Loc.t("ON") if Save.show_damage else Loc.t("OFF"), _on_damage)
+	if OS.has_feature("mobile"):
+		_vibro_btn = _toggle_row("bolt", Loc.t("VIBRATION"), Loc.t("ON") if Save.vibration else Loc.t("OFF"), _on_vibration)
 	_reset_btn = UIKit.button(Loc.t("RESET_PROGRESS"), false, 300)
 	_reset_btn.add_theme_color_override("font_color", UIKit.RED)
 	_reset_btn.pressed.connect(_on_reset)
@@ -101,6 +104,13 @@ func _on_damage() -> void:
 	Save.show_damage = not Save.show_damage
 	_damage_btn.text = Loc.t("ON") if Save.show_damage else Loc.t("OFF")
 	Save.apply_settings()
+
+
+func _on_vibration() -> void:
+	Save.vibration = not Save.vibration
+	_vibro_btn.text = Loc.t("ON") if Save.vibration else Loc.t("OFF")
+	Save.apply_settings()
+	Save.vibrate(30)
 
 
 func _on_reset() -> void:

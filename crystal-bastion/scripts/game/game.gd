@@ -238,6 +238,7 @@ func on_enemy_leaked(e: Enemy) -> void:
 	lives = maxi(lives - e.lives_cost, 0)
 	stats["leaked"] += e.lives_cost
 	lives_changed.emit(lives)
+	Save.vibrate(60 if e.lives_cost > 1 else 35)
 	map.crystal_hit()
 	camera_shake(0.2)
 	hud.damage_flash()
@@ -257,8 +258,35 @@ func _finish(won: bool) -> void:
 	Audio.reset_laser()
 	Audio.play("victory" if won else "defeat")
 	set_speed(1)
+	if won:
+		_celebrate()
+	else:
+		_shatter_crystal()
 	finished.emit(won, stars)
 	hud.show_result(won, stars)
+
+
+func _celebrate() -> void:
+	var colors := [Color(1.0, 0.8, 0.3), Color(0.4, 0.9, 1.0), Color(1.0, 0.45, 0.7), Color(0.6, 1.0, 0.5), Color(0.85, 0.55, 1.0)]
+	var center := map.crystal_top()
+	for i in 9:
+		var at := center + Vector3(randf_range(-2.5, 2.5), randf_range(1.2, 2.6), randf_range(-1.5, 1.5))
+		var col: Color = colors[i % colors.size()]
+		get_tree().create_timer(0.25 * i, false).timeout.connect(func():
+			effects.burst(at, col, 28, 3.2, 0.1, 1.1, -2.5)
+			effects.flash(at, col, 0.5, 0.2)
+			Audio.play("coin", -8.0, 0.3))
+
+
+func _shatter_crystal() -> void:
+	if map.crystal_core == null:
+		return
+	var at := map.crystal_top()
+	effects.flash(at, Color(0.5, 0.95, 1.0), 1.4, 0.35)
+	effects.burst(at, Color(0.45, 0.9, 1.0), 40, 4.5, 0.14, 1.2, -6.0, false)
+	effects.burst(at, Color(1, 1, 1), 18, 3.0, 0.08, 0.6, -2.0)
+	map.crystal_core.visible = false
+	camera_shake(0.45)
 
 
 func find_target(pos: Vector3, radius: float, air: bool, ground: bool, mode: int) -> Enemy:
@@ -337,6 +365,7 @@ func build_tower(c: Vector2i, type: String) -> Tower:
 	map.hide_deco(c)
 	effects.build_puff(t.position)
 	Audio.play("build")
+	Save.vibrate(15)
 	return t
 
 

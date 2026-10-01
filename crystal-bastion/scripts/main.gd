@@ -9,7 +9,7 @@ var _args := {}
 
 
 func _ready() -> void:
-	Engine.max_fps = 60
+	Save.apply_performance()
 	var layer := CanvasLayer.new()
 	layer.layer = 100
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS

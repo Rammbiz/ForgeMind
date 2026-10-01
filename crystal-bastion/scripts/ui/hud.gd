@@ -412,6 +412,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_on_back()
+	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		# Phone call / app switch: never let the horde run unattended.
+		if game and game.is_running() and _modal == null and game.wave > 0 and OS.has_feature("mobile"):
+			open_pause()
 
 
 func _on_back() -> void:

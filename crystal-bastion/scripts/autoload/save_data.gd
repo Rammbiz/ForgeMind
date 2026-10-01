@@ -12,6 +12,7 @@ var sfx_volume := 0.85
 var language := ""
 var quality := "high"
 var show_damage := true
+var vibration := true
 var readonly := false   # dev/test runs must not touch the player's save
 
 
@@ -45,6 +46,7 @@ func load_data() -> void:
 	language = str(cfg.get_value("settings", "language", ""))
 	quality = str(cfg.get_value("settings", "quality", quality))
 	show_damage = bool(cfg.get_value("settings", "show_damage", show_damage))
+	vibration = bool(cfg.get_value("settings", "vibration", vibration))
 
 
 func save_data() -> void:
@@ -58,6 +60,7 @@ func save_data() -> void:
 	cfg.set_value("settings", "language", language)
 	cfg.set_value("settings", "quality", quality)
 	cfg.set_value("settings", "show_damage", show_damage)
+	cfg.set_value("settings", "vibration", vibration)
 	cfg.save(PATH)
 
 
@@ -86,4 +89,20 @@ func reset_progress() -> void:
 
 func apply_settings() -> void:
 	save_data()
+	apply_performance()
 	settings_changed.emit()
+
+
+## Battery saver: lower render resolution and frame cap.
+func apply_performance() -> void:
+	var high := quality == "high"
+	Engine.max_fps = 60 if high else 30
+	var vp := get_viewport()
+	if vp:
+		vp.scaling_3d_scale = 1.0 if high else 0.75
+
+
+## Short haptic pulse on phones (no-op elsewhere or when disabled).
+func vibrate(ms: int) -> void:
+	if vibration and OS.has_feature("mobile"):
+		Input.vibrate_handheld(ms)

@@ -85,6 +85,7 @@ const STRINGS := {
 	"QUALITY_HIGH": ["Висока", "High"],
 	"QUALITY_LOW": ["Економна", "Battery saver"],
 	"DAMAGE_NUMBERS": ["Числа шкоди", "Damage numbers"],
+	"VIBRATION": ["Вібрація", "Vibration"],
 	"ON": ["Увімк.", "On"],
 	"OFF": ["Вимк.", "Off"],
 	"RESET_PROGRESS": ["Скинути прогрес", "Reset progress"],
