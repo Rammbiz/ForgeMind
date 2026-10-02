@@ -49,7 +49,7 @@ func setup(index: int) -> void:
 
 
 func _ready() -> void:
-	level = GameData.get_level(level_index)
+	level = Arena.prepare_level(GameData.get_level(level_index))
 	quality_high = Save.quality == "high"
 	gold = int(level["start_gold"])
 	lives = int(level["lives"])

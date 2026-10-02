@@ -36,11 +36,10 @@ var arena := {}           # fit of the sculpted arena model (empty = procedural 
 func build(level: Dictionary, quality_high := true) -> void:
 	theme = level["theme"]
 	_rng.seed = hash(str(level["id"]))
-	arena = Arena.load_fit(str(level["id"]))
+	arena = level.get("arena_fit", {})
 	_parse(level["map"])
 	if not arena.is_empty():
-		for c: Vector2i in cells:
-			top_y[c] = Arena.height_at(arena, c, top_y[c])
+		_apply_arena()
 	_compute_paths()
 	if arena.is_empty():
 		_build_terrain()
@@ -55,6 +54,8 @@ func build(level: Dictionary, quality_high := true) -> void:
 	_build_crystal()
 	if arena.is_empty() or Arena.keeps(arena, "clouds"):
 		_build_clouds()
+	if not arena.is_empty() and theme.has("cloud_sea"):
+		_build_cloud_sea()
 	_build_ambient(quality_high)
 
 
@@ -89,6 +90,21 @@ func _parse(rows: Array) -> void:
 	for c in cells:
 		var d: float = dist[c]
 		depth[c] = -0.55 - 0.62 * d - _rng.randf_range(0.0, 0.35) * minf(d, 2.0)
+
+
+## Sculpted arena: surface heights from the model, and buildability that matches what the
+## model shows (no towers on its boulders, free grass where the map expected a tree).
+func _apply_arena() -> void:
+	for xy: Array in arena.get("blocked", []):
+		var c := Vector2i(int(xy[0]), int(xy[1]))
+		if cells.get(c, "") == ".":
+			cells[c] = "r"
+	for xy: Array in arena.get("opened", []):
+		var c := Vector2i(int(xy[0]), int(xy[1]))
+		if cells.get(c, "") in ["t", "r"]:
+			cells[c] = "."
+	for c: Vector2i in cells:
+		top_y[c] = Arena.height_at(arena, c, top_y[c])
 
 
 func _distance_to_void() -> Dictionary:
@@ -759,6 +775,69 @@ func _build_clouds() -> void:
 		Mats.bake(cloud)
 		add_child(cloud)
 		_clouds.append(cloud)
+
+
+## Soft sea of clouds far below a sculpted arena (the low-poly puffs would clash with it).
+func _build_cloud_sea() -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = "CloudSea"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(240, 240)
+	mi.mesh = plane
+	mi.position = Vector3(0, float(theme.get("cloud_sea_y", -6.0)), 0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, fog_disabled, shadows_disabled, cull_disabled;
+uniform vec4 light_col : source_color;
+uniform vec4 shade_col : source_color;
+uniform vec4 gap_col : source_color;
+uniform vec4 far_col : source_color;
+varying vec3 wpos;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int k = 0; k < 5; k++) {
+		v += a * noise(p);
+		p = p * 2.03 + vec2(1.7, 9.2);
+		a *= 0.5;
+	}
+	return v;
+}
+void vertex() {
+	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	vec2 drift = vec2(TIME * 0.015, TIME * 0.006);
+	vec2 uv = wpos.xz * 0.12 + drift;
+	float n = fbm(uv) * 0.7 + fbm(uv * 2.6 + 13.0) * 0.4;
+	// Puffs: dense cloud bodies with gaps between them.
+	float body = smoothstep(0.39, 0.6, n);
+	// Light from the upper side of each puff: compare with a sample shifted towards the sun.
+	float lit = smoothstep(-0.04, 0.1, n - (fbm(uv + vec2(-0.12, -0.09)) * 0.7 + fbm((uv + vec2(-0.12, -0.09)) * 2.6 + 13.0) * 0.4));
+	vec3 cloud = mix(shade_col.rgb, light_col.rgb, clamp(lit * 0.8 + (n - 0.5) * 1.5, 0.0, 1.0));
+	vec3 col = mix(gap_col.rgb, cloud, body);
+	float fade = smoothstep(16.0, 70.0, length(wpos.xz));
+	ALBEDO = mix(col, far_col.rgb, fade);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	var sea: Array = theme["cloud_sea"]
+	mat.set_shader_parameter("light_col", sea[0])
+	mat.set_shader_parameter("shade_col", sea[1])
+	mat.set_shader_parameter("gap_col", sea[2])
+	mat.set_shader_parameter("far_col", theme["ground_horizon"])
+	mi.material_override = mat
+	add_child(mi)
 
 
 func _build_ambient(quality_high: bool) -> void:

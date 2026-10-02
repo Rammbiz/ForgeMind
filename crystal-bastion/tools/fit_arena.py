@@ -10,7 +10,7 @@ scripts/game/arena.gd:
     assets/models/arenas/<level>.json   model -> map transform, per-cell heights, options
 
 Usage:
-    python3 tools/fit_arena.py meadow [--debug /tmp/fit] [--yaw 0 --scale 1 --dx 0 --dz 0]
+    python3 tools/fit_arena.py meadow [--debug /tmp/fit] [--yaw 0 --sx 8 --sz 8 --dx 0 --dz 0]
                                [--path-cluster N] [--keep decor,water] [--lift 0.0]
 
 Needs numpy, pillow, scipy and trimesh (pip install trimesh scipy pillow).
@@ -161,24 +161,6 @@ def score(px, pz, pw, gx, gz, gw, path, land, w, h, tw):
     return f - grass_in_path * 0.5
 
 
-def search(pts, pw, gpts, gw, path, land, w, h, s0, yaw_range, scale_range, off_range):
-    tw = pw.sum()
-    best = (-1e9, None)
-    for yaw in yaw_range:
-        r = yaw_matrix(yaw)
-        rp = pts @ r.T
-        rg = gpts @ r.T
-        for s in scale_range:
-            sx, sz = rp[:, 0] * s0 * s, rp[:, 2] * s0 * s
-            gx0, gz0 = rg[:, 0] * s0 * s, rg[:, 2] * s0 * s
-            for dx in off_range:
-                for dz in off_range:
-                    f = score(sx + dx, sz + dz, pw, gx0 + dx, gz0 + dz, gw, path, land, w, h, tw)
-                    if f > best[0]:
-                        best = (f, (yaw, s, dx, dz))
-    return best
-
-
 # ----------------------------------------------------------------------------- main
 
 def main():
@@ -187,7 +169,8 @@ def main():
     ap.add_argument("--glb")
     ap.add_argument("--debug", help="directory for debug images")
     ap.add_argument("--yaw", type=float)
-    ap.add_argument("--scale", type=float, help="absolute model->map scale")
+    ap.add_argument("--sx", type=float, help="model->map scale along x (with --yaw --sz --dx --dz: skip the search)")
+    ap.add_argument("--sz", type=float, help="model->map scale along z")
     ap.add_argument("--dx", type=float)
     ap.add_argument("--dz", type=float)
     ap.add_argument("--lift", type=float, default=0.0, help="extra vertical offset of the model")
@@ -281,38 +264,73 @@ def main():
         gpts, gw = gpts[i], np.full(6000, gw.sum() / 6000)
     land_w = land.any(axis=0).sum()
     s0 = land_w / max(ext.max(), 1e-6)
-    if None not in (args.yaw, args.scale, args.dx, args.dz):
-        yaw, scale, dx, dz = args.yaw, args.scale / s0, args.dx, args.dz
-        r = yaw_matrix(yaw)
-        rp, rg = pts @ r.T, gpts @ r.T
-        k = s0 * scale
-        f = score(rp[:, 0] * k + dx, rp[:, 2] * k + dz, pw, rg[:, 0] * k + dx, rg[:, 2] * k + dz,
-                  gw, path, land, w, h, pw.sum())
+    tw = pw.sum()
+    rot_cache = {}
+
+    def evaluate(yaw, kx, kz, dx, dz):
+        key = round(float(yaw), 3)
+        if key not in rot_cache:
+            r = yaw_matrix(yaw)
+            rot_cache[key] = (pts @ r.T, gpts @ r.T)
+        rp, rg = rot_cache[key]
+        return score(rp[:, 0] * kx + dx, rp[:, 2] * kz + dz, pw, rg[:, 0] * kx + dx, rg[:, 2] * kz + dz,
+                     gw, path, land, w, h, tw)
+
+    if None not in (args.yaw, args.sx, args.sz, args.dx, args.dz):
+        yaw, kx, kz, dx, dz = args.yaw, args.sx, args.sz, args.dx, args.dz
+        f = evaluate(yaw, kx, kz, dx, dz)
     else:
-        yaws = [args.yaw] if args.yaw is not None else list(range(0, 360, 6))
-        f, (yaw, scale, dx, dz) = search(pts, pw, gpts, gw, path, land, w, h, s0, yaws,
-                                         np.arange(0.8, 1.3, 0.05), np.arange(-2.0, 2.01, 0.25))
-        # Fine pass around the coarse optimum.
-        best = (-1e9, None)
-        for y2 in np.arange(yaw - 4, yaw + 4.1, 1.0):
-            r = yaw_matrix(y2)
-            rp, rg = pts @ r.T, gpts @ r.T
-            for s2 in np.arange(scale - 0.06, scale + 0.061, 0.015):
-                for dx2 in np.arange(dx - 0.3, dx + 0.31, 0.06):
-                    for dz2 in np.arange(dz - 0.3, dz + 0.31, 0.06):
-                        k = s0 * s2
-                        f2 = score(rp[:, 0] * k + dx2, rp[:, 2] * k + dz2, pw, rg[:, 0] * k + dx2, rg[:, 2] * k + dz2,
-                                   gw, path, land, w, h, pw.sum())
-                        if f2 > best[0]:
-                            best = (f2, (y2, s2, dx2, dz2))
-        f, (yaw, scale, dx, dz) = best
-    k = s0 * scale
-    print("fit: yaw %.1f  scale %.4f  offset (%.2f, %.2f)  score %.3f" % (yaw, k, dx, dz, f))
+        # Coarse: for every yaw and every (scale, aspect) pair, put the painted path's centroid
+        # on the map path's centroid and score. The island rim can be much wider than the
+        # playable grid and image-to-3D often stretches depth, so both are searched widely.
+        cells = np.argwhere(path)
+        mcx = float((cells[:, 1] + 0.5 - w * 0.5).mean())
+        mcz = float((cells[:, 0] + 0.5 - h * 0.5).mean())
+        yaws = [args.yaw] if args.yaw is not None else list(np.arange(0, 360, 4.0))
+        f, best = -1e9, None
+        for y2 in yaws:
+            rp = pts @ yaw_matrix(y2).T
+            pcx = float(np.average(rp[:, 0], weights=pw))
+            pcz = float(np.average(rp[:, 2], weights=pw))
+            for kx2 in s0 * np.geomspace(0.6, 2.2, 28):
+                for asp in np.arange(0.6, 1.66, 0.05):
+                    kz2 = kx2 * asp
+                    dx2, dz2 = mcx - kx2 * pcx, mcz - kz2 * pcz
+                    f2 = evaluate(y2, kx2, kz2, dx2, dz2)
+                    if f2 > f:
+                        f, best = f2, (y2, kx2, kz2, dx2, dz2)
+        yaw, kx, kz, dx, dz = best
+        print("coarse: yaw %.1f  scale x %.3f z %.3f  score %.3f" % (yaw, kx, kz, f))
+        # Fine: image-to-3D often stretches the depth axis, so scale x and z separately
+        # (coordinate descent over (kx, dx), (kz, dz) and yaw until nothing improves).
+        for _ in range(6):
+            before = f
+            for axis in ("x", "z"):
+                k0, d0 = (kx, dx) if axis == "x" else (kz, dz)
+                for k2 in k0 * np.arange(0.8, 1.2501, 0.025):
+                    for d2 in np.arange(d0 - 0.6, d0 + 0.601, 0.05):
+                        f2 = evaluate(yaw, k2, kz, d2, dz) if axis == "x" else evaluate(yaw, kx, k2, dx, d2)
+                        if f2 > f + 1e-9:
+                            f = f2
+                            if axis == "x":
+                                kx, dx = k2, d2
+                            else:
+                                kz, dz = k2, d2
+            for y2 in np.arange(yaw - 3, yaw + 3.01, 0.5):
+                f2 = evaluate(y2, kx, kz, dx, dz)
+                if f2 > f + 1e-9:
+                    f, yaw = f2, y2
+            if f <= before + 1e-6:
+                break
+    ky = math.sqrt(kx * kz)
+    print("fit: yaw %.1f  scale x %.4f z %.4f (aspect %.3f)  offset (%.2f, %.2f)  score %.3f"
+          % (yaw, kx, kz, kz / kx, dx, dz, f))
 
     # 5. Model -> map transform: level, centre, yaw, scale, offset; ground to y = 0.
     Y = yaw_matrix(yaw)
-    B = k * (Y @ R)
-    origin = -k * (Y @ centre) + np.array([dx, args.lift, dz])
+    S = np.diag([kx, ky, kz])
+    B = S @ Y @ R
+    origin = -S @ (Y @ centre) + np.array([dx, args.lift, dz])
     world = V @ B.T + origin
 
     # 6. Surface height of each cell (low quantile of a few rays, so foliage does not lift towers).
@@ -343,6 +361,22 @@ def main():
             q = v[0] if kind[y, x] in ("t", "r") else float(np.percentile(v, 30))
             row.append(round(float(q), 3))
         heights.append(row)
+    # Buildability that matches the model: no towers on its boulders and trees, and bare
+    # flat grass where the map has a tree or rock becomes a build spot.
+    blocked, opened = [], []
+    for y in range(h):
+        for x in range(w):
+            v = sorted(hits.get((y, x), []))
+            ch = kind[y, x]
+            if not v or ch == "x":
+                continue
+            tall = sum(1 for t in v if t > 0.2)
+            if ch == "." and (heights[y][x] > 0.12 or tall >= 2):
+                blocked.append([x, y])
+            elif ch in "tr" and len(v) == len(offs) and tall == 0 and v[-1] - v[0] < 0.15 and abs(heights[y][x]) < 0.05:
+                opened.append([x, y])
+    print("blocked build cells: %s" % blocked)
+    print("opened build cells:  %s" % opened)
     flat_h = [v for r in heights for v in r if v is not None]
     print("cell heights: min %.3f  median %.3f  max %.3f" % (min(flat_h), float(np.median(flat_h)), max(flat_h)))
 
@@ -351,9 +385,12 @@ def main():
         "xf": [round(float(v), 6) for v in list(B[:, 0]) + list(B[:, 1]) + list(B[:, 2]) + list(origin)],
         "heights": heights,
         "keep": [p for p in args.keep.split(",") if p],
+        "blocked": blocked,
+        "opened": opened,
         "grid_strength": args.grid_strength,
         "tint": args.tint,
-        "fit": {"yaw": round(yaw, 2), "scale": round(k, 5), "dx": round(dx, 3), "dz": round(dz, 3),
+        "fit": {"yaw": round(float(yaw), 2), "sx": round(float(kx), 5), "sz": round(float(kz), 5),
+                "dx": round(float(dx), 3), "dz": round(float(dz), 3),
                 "tilt": round(tilt, 2), "score": round(float(f), 3), "path_clusters": pcs},
     }
     out = os.path.join(ARENAS, args.level + ".json")

@@ -103,6 +103,16 @@ const LEVELS := [
 			"particles": "pollen", "clouds": Color(1.0, 1.0, 1.0),
 			"flowers": [Color(1.0, 0.85, 0.3), Color(1.0, 0.5, 0.6), Color(0.95, 0.95, 1.0), Color(0.6, 0.7, 1.0)],
 		},
+		# Sculpted arena (assets/models/arenas/meadow.glb): golden hour over a sea of clouds.
+		"arena_theme": {
+			"sky_top": Color(0.33, 0.52, 0.86), "sky_horizon": Color(1.0, 0.86, 0.62),
+			"ground_horizon": Color(0.98, 0.88, 0.76), "ground_bottom": Color(0.6, 0.68, 0.88),
+			"fog": Color(1.0, 0.9, 0.74), "fog_density": 0.004,
+			"sun_color": Color(1.0, 0.92, 0.76), "sun_energy": 1.05,
+			"ambient": Color(0.78, 0.78, 0.84), "ambient_energy": 0.42,
+			# cloud sea: lit tops, shaded sides, sky between the puffs
+			"cloud_sea": [Color(1.0, 0.97, 0.9), Color(0.95, 0.76, 0.62), Color(0.55, 0.66, 0.88)],
+		},
 		"waves": [
 			[["slime", 6, 1.2, 0.0, -1]],
 			[["slime", 10, 1.0, 0.0, -1]],

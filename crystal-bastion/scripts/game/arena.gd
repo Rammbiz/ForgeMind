@@ -7,8 +7,24 @@ class_name Arena
 ##   "heights" rows of surface heights per grid cell (same size as the level map)
 ##   "keep"    procedural parts that stay visible on top of the model
 ##             ("decor", "water", "portal_base", "crystal_base", "clouds")
+##   "blocked" / "opened"  cells whose buildability follows the model (a boulder on a
+##             grass cell, bare grass where the map has a tree)
+## A level may also carry "arena_theme": sky/light overrides matching the arena's concept art.
 
 const DIR := "res://assets/models/arenas/"
+
+
+## The level as it should be played: with "arena_fit" and the arena's sky/light when the
+## level has a sculpted arena (and the player has them enabled), otherwise unchanged.
+static func prepare_level(level: Dictionary) -> Dictionary:
+	var fit := load_fit(str(level["id"]))
+	if fit.is_empty():
+		return level
+	var out := level.duplicate()
+	out["arena_fit"] = fit
+	if level.has("arena_theme"):
+		out["theme"] = (level["theme"] as Dictionary).merged(level["arena_theme"], true)
+	return out
 
 
 ## Returns the parsed fit for a level, or an empty dictionary when the level has no arena model.

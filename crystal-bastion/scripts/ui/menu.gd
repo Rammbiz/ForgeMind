@@ -13,7 +13,7 @@ var _page_name := ""
 
 func _ready() -> void:
 	var idx := clampi(Save.unlocked - 1, 0, GameData.level_count() - 1)
-	var level := GameData.get_level(idx)
+	var level := Arena.prepare_level(GameData.get_level(idx))
 	var high := Save.quality == "high"
 	add_child(WorldEnv.make_environment(level["theme"], high))
 	add_child(WorldEnv.make_sun(level["theme"], high))
