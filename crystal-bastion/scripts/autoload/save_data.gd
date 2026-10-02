@@ -13,6 +13,7 @@ var language := ""
 var quality := "high"
 var show_damage := true
 var vibration := true
+var arena_models := true   # sculpted Meshy arenas where a level has one
 var readonly := false   # dev/test runs must not touch the player's save
 
 
@@ -30,7 +31,9 @@ func load_data() -> void:
 	var cfg := ConfigFile.new()
 	if readonly:
 		for a in OS.get_cmdline_user_args():
-			if a.begins_with("--unlocked="):
+			if a.begins_with("--arena="):
+				arena_models = a.trim_prefix("--arena=") != "0"
+			elif a.begins_with("--unlocked="):
 				unlocked = clampi(int(a.trim_prefix("--unlocked=")), 1, GameData.level_count())
 				for i in unlocked - 1:
 					stars[i] = 3 - i % 2
@@ -47,6 +50,7 @@ func load_data() -> void:
 	quality = str(cfg.get_value("settings", "quality", quality))
 	show_damage = bool(cfg.get_value("settings", "show_damage", show_damage))
 	vibration = bool(cfg.get_value("settings", "vibration", vibration))
+	arena_models = bool(cfg.get_value("settings", "arenas", arena_models))
 
 
 func save_data() -> void:
@@ -61,6 +65,7 @@ func save_data() -> void:
 	cfg.set_value("settings", "quality", quality)
 	cfg.set_value("settings", "show_damage", show_damage)
 	cfg.set_value("settings", "vibration", vibration)
+	cfg.set_value("settings", "arenas", arena_models)
 	# Write to a temp file and swap it in, keeping the previous save as a backup,
 	# so a crash mid-write can never wipe the player's progress.
 	var main := ProjectSettings.globalize_path(PATH)

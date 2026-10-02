@@ -489,7 +489,7 @@ func hide_cursor() -> void:
 
 func show_range(pos: Vector3, radius: float, color := Color(0.6, 0.9, 1.0)) -> void:
 	_range_ring.visible = true
-	_range_ring.position = Vector3(pos.x, 0.05, pos.z)
+	_range_ring.position = Vector3(pos.x, pos.y + 0.05, pos.z)
 	_range_ring.scale = Vector3(radius, 1.0, radius)
 	(_range_ring.material_override as ShaderMaterial).set_shader_parameter("tint", color)
 

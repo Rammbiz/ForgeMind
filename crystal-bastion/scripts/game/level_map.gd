@@ -30,19 +30,31 @@ var _clouds: Array[Node3D] = []
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 var _water: MeshInstance3D
+var arena := {}           # fit of the sculpted arena model (empty = procedural island)
 
 
 func build(level: Dictionary, quality_high := true) -> void:
 	theme = level["theme"]
 	_rng.seed = hash(str(level["id"]))
+	arena = Arena.load_fit(str(level["id"]))
 	_parse(level["map"])
+	if not arena.is_empty():
+		for c: Vector2i in cells:
+			top_y[c] = Arena.height_at(arena, c, top_y[c])
 	_compute_paths()
-	_build_terrain()
-	_build_water()
-	_build_decorations()
+	if arena.is_empty():
+		_build_terrain()
+	else:
+		add_child(Arena.instantiate(arena, quality_high))
+		_build_build_grid()
+	if arena.is_empty() or Arena.keeps(arena, "water"):
+		_build_water()
+	if arena.is_empty() or Arena.keeps(arena, "decor"):
+		_build_decorations()
 	_build_portals()
 	_build_crystal()
-	_build_clouds()
+	if arena.is_empty() or Arena.keeps(arena, "clouds"):
+		_build_clouds()
 	_build_ambient(quality_high)
 
 
@@ -314,6 +326,46 @@ func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vecto
 			st.add_vertex(pts[k])
 
 
+## Soft rounded tiles that mark buildable cells on top of a sculpted arena model.
+func _build_build_grid() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for c: Vector2i in cells:
+		if not is_buildable(c):
+			continue
+		var p := cell_to_world(c) + Vector3(0, 0.02, 0)
+		var q := [Vector3(-0.5, 0, -0.5), Vector3(0.5, 0, -0.5), Vector3(0.5, 0, 0.5), Vector3(-0.5, 0, 0.5)]
+		var uv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+		for i in [0, 1, 2, 0, 2, 3]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(uv[i])
+			st.add_vertex(p + q[i])
+	var mi := MeshInstance3D.new()
+	mi.name = "BuildGrid"
+	mi.mesh = st.commit()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(1.0, 0.97, 0.85, 1.0);
+uniform float strength = 0.22;
+void fragment() {
+	vec2 p = abs(UV * 2.0 - 1.0);
+	vec2 q = max(p - vec2(0.72), vec2(0.0));
+	float d = length(q) + min(max(p.x, p.y) - 0.72, 0.0) - 0.18;
+	float edge = smoothstep(-0.12, -0.04, d) * (1.0 - smoothstep(-0.02, 0.0, d));
+	ALBEDO = tint.rgb;
+	ALPHA = edge * strength + (1.0 - smoothstep(-0.02, 0.0, d)) * strength * 0.15;
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	mat.set_shader_parameter("strength", float(arena.get("grid_strength", 0.22)))
+	mi.material_override = mat
+	add_child(mi)
+
+
 func _build_water() -> void:
 	var has_water := false
 	for c in cells:
@@ -427,6 +479,8 @@ func _chunk_of(c: Vector2i) -> Vector2i:
 
 ## Rebuilds one batched decoration chunk, skipping cells that are covered by towers.
 func _rebuild_chunk(key: Vector2i) -> void:
+	if not _decor_parts.has(key):
+		return
 	if _decor_nodes.has(key):
 		(_decor_nodes[key] as Node).queue_free()
 	var node := Node3D.new()
@@ -540,15 +594,18 @@ func _build_portals() -> void:
 		add_child(root)
 		var stone := Mats.solid(Color(0.28, 0.25, 0.34), 0.85)
 		var stone_l := Mats.solid(Color(0.42, 0.38, 0.5), 0.85)
-		# Ring of standing stones around a glowing vortex on the ground.
-		Mats.part(root, Mats.cyl(0.47, 0.5, 0.08, 10), stone, Vector3(0, 0.0, 0))
+		# Ring of standing stones around a glowing vortex on the ground
+		# (an arena model brings its own stones).
+		var stones := arena.is_empty() or Arena.keeps(arena, "portal_base")
+		if stones:
+			Mats.part(root, Mats.cyl(0.47, 0.5, 0.08, 10), stone, Vector3(0, 0.0, 0))
 		var swirl := MeshInstance3D.new()
 		swirl.mesh = Mats.quad(Vector2(0.9, 0.9))
 		swirl.position = Vector3(0, 0.05, 0)
 		swirl.material_override = _portal_material()
 		swirl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(swirl)
-		for k in 6:
+		for k in (6 if stones else 0):
 			var a := TAU * k / 6.0 + PI / 6.0
 			# Leave the side facing the path (+Z) open.
 			if absf(wrapf(a, -PI, PI)) < 0.7:
@@ -618,9 +675,11 @@ func _build_crystal() -> void:
 	crystal.position = cell_to_world(exit_cell)
 	add_child(crystal)
 	var stone := Mats.solid(Color(0.75, 0.74, 0.78), 0.8)
-	Mats.part(crystal, Mats.cyl(0.42, 0.48, 0.16, 6), Mats.solid(Color(0.45, 0.44, 0.5)), Vector3(0, 0.08, 0))
-	Mats.part(crystal, Mats.cyl(0.3, 0.38, 0.14, 6), stone, Vector3(0, 0.23, 0))
-	for i in 6:
+	var base := arena.is_empty() or Arena.keeps(arena, "crystal_base")
+	if base:
+		Mats.part(crystal, Mats.cyl(0.42, 0.48, 0.16, 6), Mats.solid(Color(0.45, 0.44, 0.5)), Vector3(0, 0.08, 0))
+		Mats.part(crystal, Mats.cyl(0.3, 0.38, 0.14, 6), stone, Vector3(0, 0.23, 0))
+	for i in (6 if base else 0):
 		var a := TAU * i / 6.0
 		Mats.part(crystal, Mats.crystal(0.07, 0.3), Mats.glow(Color(0.4, 0.95, 1.0), 1.3), Vector3(cos(a) * 0.36, 0.3, sin(a) * 0.36), Vector3(rad_to_deg(sin(a)) * 0.35, 0, -rad_to_deg(cos(a)) * 0.35), Vector3.ONE, false)
 	crystal_core = Mats.part(crystal, Mats.crystal(0.26, 0.9), _crystal_mat(Color(0.35, 0.95, 1.0)), Vector3(0, 1.0, 0))
