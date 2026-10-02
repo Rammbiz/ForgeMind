@@ -163,6 +163,13 @@ const LEVELS := [
 			"particles": "dust", "clouds": Color(1.0, 0.82, 0.74),
 			"flowers": [Color(0.95, 0.35, 0.35), Color(1.0, 0.8, 0.35)],
 		},
+		# Sculpted arena: blazing sunset over peach clouds.
+		"arena_theme": {
+			"ground_horizon": Color(1.0, 0.66, 0.5), "ground_bottom": Color(0.42, 0.24, 0.46),
+			"cloud_sea": [Color(1.0, 0.8, 0.64), Color(0.88, 0.5, 0.52), Color(0.46, 0.3, 0.56)],
+			"fog_density": 0.004,
+			"ambient": Color(0.86, 0.68, 0.7), "ambient_energy": 0.45,
+		},
 		"waves": [
 			[["slime", 8, 1.0, 0.0, -1]],
 			[["slime", 6, 0.9, 0.0, 0], ["runner", 5, 0.8, 2.0, 1]],

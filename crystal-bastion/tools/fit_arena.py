@@ -227,7 +227,7 @@ def main():
     ext = np.percentile(gxz, 98, axis=0) - np.percentile(gxz, 2, axis=0)
     print("ground y=%.4f  ground footprint %.3f x %.3f (model units)" % (ground, ext[0], ext[1]))
 
-    # 3. Colour clusters of the ground surface; the path is the one closest to the theme path colour.
+    # 3. Colour clusters of the ground surface (one of them is the painted path).
     gc = C[on_ground]
     ga = areas[on_ground]
     rng = np.random.default_rng(1)
@@ -239,53 +239,40 @@ def main():
     target = theme["path"] if theme["path"] is not None else np.array([0.8, 0.7, 0.5])
     for i, c in enumerate(cents):
         print("  cluster %d: rgb %s  area %.1f%%" % (i, np.round(c, 3).tolist(), frac[i] * 100))
-    if args.path_cluster:
-        pcs = [int(v) for v in args.path_cluster.split(",")]
-    else:
-        # Nearest cluster to the theme path colour, plus clusters of almost the same colour.
-        dist = np.sqrt(((cents - target) ** 2).sum(axis=1))
-        best = int(dist.argmin())
-        grass = theme["grass"] if theme["grass"] is not None else np.array([0.4, 0.65, 0.3])
-        pcs = [i for i in range(len(cents))
-               if np.linalg.norm(cents[i] - cents[best]) < 0.12 and dist[i] < np.linalg.norm(cents[i] - grass)]
-    pc = pcs[0]
-    print("path clusters: %s" % pcs)
-    is_path = np.isin(lab, pcs)
-
-    # 4. Align painted path with the map path.
-    rel = centroids[on_ground] - centre
-    pts, pw = rel[is_path], ga[is_path]
-    gpts, gw = rel[~is_path], ga[~is_path]
-    if len(pts) > 6000:
-        i = rng.choice(len(pts), 6000, replace=False, p=pw / pw.sum())
-        pts, pw = pts[i], np.full(6000, pw.sum() / 6000)
-    if len(gpts) > 6000:
-        i = rng.choice(len(gpts), 6000, replace=False, p=gw / gw.sum())
-        gpts, gw = gpts[i], np.full(6000, gw.sum() / 6000)
     land_w = land.any(axis=0).sum()
     s0 = land_w / max(ext.max(), 1e-6)
-    tw = pw.sum()
-    rot_cache = {}
+    rel = centroids[on_ground] - centre
+    cells = np.argwhere(path)
+    mcx = float((cells[:, 1] + 0.5 - w * 0.5).mean())
+    mcz = float((cells[:, 0] + 0.5 - h * 0.5).mean())
 
-    def evaluate(yaw, kx, kz, dx, dz):
-        key = round(float(yaw), 3)
-        if key not in rot_cache:
-            r = yaw_matrix(yaw)
-            rot_cache[key] = (pts @ r.T, gpts @ r.T)
-        rp, rg = rot_cache[key]
-        return score(rp[:, 0] * kx + dx, rp[:, 2] * kz + dz, pw, rg[:, 0] * kx + dx, rg[:, 2] * kz + dz,
-                     gw, path, land, w, h, tw)
+    def align(is_path):
+        """Best (score, (yaw, kx, kz, dx, dz)) for a painted-path mask of the ground faces."""
+        pts, pw = rel[is_path], ga[is_path]
+        gpts, gw = rel[~is_path], ga[~is_path]
+        if len(pts) > 6000:
+            i = rng.choice(len(pts), 6000, replace=False, p=pw / pw.sum())
+            pts, pw = pts[i], np.full(6000, pw.sum() / 6000)
+        if len(gpts) > 6000:
+            i = rng.choice(len(gpts), 6000, replace=False, p=gw / gw.sum())
+            gpts, gw = gpts[i], np.full(6000, gw.sum() / 6000)
+        tw = pw.sum()
+        rot_cache = {}
 
-    if None not in (args.yaw, args.sx, args.sz, args.dx, args.dz):
-        yaw, kx, kz, dx, dz = args.yaw, args.sx, args.sz, args.dx, args.dz
-        f = evaluate(yaw, kx, kz, dx, dz)
-    else:
+        def evaluate(yaw, kx, kz, dx, dz):
+            key = round(float(yaw), 3)
+            if key not in rot_cache:
+                r = yaw_matrix(yaw)
+                rot_cache[key] = (pts @ r.T, gpts @ r.T)
+            rp, rg = rot_cache[key]
+            return score(rp[:, 0] * kx + dx, rp[:, 2] * kz + dz, pw, rg[:, 0] * kx + dx, rg[:, 2] * kz + dz,
+                         gw, path, land, w, h, tw)
+
+        if None not in (args.yaw, args.sx, args.sz, args.dx, args.dz):
+            return evaluate(args.yaw, args.sx, args.sz, args.dx, args.dz), (args.yaw, args.sx, args.sz, args.dx, args.dz)
         # Coarse: for every yaw and every (scale, aspect) pair, put the painted path's centroid
         # on the map path's centroid and score. The island rim can be much wider than the
         # playable grid and image-to-3D often stretches depth, so both are searched widely.
-        cells = np.argwhere(path)
-        mcx = float((cells[:, 1] + 0.5 - w * 0.5).mean())
-        mcz = float((cells[:, 0] + 0.5 - h * 0.5).mean())
         yaws = [args.yaw] if args.yaw is not None else list(np.arange(0, 360, 4.0))
         f, best = -1e9, None
         for y2 in yaws:
@@ -300,9 +287,7 @@ def main():
                     if f2 > f:
                         f, best = f2, (y2, kx2, kz2, dx2, dz2)
         yaw, kx, kz, dx, dz = best
-        print("coarse: yaw %.1f  scale x %.3f z %.3f  score %.3f" % (yaw, kx, kz, f))
-        # Fine: image-to-3D often stretches the depth axis, so scale x and z separately
-        # (coordinate descent over (kx, dx), (kz, dz) and yaw until nothing improves).
+        # Fine: coordinate descent over (kx, dx), (kz, dz) and yaw until nothing improves.
         for _ in range(6):
             before = f
             for axis in ("x", "z"):
@@ -322,6 +307,30 @@ def main():
                     f, yaw = f2, y2
             if f <= before + 1e-6:
                 break
+        return f, (yaw, kx, kz, dx, dz)
+
+    # 4. Which colour is the path? Try every plausible cluster (plus clusters of almost the
+    # same colour) and keep the one whose layout fits the map path best.
+    if args.path_cluster:
+        candidates = [[int(v) for v in args.path_cluster.split(",")]]
+    else:
+        candidates = []
+        order = np.argsort(np.sqrt(((cents - target) ** 2).sum(axis=1)))
+        for i in order:
+            if not 0.05 <= frac[i] <= 0.5:
+                continue
+            group = sorted(j for j in range(len(cents)) if np.linalg.norm(cents[j] - cents[i]) < 0.12)
+            if group not in candidates and sum(frac[j] for j in group) <= 0.5:
+                candidates.append(group)
+    f, params, pcs = -1e9, None, None
+    for group in candidates:
+        f2, p2 = align(np.isin(lab, group))
+        print("  path = clusters %s: score %.3f" % (group, f2))
+        if f2 > f:
+            f, params, pcs = f2, p2, group
+    yaw, kx, kz, dx, dz = params
+    pc = pcs[0]
+    print("path clusters: %s" % pcs)
     ky = math.sqrt(kx * kz)
     print("fit: yaw %.1f  scale x %.4f z %.4f (aspect %.3f)  offset (%.2f, %.2f)  score %.3f"
           % (yaw, kx, kz, kz / kx, dx, dz, f))
