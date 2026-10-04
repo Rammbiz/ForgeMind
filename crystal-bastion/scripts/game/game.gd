@@ -25,6 +25,7 @@ var enemies: Array[Enemy] = []
 var heroes: Array[Hero] = []
 var heroes_root: Node3D
 var selected_hero: Hero
+var _hero_prompt := ""
 var towers := {}               # Vector2i -> Tower
 var gold := 0
 var lives := 0
@@ -349,8 +350,9 @@ func enemies_in_radius(pos: Vector3, radius: float, air: bool, ground: bool) -> 
 # ------------------------------------------------------------------ heroes
 
 ## Both heroes start on the main path just in front of the crystal.
+## (`--noheroes` leaves them out, for measuring tower/wave balance alone.)
 func _spawn_heroes() -> void:
-	if map.curves.is_empty():
+	if map.curves.is_empty() or "--noheroes" in OS.get_cmdline_user_args():
 		return
 	var curve: Curve3D = map.curves[0]
 	var length: float = map.path_lengths[0]
@@ -366,9 +368,9 @@ func _spawn_heroes() -> void:
 
 
 ## The hero drawn under a screen point (generous radius for fingers), or null.
-func hero_at_screen(screen_pos: Vector2) -> Hero:
+func hero_at_screen(screen_pos: Vector2, radius := 56.0) -> Hero:
 	var best: Hero = null
-	var best_d := 56.0
+	var best_d := radius
 	for h in heroes:
 		if not h.alive:
 			continue
@@ -388,20 +390,29 @@ func select_hero(h: Hero) -> void:
 	selected_hero = h
 	h.selected = true
 	Audio.play("click", -6.0)
-	hud.toast(Loc.f("HERO_PICK_SPOT", [Loc.t(h.def["name"])]), h.color.lightened(0.35), 2.5)
+	_hero_prompt = Loc.f("HERO_PICK_SPOT", [Loc.t(h.def["name"])])
+	hud.toast(_hero_prompt, h.color.lightened(0.35), 2.5)
 
 
 func deselect_hero() -> void:
-	if selected_hero and is_instance_valid(selected_hero):
+	if selected_hero == null:
+		return
+	if is_instance_valid(selected_hero):
 		selected_hero.selected = false
 	selected_hero = null
+	hud.hide_toast_text(_hero_prompt)
+
+
+## Heroes stand on open ground or the path, never in water, on trees, rocks, towers or the crystal.
+func can_post_hero(c: Vector2i) -> bool:
+	return str(map.cells.get(c, "")) in [".", "#", "S"] and not towers.has(c)
 
 
 ## Sends the selected hero to a tapped ground point.
 func _command_selected_hero(ground: Vector3) -> void:
 	var h := selected_hero
 	deselect_hero()
-	if not map.cells.has(map.world_to_cell(ground)):
+	if not h.alive or not can_post_hero(map.world_to_cell(ground)):
 		hud.toast(Loc.t("HERO_CANT_GO"))
 		Audio.play("error")
 		return
@@ -616,19 +627,25 @@ func world_tap(screen_pos: Vector2) -> void:
 	if not is_running():
 		return
 	var ground := cam.screen_to_ground(screen_pos)
-	var tapped_hero := hero_at_screen(screen_pos)
+	var c := map.world_to_cell(ground)
+	# A tap on a tower or a free build tile only picks a hero when it lands right on it.
+	var on_cell := towers.has(c) or can_build(c)
+	var tapped_hero := hero_at_screen(screen_pos, 26.0 if on_cell else 56.0)
 	if selected_hero:
 		if tapped_hero == selected_hero:
 			deselect_hero()
-		elif tapped_hero:
+			return
+		if tapped_hero:
 			select_hero(tapped_hero)
-		else:
+			return
+		if not towers.has(c):
 			_command_selected_hero(ground)
-		return
-	if tapped_hero:
+			return
+		# Tapping a tower while a hero waits for orders opens the tower instead.
+		deselect_hero()
+	elif tapped_hero:
 		select_hero(tapped_hero)
 		return
-	var c := map.world_to_cell(ground)
 	if towers.has(c):
 		Audio.play("click", -6.0)
 		hud.open_tower_panel(towers[c])

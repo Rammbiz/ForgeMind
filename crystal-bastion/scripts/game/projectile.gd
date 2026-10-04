@@ -40,7 +40,10 @@ func launch(p_game: Game, p_kind: String, from: Vector3, p_target: Enemy, stats:
 		# Lead the target: predict where it will be when the ball lands.
 		var d := from.distance_to(target_pos)
 		_flight = clampf(d / speed, 0.35, 1.2)
-		var future := minf(target.dist + target.speed * target.slow_factor * _flight, target.path_len - 0.01)
+		# Enemies held by a hero do not move; stunned ones only move once the stun wears off.
+		var held := target.blocker != null and is_instance_valid(target.blocker) and target.blocker.alive
+		var walk_t := 0.0 if held else maxf(_flight - target.stun_time, 0.0)
+		var future := minf(target.dist + target.speed * target.slow_factor * walk_t, target.path_len - 0.01)
 		target_pos = game.map.curves[target.path_index].sample_baked(future, true)
 		_arc = 0.6 + d * 0.18
 

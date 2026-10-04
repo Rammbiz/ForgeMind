@@ -31,6 +31,7 @@ var _anim_t := 0.0
 var _attack_anim := 0.0
 var _moving := false
 var _hit_flash := 0.0
+var _flash_cd := 0.0
 var _ring: MeshInstance3D
 var _trail: CPUParticles3D
 
@@ -77,6 +78,7 @@ func _process(raw_delta: float) -> void:
 	var delta := Game.step(raw_delta)
 	_anim_t += delta
 	_attack_anim = maxf(_attack_anim - delta * (3.0 if type == "bolt" else 1.6), 0.0)
+	_flash_cd = maxf(_flash_cd - delta, 0.0)
 	if _hit_flash > 0.0:
 		_hit_flash -= delta
 		if _hit_flash <= 0.0:
@@ -85,6 +87,10 @@ func _process(raw_delta: float) -> void:
 		_ring.visible = selected and alive
 	if game == null or not game.is_running():
 		_moving = false
+		if not _held.is_empty():
+			_release_all()
+		if _trail:
+			_trail.emitting = false
 		_animate()
 		return
 	cooldown = maxf(cooldown - delta, 0.0)
@@ -119,7 +125,7 @@ func _fight(delta: float) -> void:
 	if target.flying:
 		_face(target.global_position, delta)
 		if _attack_cd <= 0.0:
-			_attack()
+			_attack(delta)
 		return
 	var reach := float(def["reach"]) + target.size * 0.5
 	if _flat_dist(target.global_position) > reach:
@@ -128,7 +134,7 @@ func _fight(delta: float) -> void:
 		_hold(target)
 		_face(target.global_position, delta)
 		if _attack_cd <= 0.0:
-			_attack()
+			_attack(delta)
 
 
 ## Keeps the current target while it is still reachable; otherwise takes an enemy it already
@@ -136,10 +142,11 @@ func _fight(delta: float) -> void:
 func _pick_target() -> void:
 	if target != null and (not is_instance_valid(target) or not target.alive or not _can_engage(target)):
 		target = null
-	if target != null:
+	# Fight what we hold first: never walk off and leave held enemies frozen behind.
+	if not _held.is_empty() and not _held.has(target):
+		target = _held[0]
 		return
-	for e in _held:
-		target = e
+	if target != null:
 		return
 	var best: Enemy = null
 	var best_d := INF
@@ -201,8 +208,9 @@ func _release_all() -> void:
 	target = null
 
 
-func _attack() -> void:
-	_attack_cd = 1.0 / float(def["rate"])
+func _attack(delta: float) -> void:
+	# Carry this frame's overshoot (like towers) so 2x/3x speed keeps the same hit rate.
+	_attack_cd = maxf(_attack_cd, -delta) + 1.0 / float(def["rate"])
 	_attack_anim = 1.0
 	var dmg := float(def["damage"])
 	var at := target.aim_point()
@@ -344,12 +352,14 @@ func _slam() -> void:
 # ------------------------------------------------------------------ health
 
 func take_damage(amount: float, _from: Enemy = null) -> void:
-	if not alive or amount <= 0.0:
+	if not alive or amount <= 0.0 or game == null or not game.is_running():
 		return
 	hp -= amount
 	_since_hit = 0.0
-	if _hit_flash <= 0.0:
-		_hit_flash = 0.08
+	# Held enemies hit every frame: pulse the flash about twice a second instead of strobing.
+	if _flash_cd <= 0.0:
+		_hit_flash = 0.12
+		_flash_cd = 0.45
 		_set_overlay(_get_flash_mat())
 	if hp <= 0.0:
 		_die()
@@ -358,6 +368,8 @@ func take_damage(amount: float, _from: Enemy = null) -> void:
 func _die() -> void:
 	alive = false
 	hp = 0.0
+	if game.selected_hero == self:
+		game.deselect_hero()
 	_release_all()
 	_marching = false
 	respawn_left = float(def["respawn"])

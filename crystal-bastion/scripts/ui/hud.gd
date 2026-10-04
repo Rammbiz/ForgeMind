@@ -227,10 +227,11 @@ func _update_hero_bar() -> void:
 	for h: Hero in _hero_btns:
 		var b: RoundButton = _hero_btns[h]
 		var a: RoundButton = _ability_btns[h]
-		b.icon_texture = _hero_icons.get(h.type, null)
-		if b.icon_texture == null:
+		var tex: Texture2D = _hero_icons.get(h.type, null)
+		b.icon_texture = tex
+		if tex == null:
 			b.icon_kind = "star"
-			b.icon_tint = h.color
+		b.icon_tint = Color.WHITE if tex else h.color
 		b.highlight = h.selected
 		if h.alive:
 			var ratio := clampf(h.hp / h.max_hp, 0.0, 1.0)
@@ -333,7 +334,7 @@ func _layout_controls() -> void:
 		var a: RoundButton = _ability_btns[h]
 		var x := left + 14.0 + i * 150.0
 		b.position = Vector2(x, bottom - 118)
-		a.position = Vector2(x + 76.0, bottom - 74)
+		a.position = Vector2(x + 84.0, bottom - 70)
 		i += 1
 
 
@@ -629,6 +630,17 @@ func toast(text: String, color := UIKit.RED, hold := 1.0) -> void:
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.4)
 
 
+## Fades the toast out early, but only if it still shows `text` (so newer messages stay).
+func hide_toast_text(text: String) -> void:
+	if text == "" or _toast.text != text or _toast.modulate.a <= 0.0:
+		return
+	if _toast_tween:
+		_toast_tween.kill()
+	_toast_tween = _toast.create_tween()
+	_toast_tween.set_ignore_time_scale(true)
+	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.15)
+
+
 func damage_flash() -> void:
 	var m := _vignette.material as ShaderMaterial
 	var tw := _vignette.create_tween()
@@ -728,6 +740,7 @@ func _icon_viewport(px: int) -> SubViewport:
 func _make_modal() -> PanelContainer:
 	_close_modal()
 	close_menus()
+	game.deselect_hero()
 	_modal = Control.new()
 	_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal.mouse_filter = Control.MOUSE_FILTER_STOP
