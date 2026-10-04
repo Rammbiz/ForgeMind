@@ -111,6 +111,12 @@ func _process(raw_delta: float) -> void:
 		_moving = false
 		if not _held.is_empty():
 			_release_all()
+		# The level ended mid-move: put the hero back on its post and drop the armour glow.
+		if _ult_left > 0.0:
+			_end_ult()
+		if _armor_left > 0.0:
+			_armor_left = 0.0
+			_set_overlay(null)
 		if _trail:
 			_trail.emitting = false
 		_animate()
@@ -337,8 +343,6 @@ func use_ult() -> bool:
 		return false
 	ult_cooldown = float(ult["cooldown"])
 	_ult_anim = 1.0
-	_attack_anim = 0.0
-	_ability_anim = 0.0
 	match type:
 		"bolt":
 			_ult_left = float(ult["duration"])
@@ -350,7 +354,8 @@ func use_ult() -> bool:
 			_quake_t = -QUAKE_WINDUP
 			_quake_wave = -1
 			_quake_hit.clear()
-			_ult_left = QUAKE_WINDUP + QUAKE_WAVE_GAP * int(ult["waves"]) + 0.2
+			# Stay put until the landing crouch has played out, not just the waves.
+			_ult_left = maxf(QUAKE_WINDUP + QUAKE_WAVE_GAP * int(ult["waves"]) + 0.2, float(ult["anim"]))
 	return true
 
 
@@ -380,13 +385,14 @@ func _storm_step(delta: float) -> void:
 	var r := float(ult["radius"])
 	var a := _anim_t * STORM_SPIN
 	var lap := r * 0.6
-	var off := Vector3(cos(a), 0.0, sin(a)) * lap
+	var spent := float(ult["duration"]) - _ult_left
+	# Spiral out from the post at the start and back into it at the end.
+	var off := Vector3(cos(a), 0.0, sin(a)) * lap * smoothstep(0.0, 0.2, spent) * smoothstep(0.0, 0.3, _ult_left)
 	var y := lerpf(_model.position.y, game.map.ground_y(global_position + off) - global_position.y, minf(1.0, delta * 15.0))
 	_model.position = Vector3(off.x, y, off.z)
 	_model.rotation.y = atan2(-sin(a), cos(a))
 	if _trail:
 		_trail.position = _model.position + Vector3(0, 0.45, 0)
-	var spent := float(ult["duration"]) - _ult_left
 	_vortex.visible = true
 	(_vortex.material_override as ShaderMaterial).set_shader_parameter("fade", clampf(minf(spent / 0.25, _ult_left / 0.35), 0.0, 1.0))
 	_ult_tick -= delta
@@ -402,13 +408,17 @@ func _storm_step(delta: float) -> void:
 	game.effects.lightning(ring, Color(0.5, 0.8, 1.0), 0.26, 0.06, false)
 	game.effects.ring(center, Color(0.45, 0.75, 1.0), r, 0.3)
 	var from := center + off + Vector3(0, 0.5, 0)
+	# Every enemy inside is hit; only the first few get a visible bolt, to keep a crowd cheap.
+	var bolts := 6 if game.effects.quality_high else 3
 	for e in game.enemies_in_radius(center, r, true, true):
 		var at := e.aim_point()
 		e.take_damage(float(ult["dps"]) * tick, "magic")
 		if e.alive:
 			e.apply_slow(float(ult["slow"]), tick + 0.5)
-		game.effects.lightning([from, at], Color(1.0, 0.85, 0.35), 0.12, 0.035)
-		game.effects.hit_spark(at, Color(0.6, 0.9, 1.0))
+		if bolts > 0:
+			bolts -= 1
+			game.effects.lightning([from, at], Color(1.0, 0.85, 0.35), 0.12, 0.035, false)
+			game.effects.hit_spark(at, Color(0.6, 0.9, 1.0))
 	Audio.play("tesla", -9.0, 0.25)
 
 
@@ -438,6 +448,8 @@ func _quake_step(delta: float) -> void:
 		for i in count:
 			var ang := (i + 0.5 * (_quake_wave % 2)) * TAU / count
 			var at := center + Vector3(cos(ang), 0.0, sin(ang)) * radius
+			if not game.map.top_y.has(game.map.world_to_cell(at)):
+				continue  # past the island's edge
 			at.y = game.map.ground_y(at)
 			spikes.append(at)
 		game.effects.crystal_spikes(spikes, center, Color(0.12, 0.85, 0.4))
@@ -652,10 +664,12 @@ render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabl
 uniform vec4 tint : source_color = vec4(0.2, 0.5, 1.0, 1.0);
 uniform float fade = 1.0;
 void fragment() {
-	float a = UV.x * 6.2831 * 4.0 - TIME * 16.0 + UV.y * 5.0;
+	// CylinderMesh sides span UV.y 0 (top) .. 0.5 (bottom).
+	float v = UV.y * 2.0;
+	float a = UV.x * 6.2831 * 4.0 - TIME * 16.0 + v * 5.0;
 	float streak = pow(0.5 + 0.5 * sin(a), 6.0);
-	float spark = pow(0.5 + 0.5 * sin(UV.x * 6.2831 * 9.0 + TIME * 23.0 - UV.y * 9.0), 24.0);
-	float band = smoothstep(0.0, 0.3, UV.y) * smoothstep(1.0, 0.55, UV.y);
+	float spark = pow(0.5 + 0.5 * sin(UV.x * 6.2831 * 9.0 + TIME * 23.0 - v * 9.0), 24.0);
+	float band = smoothstep(0.0, 0.3, v) * (1.0 - smoothstep(0.55, 1.0, v));
 	ALBEDO = mix(mix(tint.rgb, vec3(0.75, 0.9, 1.0), streak), vec3(1.0, 0.92, 0.5), spark);
 	ALPHA = clamp(0.32 + streak * 0.6 + spark, 0.0, 1.0) * band * fade;
 }

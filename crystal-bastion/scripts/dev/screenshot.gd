@@ -116,7 +116,8 @@ func _ready() -> void:
 		for k in hud._hero_icons:
 			(hud._hero_icons[k] as Texture2D).get_image().save_png("%s/hero_%s.png" % [dir, k])
 		print("ICONS saved to ", dir)
-	var frames := int(args.get("frames", "40"))
+	# Moves caught with --ult/--ability are over within seconds: capture right away.
+	var frames := int(args.get("frames", "1" if args.has("ult") or args.has("ability") else "40"))
 	for i in frames:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw

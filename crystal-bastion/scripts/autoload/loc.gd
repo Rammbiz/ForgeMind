@@ -88,7 +88,7 @@ const STRINGS := {
 	"BOSS_INCOMING": ["Наближається бос!", "Boss incoming!"],
 	"LAST_WAVE": ["Остання хвиля!", "Final wave!"],
 	"HINT_BUILD": ["Торкніться вільної клітинки, щоб звести вежу", "Tap an empty tile to build a tower"],
-	"HINT_HEROES": ["Герої внизу ліворуч: торкніться героя, потім місця на мапі. Верхня кнопка поруч — ульта", "Heroes are bottom left: tap a hero, then a spot on the map. The top button next to it is the ultimate"],
+	"HINT_HEROES": ["Герої внизу ліворуч: торкніться героя, потім місця на мапі", "Heroes are bottom left: tap a hero, then a spot on the map"],
 	"HINT_START": ["Коли будете готові — почніть хвилю", "Start the wave when you are ready"],
 	"MUSIC": ["Музика", "Music"],
 	"SOUNDS": ["Звуки", "Sounds"],

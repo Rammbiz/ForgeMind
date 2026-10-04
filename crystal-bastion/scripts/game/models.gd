@@ -509,6 +509,8 @@ static func _rigged_hero(type: String, path: String) -> Node3D:
 	root.set_meta("skeleton", sk)
 	root.set_meta("bones", bones)
 	root.set_meta("hips_rest", sk.get_bone_rest(bones["hips"]).origin)
+	# Thigh and shin lengths, for keeping the feet on the ground when the legs bend.
+	root.set_meta("leg", Vector2(sk.get_bone_rest(bones["shin.L"]).origin.length(), sk.get_bone_rest(bones["foot.L"]).origin.length()))
 	root.set_meta("state", {"t": -1.0, "move": 0.0, "fight": 0.0})
 	# Head-and-shoulders framing, from where the head sits in the rig file.
 	var head := sk.get_bone_global_rest(bones["head"]).origin * h
@@ -786,15 +788,28 @@ static func _animate_rig(model: Node3D, t: float, moving: bool, attack: float, a
 	st["move"] = move_toward(float(st["move"]), 1.0 if moving else 0.0, dt * 7.0)
 	st["fight"] = move_toward(float(st["fight"]), 1.0 if combat and not moving else 0.0, dt * 4.0)
 	var pose := {}
-	var lift: float
+	# x: extra hip height (bobs, jumps), y: how much the standing-leg contact applies.
+	var lift: Vector2
 	if str(model.get_meta("style")) == "speedster":
 		lift = _pose_speedster(pose, t, float(st["move"]), float(st["fight"]), attack, ability, ult, alt)
 	else:
 		lift = _pose_giant(pose, t, float(st["move"]), float(st["fight"]), attack, ability, ult, alt)
+	var hips_y := lift.x + _leg_contact(pose, model.get_meta("leg")) * lift.y
 	for bname: String in bones:
 		var e: Vector3 = pose.get(bname, Vector3.ZERO)
 		sk.set_bone_pose_rotation(bones[bname], Quaternion.from_euler(e * (PI / 180.0)))
-	sk.set_bone_pose_position(bones["hips"], (model.get_meta("hips_rest") as Vector3) + Vector3(0, lift, 0))
+	sk.set_bone_pose_position(bones["hips"], (model.get_meta("hips_rest") as Vector3) + Vector3(0, hips_y, 0))
+
+
+## How far the hips must drop so the straighter leg still reaches the ground (<= 0).
+static func _leg_contact(pose: Dictionary, leg: Vector2) -> float:
+	var reach := 0.0
+	for s in ["L", "R"]:
+		var thigh: Vector3 = pose.get("thigh." + s, Vector3.ZERO)
+		var shin: Vector3 = pose.get("shin." + s, Vector3.ZERO)
+		var spread := cos(deg_to_rad(thigh.z))
+		reach = maxf(reach, (leg.x * cos(deg_to_rad(thigh.x)) + leg.y * cos(deg_to_rad(thigh.x + shin.x))) * spread)
+	return reach - leg.x - leg.y
 
 
 ## Adds `part` (bone -> Euler degrees) to `pose` with weight `w`.
@@ -831,10 +846,11 @@ static func _env(v: float, rise: float, fall: float) -> float:
 
 ## Thunderfox: relaxed sway, a boxer's guard in a fight, a lean "swept-arms" sprint, quick
 ## alternating jabs, a crouched launch for the dash and a spinning storm stance for the ult.
-static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: float, attack: float, ability: float, ult: float, alt: bool) -> float:
+static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: float, attack: float, ability: float, ult: float, alt: bool) -> Vector2:
 	var b := sin(t * 2.4)
 	var still := 1.0 - move
 	var lift := 0.0
+	var contact := still
 	_mix(pose, still * (1.0 - fight), {
 		"spine": Vector3(2.0 + b, 0, 0), "chest": Vector3(b * 1.5, 0, 0),
 		"head": Vector3(-2.0, sin(t * 0.7) * 9.0, sin(t * 0.9) * 3.0),
@@ -855,7 +871,7 @@ static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: floa
 		"tail1": Vector3(28, sin(t * 3.0) * 10.0, 0), "tail2": Vector3(6, sin(t * 3.0 - 0.7) * 10.0, 0),
 		"tail3": Vector3(4, sin(t * 3.0 - 1.4) * 12.0, 0), "tail4": Vector3(0, sin(t * 3.0 - 2.1) * 14.0, 0),
 	})
-	lift += still * fight * (-0.02 + absf(hop) * 0.006)
+	lift += still * fight * absf(hop) * 0.006
 	if move > 0.0:
 		var p := t * 17.0
 		var run := {
@@ -873,7 +889,7 @@ static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: floa
 			run["shin." + side[0]] = Vector3(12.0 + 85.0 * maxf(cos(ph), 0.0), 0, 0)
 			run["foot." + side[0]] = Vector3(25.0 * maxf(cos(ph), 0.0), 0, 0)
 		_mix(pose, move, run)
-		lift += move * (absf(sin(p)) * 0.035 - 0.03)
+		lift += move * (absf(sin(p)) * 0.035 - 0.012)
 	if attack > 0.0 and still > 0.0:
 		# A quick straight jab, hands alternating; the chest twists into it.
 		var e := sin(PI * clampf((1.0 - attack) * 1.4, 0.0, 1.0)) * still
@@ -891,18 +907,19 @@ static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: floa
 			"spine": Vector3(35, 0, 0), "chest": Vector3(12, 0, 0), "neck": Vector3(-10, 0, 0), "head": Vector3(-30, 0, 0),
 			"upperarm.L": Vector3(85, 0, -15), "upperarm.R": Vector3(85, 0, 15),
 			"forearm.L": Vector3(-5, 0, 0), "forearm.R": Vector3(-5, 0, 0),
-			"thigh.L": Vector3(-55, 0, 0), "shin.L": Vector3(95, 0, 0),
-			"thigh.R": Vector3(45, 0, 0), "shin.R": Vector3(35, 0, 0),
+			"thigh.L": Vector3(-55, 0, 0), "shin.L": Vector3(95, 0, 0), "foot.L": Vector3(-40, 0, 0),
+			"thigh.R": Vector3(45, 0, 0), "shin.R": Vector3(35, 0, 0), "foot.R": Vector3(-50, 0, 0),
 			"tail1": Vector3(70, 0, 0), "tail2": Vector3(8, 0, 0), "tail3": Vector3(8, 0, 0), "tail4": Vector3(8, 0, 0),
 		})
-		lift = lerpf(lift, -0.06, w)
+		lift *= 1.0 - w
+		contact = lerpf(contact, 1.0, w)
 	if ult > 0.0:
 		# Storm: running the vortex, leaning hard into the turn (the hero moves the model
 		# around the circle; this is the body).
 		var w := _env(ult, 0.06, 0.9)
 		var p := t * 20.0
 		var storm := {
-			"spine": Vector3(24, 0, -14), "chest": Vector3(8, 0, -6), "head": Vector3(-20, -15, 0),
+			"spine": Vector3(24, 0, 14), "chest": Vector3(8, 0, 6), "head": Vector3(-20, -15, 0),
 			"upperarm.L": Vector3(75, 0, -5), "upperarm.R": Vector3(75, 0, 5),
 			"forearm.L": Vector3(-10, 0, 0), "forearm.R": Vector3(-10, 0, 0),
 			"tail1": Vector3(70, -20, 0), "tail2": Vector3(5, -15, 0), "tail3": Vector3(5, -15, 0), "tail4": Vector3(0, -10, 0),
@@ -913,16 +930,18 @@ static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: floa
 			storm["shin." + side[0]] = Vector3(12.0 + 90.0 * maxf(cos(ph), 0.0), 0, 0)
 			storm["foot." + side[0]] = Vector3(25.0 * maxf(cos(ph), 0.0), 0, 0)
 		_override(pose, w, storm)
-		lift = lerpf(lift, absf(sin(p)) * 0.03 - 0.035, w)
-	return lift
+		lift = lerpf(lift, absf(sin(p)) * 0.03 - 0.012, w)
+		contact *= 1.0 - w
+	return Vector2(lift, contact)
 
 
 ## Stone guardian: heavy breathing, a low brawler's stance in a fight, a rolling stomp,
 ## alternating hammer fists, a two-fisted ground slam and a leaping quake for the ult.
-static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, attack: float, ability: float, ult: float, alt: bool) -> float:
+static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, attack: float, ability: float, ult: float, alt: bool) -> Vector2:
 	var b := sin(t * 1.5)
 	var still := 1.0 - move
 	var lift := 0.0
+	var contact := still
 	_mix(pose, still * (1.0 - fight), {
 		"spine": Vector3(3.0 + b * 1.5, 0, 0), "chest": Vector3(b * 2.0, 0, 0),
 		"head": Vector3(-3, sin(t * 0.45) * 12.0, 0),
@@ -937,7 +956,6 @@ static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, a
 		"thigh.L": Vector3(-14, 0, -4), "shin.L": Vector3(20, 0, 0), "foot.L": Vector3(-6, 0, 0),
 		"thigh.R": Vector3(-14, 0, 4), "shin.R": Vector3(20, 0, 0), "foot.R": Vector3(-6, 0, 0),
 	})
-	lift += still * fight * -0.025
 	if move > 0.0:
 		var p := t * 6.2
 		var walk := {
@@ -982,7 +1000,8 @@ static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, a
 			"thigh.L": Vector3(-30, 0, -6), "shin.L": Vector3(40, 0, 0), "foot.L": Vector3(-10, 0, 0),
 			"thigh.R": Vector3(-30, 0, 6), "shin.R": Vector3(40, 0, 0), "foot.R": Vector3(-10, 0, 0),
 		})
-		lift += 0.03 * up - 0.07 * down
+		lift = lerpf(lerpf(lift, 0.03, up), 0.0, down)
+		contact = maxf(contact, maxf(up, down))
 	if ult > 0.0:
 		# Quake: crouch, leap with the fists raised, crash down (at QUAKE_WINDUP), then hold the
 		# crouch while the crystal waves roll out.
@@ -1008,8 +1027,9 @@ static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, a
 			"thigh.L": Vector3(-45, 0, -10), "shin.L": Vector3(60, 0, 0), "foot.L": Vector3(-15, 0, 0),
 			"thigh.R": Vector3(-45, 0, 10), "shin.R": Vector3(60, 0, 0), "foot.R": Vector3(-15, 0, 0),
 		})
-		lift += -0.06 * crouch + 0.35 * air * sin(PI * clampf((u - 0.08) / 0.2, 0.0, 1.0)) - 0.09 * land
-	return lift
+		lift = lerpf(lerpf(lift * (1.0 - crouch), 0.35 * sin(PI * clampf((u - 0.08) / 0.2, 0.0, 1.0)), air), 0.0, land)
+		contact = maxf(contact, maxf(crouch, maxf(air, land)))
+	return Vector2(lift, contact)
 
 
 # ================================================================= props

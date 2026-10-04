@@ -74,8 +74,8 @@ const ENEMIES := {
 #   block    how many ground enemies the hero holds back at once
 #   aggro    radius around the hero's post in which it engages enemies
 #   reach    melee reach; "air_reach" lets a hero also hit flying enemies
-#   ability  super move on a short cooldown; "ult" is the ultimate: a long cooldown that is
-#            already "charge" seconds in at the start of a level
+#   ability  super move on a short cooldown; "ult" is the ultimate: a long cooldown that
+#            starts every level with "charge" seconds left on it
 const HERO_ORDER: Array[String] = ["bolt", "titan"]
 const HEROES := {
 	"bolt": {

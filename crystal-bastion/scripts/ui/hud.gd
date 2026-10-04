@@ -356,7 +356,8 @@ func _layout_controls() -> void:
 		var x := left + 14.0 + i * 150.0
 		b.position = Vector2(x, bottom - 118)
 		a.position = Vector2(x + 84.0, bottom - 70)
-		(_ult_btns[h] as RoundButton).position = Vector2(x + 84.0, bottom - 132)
+		# Far enough above the ability that the two touch circles (radius + 10) never overlap.
+		(_ult_btns[h] as RoundButton).position = Vector2(x + 84.0, bottom - 146)
 		i += 1
 
 
