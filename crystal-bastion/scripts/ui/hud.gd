@@ -617,7 +617,7 @@ func show_banner(title: String, sub := "") -> void:
 	_banner_tween.chain().tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
-func toast(text: String, color := UIKit.RED) -> void:
+func toast(text: String, color := UIKit.RED, hold := 1.0) -> void:
 	_toast.text = text
 	_toast.add_theme_color_override("font_color", color)
 	if _toast_tween:
@@ -625,7 +625,7 @@ func toast(text: String, color := UIKit.RED) -> void:
 	_toast.modulate.a = 1.0
 	_toast_tween = _toast.create_tween()
 	_toast_tween.set_ignore_time_scale(true)
-	_toast_tween.tween_interval(1.0)
+	_toast_tween.tween_interval(hold)
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.4)
 
 

@@ -1,6 +1,6 @@
 extends Node
 ## Renders a screenshot of a screen for visual checks.
-## Usage: godot --rendering-driver opengl3 -- --shot=out.png --screen=game --level=1 --play=40 [--ui=build|tower|pause|result]
+## Usage: godot --rendering-driver opengl3 -- --shot=out.png --screen=game --level=1 --play=40 [--ui=build|tower|hero|pause|result]
 
 var args := {}
 
@@ -64,6 +64,9 @@ func _ready() -> void:
 				"tower":
 					if not g.towers.is_empty():
 						g.hud.open_tower_panel(g.towers.values()[0])
+				"hero":
+					if not g.heroes.is_empty():
+						g.select_hero(g.heroes[0])
 				"pause":
 					g.hud.open_pause()
 				"result":

@@ -91,7 +91,8 @@ func _draw() -> void:
 		ring = UIKit.GREEN
 		draw_arc(c, r + 5.0, 0, TAU, 48, Color(UIKit.GREEN.r, UIKit.GREEN.g, UIKit.GREEN.b, 0.35 + 0.25 * sin(_t * 8.0)), 6.0, true)
 	if highlight and not armed:
-		draw_arc(c, r + 5.0, 0, TAU, 48, Color(ring.r, ring.g, ring.b, 0.35 + 0.3 * sin(_t * 8.0)), 6.0, true)
+		# Outside the progress arc so both stay readable.
+		draw_arc(c, r + 13.0, 0, TAU, 48, Color(ring.r, ring.g, ring.b, 0.45 + 0.35 * sin(_t * 8.0)), 5.0, true)
 	draw_arc(c, r - 1.5, 0, TAU, 48, ring, 3.0, true)
 	if progress >= 0.0:
 		draw_arc(c, r + 6.0, -PI / 2, -PI / 2 + TAU * clampf(progress, 0.0, 1.0), 48, progress_color, 5.0, true)

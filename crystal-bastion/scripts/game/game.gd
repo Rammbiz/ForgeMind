@@ -388,7 +388,7 @@ func select_hero(h: Hero) -> void:
 	selected_hero = h
 	h.selected = true
 	Audio.play("click", -6.0)
-	hud.toast(Loc.f("HERO_PICK_SPOT", [Loc.t(h.def["name"])]), h.color.lightened(0.35))
+	hud.toast(Loc.f("HERO_PICK_SPOT", [Loc.t(h.def["name"])]), h.color.lightened(0.35), 2.5)
 
 
 func deselect_hero() -> void:
