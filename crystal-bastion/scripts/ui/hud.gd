@@ -42,6 +42,7 @@ var _preview_key := ""
 var _enemy_icons := {}
 var _hero_btns := {}           # Hero -> RoundButton (portrait: select, ring = health)
 var _ability_btns := {}        # Hero -> RoundButton (super ability, ring = cooldown)
+var _ult_btns := {}            # Hero -> RoundButton (ultimate, ring = charge)
 var _hero_icons := {}
 
 
@@ -205,6 +206,15 @@ func _build_hero_bar() -> void:
 		a.pressed.connect(_on_ability_pressed.bind(h))
 		root.add_child(a)
 		_ability_btns[h] = a
+		var u := RoundButton.new(26.0)
+		u.icon_kind = str(h.ult["icon"])
+		u.icon_tint = Color(1.0, 0.9, 0.55)
+		u.base_color = Color(0.22, 0.08, 0.3, 0.95)
+		u.ring_color = Color(1.0, 0.55, 0.95)
+		u.progress_color = Color(1.0, 0.6, 0.95)
+		u.pressed.connect(_on_ult_pressed.bind(h))
+		root.add_child(u)
+		_ult_btns[h] = u
 
 
 func _on_hero_pressed(h: Hero) -> void:
@@ -221,6 +231,11 @@ func _on_hero_pressed(h: Hero) -> void:
 func _on_ability_pressed(h: Hero) -> void:
 	_hide_hint()
 	game.use_hero_ability(h)
+
+
+func _on_ult_pressed(h: Hero) -> void:
+	_hide_hint()
+	game.use_hero_ult(h)
 
 
 func _update_hero_bar() -> void:
@@ -248,9 +263,15 @@ func _update_hero_bar() -> void:
 		a.disabled = not h.can_use_ability()
 		a.progress = 1.0 - h.cooldown / cd if h.cooldown > 0.0 else -1.0
 		a.pulse = h.can_use_ability()
+		var u: RoundButton = _ult_btns[h]
+		var ucd := float(h.ult["cooldown"])
+		u.disabled = not h.can_use_ult()
+		u.progress = 1.0 - h.ult_cooldown / ucd if h.ult_cooldown > 0.0 else -1.0
+		u.highlight = h.can_use_ult()
 		var running := game.is_running()
 		b.visible = running
 		a.visible = running
+		u.visible = running
 
 
 func _build_banner() -> void:
@@ -335,6 +356,7 @@ func _layout_controls() -> void:
 		var x := left + 14.0 + i * 150.0
 		b.position = Vector2(x, bottom - 118)
 		a.position = Vector2(x + 84.0, bottom - 70)
+		(_ult_btns[h] as RoundButton).position = Vector2(x + 84.0, bottom - 132)
 		i += 1
 
 
@@ -690,10 +712,8 @@ func _render_tower_icons() -> void:
 		cam3.fov = 30.0
 		vp3.add_child(cam3)
 		# Head-and-shoulders framing reads best at button size.
-		if htype == "bolt":
-			cam3.look_at_from_position(Vector3(0.05, 0.78, 1.0), Vector3(0, 0.66, 0))
-		else:
-			cam3.look_at_from_position(Vector3(0.05, 1.12, 1.75), Vector3(0, 0.86, 0))
+		var frame: Array = hm.get_meta("portrait")
+		cam3.look_at_from_position(frame[0], frame[1])
 		vps["hero:" + htype] = vp3
 	await RenderingServer.frame_post_draw
 	await get_tree().process_frame

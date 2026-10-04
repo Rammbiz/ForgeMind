@@ -1,0 +1,29 @@
+{
+	"_comment": "Thunderfox (Bolt). Joints in the model frame: feet at y 0, 1 unit tall, facing +Z. See tools/rig_hero.py.",
+	"bones": [
+		{"name": "root", "parent": null, "head": [0.0, 0.0, 0.1]},
+		{"name": "hips", "parent": "root", "head": [0.0, 0.37, 0.1]},
+		{"name": "spine", "parent": "hips", "head": [0.0, 0.44, 0.1]},
+		{"name": "chest", "parent": "spine", "head": [0.0, 0.5, 0.1]},
+		{"name": "neck", "parent": "chest", "head": [0.0, 0.56, 0.11]},
+		{"name": "head", "parent": "neck", "head": [0.0, 0.62, 0.11], "tail": [0.0, 0.86, 0.1]},
+		{"name": "upperarm.L", "parent": "chest", "head": [0.12, 0.525, 0.09]},
+		{"name": "forearm.L", "parent": "upperarm.L", "head": [0.172, 0.462, 0.09]},
+		{"name": "hand.L", "parent": "forearm.L", "head": [0.236, 0.392, 0.1], "tail": [0.3, 0.31, 0.09]},
+		{"name": "thigh.L", "parent": "hips", "head": [0.05, 0.365, 0.1]},
+		{"name": "shin.L", "parent": "thigh.L", "head": [0.063, 0.222, 0.095]},
+		{"name": "foot.L", "parent": "shin.L", "head": [0.095, 0.112, 0.085], "tail": [0.115, 0.03, 0.21]},
+		{"name": "tail1", "parent": "hips", "head": [0.0, 0.345, 0.025]},
+		{"name": "tail2", "parent": "tail1", "head": [0.01, 0.29, -0.035]},
+		{"name": "tail3", "parent": "tail2", "head": [0.075, 0.255, -0.068]},
+		{"name": "tail4", "parent": "tail3", "head": [0.14, 0.222, -0.135], "tail": [0.235, 0.24, -0.25]}
+	],
+	"torso": ["hips", "spine", "chest"],
+	"limbs": [
+		{"bones": ["neck", "head"], "parent": "chest", "radius": [0.09, 0.3, 0.3], "root_blend": 0.02, "blend": 0.03, "normal": [0, 1, 0], "falloff": 1.2},
+		{"bones": ["upperarm.L", "forearm.L", "hand.L"], "parent": "chest", "radius": [0.06, 0.05, 0.075, 0.1], "root_blend": 0.025, "blend": 0.018, "normal": [1, -0.25, 0], "falloff": 1.3},
+		{"bones": ["thigh.L", "shin.L", "foot.L"], "parent": "hips", "radius": [0.06, 0.06, 0.12, 0.14], "root_blend": 0.025, "blend": 0.025, "normal": [0.1, -1, 0], "falloff": 1.3, "split_x": 0.015},
+		{"bones": ["tail1", "tail2", "tail3", "tail4"], "parent": "hips", "radius": [0.04, 0.08, 0.1, 0.13, 0.13], "root_blend": 0.02, "blend": 0.03, "falloff": 1.3}
+	],
+	"smooth": 4
+}

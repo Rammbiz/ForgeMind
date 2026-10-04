@@ -426,6 +426,13 @@ func use_hero_ability(h: Hero) -> void:
 		Audio.play("error")
 
 
+func use_hero_ult(h: Hero) -> void:
+	if h == null or not h.use_ult():
+		Audio.play("error")
+		return
+	hud.toast(Loc.t(h.ult["name"]), h.color.lightened(0.4), 1.4)
+
+
 # ------------------------------------------------------------------ economy & towers
 
 func add_gold(amount: int, earned := true) -> void:

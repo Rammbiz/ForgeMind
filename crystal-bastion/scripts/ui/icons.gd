@@ -168,6 +168,18 @@ static func draw_icon(ci: CanvasItem, k: String, r: Rect2, tint := Color.WHITE, 
 			for sgn in [-1.0, 1.0]:
 				ci.draw_line(_p(r, 0.5 + 0.2 * sgn, 0.72), _p(r, 0.5 + 0.36 * sgn, 0.6), tint, w * 0.06)
 				ci.draw_line(_p(r, 0.5 + 0.12 * sgn, 0.7), _p(r, 0.5 + 0.18 * sgn, 0.56), tint, w * 0.05)
+		"storm":
+			# A lightning bolt inside a swirling vortex.
+			for arm in 3:
+				var a0 := arm * TAU / 3.0
+				ci.draw_arc(c, w * (0.44 - arm * 0.03), a0, a0 + 1.6, 12, tint, w * 0.07)
+			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.56, 0.2), _p(r, 0.34, 0.54), _p(r, 0.49, 0.54), _p(r, 0.43, 0.8), _p(r, 0.67, 0.45), _p(r, 0.52, 0.45)]), tint)
+		"quake":
+			# Crystal spikes bursting out of a cracked ground line.
+			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.38, 0.78), _p(r, 0.5, 0.1), _p(r, 0.62, 0.78)]), tint)
+			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.12, 0.78), _p(r, 0.25, 0.36), _p(r, 0.36, 0.78)]), tint)
+			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.64, 0.78), _p(r, 0.76, 0.3), _p(r, 0.88, 0.78)]), tint)
+			ci.draw_line(_p(r, 0.04, 0.84), _p(r, 0.96, 0.84), tint, w * 0.07)
 		"wing":
 			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.08, 0.3), _p(r, 0.5, 0.55), _p(r, 0.92, 0.3), _p(r, 0.78, 0.7), _p(r, 0.62, 0.6), _p(r, 0.5, 0.78), _p(r, 0.38, 0.6), _p(r, 0.22, 0.7)]), tint)
 		_:

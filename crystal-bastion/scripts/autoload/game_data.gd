@@ -74,6 +74,8 @@ const ENEMIES := {
 #   block    how many ground enemies the hero holds back at once
 #   aggro    radius around the hero's post in which it engages enemies
 #   reach    melee reach; "air_reach" lets a hero also hit flying enemies
+#   ability  super move on a short cooldown; "ult" is the ultimate: a long cooldown that is
+#            already "charge" seconds in at the start of a level
 const HERO_ORDER: Array[String] = ["bolt", "titan"]
 const HEROES := {
 	"bolt": {
@@ -81,12 +83,14 @@ const HEROES := {
 		"hp": 320.0, "regen": 16.0, "speed": 4.2, "damage": 10.0, "rate": 2.6, "dmg_type": "magic",
 		"reach": 0.5, "air_reach": 1.4, "aggro": 1.8, "block": 1, "respawn": 10.0,
 		"ability": {"name": "ABILITY_DASH", "icon": "bolt", "cooldown": 16.0, "damage": 75.0, "length": 4.5, "width": 0.6, "slow": 0.5, "slow_time": 1.5},
+		"ult": {"name": "ULT_STORM", "icon": "storm", "cooldown": 45.0, "charge": 20.0, "anim": 2.6, "duration": 2.6, "radius": 2.4, "dps": 60.0, "tick": 0.25, "slow": 0.75},
 	},
 	"titan": {
 		"name": "HERO_TITAN", "desc": "HERO_TITAN_DESC", "color": Color(0.3, 0.9, 0.55),
 		"hp": 780.0, "regen": 20.0, "speed": 1.8, "damage": 40.0, "rate": 0.8, "dmg_type": "phys",
 		"reach": 0.6, "air_reach": 0.0, "aggro": 1.6, "block": 3, "respawn": 14.0, "splash": 0.7,
 		"ability": {"name": "ABILITY_SLAM", "icon": "slam", "cooldown": 20.0, "damage": 95.0, "radius": 1.9, "stun": 2.2},
+		"ult": {"name": "ULT_QUAKE", "icon": "quake", "cooldown": 55.0, "charge": 25.0, "anim": 1.6, "waves": 3, "spacing": 1.1, "damage": 130.0, "stun": 1.8, "armor": 0.5, "armor_time": 6.0},
 	},
 }
 

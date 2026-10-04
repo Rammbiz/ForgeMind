@@ -2,7 +2,7 @@ class_name Hero
 extends Node3D
 ## A player-controlled hero. It walks to the post the player picks, holds back ground enemies
 ## that come near (they stop and fight it), heals out of combat, respawns at the crystal after
-## falling, and has one super ability on a cooldown.
+## falling, and has a super ability on a short cooldown plus an ultimate on a long one.
 
 signal died
 signal respawned
@@ -11,6 +11,7 @@ var game: Game
 var type := ""
 var def: Dictionary
 var ability: Dictionary
+var ult: Dictionary
 var color := Color.WHITE
 var hp := 1.0
 var max_hp := 1.0
@@ -20,6 +21,7 @@ var post := Vector3.ZERO          # where the hero stands guard
 var home := Vector3.ZERO          # respawn point next to the crystal
 var respawn_left := 0.0
 var cooldown := 0.0               # ability cooldown left
+var ult_cooldown := 0.0           # ultimate cooldown left (it charges up from the level start)
 var target: Enemy
 var _marching := false            # walking to a new post: ignores enemies until there
 var _held: Array[Enemy] = []
@@ -29,14 +31,33 @@ var _model: Node3D
 var _meshes: Array[MeshInstance3D] = []
 var _anim_t := 0.0
 var _attack_anim := 0.0
+var _ability_anim := 0.0
+var _ult_anim := 0.0
+var _punch_alt := false           # which hand strikes next
+var _slam_left := 0.0             # titan: wind-up before the slam lands
+var _ult_left := 0.0              # time left in the running ultimate
+var _ult_tick := 0.0              # bolt: time to the next storm strike
+var _quake_t := 0.0               # titan: time since the quake landed (negative while airborne)
+var _quake_wave := -1             # titan: next crystal wave to raise, -1 before landing
+var _quake_hit: Array[Enemy] = []
+var _armor_left := 0.0            # titan: crystal armour after the quake
 var _moving := false
 var _hit_flash := 0.0
 var _flash_cd := 0.0
 var _ring: MeshInstance3D
 var _trail: CPUParticles3D
+var _vortex: MeshInstance3D       # bolt: the storm's spinning wall
 
 static var _flash_mat: StandardMaterial3D
+static var _armor_mat: ShaderMaterial
 static var _ring_shader: Shader
+static var _vortex_shader: Shader
+
+## Seconds from the button to the moment the fists hit the ground; matches the animations.
+const SLAM_WINDUP := 0.3
+const QUAKE_WINDUP := 0.43
+const QUAKE_WAVE_GAP := 0.2
+const STORM_SPIN := 9.0           # rad/s around the vortex
 
 
 func setup(p_game: Game, p_type: String, p_home: Vector3) -> void:
@@ -44,6 +65,8 @@ func setup(p_game: Game, p_type: String, p_home: Vector3) -> void:
 	type = p_type
 	def = GameData.HEROES[type]
 	ability = def["ability"]
+	ult = def["ult"]
+	ult_cooldown = float(ult["charge"])
 	color = def["color"]
 	max_hp = float(def["hp"])
 	hp = max_hp
@@ -52,17 +75,14 @@ func setup(p_game: Game, p_type: String, p_home: Vector3) -> void:
 	position = p_home
 
 
-const MODEL_SCALE := {"bolt": 1.45, "titan": 1.3}
-
-
 func _ready() -> void:
 	_model = Models.hero(type)
-	_model.scale = Vector3.ONE * float(MODEL_SCALE.get(type, 1.0))
 	add_child(_model)
 	_collect_meshes(_model)
 	_make_ring()
 	if type == "bolt":
 		_make_trail()
+		_make_vortex()
 
 
 func _collect_meshes(n: Node) -> void:
@@ -78,11 +98,13 @@ func _process(raw_delta: float) -> void:
 	var delta := Game.step(raw_delta)
 	_anim_t += delta
 	_attack_anim = maxf(_attack_anim - delta * (3.0 if type == "bolt" else 1.6), 0.0)
+	_ability_anim = maxf(_ability_anim - delta * (2.0 if type == "bolt" else 1.4), 0.0)
+	_ult_anim = maxf(_ult_anim - delta / float(ult["anim"]), 0.0)
 	_flash_cd = maxf(_flash_cd - delta, 0.0)
 	if _hit_flash > 0.0:
 		_hit_flash -= delta
 		if _hit_flash <= 0.0:
-			_set_overlay(null)
+			_set_overlay(_base_overlay())
 	if _ring:
 		_ring.visible = selected and alive
 	if game == null or not game.is_running():
@@ -94,6 +116,7 @@ func _process(raw_delta: float) -> void:
 		_animate()
 		return
 	cooldown = maxf(cooldown - delta, 0.0)
+	ult_cooldown = maxf(ult_cooldown - delta, 0.0)
 	if not alive:
 		respawn_left -= delta
 		if respawn_left <= 0.0:
@@ -102,9 +125,24 @@ func _process(raw_delta: float) -> void:
 	_since_hit += delta
 	_attack_cd -= delta
 	_prune_held()
+	if _armor_left > 0.0:
+		_armor_left -= delta
+		if _armor_left <= 0.0 and _hit_flash <= 0.0:
+			_set_overlay(null)
+	if _slam_left > 0.0:
+		_slam_left -= delta
+		if _slam_left <= 0.0:
+			_slam()
 	if _since_hit > 2.5 and hp < max_hp:
 		hp = minf(max_hp, hp + float(def["regen"]) * delta)
 	_moving = false
+	if _ult_left > 0.0:
+		# The ultimate takes the hero over: no walking or swinging until it is done.
+		_ult_step(delta)
+		if _trail:
+			_trail.emitting = _ult_left > 0.0
+		_animate()
+		return
 	if _marching:
 		_moving = _walk_to(post, delta, 0.05)
 		_marching = _moving
@@ -212,6 +250,7 @@ func _attack(delta: float) -> void:
 	# Carry this frame's overshoot (like towers) so 2x/3x speed keeps the same hit rate.
 	_attack_cd = maxf(_attack_cd, -delta) + 1.0 / float(def["rate"])
 	_attack_anim = 1.0
+	_punch_alt = not _punch_alt
 	var dmg := float(def["damage"])
 	var at := target.aim_point()
 	match type:
@@ -256,7 +295,8 @@ func _flat_dist(p: Vector3) -> float:
 
 
 func _animate() -> void:
-	Models.animate_hero(_model, _anim_t, _moving, _attack_anim)
+	var fighting := is_instance_valid(target) and target.alive
+	Models.animate_hero(_model, _anim_t, _moving, _attack_anim, _ability_anim, _ult_anim, _punch_alt, fighting)
 
 
 # ------------------------------------------------------------------ commands
@@ -271,20 +311,146 @@ func command_move(dest: Vector3) -> void:
 
 
 func can_use_ability() -> bool:
-	return alive and cooldown <= 0.0 and game != null and game.is_running()
+	return alive and cooldown <= 0.0 and _ult_left <= 0.0 and game != null and game.is_running()
 
 
 func use_ability() -> bool:
 	if not can_use_ability():
 		return false
 	cooldown = float(ability["cooldown"])
-	_attack_anim = 1.0
+	_ability_anim = 1.0
 	match type:
 		"bolt":
 			_dash()
 		"titan":
-			_slam()
+			_slam_left = SLAM_WINDUP
 	return true
+
+
+func can_use_ult() -> bool:
+	return alive and ult_cooldown <= 0.0 and _ult_left <= 0.0 and _slam_left <= 0.0 \
+			and game != null and game.is_running()
+
+
+func use_ult() -> bool:
+	if not can_use_ult():
+		return false
+	ult_cooldown = float(ult["cooldown"])
+	_ult_anim = 1.0
+	_attack_anim = 0.0
+	_ability_anim = 0.0
+	match type:
+		"bolt":
+			_ult_left = float(ult["duration"])
+			_ult_tick = 0.0
+			game.effects.flash(global_position + Vector3(0, 0.5, 0), Color(0.6, 0.9, 1.0), 1.2, 0.3)
+			game.camera_shake(0.15)
+			Audio.play("tesla", 0.0)
+		"titan":
+			_quake_t = -QUAKE_WINDUP
+			_quake_wave = -1
+			_quake_hit.clear()
+			_ult_left = QUAKE_WINDUP + QUAKE_WAVE_GAP * int(ult["waves"]) + 0.2
+	return true
+
+
+func _ult_step(delta: float) -> void:
+	_ult_left -= delta
+	match type:
+		"bolt":
+			_storm_step(delta)
+		"titan":
+			_quake_step(delta)
+	if _ult_left <= 0.0:
+		_end_ult()
+
+
+func _end_ult() -> void:
+	_ult_left = 0.0
+	_model.position = Vector3.ZERO
+	if _vortex:
+		_vortex.visible = false
+	if _trail:
+		_trail.position = Vector3(0, 0.45, 0)
+
+
+## Thunder vortex: the fox runs circles around its post so fast it becomes a storm. Every
+## enemy inside, fliers too, is struck by lightning and slowed to a crawl.
+func _storm_step(delta: float) -> void:
+	var r := float(ult["radius"])
+	var a := _anim_t * STORM_SPIN
+	var lap := r * 0.6
+	var off := Vector3(cos(a), 0.0, sin(a)) * lap
+	var y := lerpf(_model.position.y, game.map.ground_y(global_position + off) - global_position.y, minf(1.0, delta * 15.0))
+	_model.position = Vector3(off.x, y, off.z)
+	_model.rotation.y = atan2(-sin(a), cos(a))
+	if _trail:
+		_trail.position = _model.position + Vector3(0, 0.45, 0)
+	var spent := float(ult["duration"]) - _ult_left
+	_vortex.visible = true
+	(_vortex.material_override as ShaderMaterial).set_shader_parameter("fade", clampf(minf(spent / 0.25, _ult_left / 0.35), 0.0, 1.0))
+	_ult_tick -= delta
+	if _ult_tick > 0.0:
+		return
+	var tick := float(ult["tick"])
+	_ult_tick += tick
+	var center := global_position
+	var ring: Array[Vector3] = []
+	for i in 13:
+		var ang := a + i * TAU / 12.0
+		ring.append(center + Vector3(cos(ang) * lap, 0.3 + 0.25 * sin(ang * 3.0 + _anim_t * 7.0), sin(ang) * lap))
+	game.effects.lightning(ring, Color(0.5, 0.8, 1.0), 0.26, 0.06, false)
+	game.effects.ring(center, Color(0.45, 0.75, 1.0), r, 0.3)
+	var from := center + off + Vector3(0, 0.5, 0)
+	for e in game.enemies_in_radius(center, r, true, true):
+		var at := e.aim_point()
+		e.take_damage(float(ult["dps"]) * tick, "magic")
+		if e.alive:
+			e.apply_slow(float(ult["slow"]), tick + 0.5)
+		game.effects.lightning([from, at], Color(1.0, 0.85, 0.35), 0.12, 0.035)
+		game.effects.hit_spark(at, Color(0.6, 0.9, 1.0))
+	Audio.play("tesla", -9.0, 0.25)
+
+
+## Emerald quake: the guardian leaps and crashes down; rings of crystal spikes burst out of
+## the ground one after another, hitting and stunning every ground enemy they reach, and
+## crystal armour covers the guardian for a while.
+func _quake_step(delta: float) -> void:
+	_quake_t += delta
+	var center := global_position
+	if _quake_wave < 0:
+		if _quake_t < 0.0:
+			return
+		_quake_wave = 0
+		_armor_left = float(ult["armor_time"])
+		if _hit_flash <= 0.0:
+			_set_overlay(_base_overlay())
+		game.effects.flash(center + Vector3(0, 0.2, 0), Color(0.4, 1.0, 0.6), 1.6, 0.3)
+		game.effects.burst(center + Vector3(0, 0.15, 0), Color(0.5, 0.44, 0.38), 36, 3.6, 0.15, 0.9, -6.0, false)
+		game.camera_shake(0.55)
+		Save.vibrate(80)
+		Audio.play("explosion", 1.0)
+	var waves := int(ult["waves"])
+	while _quake_wave < waves and _quake_t >= _quake_wave * QUAKE_WAVE_GAP:
+		var radius := float(ult["spacing"]) * (_quake_wave + 1)
+		var count := 7 + 5 * _quake_wave
+		var spikes: Array[Vector3] = []
+		for i in count:
+			var ang := (i + 0.5 * (_quake_wave % 2)) * TAU / count
+			var at := center + Vector3(cos(ang), 0.0, sin(ang)) * radius
+			at.y = game.map.ground_y(at)
+			spikes.append(at)
+		game.effects.crystal_spikes(spikes, center, Color(0.12, 0.85, 0.4))
+		game.effects.ring(center, Color(0.4, 1.0, 0.6), radius, 0.4)
+		for e in game.enemies_in_radius(center, radius, false, true):
+			if _quake_hit.has(e):
+				continue
+			_quake_hit.append(e)
+			e.take_damage(float(ult["damage"]), "phys")
+			if e.alive:
+				e.stun(float(ult["stun"]))
+		Audio.play("cannon", -4.0, 0.2)
+		_quake_wave += 1
 
 
 ## Lightning dash: runs up the nearest path towards the portals and back in a blink, hitting
@@ -354,6 +520,8 @@ func _slam() -> void:
 func take_damage(amount: float, _from: Enemy = null) -> void:
 	if not alive or amount <= 0.0 or game == null or not game.is_running():
 		return
+	if _armor_left > 0.0:
+		amount *= 1.0 - float(ult["armor"])
 	hp -= amount
 	_since_hit = 0.0
 	# Held enemies hit every frame: pulse the flash about twice a second instead of strobing.
@@ -372,6 +540,11 @@ func _die() -> void:
 		game.deselect_hero()
 	_release_all()
 	_marching = false
+	_slam_left = 0.0
+	_armor_left = 0.0
+	_quake_hit.clear()
+	if _ult_left > 0.0:
+		_end_ult()
 	respawn_left = float(def["respawn"])
 	game.effects.death(global_position, color, 0.45)
 	game.effects.flash(global_position + Vector3(0, 0.4, 0), color, 0.8, 0.25)
@@ -398,12 +571,36 @@ func _respawn() -> void:
 
 ## Point above the head for the health bar.
 func bar_point() -> Vector3:
-	return global_position + Vector3(0, 1.3 if type == "bolt" else 1.8, 0)
+	return global_position + _model.position + Vector3(0, float(_model.get_meta("bar_y", 1.4)), 0)
 
 
 func _set_overlay(mat: Material) -> void:
 	for m in _meshes:
 		m.material_overlay = mat
+
+
+## The overlay the hero wears when it is not flashing from a hit.
+func _base_overlay() -> Material:
+	return _get_armor_mat() if _armor_left > 0.0 else null
+
+
+static func _get_armor_mat() -> ShaderMaterial:
+	if _armor_mat == null:
+		var sh := Shader.new()
+		sh.code = """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.25, 1.0, 0.5, 0.7);
+void fragment() {
+	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+	float pulse = 0.7 + 0.3 * sin(TIME * 5.0);
+	ALBEDO = tint.rgb;
+	ALPHA = (0.03 + rim * 0.75) * pulse * tint.a;
+}
+"""
+		_armor_mat = ShaderMaterial.new()
+		_armor_mat.shader = sh
+	return _armor_mat
 
 
 static func _get_flash_mat() -> StandardMaterial3D:
@@ -444,6 +641,43 @@ void fragment() {
 	_ring.position = Vector3(0, 0.04, 0)
 	_ring.visible = false
 	add_child(_ring)
+
+
+func _make_vortex() -> void:
+	if _vortex_shader == null:
+		_vortex_shader = Shader.new()
+		_vortex_shader.code = """
+shader_type spatial;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.2, 0.5, 1.0, 1.0);
+uniform float fade = 1.0;
+void fragment() {
+	float a = UV.x * 6.2831 * 4.0 - TIME * 16.0 + UV.y * 5.0;
+	float streak = pow(0.5 + 0.5 * sin(a), 6.0);
+	float spark = pow(0.5 + 0.5 * sin(UV.x * 6.2831 * 9.0 + TIME * 23.0 - UV.y * 9.0), 24.0);
+	float band = smoothstep(0.0, 0.3, UV.y) * smoothstep(1.0, 0.55, UV.y);
+	ALBEDO = mix(mix(tint.rgb, vec3(0.75, 0.9, 1.0), streak), vec3(1.0, 0.92, 0.5), spark);
+	ALPHA = clamp(0.32 + streak * 0.6 + spark, 0.0, 1.0) * band * fade;
+}
+"""
+	var lap := float(ult["radius"]) * 0.6
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = lap * 1.12
+	cyl.bottom_radius = lap * 0.92
+	cyl.height = 0.9
+	cyl.radial_segments = 40
+	cyl.rings = 1
+	cyl.cap_top = false
+	cyl.cap_bottom = false
+	_vortex = MeshInstance3D.new()
+	_vortex.mesh = cyl
+	var mat := ShaderMaterial.new()
+	mat.shader = _vortex_shader
+	_vortex.material_override = mat
+	_vortex.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_vortex.position = Vector3(0, 0.45, 0)
+	_vortex.visible = false
+	add_child(_vortex)
 
 
 func _make_trail() -> void:

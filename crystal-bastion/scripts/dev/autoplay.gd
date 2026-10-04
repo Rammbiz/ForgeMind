@@ -76,9 +76,14 @@ func _process(delta: float) -> void:
 
 
 ## Heroes stay at their posts by the crystal; the bot fires their abilities when a crowd
-## is in reach, like a player watching the fight would.
+## is in reach, like a player watching the fight would, and saves ultimates for bigger ones.
 func _use_hero_abilities() -> void:
 	for h: Hero in _game.heroes:
+		if h.can_use_ult():
+			var r := float(h.ult.get("radius", float(h.ult.get("spacing", 1.0)) * int(h.ult.get("waves", 1))))
+			if _game.enemies_in_radius(h.global_position, r, h.type == "bolt", true).size() >= 5:
+				_game.use_hero_ult(h)
+				continue
 		if not h.can_use_ability():
 			continue
 		var crowd := 0

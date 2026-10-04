@@ -1,6 +1,8 @@
 extends Node
 ## Renders a screenshot of a screen for visual checks.
 ## Usage: godot --rendering-driver opengl3 -- --shot=out.png --screen=game --level=1 --play=40 [--ui=build|tower|hero|pause|result]
+##        [--zoom=f] [--focus=x,z] [--hero_focus=i] [--spawn=type:count[:seconds]]
+##        [--ult=seconds | --ability=seconds]
 
 var args := {}
 
@@ -51,6 +53,37 @@ func _ready() -> void:
 				var f := str(args["focus"]).split(",")
 				g.cam._target_focus = Vector3(float(f[0]), 0, float(f[1]))
 				g.cam.focus = g.cam._target_focus
+			if args.has("spawn"):
+				# --spawn=type:count[:seconds] drops enemies just before the heroes and lets the
+				# fight run for a while (game time).
+				var sp := str(args["spawn"]).split(":")
+				var curve: Curve3D = g.map.curves[0]
+				for i in int(sp[1]):
+					g.spawn_enemy(sp[0], 0, 1.0, maxf(curve.get_baked_length() - 3.5 - i * 0.45, 0.0))
+				var fight := float(sp[2]) if sp.size() > 2 else 1.0
+				var ran := 0.0
+				while ran < fight:
+					await get_tree().process_frame
+					ran += Game.step(get_process_delta_time())
+			if args.has("hero_focus") and not g.heroes.is_empty():
+				var hp := (g.heroes[int(args["hero_focus"])] as Hero).global_position
+				g.cam._target_focus = Vector3(hp.x, 0, hp.z)
+				g.cam.focus = g.cam._target_focus
+			if args.has("ult") or args.has("ability"):
+				# Fire the heroes' moves and catch them mid-flight.
+				for h: Hero in g.heroes:
+					if args.has("ult"):
+						h.ult_cooldown = 0.0
+						g.use_hero_ult(h)
+					else:
+						h.cooldown = 0.0
+						h.use_ability()
+				# Wait in game time: software-rendered frames are slow and Game.step clamps them.
+				var want := float(args.get("ult", args.get("ability", "0.3")))
+				var waited := 0.0
+				while waited < want:
+					await get_tree().process_frame
+					waited += Game.step(get_process_delta_time())
 			var ui := str(args.get("ui", ""))
 			match ui:
 				"build":
@@ -80,6 +113,8 @@ func _ready() -> void:
 			(hud._icons[k] as Texture2D).get_image().save_png("%s/tower_%s.png" % [dir, k])
 		for k in hud._enemy_icons:
 			(hud._enemy_icons[k] as Texture2D).get_image().save_png("%s/enemy_%s.png" % [dir, k])
+		for k in hud._hero_icons:
+			(hud._hero_icons[k] as Texture2D).get_image().save_png("%s/hero_%s.png" % [dir, k])
 		print("ICONS saved to ", dir)
 	var frames := int(args.get("frames", "40"))
 	for i in frames:
