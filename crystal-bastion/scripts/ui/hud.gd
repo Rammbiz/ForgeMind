@@ -672,13 +672,16 @@ func _render_tower_icons() -> void:
 	for htype: String in GameData.HERO_ORDER:
 		var vp3 := _icon_viewport(128)
 		var hm := Models.hero(htype)
-		hm.rotation_degrees.y = 25.0
+		hm.rotation_degrees.y = 18.0
 		vp3.add_child(hm)
 		var cam3 := Camera3D.new()
 		cam3.fov = 30.0
 		vp3.add_child(cam3)
-		var top := 0.85 if htype == "bolt" else 1.2
-		cam3.look_at_from_position(Vector3(0, top * 0.8, top * 1.55), Vector3(0, top * 0.6, 0))
+		# Head-and-shoulders framing reads best at button size.
+		if htype == "bolt":
+			cam3.look_at_from_position(Vector3(0.05, 0.78, 1.0), Vector3(0, 0.66, 0))
+		else:
+			cam3.look_at_from_position(Vector3(0.05, 1.12, 1.75), Vector3(0, 0.86, 0))
 		vps["hero:" + htype] = vp3
 	await RenderingServer.frame_post_draw
 	await get_tree().process_frame
