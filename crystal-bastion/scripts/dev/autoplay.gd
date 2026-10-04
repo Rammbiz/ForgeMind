@@ -66,12 +66,29 @@ func _process(delta: float) -> void:
 	if _think <= 0.0:
 		_think = 0.5
 		_bot.think(_game)
+		_use_hero_abilities()
 	if _game.wave != _last_wave:
 		_last_wave = _game.wave
 		print("  L%d wave %d/%d  lives=%d gold=%d towers=%d enemies=%d t=%.0fs" % [_game.level_index + 1, _game.wave, _game.waves.size(), _game.lives, _game.gold, _game.towers.size(), _game.enemies.size(), _elapsed])
 	if _elapsed > 3600.0:
 		print("AUTOTEST timeout")
 		_on_finished(false, 0)
+
+
+## Heroes stay at their posts by the crystal; the bot fires their abilities when a crowd
+## is in reach, like a player watching the fight would.
+func _use_hero_abilities() -> void:
+	for h: Hero in _game.heroes:
+		if not h.can_use_ability():
+			continue
+		var crowd := 0
+		match h.type:
+			"titan":
+				crowd = _game.enemies_in_radius(h.global_position, float(h.ability["radius"]), false, true).size()
+			"bolt":
+				crowd = _game.enemies_in_radius(h.global_position, 3.0, true, true).size()
+		if crowd >= 3:
+			h.use_ability()
 
 
 func _on_enemy_spawned(node: Node) -> void:

@@ -160,6 +160,14 @@ static func draw_icon(ci: CanvasItem, k: String, r: Rect2, tint := Color.WHITE, 
 				ci.draw_line(_p(r, 0.38 + i * 0.12, 0.72), _p(r, 0.38 + i * 0.12, 0.86), Color(0.08, 0.09, 0.16), w * 0.04)
 		"bolt":
 			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.58, 0.05), _p(r, 0.22, 0.55), _p(r, 0.48, 0.55), _p(r, 0.38, 0.95), _p(r, 0.8, 0.4), _p(r, 0.52, 0.4)]), tint)
+		"slam":
+			# A fist pounding the ground with impact lines.
+			ci.draw_rect(Rect2(_p(r, 0.3, 0.08), Vector2(w * 0.4, w * 0.36)), tint)
+			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.3, 0.44), _p(r, 0.7, 0.44), _p(r, 0.5, 0.6)]), tint)
+			ci.draw_line(_p(r, 0.06, 0.86), _p(r, 0.94, 0.86), tint, w * 0.08)
+			for sgn in [-1.0, 1.0]:
+				ci.draw_line(_p(r, 0.5 + 0.2 * sgn, 0.72), _p(r, 0.5 + 0.36 * sgn, 0.6), tint, w * 0.06)
+				ci.draw_line(_p(r, 0.5 + 0.12 * sgn, 0.7), _p(r, 0.5 + 0.18 * sgn, 0.56), tint, w * 0.05)
 		"wing":
 			ci.draw_colored_polygon(PackedVector2Array([_p(r, 0.08, 0.3), _p(r, 0.5, 0.55), _p(r, 0.92, 0.3), _p(r, 0.78, 0.7), _p(r, 0.62, 0.6), _p(r, 0.5, 0.78), _p(r, 0.38, 0.6), _p(r, 0.22, 0.7)]), tint)
 		_:

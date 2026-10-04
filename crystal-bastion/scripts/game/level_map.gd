@@ -142,6 +142,11 @@ func world_to_cell(p: Vector3) -> Vector2i:
 	return Vector2i(floori(p.x + width * 0.5), floori(p.z + height * 0.5))
 
 
+## Surface height under a world point (the cell's top; grass level off the island).
+func ground_y(p: Vector3) -> float:
+	return float(top_y.get(world_to_cell(p), GRASS_Y))
+
+
 func is_buildable(c: Vector2i) -> bool:
 	return cells.get(c, "") == "."
 

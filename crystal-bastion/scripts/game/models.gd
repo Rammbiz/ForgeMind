@@ -464,6 +464,169 @@ static func animate_enemy(model: Node3D, t: float, speed_factor: float) -> void:
 				(arms[i] as Node3D).rotation.x = -sin(p + PI * i) * 0.4
 
 
+# ================================================================= heroes
+
+static func hero(type: String) -> Node3D:
+	return _instance("hero|" + type, _build_hero.bind(type))
+
+
+static func _build_hero(type: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Model"
+	match type:
+		"bolt":
+			_speedster(root)
+		"titan":
+			_giant(root)
+	return root
+
+
+## "Блискавка": a slim speedster in a cobalt suit with gold trim, a cyan visor, swept-back
+## gold fins on the helmet and a gold chevron on the chest.
+static func _speedster(root: Node3D) -> void:
+	var suit := Mats.solid(Color(0.15, 0.36, 0.95), 0.45, 0.1, 0.35)
+	var suit_dark := Mats.solid(Color(0.07, 0.13, 0.4), 0.55)
+	var gold := Mats.solid(GOLD, 0.3, 0.7)
+	var skin := Mats.solid(Color(0.95, 0.76, 0.62), 0.7)
+	var visor := Mats.glow(Color(0.25, 0.85, 1.0), 1.1)
+	var body := Node3D.new()
+	body.name = "Body"
+	root.add_child(body)
+	# Torso (narrow waist, broad chest), belt and chest chevron with a small gem.
+	Mats.part(body, Mats.cyl(0.13, 0.09, 0.26, 8), suit, Vector3(0, 0.5, 0))
+	Mats.part(body, Mats.sphere(0.13, 0.12, 8, 4), suit, Vector3(0, 0.62, 0))
+	Mats.part(body, Mats.cyl(0.1, 0.1, 0.05, 8), gold, Vector3(0, 0.37, 0))
+	Mats.part(body, Mats.prism(Vector3(0.14, 0.1, 0.03)), gold, Vector3(0, 0.56, 0.115), Vector3(0, 0, 180))
+	Mats.part(body, Mats.crystal(0.022, 0.06), visor, Vector3(0, 0.58, 0.135), Vector3(90, 0, 0), Vector3.ONE, false)
+	# Head: face in front, helmet over the top and back, visor band and two gold fins.
+	Mats.part(body, Mats.cyl(0.032, 0.036, 0.07, 6), skin, Vector3(0, 0.695, 0))
+	var head := Node3D.new()
+	head.position = Vector3(0, 0.78, 0)
+	body.add_child(head)
+	Mats.part(head, Mats.sphere(0.08, 0.11, 8, 5), skin, Vector3(0, -0.012, 0.012))
+	Mats.part(head, Mats.sphere(0.094, 0.135, 10, 5), suit, Vector3(0, 0.024, -0.02))
+	Mats.part(head, Mats.box(Vector3(0.14, 0.028, 0.03)), visor, Vector3(0, 0.014, 0.077), Vector3.ZERO, Vector3.ONE, false)
+	for sgn in [-1.0, 1.0]:
+		Mats.part(head, Mats.cone(0.03, 0.18, 4), gold, Vector3(0.085 * sgn, 0.045, -0.03), Vector3(-65, 0, -30 * sgn))
+	# Arms and legs on pivots for the run cycle.
+	var arms: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var sh := Node3D.new()
+		sh.position = Vector3(0.15 * sgn, 0.66, 0)
+		body.add_child(sh)
+		Mats.part(sh, Mats.sphere(0.045, -1, 6, 3), suit, Vector3.ZERO, Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(sh, Mats.cyl(0.032, 0.038, 0.24, 8), suit, Vector3(0, -0.13, 0), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(sh, Mats.cyl(0.042, 0.04, 0.06, 8), gold, Vector3(0, -0.24, 0), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(sh, Mats.sphere(0.036, -1, 6, 3), gold, Vector3(0, -0.29, 0), Vector3.ZERO, Vector3.ONE, false)
+		arms.append(sh)
+	var legs: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var hip := Node3D.new()
+		hip.position = Vector3(0.06 * sgn, 0.36, 0)
+		body.add_child(hip)
+		Mats.part(hip, Mats.cyl(0.045, 0.038, 0.3, 8), suit_dark, Vector3(0, -0.15, 0), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(hip, Mats.box(Vector3(0.075, 0.07, 0.14)), gold, Vector3(0, -0.31, 0.025), Vector3.ZERO, Vector3.ONE, false)
+		legs.append(hip)
+	root.set_meta("anim", "speedster")
+	root.set_meta("body", body)
+	root.set_meta("arms", arms)
+	root.set_meta("legs", legs)
+
+
+## "Громило": a hulking giant of mossy green stone with emerald crystals growing from the
+## shoulders and back, gold bracers and belt, glowing eyes and huge fists. Warm greens and
+## gold keep it apart from the grey, cyan-cored golem enemy.
+static func _giant(root: Node3D) -> void:
+	var stone := Mats.solid(Color(0.43, 0.5, 0.36), 0.95)
+	var stone_dark := Mats.solid(Color(0.27, 0.32, 0.24), 0.95)
+	var moss := Mats.solid(Color(0.36, 0.66, 0.24), 0.95)
+	var gold := Mats.solid(GOLD, 0.35, 0.7)
+	var gem := Mats.glow(Color(0.15, 0.95, 0.4), 1.15)
+	var eye := Mats.glow(Color(1.0, 0.85, 0.3), 1.3)
+	var body := Node3D.new()
+	body.name = "Body"
+	root.add_child(body)
+	Mats.part(body, Mats.sphere(0.34, 0.6, 9, 5), stone, Vector3(0, 0.72, 0), Vector3(10, 0, 0), Vector3(1.0, 1.0, 0.85))
+	Mats.part(body, Mats.sphere(0.3, 0.18, 9, 4), moss, Vector3(0, 0.99, -0.06), Vector3.ZERO, Vector3(1.0, 1.0, 0.9))
+	Mats.part(body, Mats.box(Vector3(0.44, 0.13, 0.32)), stone_dark, Vector3(0, 0.46, 0.02))
+	Mats.part(body, Mats.box(Vector3(0.46, 0.06, 0.34)), gold, Vector3(0, 0.5, 0.02))
+	Mats.part(body, Mats.box(Vector3(0.1, 0.09, 0.04)), gold, Vector3(0, 0.5, 0.2))
+	# Small head sunk between the shoulders.
+	var head := Node3D.new()
+	head.position = Vector3(0, 1.0, 0.16)
+	body.add_child(head)
+	Mats.part(head, Mats.box(Vector3(0.2, 0.17, 0.18)), stone_dark, Vector3.ZERO, Vector3(5, 0, 0))
+	Mats.part(head, Mats.box(Vector3(0.22, 0.04, 0.2)), stone, Vector3(0, 0.06, 0.01))
+	for sgn in [-1.0, 1.0]:
+		Mats.part(head, Mats.box(Vector3(0.05, 0.025, 0.02)), eye, Vector3(0.05 * sgn, 0.0, 0.095), Vector3.ZERO, Vector3.ONE, false)
+	# Emerald growths on the back.
+	for i in 5:
+		var x := (i - 2) * 0.11
+		Mats.part(body, Mats.crystal(0.06, 0.34 - absf(i - 2) * 0.07), gem, Vector3(x, 0.98, -0.24), Vector3(-35, 0, (i - 2) * 18), Vector3.ONE, false)
+	var arms: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var sh := Node3D.new()
+		sh.position = Vector3(0.38 * sgn, 0.9, 0)
+		body.add_child(sh)
+		Mats.part(sh, Mats.sphere(0.15, 0.19, 7, 4), stone, Vector3(0, 0.02, 0))
+		Mats.part(sh, Mats.sphere(0.12, 0.08, 7, 3), moss, Vector3(0, 0.1, 0))
+		for k in 2:
+			Mats.part(sh, Mats.crystal(0.05, 0.22 - k * 0.06), gem, Vector3((0.03 + k * 0.06) * sgn, 0.14, -0.03 + k * 0.05), Vector3(-10, 0, -(20 + k * 25) * sgn), Vector3.ONE, false)
+		Mats.part(sh, Mats.cyl(0.1, 0.12, 0.36, 7), stone, Vector3(0, -0.2, 0))
+		Mats.part(sh, Mats.cyl(0.13, 0.13, 0.08, 8), gold, Vector3(0, -0.33, 0.01))
+		Mats.part(sh, Mats.box(Vector3(0.23, 0.22, 0.25)), stone_dark, Vector3(0, -0.46, 0.02))
+		arms.append(sh)
+	var legs: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var hip := Node3D.new()
+		hip.position = Vector3(0.16 * sgn, 0.4, 0)
+		body.add_child(hip)
+		Mats.part(hip, Mats.cyl(0.11, 0.13, 0.34, 7), stone_dark, Vector3(0, -0.2, 0))
+		Mats.part(hip, Mats.box(Vector3(0.2, 0.08, 0.26)), stone, Vector3(0, -0.36, 0.03))
+		legs.append(hip)
+	root.set_meta("anim", "giant")
+	root.set_meta("body", body)
+	root.set_meta("arms", arms)
+	root.set_meta("legs", legs)
+
+
+## Per-frame hero animation. `attack` runs 1 -> 0 over one swing.
+static func animate_hero(model: Node3D, t: float, moving: bool, attack: float) -> void:
+	var body: Node3D = model.get_meta("body")
+	var arms: Array = model.get_meta("arms")
+	var legs: Array = model.get_meta("legs")
+	var swing := sin(PI * clampf(1.0 - attack, 0.0, 1.0)) if attack > 0.0 else 0.0
+	match str(model.get_meta("anim", "")):
+		"speedster":
+			if moving:
+				var p := t * 22.0
+				body.position.y = absf(sin(p)) * 0.03
+				body.rotation.x = 0.4
+				for i in 2:
+					(legs[i] as Node3D).rotation.x = sin(p + PI * i) * 1.1
+					(arms[i] as Node3D).rotation.x = -sin(p + PI * i) * 1.0
+			else:
+				var p := t * 3.0
+				body.position.y = sin(p) * 0.01
+				body.rotation.x = 0.08
+				for i in 2:
+					(legs[i] as Node3D).rotation.x = 0.0
+					(arms[i] as Node3D).rotation.x = -0.25 + sin(p + i) * 0.05
+				if attack > 0.0:
+					# Flurry of punches, alternating hands.
+					var punch := sin(attack * TAU * 2.0)
+					(arms[0] as Node3D).rotation.x = -1.5 * maxf(punch, 0.0) - 0.25
+					(arms[1] as Node3D).rotation.x = -1.5 * maxf(-punch, 0.0) - 0.25
+		"giant":
+			var p := t * (5.0 if moving else 1.6)
+			body.position.y = absf(sin(p)) * (0.05 if moving else 0.015)
+			body.rotation.z = sin(p) * (0.06 if moving else 0.02)
+			for i in 2:
+				(legs[i] as Node3D).rotation.x = sin(p + PI * i) * (0.45 if moving else 0.0)
+				(arms[i] as Node3D).rotation.x = -sin(p + PI * i) * (0.35 if moving else 0.08) - 2.4 * swing
+			body.rotation.x = 0.25 * swing
+
+
 # ================================================================= props
 
 static func coin() -> Node3D:

@@ -22,6 +22,9 @@ var enemies_root: Node3D
 var towers_root: Node3D
 var projectiles_root: Node3D
 var enemies: Array[Enemy] = []
+var heroes: Array[Hero] = []
+var heroes_root: Node3D
+var selected_hero: Hero
 var towers := {}               # Vector2i -> Tower
 var gold := 0
 var lives := 0
@@ -63,13 +66,15 @@ func _ready() -> void:
 	map.name = "Map"
 	add_child(map)
 	map.build(level, quality_high)
-	for n in ["Towers", "Enemies", "Projectiles"]:
+	for n in ["Towers", "Enemies", "Heroes", "Projectiles"]:
 		var node := Node3D.new()
 		node.name = n
 		add_child(node)
 	towers_root = $Towers
 	enemies_root = $Enemies
+	heroes_root = $Heroes
 	projectiles_root = $Projectiles
+	_spawn_heroes()
 	effects = Effects.new()
 	effects.name = "Effects"
 	effects.quality_high = quality_high
@@ -341,6 +346,75 @@ func enemies_in_radius(pos: Vector3, radius: float, air: bool, ground: bool) -> 
 	return out
 
 
+# ------------------------------------------------------------------ heroes
+
+## Both heroes start on the main path just in front of the crystal.
+func _spawn_heroes() -> void:
+	if map.curves.is_empty():
+		return
+	var curve: Curve3D = map.curves[0]
+	var length: float = map.path_lengths[0]
+	for i in GameData.HERO_ORDER.size():
+		var type: String = GameData.HERO_ORDER[i]
+		var at := curve.sample_baked(maxf(length - 1.6 - 1.5 * i, 0.0))
+		at.y = map.ground_y(at)
+		var h := Hero.new()
+		h.name = "Hero_" + type
+		h.setup(self, type, at)
+		heroes_root.add_child(h)
+		heroes.append(h)
+
+
+## The hero drawn under a screen point (generous radius for fingers), or null.
+func hero_at_screen(screen_pos: Vector2) -> Hero:
+	var best: Hero = null
+	var best_d := 56.0
+	for h in heroes:
+		if not h.alive:
+			continue
+		var p := cam.world_to_screen(h.global_position + Vector3(0, 0.6, 0))
+		var d := p.distance_to(screen_pos)
+		if d < best_d:
+			best_d = d
+			best = h
+	return best
+
+
+func select_hero(h: Hero) -> void:
+	hud.close_menus()
+	deselect_hero()
+	if h == null or not h.alive:
+		return
+	selected_hero = h
+	h.selected = true
+	Audio.play("click", -6.0)
+	hud.toast(Loc.f("HERO_PICK_SPOT", [Loc.t(h.def["name"])]), h.color.lightened(0.35))
+
+
+func deselect_hero() -> void:
+	if selected_hero and is_instance_valid(selected_hero):
+		selected_hero.selected = false
+	selected_hero = null
+
+
+## Sends the selected hero to a tapped ground point.
+func _command_selected_hero(ground: Vector3) -> void:
+	var h := selected_hero
+	deselect_hero()
+	if not map.cells.has(map.world_to_cell(ground)):
+		hud.toast(Loc.t("HERO_CANT_GO"))
+		Audio.play("error")
+		return
+	h.command_move(ground)
+	effects.ring(Vector3(ground.x, map.ground_y(ground), ground.z), h.color, 0.45, 0.4)
+	Audio.play("click", -4.0)
+
+
+func use_hero_ability(h: Hero) -> void:
+	if h == null or not h.use_ability():
+		Audio.play("error")
+
+
 # ------------------------------------------------------------------ economy & towers
 
 func add_gold(amount: int, earned := true) -> void:
@@ -542,6 +616,18 @@ func world_tap(screen_pos: Vector2) -> void:
 	if not is_running():
 		return
 	var ground := cam.screen_to_ground(screen_pos)
+	var tapped_hero := hero_at_screen(screen_pos)
+	if selected_hero:
+		if tapped_hero == selected_hero:
+			deselect_hero()
+		elif tapped_hero:
+			select_hero(tapped_hero)
+		else:
+			_command_selected_hero(ground)
+		return
+	if tapped_hero:
+		select_hero(tapped_hero)
+		return
 	var c := map.world_to_cell(ground)
 	if towers.has(c):
 		Audio.play("click", -6.0)

@@ -60,13 +60,34 @@ const TOWERS := {
 const SELL_REFUND := 0.7
 
 const ENEMIES := {
-	"slime": {"name": "ENEMY_SLIME", "hp": 30.0, "speed": 1.0, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.34, "color": Color(0.2, 0.72, 0.7)},
-	"runner": {"name": "ENEMY_RUNNER", "hp": 22.0, "speed": 1.9, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.3, "color": Color(0.95, 0.55, 0.25)},
-	"beetle": {"name": "ENEMY_BEETLE", "hp": 90.0, "speed": 0.7, "reward": 9, "armor": 0.5, "flying": false, "lives": 2, "size": 0.38, "color": Color(0.3, 0.45, 0.85)},
-	"bat": {"name": "ENEMY_BAT", "hp": 28.0, "speed": 1.35, "reward": 5, "armor": 0.0, "flying": true, "lives": 1, "size": 0.3, "color": Color(0.6, 0.35, 0.8)},
-	"splitter": {"name": "ENEMY_SPLITTER", "hp": 75.0, "speed": 0.85, "reward": 6, "armor": 0.0, "flying": false, "lives": 2, "size": 0.42, "color": Color(0.85, 0.4, 0.75), "split": "slimelet", "split_count": 3},
-	"slimelet": {"name": "ENEMY_SLIME", "hp": 16.0, "speed": 1.3, "reward": 1, "armor": 0.0, "flying": false, "lives": 1, "size": 0.22, "color": Color(0.95, 0.55, 0.85)},
-	"golem": {"name": "ENEMY_GOLEM", "hp": 800.0, "speed": 0.45, "reward": 70, "armor": 0.3, "flying": false, "lives": 5, "size": 0.6, "color": Color(0.55, 0.52, 0.5), "boss": true},
+	"slime": {"name": "ENEMY_SLIME", "atk": 6.0, "hp": 30.0, "speed": 1.0, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.34, "color": Color(0.2, 0.72, 0.7)},
+	"runner": {"name": "ENEMY_RUNNER", "atk": 5.0, "hp": 22.0, "speed": 1.9, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.3, "color": Color(0.95, 0.55, 0.25)},
+	"beetle": {"name": "ENEMY_BEETLE", "atk": 14.0, "hp": 90.0, "speed": 0.7, "reward": 9, "armor": 0.5, "flying": false, "lives": 2, "size": 0.38, "color": Color(0.3, 0.45, 0.85)},
+	"bat": {"name": "ENEMY_BAT", "atk": 0.0, "hp": 28.0, "speed": 1.35, "reward": 5, "armor": 0.0, "flying": true, "lives": 1, "size": 0.3, "color": Color(0.6, 0.35, 0.8)},
+	"splitter": {"name": "ENEMY_SPLITTER", "atk": 9.0, "hp": 75.0, "speed": 0.85, "reward": 6, "armor": 0.0, "flying": false, "lives": 2, "size": 0.42, "color": Color(0.85, 0.4, 0.75), "split": "slimelet", "split_count": 3},
+	"slimelet": {"name": "ENEMY_SLIME", "atk": 3.0, "hp": 16.0, "speed": 1.3, "reward": 1, "armor": 0.0, "flying": false, "lives": 1, "size": 0.22, "color": Color(0.95, 0.55, 0.85)},
+	"golem": {"name": "ENEMY_GOLEM", "atk": 55.0, "hp": 800.0, "speed": 0.45, "reward": 70, "armor": 0.3, "flying": false, "lives": 5, "size": 0.6, "color": Color(0.55, 0.52, 0.5), "boss": true},
+}
+
+# Heroes: player-controlled fighters available in every level. "atk" on enemies above is the
+# damage per second an enemy deals to the hero that blocks it.
+#   block    how many ground enemies the hero holds back at once
+#   aggro    radius around the hero's post in which it engages enemies
+#   reach    melee reach; "air_reach" lets a hero also hit flying enemies
+const HERO_ORDER: Array[String] = ["bolt", "titan"]
+const HEROES := {
+	"bolt": {
+		"name": "HERO_BOLT", "desc": "HERO_BOLT_DESC", "color": Color(0.3, 0.62, 1.0),
+		"hp": 320.0, "regen": 16.0, "speed": 4.2, "damage": 10.0, "rate": 2.6, "dmg_type": "magic",
+		"reach": 0.5, "air_reach": 1.4, "aggro": 1.8, "block": 1, "respawn": 10.0,
+		"ability": {"name": "ABILITY_DASH", "icon": "bolt", "cooldown": 16.0, "damage": 75.0, "length": 4.5, "width": 0.6, "slow": 0.5, "slow_time": 1.5},
+	},
+	"titan": {
+		"name": "HERO_TITAN", "desc": "HERO_TITAN_DESC", "color": Color(0.3, 0.9, 0.55),
+		"hp": 780.0, "regen": 20.0, "speed": 1.8, "damage": 40.0, "rate": 0.8, "dmg_type": "phys",
+		"reach": 0.6, "air_reach": 0.0, "aggro": 1.6, "block": 3, "respawn": 14.0, "splash": 0.7,
+		"ability": {"name": "ABILITY_SLAM", "icon": "slam", "cooldown": 20.0, "damage": 95.0, "radius": 1.9, "stun": 2.2},
+	},
 }
 
 # Wave group: [enemy_type, count, gap_seconds, start_delay, spawn_index (-1 = alternate)]

@@ -16,6 +16,7 @@ var base_color := Color(0.1, 0.12, 0.2, 0.92)
 var ring_color := UIKit.GOLD
 var disabled := false
 var armed := false              # waiting for a confirming second tap
+var highlight := false          # pulsing outer glow in the ring colour (keeps the icon)
 var progress := -1.0            # 0..1 draws an arc around the button
 var progress_color := UIKit.GOLD
 var pulse := false
@@ -89,6 +90,8 @@ func _draw() -> void:
 	if armed:
 		ring = UIKit.GREEN
 		draw_arc(c, r + 5.0, 0, TAU, 48, Color(UIKit.GREEN.r, UIKit.GREEN.g, UIKit.GREEN.b, 0.35 + 0.25 * sin(_t * 8.0)), 6.0, true)
+	if highlight and not armed:
+		draw_arc(c, r + 5.0, 0, TAU, 48, Color(ring.r, ring.g, ring.b, 0.35 + 0.3 * sin(_t * 8.0)), 6.0, true)
 	draw_arc(c, r - 1.5, 0, TAU, 48, ring, 3.0, true)
 	if progress >= 0.0:
 		draw_arc(c, r + 6.0, -PI / 2, -PI / 2 + TAU * clampf(progress, 0.0, 1.0), 48, progress_color, 5.0, true)
