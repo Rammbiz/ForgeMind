@@ -19,6 +19,8 @@ var readonly := false   # dev/test runs must not touch the player's save
 
 func _ready() -> void:
 	load_data()
+	if "--unlock-all" in OS.get_cmdline_user_args():
+		unlock_all()
 
 
 func load_data() -> void:
@@ -91,6 +93,13 @@ func total_stars() -> int:
 	for s in stars:
 		total += s
 	return total
+
+
+## Opens every level, keeping the stars already earned. On a computer run the game with
+## `-- --unlock-all`; on a phone tap the version number in the main menu five times.
+func unlock_all() -> void:
+	unlocked = GameData.level_count()
+	save_data()
 
 
 func reset_progress() -> void:

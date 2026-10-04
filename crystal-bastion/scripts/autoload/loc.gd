@@ -16,6 +16,7 @@ const STRINGS := {
 	"SELECT_LEVEL": ["Оберіть рівень", "Choose a level"],
 	"LOCKED": ["Закрито", "Locked"],
 	"LOCKED_HINT": ["Пройдіть попередній рівень", "Beat the previous level"],
+	"ALL_UNLOCKED": ["Усі рівні відкрито", "All levels unlocked"],
 	"WAVES_N": ["%d хвиль", "%d waves"],
 	"LEVEL_1": ["Зелена долина", "Green Valley"],
 	"LEVEL_1_SUB": ["Тиха долина, де все починається", "A quiet valley where it all begins"],

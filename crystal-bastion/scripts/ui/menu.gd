@@ -150,6 +150,12 @@ func show_main() -> void:
 	stars.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 40)
 	stars.position.x = 80
 	var ver := UIKit.label("v" + str(ProjectSettings.get_setting("application/config/version", "1.0")), 18, UIKit.TEXT_DIM)
+	# Hidden shortcut: five quick taps on the version number open every level.
+	ver.custom_minimum_size = Vector2(140, 44)
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ver.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	ver.mouse_filter = Control.MOUSE_FILTER_STOP
+	ver.gui_input.connect(_on_version_input.bind(ver))
 	page.add_child(ver)
 	ver.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	ver.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -193,6 +199,29 @@ func show_levels() -> void:
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(show_main)
 	v.add_child(back)
+
+
+var _version_taps: Array[int] = []
+
+
+func _on_version_input(ev: InputEvent, ver: Label) -> void:
+	# Phones deliver taps as emulated mouse clicks too, so only mouse buttons are counted.
+	var click := ev as InputEventMouseButton
+	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var now := Time.get_ticks_msec()
+	_version_taps.append(now)
+	while _version_taps.size() > 0 and now - _version_taps[0] > 2500:
+		_version_taps.pop_front()
+	if _version_taps.size() < 5:
+		return
+	_version_taps.clear()
+	Save.unlock_all()
+	Audio.play("upgrade")
+	Save.vibrate(40)
+	ver.text = Loc.t("ALL_UNLOCKED")
+	ver.add_theme_color_override("font_color", UIKit.GOLD)
+	UIKit.pop_in(ver)
 
 
 func _level_card(i: int) -> Control:
