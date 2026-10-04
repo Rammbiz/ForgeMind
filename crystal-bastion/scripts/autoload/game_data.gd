@@ -166,7 +166,7 @@ const LEVELS := [
 			"S####..r.......x",
 			"xx....t.....r.xx",
 		],
-		"start_gold": 280, "lives": 20, "hp_scale": 0.93, "hp_growth": 0.0082,
+		"start_gold": 280, "lives": 20, "hp_scale": 0.89, "hp_growth": 0.0082,
 		"towers": ["arrow", "cannon", "frost", "tesla"],
 		"music": "canyon",
 		"theme": {
