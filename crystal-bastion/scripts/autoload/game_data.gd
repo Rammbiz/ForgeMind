@@ -106,7 +106,7 @@ const LEVELS := [
 			"x..#######..t.Cx",
 			"xx.....t....r.xx",
 		],
-		"start_gold": 220, "lives": 20, "hp_scale": 1.05, "hp_growth": 0.009,
+		"start_gold": 220, "lives": 20, "hp_scale": 1.12, "hp_growth": 0.009,
 		"towers": ["arrow", "cannon", "frost"],
 		"music": "meadow",
 		"theme": {
@@ -166,7 +166,7 @@ const LEVELS := [
 			"S####..r.......x",
 			"xx....t.....r.xx",
 		],
-		"start_gold": 280, "lives": 20, "hp_scale": 0.85, "hp_growth": 0.0082,
+		"start_gold": 280, "lives": 20, "hp_scale": 0.93, "hp_growth": 0.0082,
 		"towers": ["arrow", "cannon", "frost", "tesla"],
 		"music": "canyon",
 		"theme": {
@@ -228,7 +228,7 @@ const LEVELS := [
 			"xC#########..t.x",
 			"xx...t....r...xx",
 		],
-		"start_gold": 320, "lives": 20, "hp_scale": 0.66, "hp_growth": 0.0095,
+		"start_gold": 320, "lives": 20, "hp_scale": 0.76, "hp_growth": 0.0095,
 		"towers": ["arrow", "cannon", "frost", "tesla", "laser"],
 		"music": "frost",
 		"theme": {
