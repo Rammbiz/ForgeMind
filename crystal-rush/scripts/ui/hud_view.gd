@@ -438,10 +438,17 @@ func set_weapons(list: Array) -> void:
 ## A weapon was acquired or levelled up: centred reward card, then it flies into its slot.
 func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 	var slot_i := -1
-	for i in _slots.size():
-		if _slots[i].kind == kind:
+	# The Run's list is authoritative (several weapons can arrive in one frame, before any
+	# card has landed in its slot).
+	for i in mini(list.size(), _slots.size()):
+		if str((list[i] as Dictionary).get("kind", "")) == kind:
 			slot_i = i
 			break
+	if slot_i == -1:
+		for i in _slots.size():
+			if _slots[i].kind == kind:
+				slot_i = i
+				break
 	if slot_i == -1:
 		for i in _slots.size():
 			if _slots[i].kind == "":
@@ -475,7 +482,7 @@ func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 	tw.chain().tween_callback(func():
 		if not list.is_empty():
 			set_weapons(list)
-		if target_slot.kind != kind:
+		if list.is_empty() and target_slot.kind != kind:
 			target_slot.set_weapon(kind, lvl, _weapon_color(kind))
 		UIKit.punch(target_slot, 1.45, 0.4)
 		target_slot.flash()

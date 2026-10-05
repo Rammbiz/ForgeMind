@@ -124,6 +124,21 @@ func _run_time(run: Object) -> float:
 	return _clock
 
 
+## Mean x of the drawn soldiers (the blob trails the hero when it swerves).
+func _army_x(run: Object, fallback: float) -> float:
+	var av: Variant = run.get("army_view")
+	if av == null or not (av as Object).has_method("positions"):
+		return fallback
+	var shown := int((av as Object).get("shown"))
+	if shown <= 0:
+		return fallback
+	var pts: PackedVector3Array = (av as Object).call("positions")
+	var sx := 0.0
+	for k in mini(shown, pts.size()):
+		sx += pts[k].x
+	return sx / maxf(float(mini(shown, pts.size())), 1.0)
+
+
 ## [LevelSim.Level, LevelSim.State] for the live run: items from BEHIND to AHEAD + 30 units
 ## around the hero with their live state. `fog`: unrevealed hidden gates count as +0.
 func snapshot(run: Object, fog := true) -> Array:
@@ -157,6 +172,7 @@ func snapshot(run: Object, fog := true) -> Array:
 	s.d = d
 	s.t = t
 	s.hx = float(run.get("hx"))
+	s.ax = _army_x(run, s.hx)
 	s.coins = int(run.get("coins"))
 	s.hero_hp = float(run.get("hero_hp"))
 	s.arm = int(run.get("arm_tier"))

@@ -195,6 +195,8 @@ func _volleys(dt: float) -> void:
 		return
 	_volley_cd = float(tier["period"])
 	var dmg := maxf(1.0, float(run.army) * float(tier["volley"]))
+	if str(it["kind"]) != "squad":
+		dmg = maxf(1.0, dmg * float(tier.get("struct_share", 1.0)))
 	var aim := run.aim_point(it)
 	var army := run.army_view
 	var shooters := army.front(mini(3 + run.army / 40, 6))

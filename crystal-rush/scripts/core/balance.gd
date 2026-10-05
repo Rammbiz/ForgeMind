@@ -29,7 +29,7 @@ const WEAPON_LATERAL := 2.6     # war machines shoot targets at most this far ac
 const MACHINE_TARGETS: Array[String] = ["squad", "turret", "barricade", "geode", "crate", "fortress"]
 
 ## Points added to a gate value per point of hero damage that hits it.
-const GATE_HIT_GAIN := {"+": 1.0, "-": 1.0, "charge": 1.5, "rate": 2.0}
+const GATE_HIT_GAIN := {"+": 1.0, "-": 1.0, "charge": 2.0, "rate": 2.0}
 
 const START_ARMY := 3
 const MAX_UPGRADE := 10
@@ -70,11 +70,12 @@ const WEAPON_LEVEL_MULT: Array[float] = [1.0, 1.5, 2.1]
 const MAX_WEAPONS := 3
 
 ## Army weapon tiers. A volley kills `volley * army` enemies of a squad within `range` every
-## `period` s; blasters (structures) also damage turrets, barricades and the fortress.
+## `period` s; blasters (structures) also damage turrets, barricades and the fortress, for
+## `struct_share` of that (a big army must not flatten the fortress from afar).
 const ARM_TIERS := [
 	{"name": "ARM_SPEAR"},
 	{"name": "ARM_CROSSBOW", "volley": 0.05, "period": 0.5, "range": 7.0},
-	{"name": "ARM_BLASTER", "volley": 0.09, "period": 0.45, "range": 8.0, "structures": true},
+	{"name": "ARM_BLASTER", "volley": 0.09, "period": 0.45, "range": 8.0, "structures": true, "struct_share": 0.3},
 ]
 
 ## Multiplier stairs after the fortress (one per step, bottom to top).

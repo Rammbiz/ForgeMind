@@ -896,7 +896,8 @@ func _pass_gate(it: Dictionary, op: String, v: float) -> void:
 	effects.shockwave(Vector3(gx, 0.0, at.z), col, 1.6)
 	effects.burst(at, col.lerp(Color.WHITE, 0.3), 26, 3.4, 0.08, 0.55, -4.0)
 	if popup != "":
-		juice.popup(popup, at + Vector3(0, 1.0, 0), pcol, 1.25)
+		# Above the army counter (which rides over the hero right at the gate).
+		juice.popup(popup, at + Vector3(0, 1.6, -0.3), pcol, 1.25)
 	if good:
 		var gain := maxf(float(army - before), 0.0)
 		Audio.chord(clampi(int(round(gain / maxf(float(before), 1.0) * 6.0)), 0, 9), true)

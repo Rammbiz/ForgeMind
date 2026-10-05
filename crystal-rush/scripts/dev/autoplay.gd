@@ -73,6 +73,8 @@ func _process(delta: float) -> void:
 func _track(st: int) -> void:
 	var army := int(_run.get("army"))
 	var d := float(_run.get("d"))
+	if args.has("trace") and army != _last_army:
+		_trace(st, army, d)
 	if _army_at_fortress < 0 and (st == _state("SIEGE") or st == _state("STAIRS") or st == _state("WON")):
 		_army_at_fortress = _last_army if st != _state("SIEGE") else army
 	if st == _state("RUNNING") and army < _last_army:
@@ -84,6 +86,23 @@ func _track(st: int) -> void:
 			_hazard += _last_army - army
 	_last_army = army
 	_last_d = d
+
+
+## --trace: one line per army change with the state, the hero x and what is around.
+func _trace(st: int, army: int, d: float) -> void:
+	var near := ""
+	for it: Dictionary in _run.get("items"):
+		var di := float(it["d"])
+		if di < d - 4.0 or di > d + 3.0:
+			continue
+		var k := str(it["kind"])
+		if k in ["tile", "coin"]:
+			continue
+		near += " %s@%.0f(x%.1f%s)" % [k, di, float(it.get("x", 0.0)), "" if it.get("alive", true) else "-"]
+	var hz: Variant = _run.get("hazard_deaths")
+	print("TRACE t=%5.1f d=%6.1f st=%d hx=%5.2f army %d -> %d (%+d) haz=%.0f |%s" % [
+		float(_run.get("t")), d, st, float(_run.get("hx")), _last_army, army, army - _last_army,
+		float(hz) if hz != null else 0.0, near])
 
 
 func _state(name: String) -> int:

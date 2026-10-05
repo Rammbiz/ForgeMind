@@ -23,6 +23,21 @@ const TURRET_X := 3.25
 const BIG := 90.0               # above this expected army no more x-gates
 const PUMP := 6.0               # what the hero's fire adds to a + gate on a good approach
 
+## Reference players: after each chunk, a LevelSim player per hero takes the best of a few
+## lines through it (one x, or one x then another) and `e` becomes their mean army. So the
+## numbers of the next chunk, the fortress and the stairs follow what good play really yields
+## (hero pumping, x-gates, machines, volleys and losses included), not a hand formula.
+const REF_HEROES: Array[String] = ["bolt", "titan"]
+const REF_DT := 0.2
+const REF_X: Array[float] = [-2.6, -1.65, -0.8, 0.0, 0.8, 1.65, 2.6]
+const REF_PAIRS: Array[float] = [-2.4, -0.8, 0.8, 2.4]
+## Share of the reference army at the fortress gate that the siege costs, by level.
+const SIEGE_SHARE_MIN := 0.35
+const SIEGE_SHARE_MAX := 0.62
+const SIEGE_SHARE_STEP := 0.045
+## Stairs: the reference survivors pay for about this many cost units (x2.5 on the stairs).
+const STAIRS_UNITS := 10.0
+
 ## Level from which each element may appear (plan section 9 + weapons).
 const UNLOCK := {
 	"tiles": 1, "recruits": 1, "gates": 1, "squad": 1,
@@ -63,6 +78,10 @@ class Gen extends RefCounted:
 	var goal := 80.0
 	var length := 160.0
 	var crate_weapon := ""
+	var etrace: Array = []          ## [[d, e, chunk], ...] (level_check --trace)
+	var ref_lv: LevelSim.Level      ## the level so far, as the reference players see it
+	var refs: Array = []            ## LevelSim.State per reference hero
+	var ref_n := 0                  ## items already handed to ref_lv
 
 
 static func build(level: int, base_army: int) -> Dictionary:
@@ -86,7 +105,9 @@ static func build(level: int, base_army: int) -> Dictionary:
 
 
 static func target_length(level: int) -> float:
-	return minf(160.0 + 20.0 * (level - 1), 380.0)
+	if level <= 3:
+		return 160.0 + 20.0 * (level - 1)
+	return minf(200.0 + 10.0 * (level - 3), 290.0)
 
 
 ## Army a good player should bring to the fortress.
@@ -163,7 +184,7 @@ static func _tutorial_2(g: Gen) -> void:
 	_tile_line(g, -2.9, -2.9, 58.0, 5, 1.2)
 	_coin_line(g, 0.6, 66.0, 6)
 	_hint(g, 72.0, "HINT_CRATE")
-	_crate(g, -2.0, 86.0, 6, "cannon")
+	_crate(g, -2.0, 86.0, 5, "cannon")
 	_row(g, 96.0, [_gate("+", 12), _gate("+", 6), _gate("x", 2)])
 	g.e *= 2.0
 	_tile_line(g, 2.2, -2.2, 106.0, 9, 1.2)
@@ -210,7 +231,7 @@ static func _tutorial_3(g: Gen) -> void:
 	_coin_line(g, 0.0, 148.0, 6)
 	_recruits(g, -2.3, 156.0, 6)
 	_recruits(g, 2.3, 160.0, 6)
-	_crate(g, 2.0, 172.0, 7, "cannon")
+	_crate(g, -2.0, 172.0, 5, "cannon")
 	_row(g, 184.0, [_gate("+", int(g.e * 0.4)), _gate("+", int(g.e * 0.15)), _gate("+", int(g.e * 0.25))])
 	g.e *= 1.3
 	g.d = 192.0
@@ -232,6 +253,7 @@ const THREATS := ["squad_wall", "squad_fork", "barricade", "rotor", "turret", "s
 
 static func _procedural(g: Gen) -> void:
 	var length := target_length(g.level)
+	_ref_start(g)
 	# New elements of this level go first so their hint lands early; crates on schedule.
 	var intro: Array[String] = []
 	for chunk: String in CHUNKS:
@@ -316,6 +338,9 @@ static func _chunk(g: Gen, name: String) -> void:
 	_chunk_body(g, name)
 	# A good player also pumps the + gate it takes with the hero's fire (~6 per row).
 	g.e += PUMP * (g.row - rows_before)
+	if not g.refs.is_empty():
+		_ref_walk(g, g.d)
+	g.etrace.append([g.d, g.e, name])
 
 
 static func _chunk_body(g: Gen, name: String) -> void:
@@ -515,7 +540,7 @@ static func _c_charge(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
 	var r := want(g, g.d + 22.0)
-	var need := 8 + g.level / 2 + g.rng.randi_range(0, 3)
+	var need := 6 + g.level / 3 + g.rng.randi_range(0, 2)
 	var cg := _gate("charge", -need)
 	var roll := g.rng.randf()
 	var gain := r * 1.3
@@ -535,7 +560,7 @@ static func _c_charge(g: Gen) -> void:
 	# Something else wants the hero's fire on the other side.
 	if g.level >= 6:
 		if g.rng.randf() < 0.3:
-			_crate(g, -2.2 * s, g.d + 6.0, 5 + g.level / 3, _late_weapon(g))
+			_crate(g, -2.2 * s, g.d + 6.0, crate_hp(g.level), _late_weapon(g))
 		else:
 			_squad(g, -1.7 * s, g.d + 8.0, 2.4, int(a * 0.15) + g.level)
 	g.e = a + maxf(gain, r * 0.6) * 0.95
@@ -549,10 +574,9 @@ static func _crate_chunk(g: Gen, weapon: String) -> void:
 	var s := _side(g)
 	var a := g.e
 	var r := want(g, g.d + 24.0)
-	var hp := 6 + g.level / 3
-	_crate(g, 2.1 * s, g.d + 8.0, hp, weapon)
+	_crate(g, 2.1 * s, g.d + 8.0, crate_hp(g.level), weapon)
 	var good := _gate("+", int(round(r)))
-	var meh := _gate("+", int(round(r * 0.45)) + g.level)
+	var meh := _gate("+", _meh(r, g))
 	# The better gate is on the far side from the crate.
 	_row(g, g.d + 18.0, [meh, good] if s < 0 else [good, meh])
 	_tile_line(g, 2.1 * s, 2.1 * s, g.d + 10.0, 4, 1.1)
@@ -626,10 +650,10 @@ static func _c_turret(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
 	var r := want(g, g.d + 24.0)
-	var hp := 5 + g.level / 2
+	var hp := 4 + g.level / 4
 	_turret(g, s, g.d + 14.0, hp, 7.0, 2.2 + g.level * 0.08)
 	var good := _gate("+", int(round(r + 4.0)))
-	var meh := _gate("+", int(round(r * 0.45)) + g.level)
+	var meh := _gate("+", _meh(r, g))
 	_row(g, g.d + 12.0, [good, meh] if s > 0 else [meh, good])
 	_recruits(g, 2.4 * s, g.d + 18.0, int(4 + r * 0.1))
 	g.e = a + r * 0.92
@@ -644,7 +668,7 @@ static func _c_geode(g: Gen) -> void:
 	var roll := g.rng.randf()
 	var reward := "army" if roll < 0.55 else ("coins" if roll < 0.8 else "ult")
 	var amount := int(round(r * 0.6)) + 4 if reward == "army" else (12 + g.level * 2 if reward == "coins" else 25)
-	_geode(g, 1.9 * s, g.d + 9.0, 7 + g.level / 2, reward, amount)
+	_geode(g, 1.9 * s, g.d + 9.0, 5 + g.level / 4, reward, amount)
 	var size := int(round(a * threat(g) * 0.6)) + g.level
 	_squad(g, -1.5 * s, g.d + 12.0, 2.6, size)
 	_tile_line(g, 0.0, 0.0, g.d + 15.0, 5, 1.1)
@@ -731,24 +755,144 @@ static func _c_sweeper(g: Gen) -> void:
 
 static func _finish(g: Gen) -> Dictionary:
 	var fd := maxf(g.d + 8.0, target_length(g.level))
-	var ratio := clampf(0.25 + 0.085 * (g.level - 1), 0.25, 0.85)
-	if g.level <= 3:
-		ratio = 0.25 + 0.04 * (g.level - 1)   # tutorials stay forgiving
+	var ratio := 0.25 + 0.04 * (g.level - 1)   # tutorials stay forgiving
 	var hp := int(round(g.e * ratio)) + 6 + g.level * 2
-	g.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": hp})
 	# Stairs: a good run reaches about x2.5-x3, a great one the top.
 	var surv := maxf(g.e * 1.4 - hp, 6.0)
-	var base := maxf(surv / 9.0, 1.0)
+	if not g.refs.is_empty():
+		var cal := _ref_fortress(g, fd)
+		hp = int(cal[0])
+		surv = float(cal[1])
+	g.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": hp})
+	var base := maxf(surv / STAIRS_UNITS, 1.0)
 	var steps: Array = []
 	for k in Balance.STAIRS_MULTS.size():
 		steps.append({"mult": Balance.STAIRS_MULTS[k], "cost": maxi(1, int(round(base * (1.0 + 0.25 * k))))})
 	g.items.append({"kind": "stairs", "x": 0.0, "d": fd + 6.0, "steps": steps})
 	g.items.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
 	g.hints.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
-	return {"items": g.items, "length": fd, "expected": g.e, "hints": g.hints, "script": g.run_script}
+	for it in g.items:
+		it.erase("_ref")
+	return {"items": g.items, "length": fd, "expected": g.e, "hints": g.hints, "script": g.run_script,
+			"etrace": g.etrace}
+
+
+# ------------------------------------------------------------------ reference players
+
+static func _ref_start(g: Gen) -> void:
+	g.ref_lv = LevelSim.Level.new()
+	g.ref_lv.level = g.level
+	g.ref_lv.length = target_length(g.level)
+	g.refs.clear()
+	for h in REF_HEROES:
+		var s := LevelSim.start_state(g.ref_lv, h, int(g.start))
+		s.gate_margin = LevelSim.PLAN_GATE_MARGIN
+		g.refs.append(s)
+	g.ref_n = 0
+
+
+## Hands the items laid out since the last call to the reference level (in d order).
+static func _ref_feed(g: Gen) -> void:
+	if g.ref_n >= g.items.size():
+		return
+	var fresh: Array[Dictionary] = []
+	for k in range(g.ref_n, g.items.size()):
+		fresh.append(g.items[k])
+	g.ref_n = g.items.size()
+	fresh.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
+	for it in fresh:
+		g.ref_lv.items.append(it)
+	LevelSim.reindex(g.ref_lv)
+	for s: LevelSim.State in g.refs:
+		LevelSim.grow_state(g.ref_lv, s)
+
+
+## Walks each reference player to `d_end` on its best simple line and sets `e` to their mean
+## army.
+static func _ref_walk(g: Gen, d_end: float) -> void:
+	_ref_feed(g)
+	var total := 0.0
+	for k in g.refs.size():
+		var s: LevelSim.State = g.refs[k]
+		if s.d >= d_end:
+			total += s.army
+			continue
+		var lines: Array[PackedFloat32Array] = []
+		for x in REF_X:
+			lines.append(LevelSim.hold_path(s.d, s.hx, x))
+		var mid := (s.d + d_end) * 0.5
+		for x1 in REF_PAIRS:
+			for x2 in REF_PAIRS:
+				if absf(x1 - x2) < 0.5:
+					continue
+				var p := LevelSim.hold_path(s.d, s.hx, x1)
+				p.append_array(PackedFloat32Array([mid, x1, mid + absf(x2 - x1) / LevelSim.LAT_SLOPE, x2]))
+				lines.append(p)
+		var best: LevelSim.State = null
+		var best_v := -INF
+		var max_t := (d_end - s.d) / Balance.RUN_SPEED + 8.0
+		for p2 in lines:
+			var c := s.copy()
+			LevelSim.advance(g.ref_lv, c, p2, d_end, REF_DT, max_t)
+			var v := LevelSim.value(g.ref_lv, c)
+			if v > best_v:
+				best_v = v
+				best = c
+		g.refs[k] = best
+		total += best.army
+	g.e = maxf(total / maxf(float(g.refs.size()), 1.0), 1.0)
+
+
+## Fortress hp and the expected survivors: the reference players march to the fortress (their
+## hero, machines and volleys chip it on the way) and the siege then costs them a set share of
+## the army they bring. Returns [hp, survivors].
+static func _ref_fortress(g: Gen, fd: float) -> Array:
+	_ref_walk(g, fd - Balance.CONTACT - 0.5)
+	const BIG := 1000000.0
+	g.ref_lv.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": BIG, "_ref": true})
+	LevelSim.reindex(g.ref_lv)
+	var share := clampf(SIEGE_SHARE_MIN + SIEGE_SHARE_STEP * (g.level - 4), SIEGE_SHARE_MIN, SIEGE_SHARE_MAX)
+	var f := g.ref_lv.fortress
+	var at_gate: Array = []
+	var hp_sum := 0.0
+	for s: LevelSim.State in g.refs:
+		LevelSim.grow_state(g.ref_lv, s)
+		var c := s.copy()
+		var path := LevelSim.hold_path(c.d, c.hx, 0.0)
+		var guard := 0
+		while (c.mode == LevelSim.Mode.RUN or c.mode == LevelSim.Mode.CLASH) and guard < 2000:
+			guard += 1
+			LevelSim.step(g.ref_lv, c, path, REF_DT)
+		var pre := BIG - c.hp[f]
+		at_gate.append([c, pre])
+		hp_sum += pre + c.army * share
+	var hp := maxi(int(round(hp_sum / maxf(float(g.refs.size()), 1.0))), 6 + g.level * 2)
+	var surv := 0.0
+	for pair: Array in at_gate:
+		var c2: LevelSim.State = (pair[0] as LevelSim.State).copy()
+		c2.hp[f] = maxf(float(hp) - float(pair[1]), 1.0)
+		var path2 := LevelSim.hold_path(c2.d, c2.hx, 0.0)
+		var guard2 := 0
+		while c2.mode == LevelSim.Mode.SIEGE and guard2 < 2000:
+			guard2 += 1
+			LevelSim.step(g.ref_lv, c2, path2, REF_DT)
+		surv += c2.army if c2.mode == LevelSim.Mode.WON else 0.0
+	g.e = maxf(g.e, 1.0)
+	return [hp, maxf(surv / maxf(float(g.refs.size()), 1.0), 6.0)]
 
 
 # ------------------------------------------------------------------ item helpers
+
+## Hit points of a weapon crate: the hero must be able to open it on one approach (bolt lands
+## ~8 hits in its range, the titan two blows of 4).
+static func crate_hp(level: int) -> int:
+	return 5 + level / 6
+
+
+## The weaker gate of a pair: about half of `r`, never close to it.
+static func _meh(r: float, g: Gen) -> int:
+	return maxi(int(round(minf(r * 0.45 + g.level, r * 0.7))), 2)
+
 
 static func _side(g: Gen) -> float:
 	return -1.0 if g.rng.randf() < 0.5 else 1.0

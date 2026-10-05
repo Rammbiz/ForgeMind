@@ -82,6 +82,8 @@ class State extends RefCounted:
 	var d := 0.0
 	var t := 0.0
 	var hx := 0.0
+	var ax := 0.0                       ## army centre x (follows hx with a lag, like the real blob)
+	var d_prev := 0.0                   ## hero distance before the last step (hazard bands)
 	var mode := 0
 	var hero := "bolt"
 	var army := 0.0
@@ -133,7 +135,7 @@ class State extends RefCounted:
 
 	func copy() -> State:
 		var s := State.new()
-		s.d = d; s.t = t; s.hx = hx; s.mode = mode; s.hero = hero; s.army = army; s.coins = coins
+		s.d = d; s.t = t; s.hx = hx; s.ax = ax; s.d_prev = d_prev; s.mode = mode; s.hero = hero; s.army = army; s.coins = coins
 		s.hero_hp = hero_hp; s.ult = ult; s.ult_left = ult_left; s.ult_tick = ult_tick
 		s.quake_d = quake_d; s.quake_wave = quake_wave; s.armor = armor; s.atk_cd = atk_cd
 		s.volley_cd = volley_cd; s.tick = tick; s.finale = finale; s.foe = foe
@@ -284,6 +286,7 @@ static func run_path(lv: Level, hero: String, army: int, path: PackedFloat32Arra
 static func simulate(lv: Level, hero: String, army: int, path: PackedFloat32Array, opts := {}) -> State:
 	var s := start_state(lv, hero, army, opts)
 	s.hx = path_x(path, 0.0)
+	s.ax = s.hx
 	advance(lv, s, path, lv.length + 50.0, DT, 600.0)
 	return s
 
@@ -316,6 +319,7 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 	var def: Dictionary = Balance.HEROES[s.hero]
 	if s.auto_ult and s.ult >= float((def["ult"] as Dictionary)["charge"]) - 0.001 and ult_ready(s) and ult_worth(lv, s):
 		use_ult(lv, s)
+	s.d_prev = s.d
 	if s.mode == Mode.RUN:
 		var nd := s.d + Balance.RUN_SPEED * dt
 		var hx_n := path_x(path, nd)
@@ -323,6 +327,7 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 		s.hx = path_x(path, nd)
 		_picks(lv, s, nd)
 		s.d = nd
+	s.ax += (s.hx - s.ax) * (1.0 - exp(-ARMY_FOLLOW * dt))
 	if lv.ult_ready_at >= 0.0 and not s.script_done and s.d >= lv.ult_ready_at:
 		s.script_done = true
 		s.ult = float((def["ult"] as Dictionary)["charge"])
@@ -735,7 +740,10 @@ static func _volleys(lv: Level, s: State, dt: float) -> void:
 		if not ok or absf(lv.x[i] - s.hx) > r + lv.hw[i] + 1.0:
 			continue
 		s.volley_cd = float(tier["period"])
-		_hurt(lv, s, i, maxf(1.0, s.army * float(tier["volley"])))
+		var dmg := maxf(1.0, s.army * float(tier["volley"]))
+		if k != K.SQUAD:
+			dmg = maxf(1.0, dmg * float(tier.get("struct_share", 1.0)))
+		_hurt(lv, s, i, dmg)
 		return
 	s.volley_cd = 0.0
 
@@ -855,25 +863,49 @@ static func army_center_d(s: State) -> float:
 	return s.d - Balance.HERO_GAP - Balance.blob_radius(s.army) * Balance.BLOB_STRETCH
 
 
+## Hazards act band by band as the army crosses them: the soldiers whose depth in the blob
+## crossed a hazard's line during the last step meet it at the army x of this moment (the blob
+## trails the hero by ARMY_FOLLOW), so swerving while the rear still crosses costs soldiers,
+## as it does in the run.
 static func _hazards(lv: Level, s: State) -> void:
-	var c := army_center_d(s)
-	while s.hz < lv.haz.size():
-		var i := lv.haz[s.hz]
-		if lv.d[i] > c:
-			break
+	var d0 := s.d_prev
+	var d1 := s.d
+	if d1 <= d0 + 0.00001:
+		return
+	var r := Balance.blob_radius(s.army)
+	var rz := r * Balance.BLOB_STRETCH
+	var gap := Balance.HERO_GAP
+	# Hazards the whole army has crossed are done.
+	while s.hz < lv.haz.size() and lv.d[lv.haz[s.hz]] + gap + 2.0 * rz < d0 - 0.0001:
 		s.hz += 1
+	var k := s.hz
+	while k < lv.haz.size():
+		var i := lv.haz[k]
+		k += 1
+		var hd := lv.d[i]
+		if hd + gap > d1:
+			break
 		if s.alive[i] == 0 or s.army < 0.5 or s.armor > 0.0:
 			continue
+		# Depths v (-1 front .. 1 rear) of the soldiers that crossed this step.
+		var v0 := maxf((d0 - hd - gap) / maxf(rz, 0.001) - 1.0, -1.0)
+		var v1 := minf((d1 - hd - gap) / maxf(rz, 0.001) - 1.0, 1.0)
+		if v1 <= v0:
+			continue
+		var mass := _disk_cdf(v1) - _disk_cdf(v0)
+		if mass <= 0.0:
+			continue
+		var vm := (v0 + v1) * 0.5
+		var half_w := r * sqrt(maxf(1.0 - vm * vm, 0.0))
 		var lost := 0.0
 		if lv.kind[i] == K.BARRICADE:
 			var half := lv.hw[i] * Balance.HAZARD_SHRINK + Balance.UNIT_R
-			var share := blob_share(s.hx, Balance.blob_radius(s.army), lv.x[i] - half, lv.x[i] + half)
-			lost = minf(share * s.army, s.hp[i])
+			lost = minf(mass * _chord_share(s.ax, half_w, lv.x[i] - half, lv.x[i] + half) * s.army, s.hp[i])
 			s.hp[i] -= lost
 			if s.hp[i] <= 0.001:
 				s.alive[i] = 0
 		else:
-			lost = _blade_loss(lv, s, i) * s.army
+			lost = mass * _blade_band(lv, s, i, half_w) * s.army
 		if lost > 0.0:
 			s.army = maxf(s.army - lost, 0.0)
 			s.hazard_deaths += lost
@@ -881,38 +913,42 @@ static func _hazards(lv: Level, s: State) -> void:
 
 
 const SLICES := 12
-const ZS := 4
+const ARMY_FOLLOW := 10.0       # 1/s: how fast the blob centre follows the hero x
 
 
-## Share of the army killed crossing a rotor or a sweeper, timed per soldier.
-static func _blade_loss(lv: Level, s: State, i: int) -> float:
-	var it := lv.items[i]
-	var r := Balance.blob_radius(s.army)
+## Share of a band of soldiers spread evenly over [cx - half, cx + half] that lies in [a, b];
+## soldiers pushed past the railing stand at the railing.
+static func _chord_share(cx: float, half: float, a: float, b: float) -> float:
 	var wall := Balance.BRIDGE_HALF - Balance.UNIT_R
-	var rz := r * Balance.BLOB_STRETCH
-	var v := Balance.RUN_SPEED
+	var lo := clampf(cx - half, -wall, wall)
+	var hi := clampf(cx + half, -wall, wall)
+	if hi - lo < 0.001:
+		return 1.0 if lo >= a and lo <= b else 0.0
+	var share := maxf(minf(b, hi) - maxf(a, lo), 0.0) / (hi - lo)
+	# Soldiers squeezed against a railing.
+	var pile_lo := maxf(-wall - (cx - half), 0.0) / maxf(2.0 * half, 0.001)
+	var pile_hi := maxf((cx + half) - wall, 0.0) / maxf(2.0 * half, 0.001)
+	share *= 1.0 - pile_lo - pile_hi
+	if pile_lo > 0.0 and -wall >= a and -wall <= b:
+		share += pile_lo
+	if pile_hi > 0.0 and wall >= a and wall <= b:
+		share += pile_hi
+	return clampf(share, 0.0, 1.0)
+
+
+## Share of a band of soldiers (spread over the chord of half width `half_w` around the army
+## x) that a rotor or a sweeper hits as they cross it now.
+static func _blade_band(lv: Level, s: State, i: int, half_w: float) -> float:
+	var it := lv.items[i]
+	var wall := Balance.BRIDGE_HALF - Balance.UNIT_R
 	var rotor := str(it.get("type", "rotor")) == "rotor"
 	var bx := lv.x[i]
 	var dead := 0.0
 	for k in SLICES:
-		var u0 := -1.0 + 2.0 * k / SLICES
-		var u1 := u0 + 2.0 / SLICES
-		var mass := _disk_cdf(u1) - _disk_cdf(u0)
-		var um := (u0 + u1) * 0.5
-		var ux := clampf(s.hx + um * r, -wall, wall)
-		var half_chord := rz * sqrt(maxf(1.0 - um * um, 0.0))
-		for z in ZS:
-			# z offset from the blob centre (+ = ahead); the soldier crosses the blade
-			# earlier by that much.
-			var zo := half_chord * (-1.0 + (2.0 * z + 1.0) / ZS)
-			var tc := s.t - zo / v
-			var hit := false
-			if rotor:
-				hit = _rotor_hits(it, ux - bx, tc)
-			else:
-				hit = _sweeper_hits(it, ux, tc)
-			if hit:
-				dead += mass / ZS
+		var ux := clampf(s.ax + half_w * (-1.0 + (2.0 * k + 1.0) / SLICES), -wall, wall)
+		var hit := _rotor_hits(it, ux - bx, s.t) if rotor else _sweeper_hits(it, ux, s.t)
+		if hit:
+			dead += 1.0 / SLICES
 	return dead
 
 
@@ -1192,7 +1228,8 @@ static func sync_cursors(lv: Level, s: State) -> void:
 	s.bk = 0
 	while s.bk < lv.block.size() and lv.d[lv.block[s.bk]] - Balance.CONTACT < s.d - 0.001:
 		s.bk += 1
-	s.hz = _first_after(lv.d, lv.haz, army_center_d(s))
+	s.hz = _first_after(lv.d, lv.haz, s.d - Balance.HERO_GAP - 2.0 * Balance.blob_radius(s.army) * Balance.BLOB_STRETCH)
+	s.d_prev = s.d
 
 
 static func _first_after(d: PackedFloat32Array, idx: PackedInt32Array, v: float) -> int:
@@ -1205,6 +1242,48 @@ static func _first_after(d: PackedFloat32Array, idx: PackedInt32Array, v: float)
 		else:
 			hi = mid
 	return lo
+
+
+## Rebuilds the index lists of `lv` after items were appended to `lv.items` (in d order, after
+## the old ones); old indices and cursors stay valid. LevelGen uses it (with grow_state) to walk
+## its reference players through a level while the level is being laid out.
+static func reindex(lv: Level) -> void:
+	lv.kind = PackedInt32Array()
+	lv.d = PackedFloat32Array()
+	lv.x = PackedFloat32Array()
+	lv.hw = PackedFloat32Array()
+	lv.pick = PackedInt32Array()
+	lv.targ = PackedInt32Array()
+	lv.haz = PackedInt32Array()
+	lv.tur = PackedInt32Array()
+	lv.block = PackedInt32Array()
+	lv.rows = {}
+	lv.fortress = -1
+	_index(lv)
+
+
+## Grows the per-item arrays of `s` to the items of `lv` (new items start fresh).
+static func grow_state(lv: Level, s: State) -> void:
+	var old := s.alive.size()
+	var n := lv.items.size()
+	s.alive.resize(n)
+	s.hp.resize(n)
+	s.val.resize(n)
+	s.val2.resize(n)
+	s.op.resize(n)
+	s.op2.resize(n)
+	s.rev.resize(n)
+	for i in range(old, n):
+		var it := lv.items[i]
+		s.alive[i] = 1
+		s.hp[i] = float(it.get("value", 0))
+		s.val[i] = float(it.get("value", 0))
+		s.op[i] = str(it.get("op", ""))
+		s.rev[i] = 0 if it.get("hidden", false) else 1
+		if it.has("blink"):
+			var b: Dictionary = it["blink"]
+			s.op2[i] = str(b.get("op", "+"))
+			s.val2[i] = float(b.get("value", 0))
 
 
 ## Builds a Level from item dictionaries that are already in d order (e.g. a window of a live

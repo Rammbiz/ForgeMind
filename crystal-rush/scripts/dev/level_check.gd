@@ -35,7 +35,7 @@ func _initialize() -> void:
 			if str(it["kind"]) == "fortress":
 				fort = int(it["value"])
 		for hero in heroes:
-			var opts := {"power": power, "trace": trace == level}
+			var opts := {"power": power, "trace": trace == level, "sample": 1.0 if trace == level else 0.0}
 			var best: Dictionary = LevelSim.best_path(lv, hero, army, opts)
 			var b: Dictionary = best["result"]
 			var lz := LevelSim.run_path(lv, hero, army, LevelSim.lazy_path(), {"power": power})
@@ -75,6 +75,13 @@ func _initialize() -> void:
 			if trace == level:
 				for line in best["trace"]:
 					print("    ", line)
+				var smp: PackedVector3Array = best.get("samples", PackedVector3Array())
+				for et: Array in def.get("etrace", []):
+					var sim_army := 0.0
+					for sm in smp:
+						if sm.x <= float(et[0]):
+							sim_army = sm.z
+					print("    E d=%6.1f e=%6.1f sim=%6.1f %s" % [float(et[0]), float(et[1]), sim_army, str(et[2])])
 	print("LEVELCHECK done: %d problem(s), %.1f s" % [problems, (Time.get_ticks_msec() - t0) / 1000.0])
 	quit(0)
 
