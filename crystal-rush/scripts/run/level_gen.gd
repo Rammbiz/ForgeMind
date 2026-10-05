@@ -8,11 +8,17 @@ class_name LevelGen
 ##
 ## Numbers follow `e`, the army a good player is expected to have at that point (Supersonic
 ## rule: threats grow with the level, rewards compound through x-gates, which only appear while
-## e is small enough not to explode). LevelSim / level_check verify the result: the best path
-## must win with a margin, a lazy path down the middle must clearly lose from about level 5.
+## e is small enough not to explode). On procedural levels `e` is measured, not guessed: after
+## each chunk two reference players (LevelSim, one per hero) take their best simple line
+## through it and `e` becomes their mean army. The fortress is then sized so that the siege
+## costs the reference players a set share of the army they bring (more on later levels), and
+## the stairs so that their survivors reach about x2.5. LevelSim / level_check and the autotest
+## verify the result: the best path must win with a margin, a lazy path down the middle must
+## clearly lose from about level 5.
 ##
 ## Output: {"items": Array[Dictionary] sorted by d, "length": fortress distance,
-##          "expected": e at the fortress, "hints": [{"d", "key"}], "script": {"ult_ready_at"}}
+##          "expected": e at the fortress, "hints": [{"d", "key"}], "script": {"ult_ready_at"},
+##          "etrace": [[d, e, chunk], ...] (debug)}
 
 const START_D := 10.0
 const ROW2_X := 1.65            # two gates: centres at +-ROW2_X, a gap in the middle
@@ -29,12 +35,13 @@ const PUMP := 6.0               # what the hero's fire adds to a + gate on a goo
 ## (hero pumping, x-gates, machines, volleys and losses included), not a hand formula.
 const REF_HEROES: Array[String] = ["bolt", "titan"]
 const REF_DT := 0.2
-const REF_X: Array[float] = [-2.6, -1.65, -0.8, 0.0, 0.8, 1.65, 2.6]
-const REF_PAIRS: Array[float] = [-2.4, -0.8, 0.8, 2.4]
+const REF_X: Array[float] = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
+const REF_PAIRS: Array[float] = [-2.7, -1.0, 1.0, 2.7]
+const REF_SPLITS: Array[float] = [0.35, 0.6]   # where in the chunk two-stage lines switch
 ## Share of the reference army at the fortress gate that the siege costs, by level.
 const SIEGE_SHARE_MIN := 0.35
-const SIEGE_SHARE_MAX := 0.62
-const SIEGE_SHARE_STEP := 0.045
+const SIEGE_SHARE_MAX := 0.6
+const SIEGE_SHARE_STEP := 0.05
 ## Stairs: the reference survivors pay for about this many cost units (x2.5 on the stairs).
 const STAIRS_UNITS := 10.0
 
@@ -84,7 +91,19 @@ class Gen extends RefCounted:
 	var ref_n := 0                  ## items already handed to ref_lv
 
 
+## Built levels by "level:base_army" (generation walks the reference players, so it is not
+## free; levels are deterministic, so a retry reuses the first build).
+static var _cache := {}
+
+
 static func build(level: int, base_army: int) -> Dictionary:
+	var key := "%d:%d" % [level, base_army]
+	if not _cache.has(key):
+		_cache[key] = _build(level, base_army)
+	return (_cache[key] as Dictionary).duplicate(true)
+
+
+static func _build(level: int, base_army: int) -> Dictionary:
 	var g := Gen.new()
 	g.level = maxi(level, 1)
 	g.rng.seed = 7919 * g.level + 104729
@@ -771,8 +790,6 @@ static func _finish(g: Gen) -> Dictionary:
 	g.items.append({"kind": "stairs", "x": 0.0, "d": fd + 6.0, "steps": steps})
 	g.items.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
 	g.hints.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
-	for it in g.items:
-		it.erase("_ref")
 	return {"items": g.items, "length": fd, "expected": g.e, "hints": g.hints, "script": g.run_script,
 			"etrace": g.etrace}
 
@@ -820,14 +837,15 @@ static func _ref_walk(g: Gen, d_end: float) -> void:
 		var lines: Array[PackedFloat32Array] = []
 		for x in REF_X:
 			lines.append(LevelSim.hold_path(s.d, s.hx, x))
-		var mid := (s.d + d_end) * 0.5
-		for x1 in REF_PAIRS:
-			for x2 in REF_PAIRS:
-				if absf(x1 - x2) < 0.5:
-					continue
-				var p := LevelSim.hold_path(s.d, s.hx, x1)
-				p.append_array(PackedFloat32Array([mid, x1, mid + absf(x2 - x1) / LevelSim.LAT_SLOPE, x2]))
-				lines.append(p)
+		for split in REF_SPLITS:
+			var mid := lerpf(s.d, d_end, split)
+			for x1 in REF_PAIRS:
+				for x2 in REF_PAIRS:
+					if absf(x1 - x2) < 0.5:
+						continue
+					var p := LevelSim.hold_path(s.d, s.hx, x1)
+					p.append_array(PackedFloat32Array([mid, x1, mid + absf(x2 - x1) / LevelSim.LAT_SLOPE, x2]))
+					lines.append(p)
 		var best: LevelSim.State = null
 		var best_v := -INF
 		var max_t := (d_end - s.d) / Balance.RUN_SPEED + 8.0
@@ -849,7 +867,7 @@ static func _ref_walk(g: Gen, d_end: float) -> void:
 static func _ref_fortress(g: Gen, fd: float) -> Array:
 	_ref_walk(g, fd - Balance.CONTACT - 0.5)
 	const BIG := 1000000.0
-	g.ref_lv.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": BIG, "_ref": true})
+	g.ref_lv.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": BIG})
 	LevelSim.reindex(g.ref_lv)
 	var share := clampf(SIEGE_SHARE_MIN + SIEGE_SHARE_STEP * (g.level - 4), SIEGE_SHARE_MIN, SIEGE_SHARE_MAX)
 	var f := g.ref_lv.fortress
@@ -877,7 +895,6 @@ static func _ref_fortress(g: Gen, fd: float) -> Array:
 			guard2 += 1
 			LevelSim.step(g.ref_lv, c2, path2, REF_DT)
 		surv += c2.army if c2.mode == LevelSim.Mode.WON else 0.0
-	g.e = maxf(g.e, 1.0)
 	return [hp, maxf(surv / maxf(float(g.refs.size()), 1.0), 6.0)]
 
 

@@ -3,6 +3,9 @@ extends Node
 ##   godot --headless --path crystal-rush -- --autotest --level=3 [--levels=5] [--hero=bolt|titan]
 ##        [--bot=best|lazy|random] [--skill=0.8] [--army=0] [--power=0] [--speed=4] [--seed=1]
 ##        [--compare]  (also prints what LevelSim's planner predicts for the same level)
+##        [--trace]    (one TRACE line per army change: time, d, state, hero x, what is near)
+## For fast, deterministic runs add `--fixed-fps 60` before `--` and use --speed=1: the game
+## then steps 1/60 s per frame as fast as the CPU allows (about 5x real time headless).
 ## JSON fields: level, hero, bot, skill, won, reason, army_at_fortress, survivors, stairs_mult,
 ## coins, weapons, arm_tier, hazard_deaths, time, length, expected (+ sim with --compare).
 

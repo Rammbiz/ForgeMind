@@ -1,0 +1,82 @@
+{
+	"version": 1,
+	"source": "res://assets/units/knight/knight_src.glb",
+	"vertex_count": 2651,
+	"triangles": 1797,
+	"width": 2651,
+	"rows_per_frame": 1,
+	"frames_total": 103,
+	"height": 0.75,
+	"scale": 0.441176458213569,
+	"origin": [
+		0.0476390309631824,
+		0.0,
+		0.132626727223396
+	],
+	"facing": "+Z",
+	"bounds": [
+		-0.486983090639114,
+		-0.0277852416038513,
+		-0.504534304141998,
+		0.861838817596436,
+		0.817971289157867,
+		0.98564088344574
+	],
+	"textures": {
+		"pos": "knight_vat_pos.res",
+		"nrm": "knight_vat_nrm.res",
+		"albedo": "knight_vat_albedo.res"
+	},
+	"clips": {
+		"run": {
+			"frame": 0,
+			"row": 0,
+			"frames": 19,
+			"fps": 30.0000144933469,
+			"length": 0.633333027362823,
+			"loop": true,
+			"ground_speed": 1.15368847591869,
+			"lift": 0.0302146058529615
+		},
+		"walk": {
+			"frame": 19,
+			"row": 19,
+			"frames": 16,
+			"fps": 15.483876802921,
+			"length": 1.03333294391632,
+			"loop": true,
+			"ground_speed": 0.322165685253766,
+			"lift": 0.0303472504019737
+		},
+		"attack": {
+			"frame": 35,
+			"row": 35,
+			"frames": 16,
+			"fps": 20.0,
+			"length": 0.8,
+			"loop": true,
+			"ground_speed": 0.0,
+			"lift": 0.00667057186365128
+		},
+		"idle": {
+			"frame": 51,
+			"row": 51,
+			"frames": 8,
+			"fps": 3.33333333333333,
+			"length": 2.4,
+			"loop": true,
+			"ground_speed": 0.0,
+			"lift": 0.00278451899066567
+		},
+		"victory": {
+			"frame": 59,
+			"row": 59,
+			"frames": 44,
+			"fps": 20.0,
+			"length": 2.2,
+			"loop": true,
+			"ground_speed": 0.0,
+			"lift": 0.019237345084548
+		}
+	}
+}

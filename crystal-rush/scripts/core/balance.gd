@@ -19,7 +19,7 @@ const CORRIDOR := 0.8           # the hero hits targets whose span is within thi
 const CONTACT := 1.1            # how far ahead of the hero a squad / the fortress is met
 const FIGHT_TICK := 0.07        # seconds between casualties in a clash
 const HAZARD_SHRINK := 0.88     # hazard hit boxes are this much smaller than their models
-const FINALE_TIME := 5.0        # how long the hero may batter the fortress alone
+const FINALE_TIME := 3.0        # how long the hero (and its machines) may batter the fortress alone
 const MAX_SHOWN := 220          # soldiers drawn; the counter shows the real number
 const MAX_SHOWN_LOW := 120
 const PICKUP_PAD := 0.3         # tiles / coins: collected within blob radius + this
@@ -49,7 +49,7 @@ const HEROES := {
 	},
 	"titan": {
 		"name": "HERO_TITAN", "desc": "HERO_TITAN_DESC", "color": Color(0.35, 0.9, 0.55),
-		"hp": 32, "rate": 1.1, "damage": 4, "splash": 3, "range": 10.0, "corridor": 1.0,
+		"hp": 32, "rate": 1.2, "damage": 4, "splash": 3, "range": 10.0, "corridor": 1.0,
 		"ult": {"name": "ULT_QUAKE", "icon": "quake", "charge": 40, "waves": 4, "spacing": 3.5, "gap": 0.18, "kills": 12, "breaks": 12, "armor_time": 6.0},
 	},
 }

@@ -23,11 +23,14 @@ class_name LevelSim
 ##   HEROES.rate * Balance.power_mult(upgrade) * (1 + power.rate).
 ## - Gate hits: "+" grows, "-" shrinks (floor 0), "rate" grows by 2 per point, "charge" (negative
 ##   value) grows and turns into its reward at >= 0. A hit reveals a hidden gate.
-## - Hazards are resolved when the army centre crosses them, with the hero x at that moment and
-##   the soldiers spread over the disk. Barricade: soldiers whose x lies in the (shrunk) span die,
-##   at most its hp; its hp drops by the soldiers killed. Rotor: a soldier dies if a blade arm
+## - Hazards are resolved band by band: the soldiers whose depth in the blob crosses a hazard's
+##   line during a step meet it at the army centre x of that moment (the centre follows the hero
+##   x at ARMY_FOLLOW per second, as the real blob trails a swerve), spread evenly across the
+##   blob's chord at that depth. Barricade: soldiers whose x lies in the (shrunk) span die, at
+##   most its hp; its hp drops by the soldiers killed. Rotor: a soldier dies if a blade arm
 ##   sweeps over it while it crosses the rotor disk. Sweeper: dies if the bar covers its x when it
 ##   crosses the rail. The titan's armour makes the army immune to all hazards and turrets.
+## - Blaster volleys hit structures for `struct_share` of their squad damage.
 ## - Turrets kill `rate` soldiers per second while the blob edge is within `range` of them.
 ## - Squads: when the hero gets within CONTACT and the blob x-extent overlaps the squad span,
 ##   a clash starts: every FIGHT_TICK both sides lose max(1, ceil(min(army, foes) / 14)); the hero,
@@ -842,14 +845,6 @@ static func _ult_hit(lv: Level, s: State, a: float, b: float, kills: float, brea
 
 # ------------------------------------------------------------------ hazards
 
-## Share of the army whose (railing-clamped) x lies in [a, b].
-static func blob_share(cx: float, r: float, a: float, b: float) -> float:
-	var wall := Balance.BRIDGE_HALF - Balance.UNIT_R
-	var lo := 0.0 if a <= -wall else _disk_cdf((a - cx) / r)
-	var hi := 1.0 if b >= wall else _disk_cdf((b - cx) / r)
-	return maxf(hi - lo, 0.0)
-
-
 ## Mass of a uniform unit disk left of u.
 static func _disk_cdf(u: float) -> float:
 	if u <= -1.0:
@@ -1100,6 +1095,7 @@ const PLAN_STEP := 2.0          # level_check: distance between re-plans
 const PLAN_GATE_MARGIN := 0.25
 const PLAN_TIME_MARGIN := 0.12  # planning: moving / blinking gates must hold this long
 const PAIRS := [-2.7, -1.0, 1.0, 2.7]   # coarse x for two-stage (weaving) lines
+const PAIR_SPLITS := [0.3, 0.55]        # where (share of the horizon) two-stage lines switch
 
 
 ## How good a state is, in soldiers: the army plus what weapons, powers, coins and the ult
@@ -1150,19 +1146,21 @@ static func plan(lv: Level, s: State, candidates: PackedFloat32Array, horizon: f
 		if v > best_v:
 			best_v = v
 			best_x = x
-	var mid := s.d + horizon * 0.5
-	for x1 in pairs:
-		for x2 in pairs:
-			if absf(x1 - x2) < 0.5:
-				continue
-			var p := hold_path(s.d, s.hx, x1)
-			p.append_array(PackedFloat32Array([mid, x1, mid + absf(x2 - x1) / LAT_SLOPE, x2]))
-			var v2 := _line_value(lv, s, p, horizon, dt) - 0.5
-			if bias_x != INF:
-				v2 -= absf(x1 - bias_x) * bias
-			if v2 > best_v:
-				best_v = v2
-				best_x = x1
+	# Two-stage lines switch early (slip past a threat, then cut in) or half way.
+	for split in PAIR_SPLITS:
+		var mid := s.d + horizon * float(split)
+		for x1 in pairs:
+			for x2 in pairs:
+				if absf(x1 - x2) < 0.5:
+					continue
+				var p := hold_path(s.d, s.hx, x1)
+				p.append_array(PackedFloat32Array([mid, x1, mid + absf(x2 - x1) / LAT_SLOPE, x2]))
+				var v2 := _line_value(lv, s, p, horizon, dt) - 0.5
+				if bias_x != INF:
+					v2 -= absf(x1 - bias_x) * bias
+				if v2 > best_v:
+					best_v = v2
+					best_x = x1
 	return {"x": best_x, "score": best_v, "scores": scores}
 
 
