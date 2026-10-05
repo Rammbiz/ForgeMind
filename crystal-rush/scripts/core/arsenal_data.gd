@@ -38,6 +38,7 @@ const FEATURES := {
 	"properties": false, "army_tiers_t3": false, "mythics": false, "finishes": false,
 	"stone_cache": true, "world_cache": true, "royal_cache": false, "xray_cache": false,
 	"wild": true, "focus": true, "vault": true, "altar": true,
+	"deck_slots_max": 3,         # Meta-1 ships the 3-slot Deck (design: +1 at World 3/4/5, max 6)
 }
 
 const MAX_LEVEL := 15

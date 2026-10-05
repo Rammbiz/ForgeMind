@@ -22,6 +22,7 @@ boot_splash/show_image=false
 [autoload]
 
 Save="*res://scripts/autoload/save.gd"
+Meta="*res://scripts/autoload/meta.gd"
 Loc="*res://scripts/autoload/loc.gd"
 Audio="*res://scripts/autoload/audio.gd"
 
