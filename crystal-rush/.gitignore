@@ -1,0 +1,17 @@
+# Godot cache / imports
+.godot/
+*.import.tmp
+# Build outputs
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
+*.idsig
+export_credentials.cfg
+
+# Non-secret debug key used by CI so test builds keep one signature (not for store releases)
+!tools/ci-debug.keystore
+
+# Python tool caches
+__pycache__/
