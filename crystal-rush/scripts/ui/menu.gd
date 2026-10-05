@@ -21,7 +21,7 @@ var _settings: Control
 func _ready() -> void:
 	var track := Track.new()
 	add_child(track)
-	track.build(40.0, Save.quality == "high")
+	track.build(40.0, Save.quality == "high", Worlds.for_level(Save.level))
 	_cam = Camera3D.new()
 	_cam.keep_aspect = Camera3D.KEEP_WIDTH
 	_cam.fov = 50.0

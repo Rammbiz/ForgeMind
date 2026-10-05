@@ -56,12 +56,13 @@ static func _cached(key: String, build: Callable) -> ArrayMesh:
 
 
 ## Crystal knight of the player's army (about 0.75 tall), shaped to read from above:
-## a blue helmet with a gold crest, a big round shield and an upright spear.
+## a white helmet with a gold crest, a blue cape, a big round shield and an upright spear.
 static func soldier_mesh() -> ArrayMesh:
 	return _cached("soldier", func():
 		var r := Node3D.new()
-		var blue := Mats.solid(BLUE)
-		var dark := Mats.solid(BLUE_DARK)
+		# White and gold armour reads against any road (the space road is blue).
+		var blue := Mats.solid(Color(0.93, 0.94, 0.98), 0.6, 0.2)
+		var dark := Mats.solid(BLUE)
 		var steel := Mats.solid(STEEL, 0.4, 0.6)
 		var gold := Mats.solid(GOLD, 0.4, 0.6)
 		for sgn in [-1.0, 1.0]:

@@ -77,7 +77,7 @@ func _ready() -> void:
 	expected = float(gen["expected"])
 	track = Track.new()
 	add_child(track)
-	track.build(length, quality_high)
+	track.build(length, quality_high, Worlds.for_level(level))
 	effects = Effects.new()
 	effects.quality_high = quality_high
 	add_child(effects)
