@@ -273,7 +273,7 @@ func _voice(stream: AudioStream, pitch: float, db: float) -> void:
 
 ## MIDI note number of pentatonic step `s`.
 static func _midi(s: int) -> int:
-	return NOTE_BASE_MIDI + 12 * (s / 5) + int(PENTA[s % 5])
+	return NOTE_BASE_MIDI + 12 * floori(s / 5.0) + int(PENTA[s % 5])
 
 
 static func _mtof(m: float) -> float:
@@ -301,9 +301,10 @@ static func _synth_note(f: float) -> AudioStreamWAV:
 	buf.resize(n)
 	# Higher notes ring a little shorter, as on real bars.
 	var tau := 0.35 * pow(523.25 / f, 0.22)
+	# [ratio, amp, decay multiplier]; the twin sits a fixed 3 Hz above (an even, slow shimmer)
 	var partials := [
 		[1.0, 1.0, 1.0],
-		[1.0026, 0.32, 0.92],
+		[1.0 + 3.0 / f, 0.28, 0.92],
 		[2.0, 0.17, 0.45],
 		[3.0, 0.05, 0.3],
 		[3.93, 0.2, 0.13],

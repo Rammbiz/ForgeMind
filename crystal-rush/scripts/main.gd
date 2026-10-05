@@ -1,6 +1,12 @@
 extends Node
 ## Scene router: menu <-> run, with fade transitions.
-## Dev flags (after `--`): --autotest, --shot=path.png, --screen=menu|run, --level=N, --hero=bolt|titan
+## Dev flags (after `--`): --autotest, --levelcheck, --shot=path.png, --screen=menu|run, --level=N,
+## --hero=bolt|titan
+## The run scripts are loaded on demand, so the router (menu, level_check) still works while
+## the run code is being rewritten.
+
+const RUN_SCRIPT := "res://scripts/run/run.gd"
+const HUD_SCRIPT := "res://scripts/ui/run_hud.gd"
 
 var current: Node
 var _fade: ColorRect
@@ -15,24 +21,33 @@ func _ready() -> void:
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(layer)
 	_fade = ColorRect.new()
-	_fade.color = Color(0.05, 0.1, 0.2, 1.0)
+	_fade.color = Color(0.03, 0.04, 0.1, 1.0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_fade)
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		_args[kv[0]] = kv[1] if kv.size() > 1 else "1"
-	if _args.has("autotest"):
-		var dev: Node = load("res://scripts/dev/autoplay.gd").new()
-		dev.set("args", _args)
-		add_child(dev)
-		return
-	if _args.has("shot"):
-		var shot: Node = load("res://scripts/dev/screenshot.gd").new()
-		shot.set("args", _args)
-		add_child(shot)
-		return
+	for tool: String in ["autotest", "levelcheck", "shot"]:
+		if _args.has(tool):
+			_start_dev(tool)
+			return
 	show_menu()
+
+
+func _start_dev(tool: String) -> void:
+	var path: String = {
+		"autotest": "res://scripts/dev/autoplay.gd",
+		"levelcheck": "res://scripts/dev/level_check.gd",
+		"shot": "res://scripts/dev/screenshot.gd",
+	}[tool]
+	if not ResourceLoader.exists(path):
+		push_error("main: missing dev tool " + path)
+		get_tree().quit(1)
+		return
+	var dev: Node = load(path).new()
+	dev.set("args", _args)
+	add_child(dev)
 
 
 func show_menu() -> void:
@@ -49,19 +64,19 @@ func start_run() -> void:
 func make_play(level: int, hero: String) -> Node:
 	var holder := Node.new()
 	holder.name = "Play"
-	var run := Run.new()
-	run.setup(level, hero)
+	var run: Node3D = (load(RUN_SCRIPT) as GDScript).new()
+	run.call("setup", level, hero)
 	holder.add_child(run)
-	var hud := RunHud.new()
-	hud.setup(run)
+	var hud: CanvasLayer = (load(HUD_SCRIPT) as GDScript).new()
+	hud.call("setup", run)
 	holder.add_child(hud)
-	run.finished.connect(func(won: bool, coins: int, _reason: String):
+	run.connect("finished", func(won: bool, coins: int, _reason: String):
 		Save.add_coins(coins)
 		if won:
 			Save.level_won())
-	hud.retry.connect(start_run)
-	hud.next.connect(start_run)
-	hud.menu.connect(show_menu)
+	hud.connect("retry", start_run)
+	hud.connect("next", start_run)
+	hud.connect("menu", show_menu)
 	holder.set_meta("run", run)
 	holder.set_meta("hud", hud)
 	Audio.play_music("meadow" if level % 2 == 1 else "canyon")
