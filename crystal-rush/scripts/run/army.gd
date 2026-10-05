@@ -296,8 +296,8 @@ func _separate() -> void:
 	var sep2 := SEP * SEP
 	for key: Vector2i in _grid:
 		var cell: PackedInt32Array = _grid[key]
-		for ox in [-1, 0, 1]:
-			for oz in [0, 1]:
+		for ox: int in [-1, 0, 1]:
+			for oz: int in [0, 1]:
 				if oz == 0 and ox < 0:
 					continue
 				var other_key := Vector2i(key.x + ox, key.y + oz)

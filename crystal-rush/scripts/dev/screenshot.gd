@@ -1,7 +1,20 @@
 extends Node
 ## Renders a screenshot for visual checks.
-## Usage: godot --rendering-driver opengl3 -- --shot=out.png [--screen=menu|run] [--level=N]
-##        [--hero=bolt|titan] [--play=seconds of game time] [--ult] [--frames=N]
+## Usage: godot --rendering-driver opengl3 -- --shot=out.png [--screen=menu|run|portraits]
+##        [--level=N] [--hero=bolt|titan] [--frames=N]
+## Run setup (applied in this order):
+##   --army=N          start with N soldiers
+##   --weapons=a,b     grant war machines (ballista,cannon,laser,rockets,drone); repeat a kind to level it
+##   --arm=T           army weapon tier (1 crossbows, 2 blasters)
+##   --skip=D          jump the run to distance D
+##   --state=S         siege (walk up to the fortress), stairs (break the fortress, climb),
+##                     result (play to the end and show the result panel)
+##   --x=X             hold the hero at x (else the bot steers)
+##   --play=SECONDS    game seconds to play before the shot (bot or --x)
+##   --until=D         play until the hero reaches distance D (instead of / before --play)
+##   --ult             fire the ult as soon as it is ready; --ult_now fills it and fires at once
+##   --charge          fill the ult (no fire)
+##   --hide_hud        hide the HUD layer
 
 var args := {}
 
@@ -21,29 +34,87 @@ func _ready() -> void:
 	if screen == "menu":
 		main.call("set_scene_now", Menu.new())
 	else:
-		var holder: Node = main.call("make_play", int(args.get("level", "1")), str(args.get("hero", "bolt")))
-		main.call("set_scene_now", holder)
-		await get_tree().process_frame
-		var run: Run = holder.get_meta("run")
-		var play := float(args.get("play", "0"))
-		if play > 0.0:
-			var bot := Bot.new()
-			bot.skill = float(args.get("skill", "1.0"))
-			var t := 0.0
-			while t < play and run.state != Run.State.WON and run.state != Run.State.LOST:
-				bot.think(run)
-				await get_tree().process_frame
-				t += minf(get_process_delta_time(), 0.1)
-				if args.has("ult") and run.ult_ready():
-					run.use_ult()
-	var frames := int(args.get("frames", "20"))
+		await _run_setup(main)
+	var frames := int(args.get("frames", "12"))
 	for i in frames:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	var img := get_viewport().get_texture().get_image()
-	img.save_png(out)
-	print("SHOT saved ", out, " ", img.get_size(), " draw_calls=", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), " prims=", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	var img2 := get_viewport().get_texture().get_image()
+	img2.save_png(out)
+	print("SHOT saved ", out, " ", img2.get_size(), " draw_calls=", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), " prims=", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
 	get_tree().quit(0)
+
+
+func _run_setup(main: Node) -> void:
+	Save.readonly = true
+	var holder: Node = main.call("make_play", int(args.get("level", "1")), str(args.get("hero", "bolt")))
+	main.call("set_scene_now", holder)
+	await get_tree().process_frame
+	var run: Run = holder.get_meta("run")
+	if args.has("hide_hud"):
+		(holder.get_meta("hud") as CanvasLayer).visible = false
+	if args.has("army"):
+		run.set_army(int(args["army"]))
+	if args.has("arm"):
+		run.arm_tier = int(args["arm"])
+		run.army_view.set_mesh(Models.soldier_mesh(run.arm_tier))
+		run.power_changed.emit("arm", float(run.arm_tier))
+	if args.has("weapons"):
+		for k: String in str(args["weapons"]).split(","):
+			if k != "":
+				run.give_weapon(k)
+	if args.has("skip"):
+		run.skip_to(float(args["skip"]))
+	if args.has("charge") or args.has("ult_now"):
+		run.ult_points = float(run.ult["charge"])
+		run._emit_ult()
+	var bot := Bot.new()
+	bot.skill = float(args.get("skill", "1.0"))
+	var hold := args.has("x")
+	var hx := float(args.get("x", "0"))
+	if hold:
+		run.steer_to(hx)
+		run.hx = hx
+	var st := str(args.get("state", ""))
+	if st == "siege" or st == "stairs" or st == "result":
+		run.skip_to(maxf(run.d, run.length - 9.0))
+		await _play(run, bot, hold, hx, 30.0, func() -> bool: return run.state != Run.State.RUNNING)
+		if st == "stairs" or st == "result":
+			await _play(run, bot, hold, hx, 0.6, Callable())
+			var f: Dictionary = run._fortress
+			if f["alive"]:
+				run.hurt(f, float(f["hp"]) + 1.0)
+			await _play(run, bot, hold, hx, 30.0, func() -> bool: return run._stair_phase >= 2 or run.state == Run.State.WON)
+		if st == "result":
+			await _play(run, bot, hold, hx, 60.0, func() -> bool: return run.state == Run.State.WON or run.state == Run.State.LOST)
+			for i in 90:
+				await get_tree().process_frame
+	if args.has("ult_now"):
+		run.start()
+		run.use_ult()
+	if args.has("until"):
+		var to := float(args["until"])
+		await _play(run, bot, hold, hx, 120.0, func() -> bool: return run.d >= to)
+	var play := float(args.get("play", "0"))
+	if play > 0.0:
+		await _play(run, bot, hold, hx, play, Callable())
+
+
+## Plays up to `seconds` of game time (or until `stop` returns true).
+func _play(run: Run, bot: Bot, hold: bool, hx: float, seconds: float, stop: Callable) -> void:
+	var t := 0.0
+	run.start()
+	while t < seconds and run.state != Run.State.WON and run.state != Run.State.LOST:
+		if stop.is_valid() and stop.call():
+			return
+		if hold:
+			run.steer_to(hx)
+		else:
+			bot.think(run)
+		if args.has("ult") and run.ult_ready():
+			run.use_ult()
+		await get_tree().process_frame
+		t += minf(get_process_delta_time(), Run.MAX_FRAME)
 
 
 func _portrait(type: String, px: int) -> Image:

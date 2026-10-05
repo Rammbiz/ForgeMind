@@ -28,11 +28,6 @@ const REVEAL_DIST := 6.5        # hidden gates show their value this close to th
 const WEAPON_LATERAL := 2.6     # war machines shoot targets at most this far across from the hero
 const MACHINE_TARGETS: Array[String] = ["squad", "turret", "barricade", "geode", "crate", "fortress"]
 
-## Legacy lane constants, used by the lane-based run until it is rewritten. Do not use in new code.
-const LANE_X: Array[float] = [-1.6, 1.6]
-const LANE_HALF := 1.55
-const LANE_SWITCH := 9.0
-
 ## Points added to a gate value per point of hero damage that hits it.
 const GATE_HIT_GAIN := {"+": 1.0, "-": 1.0, "charge": 1.5, "rate": 2.0}
 

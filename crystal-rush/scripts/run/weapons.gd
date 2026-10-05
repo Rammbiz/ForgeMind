@@ -40,7 +40,6 @@ func add(kind: String, from: Vector3) -> Array:
 				"arrive": 0.0, "from": from, "roll": 0.0, "lasing": false}
 		machines.append(m)
 		_place(m, 0.0, true)
-		Audio.play("weapon_get", -2.0)
 		return [kind, 1]
 	var low: Dictionary = machines[0]
 	for m2 in machines:

@@ -177,10 +177,24 @@ func snapshot(run: Object, fog := true) -> Array:
 		if it.has("hp"):
 			s.hp[i] = float(it["hp"])
 		if str(it["kind"]) == "gate":
-			var shown_op := str(it.get("op", ""))
-			var shown_v := float(it.get("value", 0))
 			var hidden := bool(it.get("hidden", false)) and not bool(it.get("revealed", false))
 			s.rev[i] = 0 if hidden else 1
+			if it.has("faces"):
+				# The run keeps both faces of a blinking gate (with the hero's hits on each).
+				var faces: Array = it["faces"]
+				s.op[i] = str(faces[0][0])
+				s.val[i] = float(faces[0][1])
+				if faces.size() > 1:
+					s.op2[i] = str(faces[1][0])
+					s.val2[i] = float(faces[1][1])
+				if hidden and fog:
+					s.op[i] = "+"
+					s.val[i] = 0.0
+					s.op2[i] = "+"
+					s.val2[i] = 0.0
+				continue
+			var shown_op := str(it.get("op", ""))
+			var shown_v := float(it.get("value", 0))
 			if hidden and fog:
 				shown_op = "+"
 				shown_v = 0.0

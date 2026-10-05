@@ -513,5 +513,5 @@ func draw(t: float, dt: float, d: float, foe: Dictionary) -> void:
 			var c := squad_point(it)
 			var rows := ceili(float(sq.shown) / sq.per_row)
 			l.position = Vector3(c.x, 1.45, c.z - rows * SQUAD_DZ * 0.5)
-			if not run.juice.counter_shown(l) >= 0:
+			if run.juice.counter_shown(l) < 0:
 				l.text = str(ceili(float(it["hp"])))
