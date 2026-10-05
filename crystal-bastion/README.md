@@ -116,6 +116,9 @@ crystal-bastion/
 # Бот проходить рівні на прискоренні й друкує результат (JSON)
 godot --headless --path crystal-bastion --fixed-fps 60 -- --autotest --level=2 --skill=0.8 --seed=1
 
+# Текстура шуму для моря хмар під скульптурними аренами
+python3 crystal-bastion/tools/gen_cloud_noise.py
+
 # Перевірка звуку та перегенерація всіх звуків і музики
 godot --headless --path crystal-bastion -s res://tools/check_audio.gd
 python3 crystal-bastion/tools/gen_audio.py

@@ -19,6 +19,7 @@ var path_cells: Array = []     # Array[Array[Vector2i]] per spawn
 var curves: Array[Curve3D] = []
 var path_lengths: Array[float] = []
 const DECOR_CHUNK := 4
+const CLOUD_NOISE := preload("res://assets/textures/cloud_noise.png")
 var _decor_parts := {}    # chunk Vector2i -> Array of [cell, mesh, material, Transform3D, casts_shadow]
 var _decor_nodes := {}    # chunk Vector2i -> Node3D (baked)
 var _hidden := {}         # cells whose decorations are hidden (tower built there)
@@ -799,35 +800,25 @@ uniform vec4 light_col : source_color;
 uniform vec4 shade_col : source_color;
 uniform vec4 gap_col : source_color;
 uniform vec4 far_col : source_color;
+// Tileable fbm baked by tools/gen_cloud_noise.py: 8 noise cells across one repeat. Phone GPUs
+// break per-pixel sin() hash noise into squares, and sampling is much cheaper anyway.
+uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
 varying vec3 wpos;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-float fbm(vec2 p) {
-	float v = 0.0;
-	float a = 0.5;
-	for (int k = 0; k < 5; k++) {
-		v += a * noise(p);
-		p = p * 2.03 + vec2(1.7, 9.2);
-		a *= 0.5;
-	}
-	return v;
-}
+float fbm(vec2 p) { return texture(noise_tex, p * 0.125).r; }
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 void fragment() {
-	vec2 drift = vec2(TIME * 0.015, TIME * 0.006);
+	// The drift wraps every 16 noise cells, a whole number of repeats for both layers (x1, x2.5),
+	// so the texture coordinates stay small and precise however long the level runs.
+	vec2 drift = mod(vec2(TIME * 0.015, TIME * 0.006), 16.0);
 	vec2 uv = wpos.xz * 0.12 + drift;
-	float n = fbm(uv) * 0.7 + fbm(uv * 2.6 + 13.0) * 0.4;
+	float n = fbm(uv) * 0.7 + fbm(uv * 2.5 + 13.0) * 0.4;
 	// Puffs: dense cloud bodies with gaps between them.
 	float body = smoothstep(0.39, 0.6, n);
 	// Light from the upper side of each puff: compare with a sample shifted towards the sun.
-	float lit = smoothstep(-0.04, 0.1, n - (fbm(uv + vec2(-0.12, -0.09)) * 0.7 + fbm((uv + vec2(-0.12, -0.09)) * 2.6 + 13.0) * 0.4));
+	vec2 sun = uv + vec2(-0.12, -0.09);
+	float lit = smoothstep(-0.04, 0.1, n - (fbm(sun) * 0.7 + fbm(sun * 2.5 + 13.0) * 0.4));
 	vec3 cloud = mix(shade_col.rgb, light_col.rgb, clamp(lit * 0.8 + (n - 0.5) * 1.5, 0.0, 1.0));
 	vec3 col = mix(gap_col.rgb, cloud, body);
 	float fade = smoothstep(16.0, 70.0, length(wpos.xz));
@@ -841,6 +832,7 @@ void fragment() {
 	mat.set_shader_parameter("shade_col", sea[1])
 	mat.set_shader_parameter("gap_col", sea[2])
 	mat.set_shader_parameter("far_col", theme["ground_horizon"])
+	mat.set_shader_parameter("noise_tex", CLOUD_NOISE)
 	mi.material_override = mat
 	add_child(mi)
 

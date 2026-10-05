@@ -666,9 +666,11 @@ uniform float fade = 1.0;
 void fragment() {
 	// CylinderMesh sides span UV.y 0 (top) .. 0.5 (bottom).
 	float v = UV.y * 2.0;
-	float a = UV.x * 6.2831 * 4.0 - TIME * 16.0 + v * 5.0;
+	// Whole-number speeds, so wrapping time by 2 pi is seamless and keeps sin() precise on phones.
+	float t = mod(TIME, 6.2831853);
+	float a = UV.x * 6.2831 * 4.0 - t * 16.0 + v * 5.0;
 	float streak = pow(0.5 + 0.5 * sin(a), 6.0);
-	float spark = pow(0.5 + 0.5 * sin(UV.x * 6.2831 * 9.0 + TIME * 23.0 - v * 9.0), 24.0);
+	float spark = pow(0.5 + 0.5 * sin(UV.x * 6.2831 * 9.0 + t * 23.0 - v * 9.0), 24.0);
 	float band = smoothstep(0.0, 0.3, v) * (1.0 - smoothstep(0.55, 1.0, v));
 	ALBEDO = mix(mix(tint.rgb, vec3(0.75, 0.9, 1.0), streak), vec3(1.0, 0.92, 0.5), spark);
 	ALPHA = clamp(0.32 + streak * 0.6 + spark, 0.0, 1.0) * band * fade;
