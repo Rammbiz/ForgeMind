@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Builds a Crystal Bastion Android APK with Godot's prebuilt export templates
+# Builds a Crystal Rush Android APK with Godot's prebuilt export templates
 # (no Gradle, no Android Studio needed).
 #
 # Usage:
-#   crystal-bastion/tools/build_android.sh [debug|release] [output.apk]
+#   crystal-rush/tools/build_android.sh [debug|release] [output.apk]
 #
-# Defaults: "debug", output crystal-bastion/build/crystal-bastion-<mode>.apk
+# Defaults: "debug", output crystal-rush/build/crystal-rush-<mode>.apk
 #
 # Requirements / environment:
 #   GODOT              Godot 4.7.x editor binary (default: `godot` on PATH). The matching
@@ -34,7 +34,7 @@ esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-OUT="${2:-$PROJECT_DIR/build/crystal-bastion-$MODE.apk}"
+OUT="${2:-$PROJECT_DIR/build/crystal-rush-$MODE.apk}"
 case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
 GODOT="${GODOT:-godot}"
 PRESET="Android"
