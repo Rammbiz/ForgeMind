@@ -50,6 +50,10 @@ const STAIRS_COLORS: Array[Color] = [Color(0.18, 0.5, 1.0), Color(0.58, 0.28, 1.
 const GATE_H := 2.2
 const GATE_ASSET_SHADER := preload("res://shaders/gate_asset.gdshader")
 const CRYSTAL_ASSET_SHADER := preload("res://shaders/crystal_asset.gdshader")
+## The owner's turret GLB: the dome and barrel (above 59.5% of its height) turn on the base;
+## its barrel points along -X in the model, so the moving part is turned to face +Z.
+const TURRET_SPLIT := 0.595
+const TURRET_YAW := PI * 0.5
 ## Layout of the owner's gate GLB as fractions of its bounding box (measured on the Meshy model):
 ## pylon centres at 80% of the half width, their inner edges at 60%, the crossbar's underside
 ## at 75% of the height; the crystal tips are the top. `sxz`/`sy` scale the pylons and the
@@ -111,6 +115,97 @@ static func asset(key: String, fit: AABB) -> Node3D:
 	var fc := fit.get_center()
 	inst.position = Vector3(fc.x - c.x * s, fit.position.y - box.position.y * s, fc.z - c.z * s)
 	return holder
+
+
+## The world's GLB for `key` fitted like asset() and cut in two at `split` (a fraction of its
+## height, by triangle centre): a static "base" and a "top" that turns about its own centre.
+## Returns {} when there is no such model, else {base: Node3D, top: MeshInstance3D (centred on
+## the pivot), pivot: Vector3, tip: Vector3 (the top's farthest point along -X, relative to the
+## pivot, unrotated)}.
+static func _split_asset(key: String, fit: AABB, split: float) -> Dictionary:
+	var path := str(_models_map().get(key, ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return {}
+	var ps := load(path) as PackedScene
+	var inst := ps.instantiate() as Node3D if ps else null
+	if inst == null:
+		return {}
+	var box := _mesh_aabb(inst)
+	var sc := INF
+	for i in 3:
+		if box.size[i] > 1e-5 and fit.size[i] > 1e-5:
+			sc = minf(sc, fit.size[i] / box.size[i])
+	var c := box.get_center()
+	var fc := fit.get_center()
+	var place := Transform3D(Basis.from_scale(Vector3.ONE * sc), Vector3(fc.x - c.x * sc, fit.position.y - box.position.y * sc, fc.z - c.z * sc))
+	var cut_y := (box.position.y + box.size.y * split) * sc + place.origin.y
+	var parts := [SurfaceTool.new(), SurfaceTool.new()]
+	for st in parts:
+		(st as SurfaceTool).begin(Mesh.PRIMITIVE_TRIANGLES)
+	var mat: Material = null
+	var top_pts := PackedVector3Array()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var xf := place * _relative_xf(inst, m)
+		for si in m.mesh.get_surface_count():
+			if mat == null:
+				mat = m.get_active_material(si)
+			var arr := m.mesh.surface_get_arrays(si)
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var norms: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			var uvs: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+			var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+			if idx.is_empty():
+				idx.resize(verts.size())
+				for i in verts.size():
+					idx[i] = i
+			for t in range(0, idx.size() - 2, 3):
+				var a := xf * verts[idx[t]]
+				var b := xf * verts[idx[t + 1]]
+				var cc := xf * verts[idx[t + 2]]
+				var top := (a.y + b.y + cc.y) / 3.0 > cut_y
+				var st := parts[1 if top else 0] as SurfaceTool
+				for k in 3:
+					var vi := idx[t + k]
+					if norms.size() > vi:
+						st.set_normal((xf.basis * norms[vi]).normalized())
+					if uvs.size() > vi:
+						st.set_uv(uvs[vi])
+					var p := xf * verts[vi]
+					st.add_vertex(p)
+					if top:
+						top_pts.append(p)
+	inst.free()
+	if top_pts.is_empty():
+		return {}
+	var pivot := Vector3.ZERO
+	for p in top_pts:
+		pivot += p
+	pivot /= float(top_pts.size())
+	pivot.y = cut_y
+	var tip := pivot
+	for p in top_pts:
+		if p.x < tip.x:
+			tip = p
+	var base := MeshInstance3D.new()
+	base.name = "AssetBase"
+	(parts[0] as SurfaceTool).generate_tangents()
+	base.mesh = (parts[0] as SurfaceTool).commit()
+	base.material_override = mat
+	var top_mi := MeshInstance3D.new()
+	top_mi.name = "AssetTop"
+	var stt := parts[1] as SurfaceTool
+	stt.generate_tangents()
+	var top_mesh := stt.commit()
+	top_mi.mesh = top_mesh
+	top_mi.material_override = mat
+	# Re-centre the top on the pivot by offsetting its node (the mesh stays in fitted space).
+	top_mi.position = -pivot
+	var holder := Node3D.new()
+	holder.add_child(top_mi)
+	return {"base": base, "top": holder, "pivot": pivot, "tip": Vector3(tip.x - pivot.x, tip.y - pivot.y, 0.0)}
 
 
 ## Gives every mesh under an asset `shader` (gate_asset / crystal_asset) with the mesh's own
@@ -1368,9 +1463,15 @@ static func turret() -> Node3D:
 	var head := Node3D.new()
 	head.name = "Head"
 	head.position.y = 0.95
-	var over := asset("turret", AABB(Vector3(-0.55, 0, -0.55), Vector3(1.1, 1.5, 1.1)))
-	if over:
+	var split := _split_asset("turret", AABB(Vector3(-0.7, 0, -0.7), Vector3(1.4, 1.6, 1.4)), TURRET_SPLIT)
+	var over: Node3D = null
+	if not split.is_empty():
+		over = split["base"]
 		root.add_child(over)
+		head.position = split["pivot"]
+		var top := split["top"] as Node3D
+		top.rotation.y = TURRET_YAW
+		head.add_child(top)
 	else:
 		var base := Node3D.new()
 		base.name = "Base"
@@ -1408,6 +1509,8 @@ static func turret() -> Node3D:
 	var muzzle := Node3D.new()
 	muzzle.name = "Muzzle"
 	muzzle.position = Vector3(0, 0.0, 1.02)
+	if not split.is_empty():
+		muzzle.position = Basis(Vector3.UP, TURRET_YAW) * (split["tip"] as Vector3)
 	head.add_child(muzzle)
 	if over:
 		root.add_child(head)
