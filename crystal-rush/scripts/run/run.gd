@@ -642,6 +642,8 @@ func _update_live() -> void:
 		if it.has("move"):
 			var m: Dictionary = it["move"]
 			it["x"] = float(it["x0"]) + float(m.get("amp", 0.0)) * sin(TAU * t / maxf(float(m.get("period", 2.0)), 0.1) + float(m.get("phase", 0.0)))
+			if it["alive"]:
+				(it["node"] as Node3D).position.x = float(it["x"])
 		if it.has("blink"):
 			var period := maxf(float((it["blink"] as Dictionary).get("period", 1.0)), 0.05)
 			var face := int(floor(t / period)) % 2
@@ -1835,7 +1837,8 @@ func _visuals(delta: float) -> void:
 	if on_stairs and _stair_phase >= 2:
 		top = hero.position + Vector3(0, 2.4, 0.4)
 	_army_label.position = top
-	_army_label.visible = army > 0
+	# On the stairs the step multipliers own that space.
+	_army_label.visible = army > 0 and not (on_stairs and _stair_phase >= 2)
 	juice.popup_velocity = Vector3(0, 0, -Balance.RUN_SPEED) if state == State.RUNNING else Vector3.ZERO
 	hazards.draw(t, dt, d, _foe if state == State.CLASH else {})
 	arsenal.draw(dt, t)

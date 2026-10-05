@@ -284,6 +284,23 @@ func _place_hint() -> void:
 	_hint.pivot_offset = _hint.size * 0.5
 
 
+## Greedy word wrap of `text` to lines no wider than `max_w` at font size `px`.
+static func _wrap_text(text: String, max_w: float, px: int) -> String:
+	var font := UIKit.font(true)
+	var lines: PackedStringArray = []
+	var line := ""
+	for word in text.split(" ", false):
+		var cand := word if line == "" else line + " " + word
+		if line != "" and font.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > max_w:
+			lines.append(line)
+			line = word
+		else:
+			line = cand
+	if line != "":
+		lines.append(line)
+	return "\n".join(lines)
+
+
 ## Tutorial banner: "" hides it; otherwise shows Loc.t(key) for HINT_TIME seconds.
 func show_hint(key: String) -> void:
 	if _hint_tw:
@@ -295,16 +312,14 @@ func show_hint(key: String) -> void:
 		_hint_tw.tween_callback(func(): _hint.visible = false)
 		return
 	_hint_key = key
-	_hint_lbl.text = Loc.t(key)
-	# One line when it fits, otherwise wrap at a comfortable width.
-	var tw := UIKit.font(true).get_string_size(_hint_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	var max_w := get_viewport_rect().size.x - 48.0 - 140.0
-	if tw > max_w:
-		_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_hint_lbl.custom_minimum_size = Vector2(minf(max_w, 440.0), 0)
-	else:
-		_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-		_hint_lbl.custom_minimum_size = Vector2.ZERO
+	# One line when it fits, otherwise wrapped by hand at a comfortable width. (An autowrapped
+	# Label inside the PanelContainer reported a huge minimum height on its first layout, which
+	# blew the banner up to most of the screen.)
+	var max_w := minf(get_viewport_rect().size.x - 48.0 - 140.0, 440.0)
+	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_hint_lbl.custom_minimum_size = Vector2.ZERO
+	_hint_lbl.text = _wrap_text(Loc.t(key), max_w, 28)
+	_hint_lbl.reset_size()
 	var ik: String = HINT_ICONS.get(key, "")
 	if ik == "":
 		ik = ult_icon if key == "HINT_ULT" else "star"
