@@ -16,7 +16,8 @@ void vertex() {
 }
 
 void fragment() {
-	float t = mod(TIME, 628.31853);
+	// Wrap where every drift (0.002, 0.003, 0.004 per s) is a whole number of texture repeats.
+	float t = mod(TIME, 1000.0);
 	float warp = texture(noise_tex, UV * vec2(3.0, 2.0) + vec2(t * 0.002, 0.0)).r;
 	float bands = texture(noise_tex, vec2(UV.x * 2.0 + warp * 0.18 + t * 0.003, UV.y * band_scale + warp * 0.5)).r;
 	float storms = texture(noise_tex, UV * vec2(5.0, 3.0) - vec2(t * 0.004, 0.0)).r;

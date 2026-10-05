@@ -8,7 +8,10 @@ extends Node3D
 ## BLOB_STRETCH longer along the run). Units spring to their slots (the rear ones a bit
 ## slower, so a sideways drag makes the blob trail like a snake), push their neighbours apart,
 ## are pushed out of solid obstacles and stay on the walkway. Removing a unit swaps the
-## outermost one into its slot, so the blob stays compact without reshuffling.
+## outermost one into its slot, so the blob stays compact without reshuffling. While
+## `hold_slots` is set (a hazard overlaps the blob) every unit keeps its own slot instead, so
+## nobody is pulled sideways into the gap a blade or spikes just cut; the slots are compacted
+## once the hazard is behind.
 ## Newcomers fly in an arc from where they joined (a gate, a recruit group, a geode).
 ## Deaths go to UnitFx (pop, hop, tumble, puff, debris).
 
@@ -41,6 +44,10 @@ var _arc := PackedFloat32Array()    # flight arc height
 var _lag := PackedFloat32Array()    # per unit follow-rate jitter
 var _pose := PackedVector3Array()   # POSE: per-unit world targets
 var _solids: Array = []             # [Vector3 centre, radius] obstacles units are pushed out of
+var _sid := PackedInt32Array()     # per unit: its slot index (< _nslot)
+var _nslot := 0                     # slots in use (== shown unless slots are held)
+var _held := false
+var _free := PackedInt32Array()     # slots freed while held (newcomers fill them first)
 var _slot_n := -1
 var _slot_r := -1.0
 var _slots := PackedVector3Array()
@@ -74,6 +81,20 @@ func set_solids(list: Array) -> void:
 
 func position_of(i: int) -> Vector3:
 	return _pos[i]
+
+
+## True while unit `i` is still flying in to the blob (it has not reached the ground yet).
+func flying(i: int) -> bool:
+	return _fly[i] > 0.0
+
+
+## Hazard nearby: units keep their own slots (no outermost-into-the-gap swap) until released.
+func hold_slots(on: bool) -> void:
+	if on == _held:
+		return
+	_held = on
+	if not on:
+		_compact_slots()
 
 
 func positions() -> PackedVector3Array:
@@ -138,7 +159,7 @@ func spawn(n: int) -> void:
 		_append(center, 0.0, 0.0)
 	_ensure_slots()
 	for i in shown:
-		_pos[i] = center + _slots[i]
+		_pos[i] = center + _slots[_sid[i]]
 
 
 func _append(p: Vector3, fly: float, arc: float) -> void:
@@ -149,6 +170,13 @@ func _append(p: Vector3, fly: float, arc: float) -> void:
 	_arc.append(arc)
 	_lag.append(_rng.randf_range(0.85, 1.15))
 	_pose.append(p)
+	if _free.is_empty():
+		_sid.append(_nslot)
+		_nslot += 1
+	else:
+		# A gap the hazard already cut (the blob has moved past it by the time this one lands).
+		_sid.append(_free[_free.size() - 1])
+		_free.resize(_free.size() - 1)
 	shown += 1
 
 
@@ -169,6 +197,7 @@ func drop(i: int) -> void:
 
 func _remove(i: int) -> void:
 	var last := shown - 1
+	var freed := _sid[i]
 	if i != last:
 		_pos[i] = _pos[last]
 		_from[i] = _from[last]
@@ -177,6 +206,21 @@ func _remove(i: int) -> void:
 		_arc[i] = _arc[last]
 		_lag[i] = _lag[last]
 		_pose[i] = _pose[last]
+		_sid[i] = _sid[last]
+	_sid.resize(last)
+	if _held:
+		_free.append(freed)
+	else:
+		# The outermost unit takes the freed slot (keeps the blob compact).
+		var top := _nslot - 1
+		if i < last and _sid[i] == top:
+			_sid[i] = freed
+		elif freed != top:
+			for j in last:
+				if _sid[j] == top:
+					_sid[j] = freed
+					break
+		_nslot = top
 	_pos.resize(last)
 	_from.resize(last)
 	_fly.resize(last)
@@ -201,6 +245,28 @@ func kill_front(n: int, push := Vector3(0, 0, 1.5)) -> void:
 func kill_random(n: int, push := Vector3.ZERO) -> void:
 	for k in mini(n, shown):
 		kill(_rng.randi() % shown, push + Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)))
+
+
+## Gives the units whose slots lie past the drawn count the holes left by the dead (outermost
+## first into the gaps), so the slots are 0..shown-1 again.
+func _compact_slots() -> void:
+	_free.clear()
+	if _nslot == shown:
+		return
+	var used := PackedByteArray()
+	used.resize(_nslot)
+	for i in shown:
+		used[_sid[i]] = 1
+	var holes := PackedInt32Array()
+	for k in shown:
+		if used[k] == 0:
+			holes.append(k)
+	var h := 0
+	for i in shown:
+		if _sid[i] >= shown:
+			_sid[i] = holes[h]
+			h += 1
+	_nslot = shown
 
 
 ## Brings the drawn count to `n`: removes random units silently or grows from the rear.
@@ -242,7 +308,7 @@ func step(dt: float, advance: float) -> void:
 			continue
 		p.z += advance
 		var tg := _target(i, rz)
-		var depth := clampf((_slots[i].z + rz) / maxf(2.0 * rz, 0.01), 0.0, 1.0) if mode == Mode.FOLLOW else 0.5
+		var depth := clampf((_slots[_sid[i]].z + rz) / maxf(2.0 * rz, 0.01), 0.0, 1.0) if mode == Mode.FOLLOW else 0.5
 		var kx := 1.0 - exp(-(15.0 - 6.0 * depth) * _lag[i] * dt)
 		var kz := 1.0 - exp(-(12.0 if mode != Mode.CHARGE else 5.0) * _lag[i] * dt)
 		p.x += (tg.x - p.x) * kx
@@ -259,24 +325,24 @@ func _target(i: int, rz: float) -> Vector3:
 			return _pose[i]
 		Mode.CHARGE:
 			# The blob surges forward: units spread across the front and run at the line.
-			var s := _slots[i]
+			var s := _slots[_sid[i]]
 			var tg := center + s
 			tg.x = charge_x + clampf(s.x * 1.25, -charge_half, charge_half)
 			tg.z = minf(tg.z, charge_z + (s.z + rz) * 0.35)
 			return tg
-	return center + _slots[i]
+	return center + _slots[_sid[i]]
 
 
 ## Sunflower slots for the current count and radius (offsets from the centre).
 func _ensure_slots() -> void:
-	if _slot_n == shown and absf(_slot_r - radius) < 0.002:
+	if _slot_n == _nslot and absf(_slot_r - radius) < 0.002:
 		return
-	_slot_n = shown
+	_slot_n = _nslot
 	_slot_r = radius
-	_slots.resize(shown)
-	var n := maxi(shown, 1)
+	_slots.resize(_nslot)
+	var n := maxi(_nslot, 1)
 	var rz := radius * Balance.BLOB_STRETCH
-	for k in shown:
+	for k in _nslot:
 		var rr := sqrt((k + 0.5) / n)
 		var a := k * GOLDEN
 		_slots[k] = Vector3(cos(a) * rr * radius, 0.0, sin(a) * rr * rz)

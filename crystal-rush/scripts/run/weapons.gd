@@ -247,3 +247,8 @@ func stop() -> void:
 		Audio.laser_off()
 	for m in machines:
 		m["lasing"] = false
+
+
+## Leaving a run mid-beam (pause -> Menu / Retry frees it): the looping hum must stop too.
+func _exit_tree() -> void:
+	stop()

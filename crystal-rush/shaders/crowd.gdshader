@@ -64,6 +64,8 @@ void vertex() {
 
 void fragment() {
 	vec3 vc = COLOR.rgb;
+	// On gl_compatibility (OUTPUT_IS_SRGB) the output is not re-encoded, so this decode darkens
+	// the vertex colours (vs a StandardMaterial); the masks and shades below are tuned to that.
 	if (vertex_color_srgb) {
 		vc = mix(pow((vc + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), vc * (1.0 / 12.92), lessThan(vc, vec3(0.04045)));
 	}

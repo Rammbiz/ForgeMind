@@ -102,6 +102,8 @@ func _switch(next: Node, instant := false) -> void:
 	current = next
 	add_child(next)
 	move_child(next, 0)
+	# A pause requested during the fade (Android back, focus loss) must not freeze the new scene.
+	get_tree().paused = false
 	await get_tree().process_frame
 	var tw2 := _fade_tween()
 	tw2.tween_property(_fade, "color:a", 0.0, 0.35)

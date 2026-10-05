@@ -57,6 +57,8 @@ render_mode blend_mix, cull_back;
 uniform float glow = 1.4;
 void fragment() {
 	vec3 c = COLOR.rgb;
+	// Decodes sRGB vertex colours. gl_compatibility (OUTPUT_IS_SRGB) does not re-encode, so the
+	// plate renders darker than a StandardMaterial would; it is tuned to look right this way.
 	c = mix(pow((c + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), c * (1.0 / 12.92), lessThan(c, vec3(0.04045)));
 	ALBEDO = c;
 	float ice = smoothstep(0.05, 0.3, c.b - c.r);
@@ -123,6 +125,7 @@ var _fortress: Dictionary = {}
 var _stairs: Dictionary = {}
 var _pk := 0
 var _bk := 0
+var _armed: Array[Dictionary] = []  # squads met clear of the blob, still live until passed
 var _tk := 0
 var _vk := 0
 var _hk := 0
@@ -145,6 +148,7 @@ var _tile_ms := -100000
 var _touch_id := -1
 var _touch_x0 := 0.0
 var _target_x0 := 0.0
+var _down := {}                     # fingers that went down on the play area (not on a button)
 var _max_shown := Balance.MAX_SHOWN
 var _radius_vis := Balance.BLOB_MIN
 var _vis_t := 0.0
@@ -187,6 +191,7 @@ func setup(p_level: int, p_hero: String) -> void:
 
 
 func _ready() -> void:
+	Audio.reset_laser()
 	quality_high = Save.quality == "high"
 	_max_shown = Balance.MAX_SHOWN if quality_high else Balance.MAX_SHOWN_LOW
 	# Levels are laid out for the base army: upgrades are a real advantage (review bug).
@@ -446,19 +451,23 @@ func _coin_mesh() -> ArrayMesh:
 
 # ------------------------------------------------------------------ input
 
-func _unhandled_input(event: InputEvent) -> void:
+## A press only becomes the steering finger when no button took it (_unhandled_input); once it
+## steers, its drags and its release are read here, before the GUI, so sliding the thumb over
+## the ult or pause button keeps steering.
+func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
-		if st.pressed:
-			if _touch_id == -1:
-				_touch_id = st.index
-				_touch_x0 = st.position.x
-				_target_x0 = target_x
-				start()
-		elif st.index == _touch_id:
+		# A new press is the play area's only if it reaches _unhandled_input.
+		_down.erase(st.index)
+		if not st.pressed and st.index == _touch_id:
 			_touch_id = -1
 	elif event is InputEventScreenDrag:
 		var sd := event as InputEventScreenDrag
+		if _touch_id == -1 and _down.has(sd.index):
+			# The steering finger lifted (or a pause lost track of it): a finger still down on
+			# the play area takes over from where the hero is, with no jump.
+			_anchor(sd.index, sd.position.x)
+			return
 		if sd.index != _touch_id:
 			return
 		var w := maxf(get_viewport().get_visible_rect().size.x, 1.0)
@@ -468,8 +477,32 @@ func _unhandled_input(event: InputEvent) -> void:
 			# Re-anchor at the rail so turning back answers at once.
 			_touch_x0 = sd.position.x
 			_target_x0 = target_x
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var st := event as InputEventScreenTouch
+		if st.pressed:
+			_down[st.index] = true
+			# Also re-anchor a press reusing the tracked index: its release was lost (paused).
+			if _touch_id == -1 or st.index == _touch_id:
+				_anchor(st.index, st.position.x)
+				start()
 	elif event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
 		start()
+
+
+func _anchor(index: int, x: float) -> void:
+	_touch_id = index
+	_touch_x0 = x
+	_target_x0 = target_x
+
+
+func _notification(what: int) -> void:
+	# Paused runs get no input, so a release during the pause panel is never seen: forget the
+	# tracked finger (one still held re-anchors on its next drag).
+	if what == NOTIFICATION_UNPAUSED or what == NOTIFICATION_PAUSED:
+		_touch_id = -1
 
 
 # ------------------------------------------------------------------ loop
@@ -514,6 +547,8 @@ func _step(dt: float) -> void:
 			State.SIEGE:
 				_siege(dt)
 		_armor = maxf(_armor - dt, 0.0)
+	else:
+		army_view.hold_slots(false)
 	hazards.step_squads(dt, d, _foe if state == State.CLASH else {}, -d - 0.75, hx)
 
 
@@ -554,8 +589,19 @@ func _run(dt: float) -> void:
 	d = nd
 
 
-## Squads and the fortress met before `nd`: returns how far the hero may go.
+## Squads and the fortress met before `nd`: returns how far the hero may go. A squad met clear
+## of the blob stays armed until the hero passes its last rank, so swerving into the formation
+## after the meet still starts the clash (LevelSim._blocks).
 func _blocks(nd: float) -> float:
+	for k in range(_armed.size() - 1, -1, -1):
+		var a := _armed[k]
+		var last := float(a["d"]) + Balance.squad_depth(float(a.get("w", 2.4)), float(a.get("value", a["hp"])))
+		if not a["alive"] or d > last:
+			_armed.remove_at(k)
+		elif absf(hx - float(a["x"])) < blob_radius() + _hw(a):
+			_armed.remove_at(k)
+			_begin_clash(a)
+			return d
 	while _bk < _block.size():
 		var it := _block[_bk]
 		var meet := float(it["d"]) - Balance.CONTACT
@@ -570,6 +616,7 @@ func _blocks(nd: float) -> float:
 		if absf(hx - float(it["x"])) < blob_radius() + _hw(it):
 			_begin_clash(it)
 			return maxf(d, meet)
+		_armed.append(it)
 	return nd
 
 
@@ -1987,7 +2034,9 @@ func _animate_knights(delta: float) -> void:
 			want = "victory"
 			rate = 1.0
 	army_anim.play(want, 0.2, false, rate)
-	army_anim.set_unit_scale(VatClip.crowd_scale(army_view.shown))
+	var us := VatClip.crowd_scale(army_view.shown)
+	army_anim.set_unit_scale(us)
+	fx.unit_scale[0] = us
 	army_anim.tick(delta)
 	if recruit_anim:
 		recruit_anim.tick(delta)
@@ -2127,6 +2176,7 @@ func skip_to(dist: float) -> void:
 		_bk += 1
 		if str(b["kind"]) == "squad":
 			b["alive"] = false
+	_armed.clear()
 	while _vk < _vaults.size() and float(_vaults[_vk]["d"]) <= d:
 		_vk += 1
 	while _hk < _hints.size() and float((_hints[_hk] as Dictionary).get("d", 0.0)) <= d:

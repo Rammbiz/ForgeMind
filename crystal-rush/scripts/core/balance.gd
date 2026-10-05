@@ -26,6 +26,9 @@ const PICKUP_PAD := 0.3         # tiles / coins: collected within blob radius + 
 const RECRUIT_PAD := 0.4        # recruits: within blob radius + this
 const REVEAL_DIST := 6.5        # hidden gates show their value this close to the hero
 const WEAPON_LATERAL := 2.6     # war machines shoot targets at most this far across from the hero
+const SQUAD_SHOWN := 160         # enemy squad: raiders drawn at most
+const SQUAD_DX := 0.42          # squad formation spacing across / along the run
+const SQUAD_DZ := 0.45
 const MACHINE_TARGETS: Array[String] = ["squad", "turret", "barricade", "geode", "crate", "fortress"]
 
 ## Points added to a gate value per point of hero damage that hits it.
@@ -105,3 +108,12 @@ static func victory_coins(level: int, survivors: int) -> int:
 ## Army blob radius for `army` soldiers.
 static func blob_radius(army: float) -> float:
 	return clampf(BLOB_K * sqrt(maxf(army, 0.0)), BLOB_MIN, BLOB_MAX)
+
+
+## How far a squad's last rank stands behind its front rank (the formation of `hp` raiders on a
+## front of width `w`, Hazards._layout). The Run and LevelSim keep a squad that was met clear of
+## the blob armed until the hero has passed its last rank.
+static func squad_depth(w: float, hp: float) -> float:
+	var per_row := maxi(3, int(w / SQUAD_DX))
+	var rows := ceili(clampf(hp, 1.0, float(SQUAD_SHOWN)) / per_row)
+	return maxf(rows - 1, 0) * SQUAD_DZ

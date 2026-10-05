@@ -41,7 +41,8 @@ void fragment() {
 	// Diagonal shimmer sweep every 4 s.
 	float sweep_pos = fract(t * 0.25) * 2.6 - 0.8;
 	float sx = UV.x + (1.0 - UV.y) * 0.45;
-	float shimmer = exp(-pow((sx - sweep_pos) * 7.0, 2.0));
+	float sd = (sx - sweep_pos) * 7.0;    // squared by hand: pow() of a negative base is undefined
+	float shimmer = exp(-sd * sd);
 	// Edges and the emitter at the base.
 	float e = min(min(p.x, size.x - p.x), min(p.y, size.y - p.y));
 	float edge = exp(-e * 9.0) + 0.35 * exp(-e * 2.5);

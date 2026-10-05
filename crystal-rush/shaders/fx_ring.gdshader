@@ -15,7 +15,8 @@ void fragment() {
 	float e = 1.0 - pow(1.0 - p, 3.0);
 	float rad = mix(0.08, 0.94, e);
 	float w = mix(0.035, 0.11, p);
-	float ring = exp(-pow((r - rad) / w, 2.0));
+	float rd = (r - rad) / w;             // squared by hand: pow() of a negative base is undefined
+	float ring = exp(-rd * rd);
 	float n = texture(noise_tex, vec2(atan(q.y, q.x) * 0.48, r * 0.6 - p * 0.8)).r;
 	float inner = (1.0 - smoothstep(0.0, rad, r)) * (r < rad ? 1.0 : 0.0) * 0.22;
 	float fade = 1.0 - p;

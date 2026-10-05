@@ -565,6 +565,8 @@ static func build_weapon_card(kind: String, lvl: int) -> Control:
 	v.add_child(stars)
 	UIKit.add_shine(card, 26.0, 0.35, 1.4, 0.6)
 	card.resized.connect(func():
+		# Long titles widen the card past 360: keep it centred on the root (and its rays).
+		card.position.x = (420.0 - card.size.x) * 0.5
 		root.custom_minimum_size = Vector2(420, card.size.y + 28.0)
 		rays.position = Vector2(210 - 450, 14 + card.size.y * 0.42 - 450)
 		shade.position = Vector2(210 - 380, 14 + card.size.y * 0.45 - 380))

@@ -112,6 +112,7 @@ class State extends RefCounted:
 	var script_done := false
 	var pk := 0
 	var bk := 0
+	var armed := PackedInt32Array()     ## squads met clear of the blob, live until passed
 	var hz := 0
 	var alive := PackedByteArray()
 	var hp := PackedFloat32Array()
@@ -146,7 +147,7 @@ class State extends RefCounted:
 		for w: Array in weapons:
 			s.weapons.append(w.duplicate())
 		s.arm = arm; s.p_rate = p_rate; s.p_dmg = p_dmg; s.p_multi = p_multi; s.upgrade = upgrade
-		s.script_done = script_done; s.pk = pk; s.bk = bk; s.hz = hz
+		s.script_done = script_done; s.pk = pk; s.bk = bk; s.armed = armed.duplicate(); s.hz = hz
 		s.alive = alive.duplicate(); s.hp = hp.duplicate(); s.val = val.duplicate()
 		s.val2 = val2.duplicate(); s.op = op.duplicate(); s.op2 = op2.duplicate(); s.rev = rev.duplicate()
 		s.hazard_deaths = hazard_deaths; s.clash_deaths = clash_deaths; s.kills = kills; s.peak = peak
@@ -351,8 +352,20 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 		s.samples.append(Vector3(s.d, s.hx, s.army))
 
 
-## Squads and the fortress met before `nd`: returns the distance the hero may reach.
+## Squads and the fortress met before `nd`: returns the distance the hero may reach. A squad met
+## clear of the blob stays armed until the hero passes its last rank (Run._blocks).
 static func _blocks(lv: Level, s: State, nd: float, hx: float) -> float:
+	for k in range(s.armed.size() - 1, -1, -1):
+		var j := s.armed[k]
+		if s.alive[j] == 0 or s.d > lv.d[j] + squad_depth(lv, j):
+			s.armed.remove_at(k)
+		elif absf(hx - lv.x[j]) < Balance.blob_radius(s.army) + lv.hw[j]:
+			s.armed.remove_at(k)
+			s.mode = Mode.CLASH
+			s.foe = j
+			s.tick = 0.0
+			_log(s, "clash %d vs %d" % [int(s.army), int(s.hp[j])])
+			return s.d
 	while s.bk < lv.block.size():
 		var i := lv.block[s.bk]
 		var meet := lv.d[i] - Balance.CONTACT
@@ -376,7 +389,13 @@ static func _blocks(lv: Level, s: State, nd: float, hx: float) -> float:
 			s.tick = 0.0
 			_log(s, "clash %d vs %d" % [int(s.army), int(s.hp[i])])
 			return maxf(s.d, meet)
+		s.armed.append(i)
 	return nd
+
+
+static func squad_depth(lv: Level, i: int) -> float:
+	var it := lv.items[i]
+	return Balance.squad_depth(float(it.get("w", 2.4)), float(it.get("value", 0)))
 
 
 ## Tiles, coins, recruits and gate rows crossed by the hero up to `nd`.
@@ -1224,7 +1243,11 @@ static func random_path(length: float, rng: RandomNumberGenerator) -> PackedFloa
 static func sync_cursors(lv: Level, s: State) -> void:
 	s.pk = _first_after(lv.d, lv.pick, s.d)
 	s.bk = 0
+	s.armed.clear()
 	while s.bk < lv.block.size() and lv.d[lv.block[s.bk]] - Balance.CONTACT < s.d - 0.001:
+		var j := lv.block[s.bk]
+		if lv.kind[j] == K.SQUAD and s.alive[j] == 1 and s.d <= lv.d[j] + squad_depth(lv, j):
+			s.armed.append(j)
 		s.bk += 1
 	s.hz = _first_after(lv.d, lv.haz, s.d - Balance.HERO_GAP - 2.0 * Balance.blob_radius(s.army) * Balance.BLOB_STRETCH)
 	s.d_prev = s.d

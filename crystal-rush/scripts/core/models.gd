@@ -1591,8 +1591,10 @@ static func _crack(parent: Node3D, p: Vector3, rng: RandomNumberGenerator, size:
 			var nxt := cur + dir * l
 			var mid := (cur + nxt) * 0.5
 			var ang := rad_to_deg(dir.angle())
-			Mats.part(crack, Mats.box(Vector3(l + w * 0.5, w * 1.8, 0.02)), dark, Vector3(mid.x, mid.y, 0), Vector3(0, 0, ang), Vector3.ONE, false)
-			Mats.part(crack, Mats.box(Vector3(l, w * 0.7, 0.03)), hot, Vector3(mid.x, mid.y, 0.01), Vector3(0, 0, ang), Vector3.ONE, false)
+			# One cached unit box scaled per segment (random sizes would each be a new mesh kept
+			# forever in the Mats cache); bake() applies the scale, so the geometry is the same.
+			Mats.part(crack, Mats.box(Vector3.ONE), dark, Vector3(mid.x, mid.y, 0), Vector3(0, 0, ang), Vector3(l + w * 0.5, w * 1.8, 0.02), false)
+			Mats.part(crack, Mats.box(Vector3.ONE), hot, Vector3(mid.x, mid.y, 0.01), Vector3(0, 0, ang), Vector3(l, w * 0.7, 0.03), false)
 			cur = nxt
 			w *= 0.75
 	Mats.bake(crack)
@@ -1796,7 +1798,9 @@ static func ult_ring_set(ring: MeshInstance3D, progress: float, ready: bool) -> 
 static func tile_mesh() -> Mesh:
 	return _cached("tile", func():
 		var r := Node3D.new()
-		Mats.part(r, Mats.cyl(0.36, 0.4, 0.06, 6), Mats.solid(GOLD, 0.35, 0.6), Vector3(0, 0.03, 0))
+		# Run.TILE_SHADER decodes the vertex colours as sRGB and gl_compatibility writes sRGB
+		# as is, so the rim is pre-encoded to come out GOLD (the plate was tuned as it renders).
+		Mats.part(r, Mats.cyl(0.36, 0.4, 0.06, 6), Mats.solid(GOLD.linear_to_srgb(), 0.35, 0.6), Vector3(0, 0.03, 0))
 		Mats.part(r, Mats.cyl(0.3, 0.34, 0.08, 6), Mats.glow(ICE, 1.6), Vector3(0, 0.05, 0))
 		Mats.part(r, Mats.box(Vector3(0.24, 0.04, 0.07)), Mats.solid(Color.WHITE), Vector3(0, 0.1, 0))
 		Mats.part(r, Mats.box(Vector3(0.07, 0.04, 0.24)), Mats.solid(Color.WHITE), Vector3(0, 0.1, 0))

@@ -359,7 +359,7 @@ func _step_projectiles(delta: float) -> void:
 		match kind:
 			"plasma":
 				var pulse := 1.0 + 0.12 * sin(_time * 40.0 + float(p["seed"]) * 9.0)
-				_frame_glows.append([pos, gs * pulse, c, 0.35, _time * 6.0, 1.0])
+				_frame_glows.append([pos, gs * pulse, c, 0.35, fposmod(_time * 6.0, TAU), 1.0])
 				_frame_glows.append([pos, gs * 0.45, look["head"], 0.0, 0.0, 1.0])
 				if randf() < 0.6:
 					_sparks.add(pos, -dir * randf_range(1.0, 3.0) + _rand_dir() * 1.2, c, 0.25, 0.05, 0.01, 0.0, 2.0, 0.05)
@@ -385,7 +385,7 @@ func _step_projectiles(delta: float) -> void:
 				pass
 			_:
 				if gs > 0.0:
-					_frame_glows.append([pos, gs, c, 0.25, _time * 4.0, 0.8])
+					_frame_glows.append([pos, gs, c, 0.25, fposmod(_time * 4.0, TAU), 0.8])
 		i += 1
 	_rocket_mm.visible_instance_count = rockets
 	if rockets > 0:
@@ -496,8 +496,8 @@ func _step_beams(delta: float) -> void:
 		m.set_shader_parameter("intensity", k)
 		m.set_shader_parameter("beam_length", len)
 		var flick := 0.85 + 0.15 * sin(_time * 50.0)
-		_frame_glows.append([from, 0.5 * k * flick, c, 0.7, _time * 3.0, 1.0])
-		_frame_glows.append([to, 0.85 * k * flick, c, 0.5, -_time * 2.0, 1.0])
+		_frame_glows.append([from, 0.5 * k * flick, c, 0.7, fposmod(_time * 3.0, TAU), 1.0])
+		_frame_glows.append([to, 0.85 * k * flick, c, 0.5, fposmod(-_time * 2.0, TAU), 1.0])
 		b["spark"] = float(b["spark"]) + delta * k
 		var every := 0.025 if quality_high else 0.05
 		while float(b["spark"]) > every:

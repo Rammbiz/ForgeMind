@@ -46,11 +46,13 @@ void fragment() {
 	rgb = mix(rgb, vec3(1.0), core * lit * filled * (0.45 + 0.3 * ready * pulse));
 	a = max(a, lit * (0.35 + 0.65 * filled));
 	// Hot head at the fill front while charging.
-	float head = exp(-pow((f - progress) * 40.0, 2.0)) * ring * (1.0 - ready) * step(0.001, progress);
+	float hd = (f - progress) * 40.0;     // squared by hand: pow() of a negative base is undefined
+	float head = exp(-hd * hd) * ring * (1.0 - ready) * step(0.001, progress);
 	rgb = mix(rgb, vec3(1.0), head);
 	a = max(a, head);
 	// Ready: soft breathing halo and spinning dashes outside the ring.
-	float halo = exp(-pow((r - R) / 0.16, 2.0)) * ready * (0.25 + 0.35 * pulse);
+	float hr = (r - R) / 0.16;
+	float halo = exp(-hr * hr) * ready * (0.25 + 0.35 * pulse);
 	float dr = R + thickness + 0.075;
 	float dash = band(r, dr, 0.018) * step(0.5, fract(f * 12.0 - t * 0.5)) * ready;
 	float inner = smoothstep(R - thickness, R - thickness - 0.35, r) * smoothstep(0.0, 0.4, r) * ready * (0.08 + 0.1 * pulse);

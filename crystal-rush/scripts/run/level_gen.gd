@@ -576,12 +576,13 @@ static func _c_charge(g: Gen) -> void:
 		cg["reward"] = {"op": "+", "value": int(round(r * 1.3))}
 	var plus := _gate("+", int(round(r * 0.6)) + g.level)
 	_row(g, g.d + 16.0, [cg, plus] if s > 0 else [plus, cg])
-	# Something else wants the hero's fire on the other side.
+	# Something else wants the hero's fire on the other side (away from the charge gate).
 	if g.level >= 6:
+		var o := -signf(float(cg["x"]))
 		if g.rng.randf() < 0.3:
-			_crate(g, -2.2 * s, g.d + 6.0, crate_hp(g.level), _late_weapon(g))
+			_crate(g, 2.2 * o, g.d + 6.0, crate_hp(g.level), _late_weapon(g))
 		else:
-			_squad(g, -1.7 * s, g.d + 8.0, 2.4, int(a * 0.15) + g.level)
+			_squad(g, 1.7 * o, g.d + 8.0, 2.4, int(a * 0.15) + g.level)
 	g.e = a + maxf(gain, r * 0.6) * 0.95
 	g.d += 22.0
 

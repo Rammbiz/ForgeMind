@@ -64,6 +64,9 @@ class Shard:
 
 
 var _die_mmi: Array[MultiMeshInstance3D] = []
+## Per team: the live crowd's unit size (VatClip.crowd_scale), so a dying unit starts at the
+## size it was drawn at (the death pools draw the mesh with the plain crowd shader).
+var unit_scale := PackedFloat32Array([1.0, 1.0, 1.0])
 var _dying: Array = [[], [], []]            # per team: Array of Dying
 var _die_buf: Array[PackedFloat32Array] = []
 var _puff_mmi: MultiMeshInstance3D
@@ -233,7 +236,7 @@ func _tick_dying(team: int, delta: float) -> void:
 		var t := d.age
 		var pop := 1.0 + 0.22 * sin(clampf(t / DIE_POP, 0.0, 1.0) * PI)
 		var shrink := 1.0 - pow(clampf(t / DIE_LIFE, 0.0, 1.0), 2.2)
-		var s := maxf(pop * shrink, 0.001)
+		var s := maxf(pop * shrink * unit_scale[team], 0.001)
 		var b := Basis(d.axis, d.spin * t) * Basis(Vector3.UP, d.yaw)
 		b = b.scaled(Vector3(s, s, s))
 		# Rotate about the unit's middle, not its feet, so the tumble reads as a flip.

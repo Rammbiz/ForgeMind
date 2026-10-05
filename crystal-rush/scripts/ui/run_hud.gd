@@ -17,6 +17,7 @@ var view: HudView
 var _dragged := false
 var _drag_px := 0.0
 var _finished := false
+var _leaving := false               # Menu / Retry / Next chosen: the scene is about to switch
 
 
 func setup(p_run: Run) -> void:
@@ -65,8 +66,8 @@ func _on_hint(key: String) -> void:
 
 
 func _process(_delta: float) -> void:
-	# The ult button has nothing to do once the fortress fell (stairs, victory).
-	var ult_on := run.state != Run.State.STAIRS and run.state != Run.State.WON
+	# The ult button has nothing to do once the fortress fell (stairs, victory) or the run is over.
+	var ult_on := not _finished and run.state in [Run.State.READY, Run.State.RUNNING, Run.State.CLASH, Run.State.SIEGE]
 	if view.ult_btn.visible != ult_on:
 		view.set_ult_visible(ult_on)
 	if view.drag_hint_shown():
@@ -110,12 +111,13 @@ func _on_finished(won: bool, earned: int, reason: String) -> void:
 
 # ------------------------------------------------------------------ pause
 
+## A won run (stairs) plays out into the result panel: pausing it there could leave it unpaid.
 func _in_play() -> bool:
-	return not _finished and run.state != Run.State.WON and run.state != Run.State.LOST
+	return not _finished and not run._won and run.state != Run.State.WON and run.state != Run.State.LOST
 
 
 func pause() -> void:
-	if view.has_modal() or not _in_play():
+	if _leaving or view.has_modal() or not _in_play():
 		return
 	get_tree().paused = true
 	view.show_pause()
@@ -128,11 +130,14 @@ func resume() -> void:
 
 
 func _leave() -> void:
+	_leaving = true
 	view.close_modal()
 	get_tree().paused = false
 
 
 func _notification(what: int) -> void:
+	if _leaving:
+		return
 	match what:
 		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
 			# Auto-pause when the phone locks or another app comes up (not before the start).

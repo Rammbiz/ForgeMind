@@ -11,9 +11,9 @@ extends Node3D
 ## Rules mirror LevelSim (blade angle = phase + speed * t, sweeper x = x + amp sin(2pi t / period
 ## + phase), hit boxes shrunk by HAZARD_SHRINK plus the soldier radius).
 
-const SQUAD_SHOWN := 160
-const SQUAD_DX := 0.42
-const SQUAD_DZ := 0.45
+const SQUAD_SHOWN := Balance.SQUAD_SHOWN
+const SQUAD_DX := Balance.SQUAD_DX
+const SQUAD_DZ := Balance.SQUAD_DZ
 const BLADE_HALF := 0.08        # half thickness of a blade bar (the soldier radius is added)
 const SWEEP_HALF_Z := 0.17
 const SPIKES_HALF_Z := 0.3
@@ -152,19 +152,27 @@ func solids(near_z: float, span: float) -> Array:
 ## Kills the army units touching live spikes or blades this step (unless armoured).
 func check_army(army: Army, armored: bool) -> void:
 	if army.shown == 0 or armored:
+		army.hold_slots(false)
 		return
 	var cz := army.center.z
 	var reach := army.radius * Balance.BLOB_STRETCH + 1.8
+	var near := false
 	for it in spikes:
 		if not it["alive"]:
 			continue
 		var bz := -float(it["d"])
 		if absf(bz - cz) > reach:
 			continue
+		if not near:
+			near = true
+			army.hold_slots(true)
 		var half := float(it.get("w", 2.0)) * 0.5 * Balance.HAZARD_SHRINK + Balance.UNIT_R
 		var bx := float(it["x"])
 		var hits := PackedInt32Array()
+		# Units still flying in (regrown from the rear, recruits) have not reached the line yet.
 		for i in army.shown:
+			if army.flying(i):
+				continue
 			var p := army.position_of(i)
 			if absf(p.x - bx) <= half and absf(p.z - bz) <= SPIKES_HALF_Z + Balance.UNIT_R and p.y < 0.5:
 				hits.append(i)
@@ -174,6 +182,9 @@ func check_army(army: Army, armored: bool) -> void:
 		var bz2 := -float(it["d"])
 		if absf(bz2 - cz) > reach + 1.0:
 			continue
+		if not near:
+			near = true
+			army.hold_slots(true)
 		var hits2 := PackedInt32Array()
 		if str(it.get("type", "rotor")) == "rotor":
 			var px := float(it["x0"])
@@ -181,6 +192,8 @@ func check_army(army: Army, armored: bool) -> void:
 			var th0 := float(it.get("theta_prev", it.get("theta", 0.0)))
 			var th1 := float(it.get("theta", 0.0))
 			for i in army.shown:
+				if army.flying(i):
+					continue
 				var p2 := army.position_of(i)
 				var dx := p2.x - px
 				var dz := p2.z - bz2
@@ -195,12 +208,15 @@ func check_army(army: Army, armored: bool) -> void:
 			var xa := minf(float(it["x"]), float(it.get("x_prev", it["x"]))) - half2
 			var xb := maxf(float(it["x"]), float(it.get("x_prev", it["x"]))) + half2
 			for i in army.shown:
+				if army.flying(i):
+					continue
 				var p3 := army.position_of(i)
 				if p3.x >= xa and p3.x <= xb and absf(p3.z - bz2) <= SWEEP_HALF_Z + Balance.UNIT_R and p3.y < 0.7:
 					hits2.append(i)
 		if not hits2.is_empty():
 			var side := 1.0 if float(it.get("speed", 1.0)) > 0.0 else -1.0
 			run.hazard_kills(it, hits2, Vector3(2.2 * side, 0, 0.6))
+	army.hold_slots(near)
 
 
 ## True when angle `phi` (mod pi: the blade has two arms) lies within `m` of the arc the blade
