@@ -21,6 +21,7 @@ const ROW3_X := 2.25            # three gates: left, centre, right
 const ROW3_W := 1.7
 const TURRET_X := 3.25
 const BIG := 90.0               # above this expected army no more x-gates
+const PUMP := 6.0               # what the hero's fire adds to a + gate on a good approach
 
 ## Level from which each element may appear (plan section 9 + weapons).
 const UNLOCK := {
@@ -55,8 +56,12 @@ class Gen extends RefCounted:
 	var shown := {}
 	var arm := 0
 	var weapons := 0
-	var script := {}
+	var run_script := {}
 	var used := {}
+	var start := 3.0
+	var goal := 80.0
+	var length := 160.0
+	var crate_weapon := ""
 
 
 static func build(level: int, base_army: int) -> Dictionary:
@@ -64,6 +69,9 @@ static func build(level: int, base_army: int) -> Dictionary:
 	g.level = maxi(level, 1)
 	g.rng.seed = 7919 * g.level + 104729
 	g.e = float(base_army)
+	g.start = maxf(float(base_army), 1.0)
+	g.goal = goal_army(g.level)
+	g.length = target_length(g.level)
 	match g.level:
 		1:
 			_tutorial_1(g)
@@ -80,9 +88,26 @@ static func target_length(level: int) -> float:
 	return minf(160.0 + 20.0 * (level - 1), 380.0)
 
 
+## Army a good player should bring to the fortress.
+static func goal_army(level: int) -> float:
+	return minf(55.0 + 24.0 * level, 540.0)
+
+
+## Army a good player should have at distance d: exponential from the start to the goal.
+static func target(g: Gen, d: float) -> float:
+	var p := clampf((d - START_D) / maxf(g.length - START_D, 1.0), 0.0, 1.0)
+	return g.start * pow(g.goal / g.start, p)
+
+
+## Reward a chunk ending at `d_end` should give to put a good player back on the curve.
+## Bounded so one gate never decides a level: between 0.12 and 0.8 of the current army.
+static func want(g: Gen, d_end: float) -> float:
+	return clampf(target(g, d_end) - g.e, g.e * 0.12 + 3.0, g.e * 0.8 + 6.0)
+
+
 ## Share of the expected army a threat is sized at; grows with the level.
 static func threat(g: Gen) -> float:
-	return 0.3 + 0.026 * mini(g.level, 16)
+	return 0.3 + 0.022 * mini(g.level, 16)
 
 
 # ------------------------------------------------------------------ tutorials
@@ -108,13 +133,13 @@ static func _tutorial_1(g: Gen) -> void:
 	_recruits(g, -2.4, 94.0, 5)
 	_recruits(g, 2.4, 98.0, 4)
 	g.e += 5.0
-	_row(g, 112.0, [_gate("x", 2), _gate("+", 14)])
+	_row(g, 112.0, [_gate("x", 2), _gate("+", 20)])
 	g.e *= 1.9
 	_tile_line(g, -2.0, 2.0, 122.0, 9, 1.15)
 	_coin_line(g, 0.0, 134.0, 6)
-	_row(g, 146.0, [_gate("+", 10), _gate("+", 18)])
-	g.e += 18.0
-	g.d = 160.0
+	_row(g, 146.0, [_gate("+", 8), _gate("+", 6), _gate("+", 12)])
+	g.e += 12.0
+	g.d = 152.0
 
 
 ## Level 2, "Not everything that shines": red gates and forecasts, a row where the bigger number
@@ -148,7 +173,7 @@ static func _tutorial_2(g: Gen) -> void:
 	_coin_line(g, -1.7, 152.0, 6)
 	_row(g, 166.0, [_gate("+", 16), _gate("-", 8), _gate("+", 24)])
 	g.e += 18.0
-	g.d = 180.0
+	g.d = 172.0
 
 
 ## Level 3, "The hero at work": a spiked barricade over half the bridge, a charge gate that the
@@ -175,7 +200,7 @@ static func _tutorial_3(g: Gen) -> void:
 	_row(g, 108.0, [_gate("-", 8), _gate("+", int(g.e * 0.4)), _gate("x", 2)])
 	g.e *= 1.9
 	# Scripted ult right before the big squad.
-	g.script["ult_ready_at"] = 124.0
+	g.run_script["ult_ready_at"] = 124.0
 	_hint(g, 126.0, "HINT_ULT")
 	_squad(g, 0.0, 142.0, 4.4, int(g.e * 0.75))
 	g.e *= 0.85
@@ -185,7 +210,7 @@ static func _tutorial_3(g: Gen) -> void:
 	_crate(g, 2.0, 172.0, 7, "cannon")
 	_row(g, 184.0, [_gate("+", int(g.e * 0.4)), _gate("+", int(g.e * 0.25))])
 	g.e *= 1.3
-	g.d = 200.0
+	g.d = 192.0
 
 
 # ------------------------------------------------------------------ procedural levels
@@ -223,16 +248,20 @@ static func _procedural(g: Gen) -> void:
 		elif crate_kind != "" and g.d > length * 0.3:
 			pick = "crate"
 		elif since_threat >= 2:
-			pick = _weighted(g, THREATS, last)
+			# Prefer a kind of threat this level has not shown yet.
+			var fresh: Array = []
+			for t: String in THREATS:
+				if not g.used.has(t) and int(UNLOCK[CHUNKS[t][1]]) <= g.level and t != last:
+					fresh.append(t)
+			pick = _weighted(g, fresh if not fresh.is_empty() else THREATS, last)
 		elif since_gate >= 2:
 			pick = _weighted(g, ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm"], last)
 		else:
 			pick = _weighted(g, CHUNKS.keys(), last)
 		if pick == "crate":
-			_crate_chunk(g, crate_kind if crate_kind != "" else _late_weapon(g))
+			g.crate_weapon = crate_kind if crate_kind != "" else _late_weapon(g)
 			crate_kind = ""
-		else:
-			_chunk(g, pick)
+		_chunk(g, pick)
 		since_threat = 0 if pick in THREATS else since_threat + 1
 		since_gate = 0 if pick in ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm", "squad_fork", "barricade"] else since_gate + 1
 		last = pick
@@ -280,6 +309,13 @@ static func _chunk(g: Gen, name: String) -> void:
 	if FIRST_HINT.has(key) and int(UNLOCK[key]) == g.level:
 		_hint(g, g.d - 4.0, FIRST_HINT[key])
 	g.used[name] = int(g.used.get(name, 0)) + 1
+	var rows_before := g.row
+	_chunk_body(g, name)
+	# A good player also pumps the + gate it takes with the hero's fire (~6 per row).
+	g.e += PUMP * (g.row - rows_before)
+
+
+static func _chunk_body(g: Gen, name: String) -> void:
 	match name:
 		"tiles":
 			_c_tiles(g)
@@ -294,7 +330,8 @@ static func _chunk(g: Gen, name: String) -> void:
 		"squad_fork":
 			_c_squad_fork(g)
 		"crate":
-			_crate_chunk(g, _late_weapon(g))
+			_crate_chunk(g, g.crate_weapon)
+			g.crate_weapon = ""
 		"barricade":
 			_c_barricade(g)
 		"charge":
@@ -320,6 +357,8 @@ static func _chunk(g: Gen, name: String) -> void:
 
 
 # ------------------------------------------------------------------ chunks
+# Rewards are sized by `want()`: what puts a good player back on the level's growth curve.
+# Threats are sized by `threat()` x the expected army. A chunk updates g.e with the good line.
 
 ## A snake of +1 tiles across the bridge, coins on the other side: steer for soldiers or coins.
 static func _c_tiles(g: Gen) -> void:
@@ -331,18 +370,17 @@ static func _c_tiles(g: Gen) -> void:
 	g.d += 6.0 + n * 1.2
 
 
-## Grey recruits by the rails; the bigger group sits next to a hazard from level 3 on.
+## Grey recruits by the rails; from level 4 the bigger group sits behind a short barricade.
 static func _c_recruits(g: Gen) -> void:
 	var s := _side(g)
 	var small := 3 + g.rng.randi_range(0, 2)
-	var big := 6 + g.rng.randi_range(0, 3) + int(g.e * 0.08)
+	var big := int(round(maxf(want(g, g.d + 20.0) * 0.5, 6.0)))
 	_recruits(g, -2.3 * s, g.d + 4.0, small)
 	_recruits(g, 2.4 * s, g.d + 12.0, big)
 	_tile_line(g, -1.6 * s, -1.6 * s, g.d + 8.0, 5, 1.2)
 	if g.level >= 4:
-		# The big group is guarded: a short barricade in front of it at the rail.
-		_barricade(g, 1.9 * s, g.d + 8.0, 2.4, int(6 + g.level + g.e * 0.12))
-	g.e += big * 0.9
+		_barricade(g, 1.9 * s, g.d + 8.0, 2.4, int(6 + g.level + g.e * 0.1))
+	g.e += big * 0.85
 	g.d += 20.0
 
 
@@ -355,49 +393,58 @@ static func _c_gates(g: Gen) -> void:
 	if lead:
 		_tile_line(g, 1.65 * s, 1.65 * s, g.d + 1.0, 6, 1.1)
 	var rd := g.d + 15.0
-	var mult := g.e < BIG
-	var opts: Array[Dictionary] = []
-	if mult:
-		var k := 3 if g.e < 18.0 and g.rng.randf() < 0.35 else 2
-		# +N close to the break-even point of xk (pumping a + gate adds ~6 more).
-		var n := int(round(a * (k - 1) * g.rng.randf_range(0.75, 1.2))) + g.level
-		var xg := _gate("x", k)
-		var pg := _gate("+", maxi(n, 4))
-		# The x gate sits on the lead side half of the time: then the tiles make it better.
-		opts = [xg, pg] if g.rng.randf() < 0.5 else [pg, xg]
-		g.e = maxf((a + (6.0 if lead else 0.0)) * k, a + n + 6.0) * 0.96
+	var r := want(g, rd + 6.0)
+	var near := _gate("+", 1)
+	var far := _gate("+", 1)
+	if a < 45.0 and r > a * 0.55 and r < a * 1.7:
+		# x2 against a + gate close to its break-even point (pumping a + gate adds ~6 more).
+		var n := int(round(r * g.rng.randf_range(0.85, 1.15)))
+		near = _gate("x", 2)
+		far = _gate("+", maxi(n, 4))
+		g.e = maxf((a + (6.0 if lead else 0.0)) * 2.0, a + n + 6.0) * 0.97
+	elif a < 15.0 and r >= a * 1.7:
+		var n3 := int(round(r * g.rng.randf_range(0.8, 1.05)))
+		near = _gate("x", 3)
+		far = _gate("+", maxi(n3, 4))
+		g.e = maxf((a + (6.0 if lead else 0.0)) * 3.0, a + n3 + 6.0) * 0.97
 	else:
-		var n2 := int(round(a * g.rng.randf_range(0.35, 0.55))) + g.level
-		var n3 := int(round(a * g.rng.randf_range(0.2, 0.3))) + g.level
-		opts = [_gate("+", n2), _gate("+", n3)]
-		if g.rng.randf() < 0.5:
-			opts.reverse()
-		g.e = a + n2 + 5.0
-	if s < 0:
-		opts.reverse()
+		near = _gate("+", int(round(r * g.rng.randf_range(1.0, 1.15))))
+		far = _gate("+", int(round(r * g.rng.randf_range(0.45, 0.6))))
+		g.e = a + float(near["value"]) + 4.0
+	# The lead-in tiles sit on the side of `near` half of the time.
+	var on_lead := g.rng.randf() < 0.5
+	var opts: Array[Dictionary] = []
+	if (s > 0) == on_lead:
+		opts = [far, near]
+	else:
+		opts = [near, far]
 	if g.level >= int(UNLOCK["red"]) and g.rng.randf() < 0.55:
 		# A red gate in the middle punishes autopilot.
-		opts.insert(1, _gate("-", int(round(a * 0.3)) + 3 + g.level))
+		opts.insert(1, _gate("-", int(round(a * 0.25)) + 3 + g.level))
 	_row(g, rd, opts)
 	g.d = rd + 6.0
 
 
-## Three gates: the best one is guarded by a red gate in front of it.
+## Two rows: the best gate of the second row is behind a red gate of the first.
 static func _c_red_row(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
-	var red := int(round(a * g.rng.randf_range(0.18, 0.3))) + 2 + g.level
-	# Front row: a red gate on the side of the big reward, nothing on the other.
-	_row(g, g.d + 6.0, [_gate_at("-", red, 1.65 * s, 2.0), _gate_at("+", int(a * 0.15) + 2, -1.65 * s, 2.0)])
-	var best := _gate("x", 2) if a < BIG else _gate("+", int(round(a * 0.7)) + g.level)
-	var mid := _gate("+", int(round(a * 0.25)) + g.level)
-	var weak := _gate("-", int(round(a * 0.15)) + 2)
-	var opts: Array[Dictionary] = [weak, mid, best]
+	var red := int(round(a * g.rng.randf_range(0.15, 0.25))) + 2 + g.level
+	var r := want(g, g.d + 24.0)
+	_row(g, g.d + 6.0, [_gate_at("-", red, 1.65 * s, 2.0), _gate_at("+", int(round(r * 0.2)) + 2, -1.65 * s, 2.0)])
+	var big := r + red
+	var best := _gate("+", int(round(big)))
+	var after_red := maxf(a - red, 1.0)
+	if a < 45.0 and absf(after_red * 2.0 - (a + big)) < a * 0.4:
+		best = _gate("x", 2)
+		big = after_red
+	var mid := _gate("+", int(round(r * 0.45)) + g.level)
+	var weak := _gate("-", int(round(a * 0.12)) + 2)
+	var opts: Array[Dictionary] = [mid, weak, best]
 	if s < 0:
 		opts.reverse()
 	_row(g, g.d + 18.0, opts)
-	var via_red := (maxf(a - red, 1.0)) * 2.0 if a < BIG else a - red + a * 0.7
-	g.e = maxf(via_red, a + a * 0.4 + 5.0) * 0.96
+	g.e = maxf(after_red + big, a + r * 0.65) * 0.97
 	g.d += 24.0
 
 
@@ -405,10 +452,10 @@ static func _c_red_row(g: Gen) -> void:
 ## big ones must fight (or the hero thins it first).
 static func _c_squad_wall(g: Gen) -> void:
 	var a := g.e
-	var size := int(round(a * threat(g) * g.rng.randf_range(0.9, 1.2))) + g.level + 2
+	var size := int(round(a * threat(g) * g.rng.randf_range(0.9, 1.15))) + g.level + 2
 	var w := 3.4 + minf(g.level * 0.05, 0.6)
 	_squad(g, 0.0, g.d + 10.0, w, size)
-	var rew := int(round(4 + a * 0.12))
+	var rew := int(round(4 + a * 0.1))
 	_recruits(g, 0.0, g.d + 15.0, rew)
 	_coin_line(g, 0.0, g.d + 17.0, 5)
 	_tile_line(g, -2.9, -2.9, g.d + 4.0, 4, 1.2)
@@ -421,18 +468,18 @@ static func _c_squad_wall(g: Gen) -> void:
 static func _c_squad_fork(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
-	var size := int(round(a * threat(g) * g.rng.randf_range(1.0, 1.3))) + g.level + 2
+	var size := int(round(a * threat(g) * g.rng.randf_range(0.75, 0.95))) + g.level + 2
 	_squad(g, 1.75 * s, g.d + 8.0, 2.8, size)
-	var big := _gate("x", 2) if a < BIG else _gate("+", int(round(a * 0.8)) + g.level)
-	var small := _gate("+", int(round(a * 0.3)) + g.level)
-	_row(g, g.d + 17.0, [big, small] if s > 0 else [small, big])
-	if s > 0:
-		_row_fix_x(g, 1.65 * s, -1.65 * s)
-	else:
-		_row_fix_x(g, -1.65 * s, 1.65 * s)
-	var after := maxf(a - size * 0.8, 1.0)
-	var via_big := after * 2.0 if a < BIG else after + a * 0.8
-	g.e = maxf(via_big, a + a * 0.3 + 6.0) * 0.96
+	var r := want(g, g.d + 24.0)
+	var after := maxf(a - size * 0.85, 1.0)
+	var big_v := r + size * 0.85
+	var big := _gate("+", int(round(big_v)))
+	if a < 45.0 and absf(after * 2.0 - (a + r)) < a * 0.35:
+		big = _gate("x", 2)
+		big_v = after
+	var small := _gate("+", int(round(r * 0.35)) + g.level)
+	_row(g, g.d + 17.0, [small, big] if s > 0 else [big, small])
+	g.e = maxf(after + big_v, a + r * 0.4) * 0.97
 	g.d += 24.0
 
 
@@ -444,13 +491,17 @@ static func _c_barricade(g: Gen) -> void:
 	var hp := int(round(6 + g.level * 1.5 + a * 0.3))
 	var w := g.rng.randf_range(2.8, 3.4)
 	_barricade(g, (3.5 - w * 0.5) * s, g.d + 6.0, w, hp)
-	var best := _gate("x", 2) if a < BIG else _gate("+", int(round(a * 0.75)) + g.level)
-	var other := _gate("+", int(round(a * 0.3)) + g.level)
-	_row(g, g.d + 15.0, [best, other] if s > 0 else [other, best])
-	_row_fix_x(g, 1.65, -1.65)
+	var r := want(g, g.d + 22.0)
+	var edge := a * 0.1 + 2.0
+	var best := _gate("+", int(round(r + edge)))
+	var best_v := r + edge
+	if a < 45.0 and absf((a - edge) * 2.0 - (a + r)) < a * 0.35:
+		best = _gate("x", 2)
+		best_v = a - edge
+	var other := _gate("+", int(round(r * 0.4)) + g.level)
+	_row(g, g.d + 15.0, [other, best] if s > 0 else [best, other])
 	_coin_line(g, -2.4 * s, g.d + 6.0, 5)
-	var edge := a * 0.12
-	g.e = maxf(((a - edge) * 2.0 if a < BIG else a - edge + a * 0.75), a * 1.3 + 4.0) * 0.96
+	g.e = maxf(a - edge + best_v, a + r * 0.45) * 0.97
 	g.d += 22.0
 
 
@@ -458,33 +509,31 @@ static func _c_barricade(g: Gen) -> void:
 static func _c_charge(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
+	var r := want(g, g.d + 22.0)
 	var need := 8 + g.level / 2 + g.rng.randi_range(0, 3)
 	var cg := _gate("charge", -need)
 	var roll := g.rng.randf()
-	if roll < 0.45 and a < BIG:
+	var gain := r * 1.3
+	if roll < 0.45 and a < 45.0:
 		cg["reward"] = {"op": "x", "value": 2}
+		gain = a
 	elif roll < 0.7:
 		cg["reward"] = {"op": "weapon", "value": 1, "weapon": _late_weapon(g)}
-	elif roll < 0.85:
+		gain = r * 0.8
+	elif roll < 0.82:
 		cg["reward"] = {"op": "ult", "value": 1}
+		gain = r * 0.7
 	else:
-		cg["reward"] = {"op": "+", "value": int(round(a * 0.8)) + g.level}
-	var plus := _gate("+", int(round(a * 0.4)) + g.level)
+		cg["reward"] = {"op": "+", "value": int(round(r * 1.3))}
+	var plus := _gate("+", int(round(r * 0.6)) + g.level)
 	_row(g, g.d + 16.0, [cg, plus] if s > 0 else [plus, cg])
 	# Something else wants the hero's fire on the other side.
 	if g.level >= 6:
 		if g.rng.randf() < 0.3:
 			_crate(g, -2.2 * s, g.d + 6.0, 5 + g.level / 3, _late_weapon(g))
 		else:
-			_squad(g, -1.7 * s, g.d + 8.0, 2.4, int(a * 0.2) + g.level)
-	var rw: Dictionary = cg["reward"]
-	match str(rw["op"]):
-		"x":
-			g.e = maxf(a * 2.0, a + a * 0.4 + 6.0) * 0.95
-		"+":
-			g.e = a + a * 0.8
-		_:
-			g.e = a + a * 0.4 + 6.0
+			_squad(g, -1.7 * s, g.d + 8.0, 2.4, int(a * 0.15) + g.level)
+	g.e = a + maxf(gain, r * 0.6) * 0.95
 	g.d += 22.0
 
 
@@ -494,64 +543,74 @@ static func _crate_chunk(g: Gen, weapon: String) -> void:
 		weapon = _late_weapon(g)
 	var s := _side(g)
 	var a := g.e
+	var r := want(g, g.d + 24.0)
 	var hp := 6 + g.level / 3
 	_crate(g, 2.1 * s, g.d + 8.0, hp, weapon)
-	var good := _gate("+", int(round(a * 0.5)) + g.level + 2) if a >= BIG * 0.6 else _gate("x", 2)
-	var meh := _gate("+", int(round(a * 0.25)) + g.level)
+	var good := _gate("+", int(round(r)))
+	var meh := _gate("+", int(round(r * 0.45)) + g.level)
 	# The better gate is on the far side from the crate.
-	_row(g, g.d + 18.0, [meh, good] if s > 0 else [good, meh])
-	_row_fix_x(g, 1.65, -1.65)
+	_row(g, g.d + 18.0, [meh, good] if s < 0 else [good, meh])
 	_tile_line(g, 2.1 * s, 2.1 * s, g.d + 10.0, 4, 1.1)
 	g.weapons += 1
-	g.e = maxf(a * 2.0 if a < BIG * 0.6 else a * 1.5 + 6.0, a + 8.0) * 0.95
+	g.e = a + r * 0.9
 	g.d += 24.0
 
 
 ## Rotor blade guarding a big recruit group; the free side has a few tiles.
 static func _c_rotor(g: Gen) -> void:
 	var s := _side(g)
-	var a := g.e
+	var r := want(g, g.d + 20.0)
 	var length := 1.4 + g.rng.randf_range(0.0, 0.4)
 	_rotor(g, 1.6 * s, g.d + 8.0, length, 2.4 + g.level * 0.05, g.rng.randf() * TAU)
-	var rew := int(round(6 + a * 0.18))
+	var rew := int(round(maxf(r * 0.6, 6.0)))
 	_recruits(g, 1.6 * s, g.d + 13.0, rew)
 	_tile_line(g, -1.8 * s, -1.8 * s, g.d + 4.0, 6, 1.2)
 	if g.level >= 6 and g.rng.randf() < 0.5:
-		_rotor(g, -0.4 * s, g.d + 16.0, 1.3, -2.6, g.rng.randf() * TAU)
+		# A second rotor on the other side further on: weave between them.
+		_rotor(g, -1.7 * s, g.d + 21.0, 1.3, -2.6, g.rng.randf() * TAU)
+		_coin_line(g, -1.7 * s, g.d + 25.0, 4)
+		g.d += 8.0
 	g.e += maxf(rew * 0.7, 6.0)
 	g.d += 20.0
 
 
-## A narrow moving x gate against a wide still + gate: timing vs a sure thing.
+## A narrow moving gate against a wide still + gate: timing vs a sure thing.
 static func _c_moving(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
-	var k := 3 if a < 25.0 else 2
-	var mv := _gate("x", k) if a < BIG else _gate("+", int(round(a * 0.8)) + g.level)
+	var r := want(g, g.d + 21.0)
+	var mv := _gate("+", int(round(r * 1.35)))
+	var mv_gain := r * 1.35
+	if a < 30.0 and a > r * 0.6:
+		mv = _gate("x", 2)
+		mv_gain = a
 	mv["w"] = 1.3
 	mv["move"] = {"amp": 1.4, "period": 2.4 + g.rng.randf_range(0.0, 0.6), "phase": g.rng.randf() * TAU}
-	var still := _gate("+", int(round(a * 0.45)) + g.level + 2)
-	_row(g, g.d + 15.0, [mv, still] if s > 0 else [still, mv])
-	_row_fix_x(g, 1.2, -1.95)
-	g.e = maxf(a * k if a < BIG else a * 1.8, a * 1.45 + 2.0) * 0.95
+	var still := _gate("+", int(round(r * 0.6)) + 2)
+	_row(g, g.d + 15.0, [still, mv] if s > 0 else [mv, still])
+	_row_fix_x(g, -1.95 * s, 1.2 * s)
+	g.e = a + maxf(mv_gain, r * 0.6) * 0.95
 	g.d += 21.0
 
 
-## Army weapons gate: crossbows (later blasters) vs soldiers now.
+## Army weapons gate: crossbows (later blasters) vs soldiers now; a squad follows.
 static func _c_arm(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
+	var r := want(g, g.d + 28.0)
 	var tier := 2 if g.level >= int(UNLOCK["blaster"]) and g.arm >= 1 else 1
 	var arm := _gate("arm", tier)
-	var plus := _gate("+", int(round(a * 0.45)) + g.level + 3)
-	var opts: Array[Dictionary] = [arm, plus] if s > 0 else [plus, arm]
+	var plus := _gate("+", int(round(r * 0.75)) + 3)
+	var opts: Array[Dictionary] = [arm, plus]
+	if s < 0:
+		opts.reverse()
 	if g.level >= 6:
-		opts.insert(1, _gate("-", int(round(a * 0.25)) + g.level))
+		opts.insert(1, _gate("-", int(round(a * 0.2)) + g.level))
 	_row(g, g.d + 14.0, opts)
 	g.arm = maxi(g.arm, tier)
-	g.e = a * 1.15 + 3.0
-	# A squad soon after so the choice shows.
-	_squad(g, -1.2 * s, g.d + 22.0, 3.0, int(round(a * threat(g) * 0.8)) + g.level)
+	var size := int(round(a * threat(g) * 0.8)) + g.level
+	_squad(g, -1.2 * s, g.d + 22.0, 3.0, size)
+	g.e = a + r * 0.75 - size * 0.5
 	g.d += 28.0
 
 
@@ -559,14 +618,14 @@ static func _c_arm(g: Gen) -> void:
 static func _c_turret(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
+	var r := want(g, g.d + 24.0)
 	var hp := 5 + g.level / 2
 	_turret(g, s, g.d + 14.0, hp, 7.0, 2.2 + g.level * 0.08)
-	var good := _gate("+", int(round(a * 0.55)) + g.level + 2) if a >= BIG * 0.7 else _gate("x", 2)
-	var meh := _gate("+", int(round(a * 0.25)) + g.level)
-	_row(g, g.d + 12.0, [meh, good] if s > 0 else [good, meh])
-	_row_fix_x(g, 1.65, -1.65)
-	_recruits(g, 2.4 * s, g.d + 18.0, int(4 + a * 0.08))
-	g.e = maxf(a * 1.8 if a < BIG * 0.7 else a * 1.45, a + 8.0) * 0.93
+	var good := _gate("+", int(round(r + 4.0)))
+	var meh := _gate("+", int(round(r * 0.45)) + g.level)
+	_row(g, g.d + 12.0, [good, meh] if s > 0 else [meh, good])
+	_recruits(g, 2.4 * s, g.d + 18.0, int(4 + r * 0.1))
+	g.e = a + r * 0.92
 	g.d += 24.0
 
 
@@ -574,11 +633,13 @@ static func _c_turret(g: Gen) -> void:
 static func _c_geode(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
+	var r := want(g, g.d + 20.0)
 	var roll := g.rng.randf()
 	var reward := "army" if roll < 0.55 else ("coins" if roll < 0.8 else "ult")
-	var amount := int(round(a * 0.3)) + 6 if reward == "army" else (12 + g.level * 2 if reward == "coins" else 25)
+	var amount := int(round(r * 0.6)) + 4 if reward == "army" else (12 + g.level * 2 if reward == "coins" else 25)
 	_geode(g, 1.9 * s, g.d + 9.0, 7 + g.level / 2, reward, amount)
-	_squad(g, -1.5 * s, g.d + 12.0, 2.6, int(round(a * threat(g) * 0.7)) + g.level)
+	var size := int(round(a * threat(g) * 0.6)) + g.level
+	_squad(g, -1.5 * s, g.d + 12.0, 2.6, size)
 	_tile_line(g, 0.0, 0.0, g.d + 15.0, 5, 1.1)
 	g.e += (amount * 0.8 if reward == "army" else 2.0) + 4.0
 	g.d += 20.0
@@ -588,61 +649,74 @@ static func _c_geode(g: Gen) -> void:
 static func _c_power(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
+	var r := want(g, g.d + 26.0)
 	var opts: Array[Dictionary] = [_gate("rate", 25), _gate("dmg", 1)]
 	if g.level >= int(UNLOCK["multi"]) and g.rng.randf() < 0.4:
 		opts[g.rng.randi() % 2] = _gate("multi", 1)
-	opts.append(_gate("+", int(round(a * 0.35)) + g.level + 2))
+	opts.append(_gate("+", int(round(r * 0.6)) + 2))
 	if s < 0:
 		opts.reverse()
 	_row(g, g.d + 14.0, opts)
-	g.e = a * 1.1 + 3.0
-	_squad(g, 1.0 * s, g.d + 22.0, 3.2, int(round(a * threat(g) * 0.9)) + g.level)
+	var size := int(round(a * threat(g) * 0.8)) + g.level
+	_squad(g, 1.0 * s, g.d + 22.0, 3.2, size)
+	g.e = a + r * 0.6 - size * 0.4
 	g.d += 26.0
 
 
-## Blinking gate (x2 <-> a red one) beside a modest still gate: timing and risk.
+## Blinking gate (a big one <-> a red one) beside a modest still gate: timing and risk.
 static func _c_blink(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
-	var bg := _gate("x", 2) if a < BIG else _gate("+", int(round(a * 0.8)) + g.level)
-	bg["blink"] = {"op": "-", "value": int(round(a * 0.35)) + g.level, "period": 0.9 + g.rng.randf_range(0.0, 0.3)}
-	var still := _gate("+", int(round(a * 0.35)) + g.level + 2)
+	var r := want(g, g.d + 21.0)
+	var bg := _gate("+", int(round(r * 1.35)))
+	var gain := r * 1.35
+	if a < 40.0 and a > r * 0.6:
+		bg = _gate("x", 2)
+		gain = a
+	bg["blink"] = {"op": "-", "value": int(round(a * 0.3)) + g.level, "period": 0.9 + g.rng.randf_range(0.0, 0.3)}
+	var still := _gate("+", int(round(r * 0.6)) + 2)
 	_row(g, g.d + 15.0, [bg, still] if s > 0 else [still, bg])
-	_row_fix_x(g, 1.65, -1.65)
-	g.e = maxf(a * 2.0 if a < BIG else a * 1.8, a * 1.35 + 2.0) * 0.93
+	g.e = a + maxf(gain * 0.9, r * 0.6)
 	g.d += 21.0
 
 
 ## Hidden gates: one great, one bad, one fair; the hero's shots scout them.
 static func _c_hidden(g: Gen) -> void:
 	var a := g.e
+	var r := want(g, g.d + 21.0)
 	var opts: Array[Dictionary] = [
-		_gate("x", 2) if a < BIG else _gate("+", int(round(a * 0.8)) + g.level),
-		_gate("-", int(round(a * 0.35)) + g.level),
-		_gate("+", int(round(a * 0.35)) + g.level + 2),
+		_gate("+", int(round(r * 1.35))),
+		_gate("-", int(round(a * 0.3)) + g.level),
+		_gate("+", int(round(r * 0.6)) + 2),
 	]
-	# Shuffle deterministically.
-	for k in range(opts.size() - 1, 0, -1):
-		var j := g.rng.randi() % (k + 1)
-		var tmp: Dictionary = opts[k]
-		opts[k] = opts[j]
-		opts[j] = tmp
+	# The great one is never in the middle (autopilot must not find it).
+	var great: Dictionary = opts[0]
+	var bad: Dictionary = opts[1]
+	var fair: Dictionary = opts[2]
+	var centre := bad if g.rng.randf() < 0.6 else fair
+	var other := fair if centre == bad else bad
+	var left_great := g.rng.randf() < 0.5
+	opts.clear()
+	opts.append(great if left_great else other)
+	opts.append(centre)
+	opts.append(other if left_great else great)
 	for o in opts:
 		o["hidden"] = true
 	_row(g, g.d + 15.0, opts)
-	g.e = maxf(a * 2.0 if a < BIG else a * 1.8, a * 1.35) * 0.92
+	g.e = a + r * 1.2
 	g.d += 21.0
 
 
 ## A sweeper bar slides over the middle where a line of tiles and a recruit group lie.
 static func _c_sweeper(g: Gen) -> void:
 	var a := g.e
+	var r := want(g, g.d + 18.0)
 	_sweeper(g, 0.0, g.d + 10.0, 2.2, 1.6, 2.0 + g.rng.randf_range(0.0, 0.6), g.rng.randf() * TAU)
 	_tile_line(g, 0.0, 0.0, g.d + 4.0, 5, 1.0)
-	_recruits(g, 0.0, g.d + 13.0, int(round(5 + a * 0.12)))
+	_recruits(g, 0.0, g.d + 13.0, int(round(maxf(r * 0.4, 5.0))))
 	_coin_line(g, -2.6, g.d + 6.0, 4)
 	_coin_line(g, 2.6, g.d + 6.0, 4)
-	g.e += 5.0 + a * 0.08
+	g.e = a + 4.0 + r * 0.25
 	g.d += 18.0
 
 
@@ -650,19 +724,19 @@ static func _c_sweeper(g: Gen) -> void:
 
 static func _finish(g: Gen) -> Dictionary:
 	var fd := maxf(g.d + 8.0, target_length(g.level))
-	var ratio := clampf(0.3 + 0.045 * (g.level - 1), 0.3, 0.72)
+	var ratio := clampf(0.25 + 0.085 * (g.level - 1), 0.25, 0.85)
 	var hp := int(round(g.e * ratio)) + 6 + g.level * 2
 	g.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": hp})
 	# Stairs: a good run reaches about x2.5-x3, a great one the top.
-	var surv := maxf(g.e - hp, 6.0)
-	var base := maxf(surv / 13.0, 1.0)
+	var surv := maxf(g.e * 1.4 - hp, 6.0)
+	var base := maxf(surv / 9.0, 1.0)
 	var steps: Array = []
 	for k in Balance.STAIRS_MULTS.size():
 		steps.append({"mult": Balance.STAIRS_MULTS[k], "cost": maxi(1, int(round(base * (1.0 + 0.25 * k))))})
 	g.items.append({"kind": "stairs", "x": 0.0, "d": fd + 6.0, "steps": steps})
 	g.items.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
 	g.hints.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
-	return {"items": g.items, "length": fd, "expected": g.e, "hints": g.hints, "script": g.script}
+	return {"items": g.items, "length": fd, "expected": g.e, "hints": g.hints, "script": g.run_script}
 
 
 # ------------------------------------------------------------------ item helpers

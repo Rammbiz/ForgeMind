@@ -54,7 +54,7 @@ const HEROES := {
 	},
 	"titan": {
 		"name": "HERO_TITAN", "desc": "HERO_TITAN_DESC", "color": Color(0.35, 0.9, 0.55),
-		"hp": 32, "rate": 1.1, "damage": 4, "splash": 2, "range": 8.5, "corridor": 0.9,
+		"hp": 32, "rate": 1.1, "damage": 4, "splash": 3, "range": 10.0, "corridor": 1.0,
 		"ult": {"name": "ULT_QUAKE", "icon": "quake", "charge": 40, "waves": 4, "spacing": 3.5, "gap": 0.18, "kills": 12, "breaks": 12, "armor_time": 6.0},
 	},
 }

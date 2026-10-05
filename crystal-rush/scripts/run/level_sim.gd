@@ -194,9 +194,11 @@ static func _index(lv: Level) -> void:
 			K.GATE:
 				var row := int(it.get("row", i))
 				if not lv.rows.has(row):
-					lv.rows[row] = PackedInt32Array()
 					lv.pick.append(i)
-				(lv.rows[row] as PackedInt32Array).append(i)
+				# Packed arrays are values inside a Dictionary: append to a copy, store it back.
+				var gates: PackedInt32Array = lv.rows.get(row, PackedInt32Array())
+				gates.append(i)
+				lv.rows[row] = gates
 				lv.targ.append(i)
 			K.BARRICADE:
 				lv.haz.append(i)
@@ -217,10 +219,6 @@ static func _index(lv: Level) -> void:
 				lv.fortress = i
 			K.STAIRS:
 				lv.steps = it.get("steps", [])
-	# Rows are written with their gates' row ids; make sure each row list is in item order.
-	for r in lv.rows:
-		var a: PackedInt32Array = lv.rows[r]
-		a.sort()
 
 
 ## A fresh state at the start line.
@@ -708,11 +706,17 @@ static func ult_ready(s: State) -> bool:
 	return s.ult >= cap - 0.001 and s.ult_left <= 0.0 and s.quake_wave >= 99
 
 
-## The auto policy: is there enough to hit right now?
+## The auto policy: is there enough to hit right now? The titan also fires it for the armour
+## when a hazard is about to cut into a decent army.
 static func ult_worth(lv: Level, s: State) -> bool:
 	if s.mode == Mode.CLASH or s.mode == Mode.SIEGE:
 		return true
 	var reach := 16.0 if s.hero == "bolt" else 13.0
+	if s.hero == "titan" and s.army >= 25.0:
+		var c := army_center_d(s)
+		var lo_h := _first_at(lv.d, lv.haz, c)
+		if lo_h < lv.haz.size() and lv.d[lv.haz[lo_h]] < s.d + 6.0 and s.alive[lv.haz[lo_h]] == 1:
+			return true
 	var total := 0.0
 	var lo := _first_at(lv.d, lv.targ, s.d)
 	for j in range(lo, lv.targ.size()):

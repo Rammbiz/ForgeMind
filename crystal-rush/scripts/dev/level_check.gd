@@ -25,7 +25,7 @@ func _initialize() -> void:
 		_print_map(int(args["map"]))
 	var t0 := Time.get_ticks_msec()
 	print("LEVELCHECK army=%d power=%d   best = planner, lazy = x 0, rnd = %d random paths" % [army, power, randoms])
-	print("lvl hero  | len  e    fort | best: W army surv  x   coins haz wpn arm | lazy: W army surv | rnd: win%% med army | flags")
+	print("lvl hero  | len  e    fort | best: W army surv  x   coins haz wpn arm | lazy: W army surv | rnd: win% med army | flags")
 	var problems := 0
 	for level in range(from, to + 1):
 		var def := LevelGen.build(level, Balance.START_ARMY)
