@@ -20,7 +20,7 @@ const MOTE_STRIDE := 20         # 12 transform + 4 colour + 4 custom floats
 const SHADOW_ALPHA := 0.42
 const NOISE_TEX := preload("res://assets/textures/cloud_noise.png")
 
-const PUFF_COLORS: Array[Color] = [Color(0.66, 0.86, 1.0), Color(1.0, 0.4, 0.2), Color(0.8, 0.81, 0.85)]
+const PUFF_COLORS: Array[Color] = [Color(0.4, 0.66, 1.0), Color(1.0, 0.4, 0.2), Color(0.8, 0.81, 0.85)]
 const SPARK_COLORS: Array[Color] = [Color(0.55, 0.85, 1.0), Color(1.0, 0.55, 0.2), Color(0.9, 0.92, 1.0)]
 const DEBRIS_COLORS := [
 	[Color(0.93, 0.95, 1.0), Color(1.0, 0.78, 0.3), Color(0.42, 0.72, 1.0), Color(0.6, 0.86, 1.0)],
@@ -99,7 +99,7 @@ func setup(soldier_mesh: Mesh, raider_mesh: Mesh, soldier_tex: Texture2D = null,
 		var m := CrowdView.make_material(raider_tex if team == 1 else soldier_tex)
 		if team == 2:
 			m.set_shader_parameter("saturation", 0.0)
-			m.set_shader_parameter("tint", Color(0.8, 0.82, 0.86))
+			m.set_shader_parameter("tint", Color(1.05, 1.07, 1.12))
 		mmi.material_override = m
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		mmi.extra_cull_margin = 2.0
@@ -320,8 +320,8 @@ func _puff(pos: Vector3, color: Color, push: Vector3) -> void:
 	core.pos = pos
 	core.life = 0.14
 	core.size0 = 0.6
-	core.size1 = 1.25
-	core.color = Color(1, 1, 1, 0.75)
+	core.size1 = 0.95
+	core.color = Color(1, 1, 1, 0.6)
 	core.seed = Vector2(_rng.randf(), _rng.randf())
 	_add_mote(_puffs, PUFF_POOL, core)
 	for i in 6:
@@ -332,11 +332,12 @@ func _puff(pos: Vector3, color: Color, push: Vector3) -> void:
 		m.vel = dir * _rng.randf_range(1.0, 2.0) + push * 0.3 + Vector3(0, 0.4, 0)
 		m.life = _rng.randf_range(0.42, 0.6)
 		m.size0 = _rng.randf_range(0.22, 0.32)
-		m.size1 = _rng.randf_range(0.6, 0.85)
+		m.size1 = _rng.randf_range(0.48, 0.68)
 		m.drag = 4.5
 		m.grav = -0.6
-		m.color = color.lerp(Color.WHITE, _rng.randf_range(0.0, 0.3))
-		m.color.a = 0.85
+		# Crystal-tinted, not white: a mass death reads as shattering knights, not a snow cloud.
+		m.color = color.lerp(Color.WHITE, _rng.randf_range(0.0, 0.18))
+		m.color.a = 0.72
 		m.seed = Vector2(_rng.randf(), _rng.randf())
 		_add_mote(_puffs, PUFF_POOL, m)
 

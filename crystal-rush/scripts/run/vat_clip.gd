@@ -4,20 +4,29 @@ extends RefCounted
 ## its units playing the same clip, each at its own phase (INSTANCE_CUSTOM.x), drawn by
 ## shaders/crowd_vat.gdshader.
 ##
-##   var anim := VatClip.create("res://assets/units/knight/knight")
-##   army.setup(anim.mesh, 220)      # CrowdView: the baked mesh is 0.75 tall, feet at 0, facing +Z
-##   anim.attach(army)               # swaps in the VAT material; set_tint() & co. keep working
-##   anim.play("run")
-##   # every frame, next to army.draw(...):
+##   var anim := VatClip.create()     # res://assets/units/knight/knight
+##   view.setup(anim.mesh, 220)       # CrowdView: the baked mesh is 0.75 tall, feet at 0, facing +Z
+##   anim.attach(view)                # swaps in the VAT material; set_tint() & co. keep working
+##   anim.set_unit_scale(VatClip.crowd_scale(220))
+##   anim.play("run", 0.2, false, VatClip.run_rate(Balance.RUN_SPEED))
+##   # every frame, next to view.draw(...):
 ##   anim.tick(delta)
-##   # state changes:
-##   anim.play("attack")             # 0.2 s cross-fade
-##   anim.play("victory", 0.25, true, 1.0, false)   # once, units staggered by up to 0.25 s
+##   # state changes (0.2 s cross-fade; play() of the clip already playing with restart = false
+##   # only updates the rate):
+##   anim.play("attack", 0.2, false)
+##   anim.play("victory", 0.25, true, 1.0, 0)   # once, units staggered by up to 0.25 s
+##
+## Clips of the knight bake: run, walk, attack (spear stab), idle, victory (jump with the spear
+## thrust up, loops), spin (the 360 power spin jump).
 ##
 ## The clip clock runs here in double precision and reaches the shader as `clip_time`; without
 ## tick() the shader falls back to TIME wrapped to whole loops (fine for a looping clip).
 
 const SHADER := preload("res://shaders/crowd_vat.gdshader")
+## Run clip playback rate at Balance.RUN_SPEED. The chibi stride covers only ground_speed("run")
+## (1.15 u/s at rate 1) while the army moves at 6.5 u/s; a foot-locked rate (5.6) is a blur, so
+## the cadence is stylised (≈ 4.3 steps a second) and scales with the march speed (run_rate()).
+const RUN_RATE := 1.35
 # The script itself, so create() works before the editor has registered the class_name.
 const _SELF := preload("res://scripts/run/vat_clip.gd")
 
@@ -29,6 +38,10 @@ var material: ShaderMaterial
 var clip := ""
 ## Playback rate of the current clip (1 = as baked).
 var speed := 1.0
+## How far out of step the units of a looping clip are, per clip: the share of one loop their
+## phases cover (1 = every unit somewhere else in its stride, 0.3 = a ragged wave). Clips not
+## listed use 1. Takes effect on the next play().
+var spread := {"victory": 0.55, "spin": 0.3, "attack": 0.8}
 
 var _t := 0.0
 var _loop := true
@@ -66,8 +79,21 @@ static func create(base := "res://assets/units/knight/knight") -> _SELF:
 
 
 ## Puts this material on a CrowdView (its `mat`, so set_tint/set_overlay/... act on it) or on any
-## GeometryInstance3D.
+## GeometryInstance3D. The look uniforms both crowd shaders share (tint, saturation, overlay,
+## edge, gait, foot occlusion...) are carried over from the material it replaces, so calls made
+## on the CrowdView before attach() still show.
 func attach(view: GeometryInstance3D) -> void:
+	var old: Material = view.get("mat") if "mat" in view else view.material_override
+	if old is ShaderMaterial and old != material:
+		var mine := {}
+		for u: Dictionary in SHADER.get_shader_uniform_list():
+			mine[u["name"]] = true
+		for u: Dictionary in (old as ShaderMaterial).shader.get_shader_uniform_list():
+			var n: String = u["name"]
+			if mine.has(n) and not n.begins_with("vat_") and n != "albedo_tex":
+				var v: Variant = (old as ShaderMaterial).get_shader_parameter(n)
+				if v != null:
+					material.set_shader_parameter(n, v)
 	if "mat" in view:
 		view.set("mat", material)
 	view.material_override = material
@@ -120,6 +146,22 @@ func play(clip_name: String, fade := 0.2, restart := true, playback_speed := -1.
 	_push()
 
 
+## Run clip playback rate for a march at `world_speed` (world units per second).
+static func run_rate(world_speed: float) -> float:
+	return RUN_RATE * world_speed / Balance.RUN_SPEED
+
+
+## Size of every unit of this crowd (1 = as baked, 0.75 tall).
+func set_unit_scale(s: float) -> void:
+	material.set_shader_parameter("unit_scale", s)
+
+
+## Suggested unit size for a crowd of `shown` drawn units: full size for small armies, 0.86 at
+## 220, so the knights' wide helmets stay apart in the dense blob (slot spacing ≈ 0.27).
+static func crowd_scale(shown: int) -> float:
+	return lerpf(1.0, 0.86, clampf((shown - 40.0) / 180.0, 0.0, 1.0))
+
+
 ## Advances the clock (call once per frame with the frame's delta).
 func tick(delta: float) -> void:
 	if clip == "":
@@ -142,12 +184,14 @@ func seek(t: float) -> void:
 func is_finished() -> bool:
 	if clip == "" or _loop:
 		return false
-	return _t >= length(clip) + float(material.get_shader_parameter("oneshot_jitter"))
+	var j: Variant = material.get_shader_parameter("oneshot_jitter")
+	return _t >= length(clip) + (float(j) if j != null else 0.25)
 
 
 func _clip_vec(clip_name: String, looping: bool) -> Vector4:
 	var c: Dictionary = clips[clip_name]
-	return Vector4(float(c["frame"]), float(c["frames"]), float(c["fps"]), 1.0 if looping else 0.0)
+	var w := clampf(float(spread.get(clip_name, 1.0)), 0.002, 1.0) if looping else 0.0
+	return Vector4(float(c["frame"]), float(c["frames"]), float(c["fps"]), w)
 
 
 ## Wraps a looping clock to a whole number of loops (about a minute) so the shader's float time

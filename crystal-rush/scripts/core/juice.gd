@@ -317,9 +317,9 @@ func _popup_layer(priority: int) -> Label3D:
 
 ## Floating text ("+12", "-5", "×2") at world `pos`: pops 0.6 → 1.15 → 1, rises 0.8 u in
 ## 0.6 s and fades. Pool of 10 Label3D; the oldest one is reused when all are busy.
-func popup(text: String, pos: Vector3, color: Color, size := 1.0) -> void:
+func popup(text: String, pos: Vector3, color: Color, size := 1.0) -> int:
 	if _popups.is_empty():
-		return
+		return -1
 	var i := _next_popup
 	_next_popup = (_next_popup + 1) % _popups.size()
 	var l := _popups[i]
@@ -345,7 +345,28 @@ func popup(text: String, pos: Vector3, color: Color, size := 1.0) -> void:
 	l.global_position = pos
 	l.scale = Vector3.ONE * 0.6 * size
 	l.visible = true
-	_popup_state[i] = {"active": true, "age": 0.0, "pos": pos, "size": size, "drift": Vector3.ZERO}
+	_popup_state[i] = {"active": true, "age": 0.0, "age0": 0.0, "pos": pos, "size": size, "drift": Vector3.ZERO, "text": text}
+	return i
+
+
+## Updates a live popup (handle from popup()) to `text` with a fresh punch, so a running total
+## ("−3" → "−7" → "−12") counts up in one place instead of stacking new numbers. Returns false
+## when that popup is gone (or was reused for other text): start a new one then.
+func bump(handle: int, old_text: String, text: String) -> bool:
+	if handle < 0 or handle >= _popups.size():
+		return false
+	var st: Dictionary = _popup_state[handle]
+	if not st["active"] or str(st.get("text", "")) != old_text or float(st["age"]) > POPUP_TIME * 0.8:
+		return false
+	var l := _popups[handle]
+	l.text = text
+	(l.get_child(0) as Label3D).text = text
+	(l.get_child(1) as Label3D).text = text
+	st["text"] = text
+	st["pos"] = l.global_position - (st["drift"] as Vector3)
+	st["age"] = 0.1
+	st["age0"] = 0.1
+	return true
 
 
 func _update_popups(rdt: float) -> void:
@@ -363,7 +384,8 @@ func _update_popups(rdt: float) -> void:
 			l.visible = false
 			continue
 		var u := age / POPUP_TIME
-		var rise := 1.0 - pow(1.0 - u, 3.0)
+		var u0 := float(st.get("age0", 0.0)) / POPUP_TIME
+		var rise := (1.0 - pow(1.0 - u, 3.0)) - (1.0 - pow(1.0 - u0, 3.0))
 		l.global_position = (st["pos"] as Vector3) + Vector3.UP * POPUP_RISE * rise + (st["drift"] as Vector3)
 		var sc := _pop_curve(age)
 		l.scale = Vector3.ONE * sc * float(st["size"])

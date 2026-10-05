@@ -93,7 +93,8 @@ func _layout() -> void:
 		_drag.reset_size()
 		_drag.position = Vector2((vp.x - _drag.size.x) * 0.5, vp.y * 0.6)
 	_toasts.size = Vector2(vp.x, 10)
-	_toasts.position = Vector2(0, vp.y * 0.39)
+	# Above the big toast line and clear of the army counter (which rides at about 0.42).
+	_toasts.position = Vector2(0, vp.y * 0.215)
 	_place_hint()
 
 
@@ -280,7 +281,9 @@ func _place_hint() -> void:
 	var vp := get_viewport_rect().size
 	_hint.reset_size()
 	_hint.size.x = minf(vp.x - 48.0, maxf(_hint.get_combined_minimum_size().x, 0.0))
-	_hint.position = Vector2((vp.x - _hint.size.x) * 0.5, maxf(vp.y * 0.22, 190.0 + insets.y))
+	# Just under the weapon slots, over the far road: lower down it covered the very gate row
+	# the hint talks about.
+	_hint.position = Vector2((vp.x - _hint.size.x) * 0.5, maxf(vp.y * 0.115, 150.0 + insets.y))
 	_hint.pivot_offset = _hint.size * 0.5
 
 
@@ -461,7 +464,7 @@ func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 	add_child(_card)
 	var vp := get_viewport_rect().size
 	_card.reset_size()
-	_card.position = Vector2((vp.x - _card.size.x) * 0.5, maxf(vp.y * 0.47 - _card.size.y * 0.5, 380.0 + insets.y))
+	_card.position = Vector2((vp.x - _card.size.x) * 0.5, maxf(vp.y * 0.29 - _card.size.y * 0.5, 160.0 + insets.y))
 	_card.pivot_offset = _card.size * 0.5
 	var card := _card
 	var target_slot := _slots[slot_i]

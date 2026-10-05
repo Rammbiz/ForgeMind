@@ -31,8 +31,8 @@ const KEY_SPEED := 6.0
 const VIEW_AHEAD := 75.0
 const VIEW_BEHIND := 12.0
 const CAM_HFOV := 40.0
-const CAM_NEAR := Vector3(7.6, 7.0, 2.6)    # small army: height, back, look-ahead
-const CAM_FAR := Vector3(10.4, 12.2, 0.0)   # army at its widest blob
+const CAM_NEAR := Vector3(7.6, 7.0, 3.6)    # small army: height, back, look-ahead
+const CAM_FAR := Vector3(10.4, 12.2, 1.2)   # army at its widest blob
 const TILE_STREAK := 0.6
 const STAIR_TIME := 0.3
 const FALL_TIME := 1.5
@@ -43,6 +43,14 @@ const GAIN := Color(0.35, 1.0, 0.5)
 const LOSS := Color(1.0, 0.33, 0.3)
 const GOLD := Color(1.0, 0.82, 0.3)
 const EMERALD := Color(0.18, 1.0, 0.55)
+const KNIGHT_BASE := "res://assets/units/knight/knight"
+## Army weapon tier shown on the knights (no tiered models yet): fresnel edge colour, amount.
+## Per tier: edge colour, edge amount, crystal (crest and blades) colour, crystal tint, glow.
+const TIER_EDGE := [
+	[Color(0.55, 0.8, 1.0), 0.35, Color(0.45, 0.9, 1.0), 0.3, 0.45],
+	[Color(0.15, 1.0, 0.8), 1.2, Color(0.1, 1.0, 0.7), 0.9, 1.5],
+	[Color(0.78, 0.42, 1.0), 1.1, Color(0.85, 0.4, 1.0), 0.95, 1.7],
+]
 const HITTABLE := ["gate", "barricade", "turret", "squad", "geode", "crate", "fortress"]
 const TILE_SHADER := "shader_type spatial;
 render_mode blend_mix, cull_back;
@@ -152,9 +160,13 @@ var _stair_phase := 0
 var _stair_plan_rest := 0
 var _pop_cd := {}
 var _army_label: Label3D
+var _label_off := Vector3.ZERO
 var _tiles: MultiMeshInstance3D
 var _coins_mm: MultiMeshInstance3D
 var _recruit_view: CrowdView
+## The owner's Crystal Knight as a baked VAT crowd (null: the procedural soldier fallback).
+var army_anim: VatClip
+var recruit_anim: VatClip
 var _cam_pos := Vector3.ZERO
 var _cam_look := Vector3.ZERO
 var _cam_vel := Vector3.ZERO
@@ -193,7 +205,11 @@ func _ready() -> void:
 	add_child(juice)
 	fx = UnitFx.new()
 	add_child(fx)
-	fx.setup(Models.soldier_mesh(0), Models.raider_mesh(), Models.asset_texture("soldier"), Models.asset_texture("raider"))
+	army_anim = _knight_clip()
+	if army_anim:
+		fx.setup(army_anim.mesh, Models.raider_mesh(), army_anim.albedo, Models.asset_texture("raider"))
+	else:
+		fx.setup(Models.soldier_mesh(0), Models.raider_mesh(), Models.asset_texture("soldier"), Models.asset_texture("raider"))
 	hazards = Hazards.new()
 	hazards.setup(self)
 	add_child(hazards)
@@ -203,7 +219,10 @@ func _ready() -> void:
 	hero.setup(hero_type)
 	army_view = Army.new()
 	add_child(army_view)
-	army_view.setup(fx, _max_shown, Models.soldier_mesh(0))
+	army_view.setup(fx, _max_shown, army_anim.mesh if army_anim else Models.soldier_mesh(0))
+	if army_anim:
+		army_anim.attach(army_view.view)
+		army_anim.play("idle", 0.0)
 	_radius_vis = blob_radius()
 	army_view.radius = _radius_vis
 	army_view.center = _army_center()
@@ -242,6 +261,13 @@ func steer_to(x: float) -> void:
 
 func blob_radius() -> float:
 	return Balance.blob_radius(float(army))
+
+
+## A VatClip for the baked knight, or null when the bake is missing (procedural fallback).
+static func _knight_clip() -> VatClip:
+	if not ResourceLoader.exists(KNIGHT_BASE + "_vat_mesh.res"):
+		return null
+	return VatClip.create(KNIGHT_BASE)
 
 
 func ult_ready() -> bool:
@@ -306,10 +332,16 @@ func _spawn_items(list: Array) -> void:
 	_recruit_view = CrowdView.new()
 	_recruit_view.name = "Recruits"
 	add_child(_recruit_view)
-	_recruit_view.setup(Models.soldier_mesh(0), 96)
+	recruit_anim = _knight_clip()
+	_recruit_view.setup(recruit_anim.mesh if recruit_anim else Models.soldier_mesh(0), 96)
 	_recruit_view.set_saturation(0.0)
-	_recruit_view.set_tint(Color(0.8, 0.82, 0.86))
+	# Light silver with a soft white rim: friendly-but-unjoined, never mistaken for a dark enemy.
+	_recruit_view.set_tint(Color(1.05, 1.07, 1.12))
+	_recruit_view.set_edge(Color(0.9, 0.95, 1.0), 1.6)
 	_recruit_view.set_gait(10.0)
+	if recruit_anim:
+		recruit_anim.attach(_recruit_view)
+		recruit_anim.play("idle", 0.0)
 
 
 func _build_gate(it: Dictionary) -> void:
@@ -616,7 +648,7 @@ func _take_recruits(it: Dictionary) -> void:
 	_army_changed(before)
 	_charge(float(n))
 	var at := Vector3(float(it["x"]), 1.0, -float(it["d"]))
-	juice.popup("+%d" % n, at, GAIN, 0.9)
+	_side_popup("+%d" % n, at, GAIN, 0.9)
 	effects.burst(at, Color(0.85, 0.9, 1.0), 14, 2.2, 0.07, 0.45, -3.0)
 	Audio.play("recruit", -4.0)
 	juice.haptic("gate_good")
@@ -753,6 +785,11 @@ func _style_gate(it: Dictionary) -> void:
 		"rate", "dmg", "multi":
 			kind = "power"
 			icon = op
+			# "+30% швидкість": the number goes big, the word into the pill under it.
+			var cut := text.find(" ")
+			if cut > 0:
+				sub = text.substr(cut + 1)
+				text = text.substr(0, cut)
 		"weapon":
 			kind = "power"
 			var wk := _reward_weapon(it)
@@ -809,6 +846,7 @@ func _gate_row(first: Dictionary) -> void:
 		g["alive"] = false
 		if g != chosen:
 			_style_gate(g)
+		_retract_gate(g)
 	if chosen.is_empty():
 		Audio.play("whoosh_gate", -12.0, 0.1)
 		return
@@ -861,26 +899,24 @@ func _pass_gate(it: Dictionary, op: String, v: float) -> void:
 			var tier := clampi(int(v), 0, Balance.ARM_TIERS.size() - 1)
 			if tier > arm_tier:
 				arm_tier = tier
-				army_view.set_mesh(Models.soldier_mesh(arm_tier))
+				show_arm_tier()
 				effects.shockwave(Vector3(hx, 0, -d + 1.5), Color(0.1, 0.9, 0.75), 2.6)
-			power_changed.emit("arm", float(arm_tier))
-			popup = _gate_text(op, v)
-			pcol = Color(0.4, 1.0, 0.85)
+				var e: Array = TIER_EDGE[clampi(arm_tier, 0, TIER_EDGE.size() - 1)]
+				effects.burst(Vector3(hx, 0.8, -d + 1.5), e[2] as Color, 30, 3.2, 0.08, 0.6, -4.0)
+				power_changed.emit("arm", float(arm_tier))
+			popup = ""      # the HUD's pill toast says it
 		"rate":
 			power["rate"] = float(power["rate"]) + v / 100.0
 			power_changed.emit("rate", float(power["rate"]))
-			popup = _gate_text(op, v)
-			pcol = GOLD
+			popup = ""
 		"dmg":
 			power["dmg"] = int(power["dmg"]) + int(round(v))
 			power_changed.emit("dmg", float(power["dmg"]))
-			popup = _gate_text(op, v)
-			pcol = GOLD
+			popup = ""
 		"multi":
 			power["multi"] = int(power["multi"]) + int(round(v))
 			power_changed.emit("multi", float(power["multi"]))
-			popup = _gate_text(op, v)
-			pcol = GOLD
+			popup = ""
 		"weapon":
 			_give_weapon(_reward_weapon(it), at)
 			popup = ""
@@ -913,6 +949,19 @@ func _pass_gate(it: Dictionary, op: String, v: float) -> void:
 	tw.tween_property(node, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(0.15)
 	tw.tween_callback(func() -> void: _style_gate(it))
+
+
+## A passed gate retracts into the bridge once the army is through, so folded frames never
+## loom huge in the foreground.
+func _retract_gate(it: Dictionary) -> void:
+	var node := it.get("node") as Node3D
+	if node == null or not node.is_inside_tree():
+		return
+	var through := (Balance.HERO_GAP + 2.0 * _radius_vis * Balance.BLOB_STRETCH) / Balance.RUN_SPEED
+	var tw := node.create_tween()
+	tw.tween_interval(0.12 + through * 0.3)
+	tw.tween_property(node, "position:y", -3.4, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.tween_callback(node.hide)
 
 
 ## A hero hit (or a storm tick) on a gate: + grows, - shrinks, rate grows, charge fills and
@@ -1057,18 +1106,36 @@ func hazard_kills(it: Dictionary, idxs: PackedInt32Array, push: Vector3) -> void
 	_loss_popup(it, before - army, at)
 
 
-## Groups loss popups per hazard (one every 0.25 s) so a squeeze reads as one number.
+## A popup next to the army instead of on top of its counter (which rides over the hero):
+## anything spawning near the hero is moved out to its own side of the hero.
+func _side_popup(text: String, at: Vector3, color: Color, size := 1.0) -> int:
+	var near := absf(at.x - hx) < 1.25 and at.z > -d - 2.5 and at.z < -d + 3.0
+	if near:
+		var side := signf(at.x - hx)
+		if side == 0.0:
+			side = -1.0 if hx > 0.0 else 1.0
+		at.x = clampf(hx + side * 1.45, -2.9, 2.9)
+		if absf(at.x - hx) < 1.0:
+			at.x = hx - side * 1.45
+		at.y = maxf(at.y, 1.3)
+	return juice.popup(text, at, color, size)
+
+
+## One running total per hazard: while a squeeze goes on, its popup counts up in place
+## ("−3" → "−7" → "−12") with a punch on each step instead of stacking a column of numbers.
 func _loss_popup(it: Dictionary, n: int, at: Vector3) -> void:
 	if n <= 0:
 		return
 	var id := "%s%.2f" % [str(it["kind"]), float(it["d"])]
-	var acc: Array = _pop_cd.get(id, [0, -100000])
-	acc[0] = int(acc[0]) + n
-	var now := Time.get_ticks_msec()
-	if now - int(acc[1]) > 250:
-		juice.popup("−%d" % int(acc[0]), at, LOSS, 0.9)
-		acc[0] = 0
-		acc[1] = now
+	var acc: Array = _pop_cd.get(id, [0, -1, ""])
+	var total := int(acc[0]) + n
+	var text := "−%d" % total
+	if not juice.bump(int(acc[1]), str(acc[2]), text):
+		total = n
+		text = "−%d" % total
+		acc[1] = _side_popup(text, at, LOSS, 0.95)
+	acc[0] = total
+	acc[2] = text
 	_pop_cd[id] = acc
 
 
@@ -1447,6 +1514,13 @@ func _storm_tick() -> void:
 			var at := aim_point(it)
 			effects.lightning([at + Vector3(randf_range(-0.6, 0.6), 7.0, 0), at + Vector3(randf_range(-0.3, 0.3), 2.5, 0), at], Color(0.55, 0.85, 1.0), 0.2, 0.07, false)
 			effects.hit_spark(at, Color(1.0, 0.9, 0.5))
+	# The storm rages even with nothing to hit: spare bolts strike the bridge ahead of the army.
+	for k in mini(bolts, 3):
+		var at2 := Vector3(randf_range(-2.8, 2.8), 0.05, -d - randf_range(2.5, float(ult["range"])))
+		effects.lightning([at2 + Vector3(randf_range(-0.8, 0.8), 8.0, 0), at2 + Vector3(randf_range(-0.4, 0.4), 3.0, 0), at2 + Vector3(randf_range(-0.2, 0.2), 1.2, 0), at2], Color(0.6, 0.88, 1.0), 0.3, 0.1, false)
+		effects.flash(at2 + Vector3(0, 0.3, 0), Color(0.6, 0.85, 1.0), 1.6, 0.22)
+		effects.shockwave(at2, Color(0.5, 0.8, 1.0), 1.1)
+		effects.burst(at2 + Vector3(0, 0.2, 0), Color(0.75, 0.92, 1.0), 10, 3.0, 0.06, 0.35, -6.0)
 	_ult_hit(d - 0.5, d + float(ult["range"]), true)
 	Audio.play("tesla", -7.0, 0.2)
 	juice.add_trauma(0.12)
@@ -1640,6 +1714,9 @@ func _win() -> void:
 		tw.tween_property(f, "position:y", -9.0, FALL_TIME * 1.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN).set_delay(0.25)
 		tw.tween_property(f, "rotation:x", -0.22, FALL_TIME * 1.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN).set_delay(0.25)
 		tw.tween_property(f, "rotation:z", 0.06, FALL_TIME).set_delay(0.25)
+		# Gone into the abyss for good (its spire would otherwise poke up beside the stairs).
+		tw.chain().tween_property(f, "position:y", -30.0, 0.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.chain().tween_callback(f.hide)
 		for k in 4:
 			get_tree().create_timer(0.35 + k * 0.28, false).timeout.connect(func() -> void:
 				if is_instance_valid(f):
@@ -1707,7 +1784,8 @@ func _stairs_step(dt: float) -> void:
 			_stair_phase = 4
 			_stair_t = 0.0
 		4:
-			if _stair_t >= 1.1:
+			# A beat of celebration on top before the result panel.
+			if _stair_t >= 1.8:
 				state = State.WON
 				_end_t = 0.0
 	if _stair_phase >= 2:
@@ -1832,15 +1910,24 @@ func _visuals(delta: float) -> void:
 		hero.position = Vector3(hx, 0.0, -d)
 	hero.running = state == State.RUNNING or (state == State.STAIRS and _stair_phase == 1)
 	hero.fighting = state == State.CLASH or state == State.SIEGE
+	_animate_knights(delta)
 	army_view.draw()
 	# Army counter above the hero, leading the blob.
 	var top := hero.position + Vector3(0, hero.top() + 0.75, 0.25)
 	if on_stairs and _stair_phase >= 2:
 		top = hero.position + Vector3(0, 2.4, 0.4)
-	_army_label.position = top
+	elif (state == State.CLASH or state == State.SIEGE) and army > 0:
+		# The squad's counter owns the space over the front line: ours rides over the blob.
+		var b := army_view.bounds()
+		top = Vector3((float(b[0]) + float(b[1])) * 0.5, 0.9, float(b[3]) + 0.35)
+	# Slide between anchors (hero / blob) instead of jumping; the hero part tracks exactly.
+	var off := top - hero.position
+	_label_off = off if delta <= 0.0 else _label_off.lerp(off, 1.0 - exp(-12.0 * dt))
+	_army_label.position = hero.position + _label_off
 	# On the stairs the step multipliers own that space.
 	_army_label.visible = army > 0 and not (on_stairs and _stair_phase >= 2)
 	juice.popup_velocity = Vector3(0, 0, -Balance.RUN_SPEED) if state == State.RUNNING else Vector3.ZERO
+	_fade_passing_gate()
 	hazards.draw(t, dt, d, _foe if state == State.CLASH else {})
 	arsenal.draw(dt, t)
 	_draw_pickups()
@@ -1856,6 +1943,54 @@ func _visuals(delta: float) -> void:
 		_cull_t = 0.5
 		fx.cull_behind(-d + 14.0)
 	_camera(dt)
+
+
+## The army counter rides over the hero: right before the hero passes a gate, that gate's big
+## number fades out so the two never stack (the pass popup shows the result next).
+func _fade_passing_gate() -> void:
+	for i in range(maxi(_tk - 2, 0), _targ.size()):
+		var it := _targ[i]
+		var ahead := float(it["d"]) - d
+		if ahead > 4.4:
+			break
+		if ahead < -0.5 or str(it["kind"]) != "gate" or not it["alive"]:
+			continue
+		var l := it["label"] as Label3D
+		if absf(hx - float(it["x"])) <= float(it["w"]) * 0.5 + 0.3:
+			l.modulate.a = clampf((ahead - 1.8) / 2.4, 0.12, 1.0)
+
+
+## Picks the knights' clip for the state and advances the crowd clocks (VAT path only).
+func _animate_knights(delta: float) -> void:
+	if army_anim == null:
+		return
+	var want := "run"
+	var rate := VatClip.run_rate(Balance.RUN_SPEED)
+	match state:
+		State.READY, State.LOST:
+			want = "idle"
+			rate = 1.0
+		State.CLASH, State.SIEGE:
+			want = "attack"
+			rate = 1.15
+		State.STAIRS:
+			if _stair_phase == 0:
+				want = "victory"      # the fortress crumbles: the army cheers
+				rate = 1.0
+			elif _stair_phase == 2:
+				want = "walk"
+				rate = 1.6
+			elif _stair_phase >= 3:
+				want = "victory"
+				rate = 1.0
+		State.WON:
+			want = "victory"
+			rate = 1.0
+	army_anim.play(want, 0.2, false, rate)
+	army_anim.set_unit_scale(VatClip.crowd_scale(army_view.shown))
+	army_anim.tick(delta)
+	if recruit_anim:
+		recruit_anim.tick(delta)
 
 
 func _draw_pickups() -> void:
@@ -1903,11 +2038,15 @@ func _camera_goal() -> Array:
 	var fov := _fov_base
 	match state:
 		State.CLASH:
+			# Push in on the fight: the front line drops towards the middle of the screen.
 			fov = _fov_base - 5.0
+			pos += Vector3(0.0, -0.6, -1.4)
+			look += Vector3(0.0, 0.0, -1.4)
 		State.SIEGE:
 			var fz := -float(_fortress.get("d", d))
-			pos = Vector3(0.0, 11.5, fz + 13.5)
-			look = Vector3(0.0, 1.6, fz - 0.5)
+			# Closer and lower: the fortress towers over the army ramming its gate.
+			pos = Vector3(0.0, 9.0, fz + 11.8)
+			look = Vector3(0.0, 2.4, fz - 1.0)
 		State.STAIRS, State.WON:
 			var sz := -float(_stairs.get("d", d))
 			if _stair_phase <= 1 and state == State.STAIRS:
@@ -1924,8 +2063,11 @@ func _camera_goal() -> Array:
 
 func _camera(dt: float) -> void:
 	var goal := _camera_goal()
-	var gp: Vector3 = goal[0]
-	var gl: Vector3 = goal[1]
+	# The spring runs in a frame that moves with the run (anchor z = -d), so forward motion is
+	# followed exactly and state changes (clash push-in, siege, stairs) glide without a pop.
+	var anchor := Vector3(0.0, 0.0, -d)
+	var gp: Vector3 = (goal[0] as Vector3) - anchor
+	var gl: Vector3 = (goal[1] as Vector3) - anchor
 	var smooth := 0.25
 	if state == State.SIEGE or state == State.STAIRS or state == State.WON:
 		smooth = 0.7
@@ -1933,24 +2075,20 @@ func _camera(dt: float) -> void:
 		_cam_ready = true
 		_cam_pos = gp
 		_cam_look = gl
+		_cam_vel = Vector3.ZERO
+		_look_vel = Vector3.ZERO
 	else:
-		var z_exact := state == State.RUNNING or state == State.READY or state == State.CLASH
 		var res := _damp3(_cam_pos, gp, _cam_vel, smooth, dt)
 		_cam_pos = res[0]
 		_cam_vel = res[1]
 		var res2 := _damp3(_cam_look, gl, _look_vel, smooth, dt)
 		_cam_look = res2[0]
 		_look_vel = res2[1]
-		if z_exact and absf(_cam_pos.z - gp.z) < 1.5:
-			# Forward motion is followed exactly so the hero never drifts on screen.
-			_cam_look.z += gp.z - _cam_pos.z
-			_cam_pos.z = gp.z
-			_cam_vel.z = 0.0
 	_fov = lerpf(_fov, float(goal[2]), 1.0 - exp(-6.0 * dt))
 	cam.fov = _fov
 	var shake := juice.shake_offset()
-	cam.position = _cam_pos + shake
-	cam.look_at(_cam_look + shake * 0.5)
+	cam.position = anchor + _cam_pos + shake
+	cam.look_at(anchor + _cam_look + shake * 0.5)
 	cam.rotate_object_local(Vector3.FORWARD, juice.shake_roll())
 
 
@@ -1981,6 +2119,7 @@ func skip_to(dist: float) -> void:
 			for g: Dictionary in _rows.get(int(it.get("row", -1)), [it]):
 				g["alive"] = false
 				_style_gate(g)
+				(g["node"] as Node3D).visible = false
 		else:
 			it["alive"] = false
 	while _bk < _block.size() and float(_block[_bk]["d"]) - Balance.CONTACT <= d:
@@ -2008,6 +2147,20 @@ func skip_to(dist: float) -> void:
 	_update_live()
 	army_view.center = _army_center()
 	_cam_ready = false
+
+
+## Shows the army weapon tier: the procedural soldiers swap models; the knights (no tiered
+## models yet) get a teal (crossbows) or violet (blasters) edge glow.
+func show_arm_tier() -> void:
+	if army_anim == null:
+		army_view.set_mesh(Models.soldier_mesh(arm_tier))
+		return
+	var e: Array = TIER_EDGE[clampi(arm_tier, 0, TIER_EDGE.size() - 1)]
+	army_view.view.set_edge(e[0] as Color, float(e[1]))
+	var m := army_anim.material
+	m.set_shader_parameter("crystal_color", e[2] as Color)
+	m.set_shader_parameter("crystal_tint", float(e[3]))
+	m.set_shader_parameter("crystal_glow", float(e[4]))
 
 
 ## Dev / screenshot helper: sets the army size at once.

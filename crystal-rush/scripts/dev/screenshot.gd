@@ -15,6 +15,8 @@ extends Node
 ##   --ult             fire the ult as soon as it is ready; --ult_now fills it and fires at once
 ##   --charge          fill the ult (no fire)
 ##   --hide_hud        hide the HUD layer
+##   --pause           open the pause panel before the shot
+##   --lang=uk|en      language (read by Loc)
 
 var args := {}
 
@@ -57,7 +59,7 @@ func _run_setup(main: Node) -> void:
 		run.set_army(int(args["army"]))
 	if args.has("arm"):
 		run.arm_tier = int(args["arm"])
-		run.army_view.set_mesh(Models.soldier_mesh(run.arm_tier))
+		run.show_arm_tier()
 		run.power_changed.emit("arm", float(run.arm_tier))
 	if args.has("weapons"):
 		for k: String in str(args["weapons"]).split(","):
@@ -67,7 +69,8 @@ func _run_setup(main: Node) -> void:
 		run.skip_to(float(args["skip"]))
 	if args.has("charge") or args.has("ult_now"):
 		run.ult_points = float(run.ult["charge"])
-		run._emit_ult()
+		if not args.has("ult_now"):
+			run._emit_ult()       # (--ult_now fires at once: no "ult ready" toast over the shot)
 	var bot := Bot.new()
 	bot.skill = float(args.get("skill", "1.0"))
 	var hold := args.has("x")
@@ -98,6 +101,12 @@ func _run_setup(main: Node) -> void:
 	var play := float(args.get("play", "0"))
 	if play > 0.0:
 		await _play(run, bot, hold, hx, play, Callable())
+	if args.has("dbg"):
+		var fl := run._fortress["label"] as Label3D
+		print("DBG fort label vis=", fl.is_visible_in_tree(), " pos=", fl.global_position, " text=", fl.text, " scale=", fl.scale, " mod=", fl.modulate, " px=", fl.pixel_size)
+		print("DBG state=", run.state, " army=", run.army, " label=", run._army_label.global_position, " vis=", run._army_label.visible, " bounds=", run.army_view.bounds(), " d=", run.d)
+	if args.has("pause"):
+		(holder.get_meta("hud") as RunHud).pause()
 
 
 ## Plays up to `seconds` of game time (or until `stop` returns true).

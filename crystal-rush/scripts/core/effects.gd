@@ -368,14 +368,17 @@ func _step_projectiles(delta: float) -> void:
 					_put_rocket(rockets, pos, dir, float(p["seed"]) * TAU + t * 14.0)
 					rockets += 1
 				var tail := pos - dir * 0.24
-				_frame_glows.append([tail, gs * (0.85 + 0.3 * randf()), Color(1.0, 0.6, 0.22), 0.6, randf() * TAU, 1.0])
+				# The motor lights up once the rocket has cleared the army it flies over (a full
+				# glow at launch read as an explosion inside our own blob).
+				var lit := 0.35 + 0.65 * smoothstep(0.05, 0.3, u)
+				_frame_glows.append([tail, gs * lit * (0.75 + 0.25 * randf()), Color(1.0, 0.6, 0.22), 0.6, randf() * TAU, 1.0])
 				p["puff"] = float(p["puff"]) + delta
 				var every := 0.018 if quality_high else 0.035
 				while float(p["puff"]) > every:
 					p["puff"] = float(p["puff"]) - every
 					var sc := randf_range(0.18, 0.28)
-					_smoke.add(tail + _rand_dir() * 0.04, -dir * 0.6 + Vector3(0, 0.25, 0) + _rand_dir() * 0.25, Color(0.78, 0.76, 0.86, 0.75),
-						randf_range(0.55, 0.85), sc, sc * 3.2, 0.3, 1.5, randf())
+					_smoke.add(tail + _rand_dir() * 0.04, -dir * 0.6 + Vector3(0, 0.25, 0) + _rand_dir() * 0.25, Color(0.78, 0.76, 0.86, 0.75 * lit),
+						randf_range(0.45, 0.7), sc, sc * 2.4, 0.3, 1.5, randf())
 				if randf() < 0.5:
 					_sparks.add(tail, -dir * randf_range(2.0, 4.0) + _rand_dir() * 1.5, Color(1.0, 0.7, 0.3), 0.18, 0.04, 0.01, 0.0, 3.0, 0.04)
 			"volley":

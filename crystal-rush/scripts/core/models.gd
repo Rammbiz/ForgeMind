@@ -552,11 +552,11 @@ static func gate(width: float) -> Node3D:
 	root.set_meta("label", l)
 	var pill := Node3D.new()
 	pill.name = "Forecast"
-	pill.position = Vector3(0, 0.42, 0.2)
-	pill.rotation_degrees = Vector3(-22, 0, 0)
+	pill.position = Vector3(0, 0.46, 0.2)
+	pill.rotation_degrees = Vector3(-24, 0, 0)
 	var pill_bg := MeshInstance3D.new()
 	var pq := QuadMesh.new()
-	pq.size = Vector2(1.0, 0.42)
+	pq.size = Vector2(1.0, 0.54)
 	pill_bg.mesh = pq
 	pill_bg.material_override = _pill_mat()
 	pill_bg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -769,9 +769,11 @@ static func gate_style(node: Node3D, text: String, sub: String, kind: String, ic
 		s.text = shown
 		s.modulate = core
 		s.outline_modulate = Color(0.02, 0.03, 0.08)
-		_fit_label(s, w - 0.75, 0.3, 0.0042)
+		# The forecast is the decision: big enough to read two rows ahead on a phone.
+		_fit_label(s, w - 0.55, 0.4, 0.0052)
 		var tw := s.font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, s.font_size).x * s.pixel_size
-		var aw := 0.34 if has_arrow else 0.0
+		var aw := 0.4 if has_arrow else 0.0
+		arrow.scale = Vector3.ONE * 1.2
 		var total := tw + aw
 		s.position.x = aw * 0.5
 		arrow.visible = has_arrow
@@ -1485,9 +1487,13 @@ static func fortress(width: float, hp: int) -> Node3D:
 	var l := label(str(hp), 300, Color(1.0, 0.94, 0.86))
 	l.outline_modulate = Color(0.28, 0.02, 0.02)
 	l.outline_size = 52
-	l.position = Vector3(0, 4.45, 1.16)
+	l.position = Vector3(0, 4.45, 1.6)
 	l.rotation_degrees = Vector3(-8, 0, 0)
-	l.render_priority = 3
+	# Always on top: the gate's front plates hid the hp counter from the high siege camera.
+	l.no_depth_test = true
+	l.render_priority = 5
+	l.outline_render_priority = 4
+	l.modulate = Color(1.0, 0.86, 0.8)
 	_fit_label(l, 2.6, 1.15)
 	root.add_child(l)
 	root.set_meta("label", l)

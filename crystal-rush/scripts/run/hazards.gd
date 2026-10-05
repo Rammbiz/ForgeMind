@@ -512,6 +512,6 @@ func draw(t: float, dt: float, d: float, foe: Dictionary) -> void:
 			var l := it["label"] as Label3D
 			var c := squad_point(it)
 			var rows := ceili(float(sq.shown) / sq.per_row)
-			l.position = Vector3(c.x, 1.45, c.z - rows * SQUAD_DZ * 0.5)
+			l.position = Vector3(c.x, 2.1 if fighting else 1.45, c.z - rows * SQUAD_DZ * 0.5 - (0.9 if fighting else 0.0))
 			if run.juice.counter_shown(l) < 0:
 				l.text = str(ceili(float(it["hp"])))

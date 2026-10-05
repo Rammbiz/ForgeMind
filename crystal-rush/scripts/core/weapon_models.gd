@@ -28,6 +28,7 @@ const COLORS := {
 const WHEEL_R := 0.17
 const DRONE_Y := 0.62
 const GLASS_SHADER := preload("res://shaders/weapon_glass.gdshader")
+const PILLAR_SHADER := preload("res://shaders/loot_pillar.gdshader")
 const NOISE_TEX := preload("res://assets/textures/cloud_noise.png")
 
 static var _meshes := {}
@@ -348,6 +349,28 @@ static func crate(weapon: String, hp := 0) -> Node3D:
 	ring.position = Vector3(0, 0.03, 0)
 	root.add_child(ring)
 	root.set_meta("beacon", ring)
+	# Loot pillar: a column of light in the weapon's colour, so a crate reads as treasure from
+	# far down the bridge (the white capsule alone melted into the white army).
+	var pillar := MeshInstance3D.new()
+	pillar.name = "Pillar"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.55
+	cm.bottom_radius = 0.6
+	cm.height = 5.0
+	cm.radial_segments = 20
+	cm.rings = 1
+	cm.cap_top = false
+	cm.cap_bottom = false
+	pillar.mesh = cm
+	var pm := ShaderMaterial.new()
+	pm.shader = PILLAR_SHADER
+	pm.set_shader_parameter("color", col.lerp(Color.WHITE, 0.15))
+	pm.set_shader_parameter("noise_tex", NOISE_TEX)
+	pm.set_shader_parameter("strength", 1.7)
+	pillar.material_override = pm
+	pillar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pillar.position = Vector3(0, 2.5, 0)
+	root.add_child(pillar)
 	var l := _label(str(hp) if hp > 0 else "", 120, Color(1.0, 0.96, 0.86))
 	l.position = Vector3(0, 1.98, 0)
 	root.add_child(l)

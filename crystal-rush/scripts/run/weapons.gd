@@ -12,7 +12,9 @@ extends Node3D
 ## Machines ride at the army's flanks and behind it; a new one hops out of its crate and rolls
 ## into its slot. Projectiles fly with Effects; damage lands on impact.
 
-const SPEED := {"ballista": 22.0, "cannon": 13.0, "rockets": 9.0, "drone": 18.0}
+# Rockets fly fast enough to land ahead of the marching army (at 9 u/s the army overtook the
+# impact point and the explosions went off inside our own blob).
+const SPEED := {"ballista": 22.0, "cannon": 15.0, "rockets": 15.0, "drone": 18.0}
 const SHOT := {"ballista": "bolt", "cannon": "plasma", "rockets": "rocket", "drone": "drone"}
 const KICK_DECAY := 2.5
 const ARRIVE_TIME := 0.9

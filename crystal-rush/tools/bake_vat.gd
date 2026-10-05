@@ -11,7 +11,8 @@ extends SceneTree
 ##                                    big source GLBs do not have to live in the project
 ##       --clips=run,walk,...         bake only these clips (default: all of CLIPS)
 ##       --height=0.75                height of the baked unit in world units (feet at y = 0)
-##       --max-width=4096             widest texture row; more vertices wrap onto several rows per frame
+##       --max-width=2048             widest texture row; more vertices wrap onto several rows per frame
+##                                    (2048 = the GLES3 guaranteed minimum texture size, safe on any phone)
 ##       --albedo=PATH                albedo image (default <in without .glb>_albedo.jpg, else the GLB's)
 ##       --albedo-format=etc2|raw     etc2 (default: VRAM-compressed on GLES3 phones) or uncompressed
 ##       --name=knight                output prefix (default: input name without "_src")
@@ -40,17 +41,21 @@ extends SceneTree
 ## ground: "clip" = one lift for the clip so the lowest foot touches y = 0, "frame" = also lift any
 ## frame that would dip below the floor. pin_root: drop horizontal root motion. despin: store the
 ## root yaw in the alpha channel. loop_blend: seconds at the end that blend back into the start pose.
-## jump: [t0, t1, height] extra airborne arc (source seconds, model units).
+## jump: [t0, t1, height] extra airborne arc (source seconds, model units). prop_follow: how much
+## the held prop turns with the fist (1 = rigid). prop_slide: the shaft slid up through the fist
+## (model units), so the spear blade stands above the helmet where the game camera sees it.
 const CLIPS := [
 	{"name": "run", "src": "anim:Running", "frames": 19, "start": 0.0, "length": "auto", "loop": true,
-		"leg_fix": true, "ground": "clip", "prop_follow": 0.35},
+		"leg_fix": true, "ground": "clip", "prop_follow": 0.35, "prop_slide": 0.3},
 	{"name": "walk", "src": "anim:Walking", "frames": 16, "start": 0.0, "length": "auto", "loop": true,
-		"leg_fix": true, "ground": "clip", "prop_follow": 0.35},
+		"leg_fix": true, "ground": "clip", "prop_follow": 0.35, "prop_slide": 0.3},
 	{"name": "attack", "src": "proc:attack", "frames": 16, "start": 0.0, "length": 0.8, "loop": true,
 		"ground": "clip"},
 	{"name": "idle", "src": "proc:idle", "frames": 8, "start": 0.0, "length": 2.4, "loop": true,
-		"ground": "clip"},
-	{"name": "victory", "src": "anim:360_Power_Spin_Jump", "frames": 44, "start": 0.45, "length": 2.2,
+		"ground": "clip", "prop_slide": 0.3},
+	{"name": "victory", "src": "proc:cheer", "frames": 24, "start": 0.0, "length": 1.2, "loop": true,
+		"ground": "clip", "jump": [0.4, 0.8, 0.3]},
+	{"name": "spin", "src": "anim:360_Power_Spin_Jump", "frames": 44, "start": 0.45, "length": 2.2,
 		"loop": true, "leg_fix": true, "pin_root": true, "despin": true, "ground": "frame",
 		"loop_blend": 0.35, "jump": [1.08, 1.86, 0.42]},
 ]
@@ -92,6 +97,7 @@ var _prop_axis := Vector3.UP        # prop direction (butt to tip), rest pose
 var _prop_butt := Vector3.ZERO      # lower end of the prop, rest pose
 var _prop_follow := 1.0
 var _prop_aim: Variant = null       # Basis, set per frame by procedural clips
+var _prop_slide := 0.0              # shaft slid up through the fist (model units), per frame
 
 var _scale := 1.0
 var _origin := Vector3.ZERO         # model-space point that becomes (0, 0, 0)
@@ -133,7 +139,7 @@ func _bake() -> bool:
 	var out := str(_args.get("out", src.get_base_dir())).trim_suffix("/") + "/"
 	var prefix := str(_args.get("name", src.get_file().get_basename().trim_suffix("_src")))
 	var height := float(_args.get("height", "0.75"))
-	var max_w := int(_args.get("max-width", "4096"))
+	var max_w := int(_args.get("max-width", "2048"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 
 	_root = _load_gltf(src)
@@ -662,6 +668,7 @@ func _prop_matrix(G: Array) -> Transform3D:
 		var d := (gf.basis * gr.basis.inverse()).get_rotation_quaternion()
 		r = Basis(Quaternion.IDENTITY.slerp(d, _prop_follow))
 	var m := Transform3D(r, grip) * Transform3D(Basis.IDENTITY, -_prop_grip)
+	m.origin += r * _prop_axis * _prop_slide
 	# Never plant the butt in the floor: let the shaft slide up through the fist instead.
 	var up := (r * _prop_axis).y
 	var butt := m * _prop_butt
@@ -711,20 +718,21 @@ func _fix_props(model_h: float) -> void:
 		var prop := {}
 		for v in shaft:
 			prop[v] = true
+		# Islands strung along the axis; the blade past the shaft's end may be a little wider
+		# (this knight's leaf blade reaches 0.11 from the axis).
 		var r := 0.06 * model_h
 		for isl in islands:
 			if isl.size() > 150 or prop.has(isl[0]):
 				continue
-			var inside := true
 			var c := Vector3.ZERO
+			var rad := 0.0
 			for v in isl:
 				var d := _pos[v] - lo
-				if (d - axis * d.dot(axis)).length() > r:
-					inside = false
-					break
+				rad = maxf(rad, (d - axis * d.dot(axis)).length())
 				c += _pos[v]
 			c /= isl.size()
 			var t := (c - lo).dot(axis)
+			var inside := rad <= (r * 1.4 if t > 1.05 * span else r)
 			if inside and (t > 0.75 * span or t < 0.05 * span):
 				for v in isl:
 					prop[v] = true
@@ -837,6 +845,7 @@ func _clip_locals(c: Dictionary, t: float) -> Array:
 	var src := str(c["src"])
 	_prop_follow = float(c.get("prop_follow", 1.0))
 	_prop_aim = null
+	_prop_slide = float(c.get("prop_slide", 0.0))
 	var L: Array
 	if src.begins_with("anim:"):
 		L = _anim_locals(_anims[src.substr(5)], t, bool(c.get("pin_root", false)))
@@ -1056,3 +1065,38 @@ func _proc_attack(u: float) -> Array:
 	var G := _fk(L)
 	var elbow: Vector3 = (G[fore] as Transform3D).origin
 	return _ik(L, _bone["RightArm"], fore, _bone["RightHand"], grip, elbow + Vector3(-0.4, -0.2, -0.3), null, eff)
+
+
+## Victory cheer: a crouch, a jump with the spear thrust at the sky and the shield fist pumped
+## up, a squashy landing, arms kept half raised so the loop flows into the next jump. Airborne
+## between 0.4 and 0.8 s (the clip's "jump" arc lifts the whole body).
+func _proc_cheer(u: float) -> Array:
+	var crouch := _ease(u / 0.2) * (1.0 - _ease((u - 0.25) / 0.08)) + 0.75 * _ease((u - 0.62) / 0.06) * (1.0 - _ease((u - 0.7) / 0.2))
+	var air := clampf(sin(PI * clampf((u - 0.333) / 0.333, 0.0, 1.0)), 0.0, 1.0)
+	var raise := 0.4 + 0.6 * _ease((u - 0.2) / 0.16) - 0.6 * _ease((u - 0.78) / 0.22)
+	var pump := sin(TAU * clampf((u - 0.36) / 0.4, 0.0, 1.0)) * 0.12
+	var rot := {
+		_bone["Hips"]: _deg(10.0 * crouch - 6.0 * air, 0.0, 0.0),
+		_bone["Spine1"]: _deg(6.0 * crouch - 8.0 * air, 0.0, 0.0),
+		_bone["Spine2"]: _deg(4.0 * crouch - 6.0 * air, 0.0, 0.0),
+		_bone["Head"]: _deg(-6.0 * crouch - 14.0 * air, 0.0, 0.0),
+		_bone["LeftArm"]: _deg(10.0, 0.0, lerpf(15.0, 120.0, raise + pump)),
+		_bone["LeftForeArm"]: _deg(0.0, 0.0, lerpf(10.0, 55.0, raise)),
+	}
+	var L := _pose(_rest, rot, {_bone["Hips"]: Vector3(0.0, -0.1 * crouch, 0.02 * crouch)})
+	var tuck := Vector3(0.0, 0.07 * air, -0.04 * air)
+	L = _plant_feet(L, tuck, tuck * 1.2)
+	if _prop_bone < 0:
+		return L
+	# The spear thrust up beside the helmet, pumped at the top of the jump.
+	var k := clampf(raise + pump, 0.0, 1.15)
+	var grip := Vector3(-0.36, 0.62, 0.22).lerp(Vector3(-0.34, 1.08, 0.2), k)
+	var aim := Vector3(-0.1, 1.0, lerpf(0.5, 0.18, k)).normalized()
+	_prop_aim = Basis(Quaternion(_prop_axis, aim))
+	# Held near the butt so the blade towers over the helmet.
+	_prop_slide = 0.42 * k
+	var fore: int = _bone["RightForeArm"]
+	var eff: Vector3 = (_rest_glob[fore] as Transform3D).affine_inverse() * _prop_grip
+	var G := _fk(L)
+	var elbow: Vector3 = (G[fore] as Transform3D).origin
+	return _ik(L, _bone["RightArm"], fore, _bone["RightHand"], grip, elbow + Vector3(-0.4, 0.0, -0.2), null, eff)

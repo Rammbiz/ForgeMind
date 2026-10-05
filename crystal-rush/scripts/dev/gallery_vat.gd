@@ -1,28 +1,30 @@
 extends Node3D
 ## Dev preview for the baked knight crowd (tools/bake_vat.gd, shaders/crowd_vat.gdshader,
-## scripts/run/vat_clip.gd): a 220-knight blob running toward -Z from the game camera, the old
-## procedural soldiers in the same shot, clip sheets (every clip at six moments, side and back
-## views), a 220-knight attack clash, a victory spin and a check of the GPU decode against the
-## Godot-skinned source. Saves PNGs and quits:
+## scripts/run/vat_clip.gd) in the real game setting: the space Track (its sky, light, haze and
+## road), the hero, the real Army node (sunflower blob, springs, UnitFx contact shadow) and the
+## run camera framing for a 220-unit army. Shots: the running blob at two moments, the old
+## procedural soldiers in the same frame, a close 3/4 back view, the READY idle, a clash with a
+## raider squad (front knights dying), the victory cheer, grey recruits, clip sheets (every clip at six moments) and a
+## check of the GPU decode against the Godot-skinned source. Saves PNGs and quits:
 ##   xvfb-run -a -s "-screen 0 1400x1400x24" godot --path . --rendering-driver opengl3 \
 ##       --resolution 720x1280 res://scenes/dev/gallery_vat.tscn [-- --out=DIR] [--shots=a,b] [--bench]
 
 const VatClipScript := preload("res://scripts/run/vat_clip.gd")
 const BASE := "res://assets/units/knight/knight"
 const ARMY := 220
-const BLOB_R := 2.2
-const BLOB_STRETCH := 1.15
-const ARMY_Z := 0.9 + BLOB_R * BLOB_STRETCH
-const MARCH := 6.5                 # march speed (u/s) the run playback rate is matched against
-const RUN_RATE := 1.35             # playback rate of the run clip in the game shots
-const SHEET := Vector3(60, 0, 0)   # where the clip sheets stand, away from the crowd
-const ALL_SHOTS := ["run", "compare", "close", "sheets", "clash", "victory", "verify"]
+const D0 := 40.0                   # distance the army stands at when a shot starts
+const SHEET := Vector3(0, 0, -150) # where the clip sheets stand, past the shots on the road
+const CAM_HFOV := 40.0             # Run.CAM_HFOV
+const ALL_SHOTS := ["run", "compare", "close", "ready", "clash", "victory", "recruits", "sheets", "verify"]
 
 var out_dir := "/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d101a978/scratchpad/rshots"
 var cam: Camera3D
+var track: Track
+var hero: RunHero
+var fx: UnitFx
+var d := D0
+var hx := 0.0
 var _args := {}
-var _slots := PackedVector3Array()
-var _rng := RandomNumberGenerator.new()
 var _labels: Array[Node] = []
 
 
@@ -32,115 +34,112 @@ func _ready() -> void:
 		_args[kv[0]] = kv[1] if kv.size() > 1 else "1"
 	out_dir = str(_args.get("out", out_dir))
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	_rng.seed = 42
 	_build_world()
-	for i in ARMY:
-		var r := BLOB_R * sqrt((i + 0.5) / ARMY)
-		var a := i * 2.39996
-		var p := Vector3(r * cos(a), 0, r * sin(a) * BLOB_STRETCH + ARMY_Z)
-		_slots.append(p + Vector3(_rng.randf_range(-0.04, 0.04), 0, _rng.randf_range(-0.04, 0.04)))
 	if _args.has("bench"):
 		await _bench()
 	else:
 		var shots: Array = str(_args["shots"]).split(",") if _args.has("shots") else ALL_SHOTS
 		for s in shots:
+			d = D0
 			await call("_shot_" + s)
 	get_tree().quit(0)
 
 
 func _build_world() -> void:
-	var env := Environment.new()
-	var sky_mat := PanoramaSkyMaterial.new()
-	sky_mat.panorama = load("res://assets/worlds/space/sky.png")
-	var sky := Sky.new()
-	sky.sky_material = sky_mat
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.5, 0.52, 0.75)
-	env.ambient_light_energy = 0.7
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.glow_enabled = true
-	env.glow_intensity = 0.7
-	env.glow_bloom = 0.08
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, -35, 0)
-	sun.light_energy = 0.95
-	sun.light_color = Color(0.92, 0.94, 1.0)
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = 40.0
-	sun.shadow_bias = 0.05
-	add_child(sun)
-	# Dark blue plane with a faint stone pattern (shows where the feet stand).
-	var floor_mat := StandardMaterial3D.new()
-	floor_mat.albedo_texture = load("res://assets/textures/stone_floor.png")
-	floor_mat.albedo_color = Color(0.13, 0.19, 0.38)
-	floor_mat.uv1_scale = Vector3(30, 30, 1)
-	floor_mat.roughness = 0.75
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(160, 160)
-	var ground := MeshInstance3D.new()
-	ground.mesh = plane
-	ground.material_override = floor_mat
-	ground.position = Vector3(30, 0, -20)
-	add_child(ground)
+	var world := Worlds.for_level(1)
+	Models.use_world(world)
+	track = Track.new()
+	add_child(track)
+	track.build(180.0, true, world)
+	fx = UnitFx.new()
+	add_child(fx)
+	# Dying knights: the VAT mesh's rest pose with crowd.gdshader (vat_report.md, step 6).
+	var kv := _new_vat()
+	fx.setup(kv.mesh, Models.raider_mesh(), kv.albedo)
+	hero = RunHero.new()
+	add_child(hero)
+	hero.setup("bolt")
 	cam = Camera3D.new()
 	cam.keep_aspect = Camera3D.KEEP_HEIGHT
-	cam.far = 200.0
+	cam.far = 300.0
 	add_child(cam)
-	_place_cam("game")
 	cam.make_current()
 
 
-func _place_cam(kind: String, at := Vector3.ZERO) -> void:
-	match kind:
-		"close":
-			cam.fov = 50.0
-			cam.position = at + Vector3(1.6, 3.6, 4.6)
-			cam.look_at(at + Vector3(0.0, 0.3, 0.6))
-		"clash_close":
-			cam.fov = 45.0
-			cam.position = at + Vector3(3.0, 2.6, 0.8)
-			cam.look_at(at + Vector3(-0.3, 0.25, -2.2))
-		"victory":
-			cam.fov = 50.0
-			cam.position = at + Vector3(0.0, 6.4, 8.4)
-			cam.look_at(at + Vector3(0.0, 0.3, 2.6))
-		_:
-			cam.fov = 66.0
-			cam.position = at + Vector3(0, 11.2, 8.8)
-			cam.look_at(at + Vector3(0, 0, -3.2))
+## Run's framing for an army of blob radius `r` (Run._camera_goal while RUNNING / CLASH).
+func _game_cam(r: float, clash := false) -> void:
+	var rear := Balance.HERO_GAP + 2.0 * r * Balance.BLOB_STRETCH + 0.5
+	var k := clampf((rear - 2.5) / 4.0, 0.0, 1.25)
+	var h := lerpf(7.6, 10.4, k)
+	var back := lerpf(7.0, 12.2, k)
+	var ahead := lerpf(2.6, 0.0, k)
+	var size := get_viewport().get_visible_rect().size
+	var vfov := rad_to_deg(2.0 * atan(tan(deg_to_rad(CAM_HFOV * 0.5)) / (size.x / maxf(size.y, 1.0))))
+	cam.fov = clampf(vfov, 50.0, 66.0) - (5.0 if clash else 0.0)
+	cam.position = Vector3(hx * 0.35, h, -d + back)
+	cam.look_at(Vector3(hx * 0.55, 0.0, -d - ahead))
+
+
+func _center(r: float) -> Vector3:
+	return Vector3(hx, 0.0, -d + Balance.HERO_GAP + r * Balance.BLOB_STRETCH)
 
 
 func _new_vat() -> VatClipScript:
-	var v: VatClipScript = VatClipScript.create(BASE)
+	var v: VatClipScript = VatClipScript.create(str(_args.get("base", BASE)))
 	assert(v != null, "bake the knight first: tools/bake_vat.gd")
+	# --set=name:value;name:value overrides shader uniforms (look tuning).
+	for kv in str(_args.get("set", "")).split(";", false):
+		var p := kv.split(":")
+		v.material.set_shader_parameter(p[0], float(p[1]))
 	return v
 
 
-## A CrowdView of `n` knights on the VAT material, playing `clip` (clock at `t`).
-func _knights(n: int, clip: String, t: float, rate := 1.0) -> Array:
-	var v := _new_vat()
-	var cv := CrowdView.new()
-	add_child(cv)
-	cv.setup(v.mesh, n)
-	v.attach(cv)
-	cv.set_tint(Color.WHITE)
-	cv.set_edge(Color(0.55, 0.8, 1.0), 0.35)
-	v.play(clip, 0.0, true, rate)
-	v.seek(t)
-	return [cv, v]
+## Re-applies --set overrides after attach() copied the old material's uniforms.
+func _reapply(v: VatClipScript) -> void:
+	for kv in str(_args.get("set", "")).split(";", false):
+		var p := kv.split(":")
+		v.material.set_shader_parameter(p[0], float(p[1]))
 
 
-func _blob(offset := Vector3.ZERO) -> PackedVector3Array:
-	var p := PackedVector3Array()
-	for s in _slots:
-		p.append(s + offset)
-	return p
+## A real Army of `n` units: baked knights (VAT, returns [army, VatClip]) or the old procedural
+## soldiers ([army, null]), spawned at their slots behind the hero.
+func _army(knights: bool, n := ARMY) -> Array:
+	var a := Army.new()
+	add_child(a)
+	var v: VatClipScript = null
+	if knights:
+		v = _new_vat()
+		a.setup(fx, n, v.mesh)
+		v.attach(a.view)
+		v.set_unit_scale(VatClipScript.crowd_scale(n))
+		_reapply(v)
+	else:
+		a.setup(fx, n, Models.soldier_mesh(0))
+	a.radius = Balance.blob_radius(float(n))
+	a.center = _center(a.radius)
+	a.spawn(n)
+	return [a, v]
+
+
+## Advances the army `seconds` at 60 steps a second as Run does (running = marching to −Z at
+## RUN_SPEED), then draws it, places the hero and frames the game camera.
+func _sim(a: Army, v: VatClipScript, seconds: float, running := true, clash := false) -> void:
+	var dt := 1.0 / 60.0
+	for i in roundi(seconds * 60.0):
+		var adv := 0.0
+		if running:
+			d += Balance.RUN_SPEED * dt
+			adv = -Balance.RUN_SPEED * dt
+		a.marching = running
+		if a.mode == Army.Mode.FOLLOW:
+			a.center = _center(a.radius)
+		a.step(dt, adv)
+		if v:
+			v.tick(dt)
+	a.draw()
+	hero.position = Vector3(hx, 0.0, -d)
+	hero.running = running
+	_game_cam(a.radius, clash)
 
 
 func _capture(file: String, vp: Viewport = null) -> Image:
@@ -164,142 +163,211 @@ func _clear(nodes: Array) -> void:
 	await get_tree().process_frame
 
 
+## Side by side crops of several captures (same rect), saved as one PNG.
+func _side_by_side(file: String, imgs: Array, crop: Rect2i) -> void:
+	var a: Image = imgs[0]
+	var sheet := Image.create(crop.size.x * imgs.size() + 12 * (imgs.size() - 1), crop.size.y, false, a.get_format())
+	sheet.fill(Color(0.05, 0.06, 0.1))
+	for i in imgs.size():
+		sheet.blit_rect(imgs[i] as Image, crop, Vector2i(i * (crop.size.x + 12), 0))
+	sheet.save_png(out_dir.path_join(file + ".png"))
+	print("SHOT ", out_dir.path_join(file + ".png"))
+
+
 # ------------------------------------------------------------------------------------- shots
 
-## 220 knights running toward -Z, game camera, two moments.
+## 220 knights running toward −Z behind the hero, game camera, two moments 0.1 s apart.
 func _shot_run() -> void:
-	var k := _knights(ARMY, "run", 0.0, RUN_RATE)
-	var cv: CrowdView = k[0]
-	cv.draw(_blob(), ARMY, PI, 0.08, 0.08)
-	_place_cam("game")
-	(k[1] as VatClipScript).seek(0.40)
-	await _capture("vat_run")
-	(k[1] as VatClipScript).seek(0.52)
-	await _capture("vat_run_b")
-	await _clear([cv])
+	var k := _army(true)
+	var a: Army = k[0]
+	var v: VatClipScript = k[1]
+	v.play("run", 0.0, true, VatClipScript.run_rate(Balance.RUN_SPEED))
+	await _sim(a, v, 1.2)
+	var i1 := await _capture("vat_run")
+	await _sim(a, v, 0.1)
+	var i2 := await _capture("vat_run_b")
+	_side_by_side("vat_run_ab", [i1, i2], Rect2i(150, 600, 420, 420))
+	await _clear([a])
 
 
 ## Old procedural soldiers vs the knights, same framing, side by side.
 func _shot_compare() -> void:
-	var old := CrowdView.new()
-	add_child(old)
-	old.setup(Models.soldier_mesh(), ARMY)
-	old.set_tint(Color.WHITE)
-	old.set_edge(Color(0.55, 0.8, 1.0), 0.35)
-	old.draw(_blob(), ARMY, PI, 0.08, 0.08)
-	_place_cam("game")
-	var a := await _capture("vat_old_run")
-	await _clear([old])
-	var k := _knights(ARMY, "run", 0.40, RUN_RATE)
-	(k[0] as CrowdView).draw(_blob(), ARMY, PI, 0.08, 0.08)
-	var b := await _capture("vat_new_run")
+	var k := _army(false)
+	await _sim(k[0], null, 1.2)
+	var i1 := await _capture("vat_old_run")
 	await _clear([k[0]])
-	# Crop the blob region of both and put them side by side.
-	var crop := Rect2i(60, 360, 600, 760)
-	var sheet := Image.create(crop.size.x * 2 + 12, crop.size.y, false, a.get_format())
-	sheet.fill(Color(0.05, 0.06, 0.1))
-	sheet.blit_rect(a, crop, Vector2i.ZERO)
-	sheet.blit_rect(b, crop, Vector2i(crop.size.x + 12, 0))
-	sheet.save_png(out_dir.path_join("vat_compare.png"))
-	print("SHOT ", out_dir.path_join("vat_compare.png"), "  (left: old procedural soldiers, right: baked knights)")
+	d = D0
+	k = _army(true)
+	(k[1] as VatClipScript).play("run", 0.0, true, VatClipScript.run_rate(Balance.RUN_SPEED))
+	await _sim(k[0], k[1], 1.2)
+	var i2 := await _capture("vat_new_run")
+	_side_by_side("vat_compare", [i1, i2], Rect2i(60, 480, 600, 760))
+	await _clear([k[0]])
 
 
-## Close-up of the running blob from the 3/4 back view.
+## Close 3/4 back view of the running blob, the hero ahead.
 func _shot_close() -> void:
-	var k := _knights(ARMY, "run", 0.31, RUN_RATE)
-	(k[0] as CrowdView).draw(_blob(), ARMY, PI, 0.08, 0.08)
-	_place_cam("close")
+	var k := _army(true)
+	var a: Army = k[0]
+	(k[1] as VatClipScript).play("run", 0.0, true, VatClipScript.run_rate(Balance.RUN_SPEED))
+	await _sim(a, k[1], 1.0)
+	cam.fov = 45.0
+	var c := a.center
+	cam.position = c + Vector3(2.2, 3.1, 4.6)
+	cam.look_at(c + Vector3(0.0, 0.3, -0.8))
 	await _capture("vat_run_close")
+	await _sim(a, k[1], 0.11)
+	cam.fov = 45.0
+	c = a.center
+	cam.position = c + Vector3(2.2, 3.1, 4.6)
+	cam.look_at(c + Vector3(0.0, 0.3, -0.8))
+	await _capture("vat_run_close_b")
+	# Hero height: the soldiers' heads against the hero's.
+	cam.fov = 40.0
+	cam.position = Vector3(hx + 2.4, 1.3, -d + 2.0)
+	cam.look_at(Vector3(hx - 0.2, 0.5, -d + 1.4))
+	await _capture("vat_run_low")
+	await _clear([a])
+
+
+## READY: the army waits at the start line, idling.
+func _shot_ready() -> void:
+	var k := _army(true)
+	(k[1] as VatClipScript).play("idle", 0.0)
+	await _sim(k[0], k[1], 0.8, false)
+	await _capture("vat_ready")
 	await _clear([k[0]])
 
 
-## Each clip at six evenly spaced moments: a profile row (facing +X) and a back row (facing -Z,
-## as the game camera sees the army), in a wide sub-viewport.
-func _shot_sheets() -> void:
-	var vp := SubViewport.new()
-	vp.size = Vector2i(1500, 760)
-	vp.msaa_3d = Viewport.MSAA_2X
-	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	add_child(vp)
-	var c := Camera3D.new()
-	c.fov = 30.0
-	vp.add_child(c)
-	c.position = SHEET + Vector3(0.0, 2.3, 7.4)
-	c.look_at(SHEET + Vector3(0.0, 0.42, 0.0))
-	c.make_current()
-	for clip in ["run", "walk", "attack", "idle", "victory"]:
-		var v := _new_vat()
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.use_custom_data = true
-		mm.mesh = v.mesh
-		mm.instance_count = 12
-		var n := 6
-		for i in 12:
-			var row := i / n
-			var col := i % n
-			var yaw := PI * 0.5 if row == 0 else PI
-			var pos := SHEET + Vector3((col - (n - 1) * 0.5) * 0.95, 0.0, 0.55 if row == 0 else -0.75)
-			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), pos))
-			mm.set_instance_color(i, Color.WHITE)
-			# phase i/6 of the loop: six moments of the same clip
-			mm.set_instance_custom_data(i, Color(TAU * col / n, 0.0, 0.0, 0.0))
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		add_child(mmi)
-		v.attach(mmi)
-		v.material.set_shader_parameter("sway_scale", 0.0)
-		v.material.set_shader_parameter("edge_color", Color(0.55, 0.8, 1.0))
-		v.material.set_shader_parameter("edge_amount", 0.35)
-		v.play(clip, 0.0)
-		v.seek(0.0)
-		var title := _label(SHEET + Vector3(-2.75, 1.45, 0.55), "%s  (%d frames, %.2f s, %.1f fps)" % [
-			clip, int(v.clips[clip]["frames"]), v.length(clip), float(v.clips[clip]["fps"])], 64)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		for col in n:
-			_label(SHEET + Vector3((col - (n - 1) * 0.5) * 0.95, 1.12, 0.55), "t = %.2f s" % (v.length(clip) * col / n), 40)
-		await _capture("vat_clip_" + clip, vp)
-		await _clear([mmi])
-	vp.queue_free()
-	cam.make_current()
-
-
-## 220 knights stabbing at a red raider squad at the clash line.
+## CLASH: the blob charges a raider squad and stabs at it.
 func _shot_clash() -> void:
-	var k := _knights(ARMY, "attack", 0.0)
-	var cv: CrowdView = k[0]
-	var front := _blob(Vector3(0, 0, -2.6))
-	cv.draw(front, ARMY, PI, 0.0, 0.08)
+	var k := _army(true)
+	var a: Army = k[0]
+	var v: VatClipScript = k[1]
+	v.play("run", 0.0, true, VatClipScript.run_rate(Balance.RUN_SPEED))
+	await _sim(a, v, 0.6)
 	var squad := CrowdView.new()
 	add_child(squad)
 	squad.setup(Models.raider_mesh(), 64)
 	squad.set_edge(Color(1.0, 0.4, 0.15), 0.4)
+	squad.set_gait(14.0)
 	var sp := PackedVector3Array()
-	for i in 48:
+	for i in 56:
 		var row := i / 8
 		var col := i % 8
-		sp.append(Vector3((col - 3.5) * 0.44 + (0.12 if row % 2 == 1 else 0.0), 0, -1.75 - row * 0.46))
-	squad.draw(sp, 48, 0.0, 0.07, 0.1)
-	_place_cam("game")
-	(k[1] as VatClipScript).seek(0.35)
+		sp.append(Vector3((col - 3.5) * 0.42 + (0.1 if row % 2 == 1 else 0.0), 0, -d - 0.75 - row * 0.42))
+	squad.draw(sp, sp.size(), 0.0, 0.08, 0.06)
+	a.mode = Army.Mode.CHARGE
+	a.charge_z = -d - 0.2
+	a.charge_x = 0.0
+	a.charge_half = 2.2
+	v.play("attack", 0.2)
+	await _sim(a, v, 0.55, false, true)
+	a.kill_front(6)
+	await _sim(a, v, 0.12, false, true)
 	await _capture("vat_clash")
-	_place_cam("clash_close")
-	(k[1] as VatClipScript).seek(0.62)
+	cam.fov = 42.0
+	cam.position = Vector3(3.2, 2.4, -d + 2.6)
+	cam.look_at(Vector3(-0.2, 0.35, -d - 0.4))
 	await _capture("vat_clash_close")
-	await _clear([cv, squad])
+	await _clear([a, squad])
 
 
-## Victory: every knight doing the spin jump, staggered by its phase.
+## WON: the whole army cheers with the spin jump, staggered.
 func _shot_victory() -> void:
-	var k := _knights(ARMY, "victory", 0.0)
-	(k[0] as CrowdView).draw(_blob(), ARMY, PI, 0.0, 0.05)
-	_place_cam("victory")
-	(k[1] as VatClipScript).seek(0.9)
-	await _capture("vat_victory")
-	_place_cam("game")
+	var k := _army(true)
+	var a: Army = k[0]
+	var v: VatClipScript = k[1]
+	v.play("victory", 0.0)
+	await _sim(a, v, 1.0, false)
 	await _capture("vat_victory_game")
-	await _clear([k[0]])
+	cam.fov = 45.0
+	cam.position = a.center + Vector3(4.2, 4.0, 6.0)
+	cam.look_at(a.center + Vector3(0.0, 0.4, -0.3))
+	await _capture("vat_victory")
+	await _clear([a])
+
+
+## Grey recruits (same mesh and clips, saturation 0) waiting beside the road as the army runs by.
+func _shot_recruits() -> void:
+	var k := _army(true, 60)
+	var a: Army = k[0]
+	(k[1] as VatClipScript).play("run", 0.0, true, VatClipScript.run_rate(Balance.RUN_SPEED))
+	await _sim(a, k[1], 1.0)
+	var rv := _new_vat()
+	var rec := CrowdView.new()
+	add_child(rec)
+	rec.setup(rv.mesh, 8)
+	rv.attach(rec)
+	rec.set_saturation(0.0)
+	rec.set_tint(Color(0.8, 0.82, 0.86))
+	rv.play("idle", 0.0)
+	rv.seek(0.6)
+	var rp := PackedVector3Array()
+	for i in 7:
+		var ang := i * 2.39996
+		var rr := 0.42 * sqrt((i + 0.5) / 7.0)
+		rp.append(Vector3(1.9 + cos(ang) * rr, 0.0, -d - 3.2 + sin(ang) * rr))
+	rec.draw(rp, rp.size(), 0.0, 0.015, 0.03)
+	await _capture("vat_recruits")
+	await _clear([a, rec])
+
+
+## Each clip at six evenly spaced moments: a profile row (facing +X) and a 3/4 back row (as the
+## game camera sees the army), in a wide sub-viewport.
+func _shot_sheets() -> void:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1600, 900)
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(vp)
+	var c := Camera3D.new()
+	c.fov = 26.0
+	vp.add_child(c)
+	c.position = SHEET + Vector3(0.0, 1.35, 5.1)
+	c.look_at(SHEET + Vector3(0.0, 0.4, 0.0))
+	c.make_current()
+	hero.position = SHEET + Vector3(0, 0, 40)
+	for clip in ["run", "walk", "attack", "idle", "victory", "spin"]:
+		# One material per column: every unit of a material plays the same clock, so each column
+		# is its own moment of the clip (phase 0, no scramble).
+		var v := _new_vat()
+		var n := 6
+		var cols: Array = []
+		for col in n:
+			var cv := _new_vat()
+			var cmm := MultiMesh.new()
+			cmm.transform_format = MultiMesh.TRANSFORM_3D
+			cmm.use_colors = true
+			cmm.use_custom_data = true
+			cmm.mesh = cv.mesh
+			cmm.instance_count = 2
+			for row in 2:
+				var yaw := PI * 0.5 if row == 0 else PI + 0.55
+				var pos := SHEET + Vector3((col - (n - 1) * 0.5) * 0.72, 0.0, 0.55 if row == 0 else -0.7)
+				cmm.set_instance_transform(row, Transform3D(Basis(Vector3.UP, yaw), pos))
+				cmm.set_instance_color(row, Color.WHITE)
+				cmm.set_instance_custom_data(row, Color(0.0, 0.0, 0.0, 0.0))
+			var cmi := MultiMeshInstance3D.new()
+			cmi.multimesh = cmm
+			add_child(cmi)
+			cv.attach(cmi)
+			cv.material.set_shader_parameter("sway_scale", 0.0)
+			cv.material.set_shader_parameter("phase_scramble", 0.0)
+			cv.material.set_shader_parameter("edge_color", Color(0.55, 0.8, 1.0))
+			cv.material.set_shader_parameter("edge_amount", 0.35)
+			cv.play(clip, 0.0, true, 1.0, 0)
+			cv.seek(cv.length(clip) * col / n)
+			cols.append(cmi)
+		var title := _label(SHEET + Vector3(-1.95, 1.18, 0.55), "%s  (%d frames, %.2f s, %.1f fps)" % [
+			clip, int(v.clips[clip]["frames"]), v.length(clip), float(v.clips[clip]["fps"])], 34)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		for col in n:
+			_label(SHEET + Vector3((col - (n - 1) * 0.5) * 0.72, 1.02, 0.55), "%.2f s" % (v.length(clip) * col / n), 26)
+		await _capture("vat_clip_" + clip, vp)
+		await _clear(cols)
+	vp.queue_free()
+	cam.make_current()
 
 
 ## Correctness: (left) the source GLB skinned by Godot with the raw Running clip, (middle) the
@@ -309,16 +377,42 @@ func _shot_victory() -> void:
 func _shot_verify() -> void:
 	var vp := SubViewport.new()
 	vp.size = Vector2i(1200, 700)
-	vp.msaa_3d = Viewport.MSAA_2X
+	vp.msaa_3d = Viewport.MSAA_4X
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# Its own still world: the road's pulsing veins would spoil the pixel comparison.
+	vp.own_world_3d = true
 	add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.1, 0.12, 0.22)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.5, 0.52, 0.75)
+	env.ambient_light_energy = 0.7
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, -35, 0)
+	sun.light_energy = 0.95
+	sun.shadow_enabled = true
+	vp.add_child(sun)
+	var floor_mi := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(8, 8)
+	floor_mi.mesh = pm
+	var fm := StandardMaterial3D.new()
+	fm.albedo_color = Color(0.16, 0.22, 0.42)
+	floor_mi.material_override = fm
+	vp.add_child(floor_mi)
 	var c := Camera3D.new()
 	c.fov = 28.0
 	vp.add_child(c)
 	var at := SHEET + Vector3(0, 0, 8)
+	floor_mi.position = at
 	c.position = at + Vector3(0.25, 0.75, 4.2)
 	c.look_at(at + Vector3(0.0, 0.36, 0.0))
 	c.make_current()
+	hero.position = SHEET + Vector3(0, 0, 40)
 	var nodes := []
 	var v := _new_vat()
 	var frame := 9
@@ -330,7 +424,7 @@ func _shot_verify() -> void:
 	if doc.append_from_file(ProjectSettings.globalize_path(str(meta["source"])), st) == OK:
 		var src := doc.generate_scene(st) as Node3D
 		var holder := Node3D.new()
-		add_child(holder)
+		vp.add_child(holder)
 		holder.add_child(src)
 		var s := float(meta["scale"])
 		var o: Array = meta["origin"]
@@ -356,10 +450,11 @@ func _shot_verify() -> void:
 	mm.set_instance_custom_data(0, Color(0, 0, 0, 0))
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
-	add_child(mmi)
+	vp.add_child(mmi)
 	v.attach(mmi)
 	v.material.set_shader_parameter("sway_scale", 0.0)
 	v.material.set_shader_parameter("ao_strength", 0.0)
+	v.material.set_shader_parameter("phase_scramble", 0.0)
 	v.play("run", 0.0)
 	v.seek(t)
 	nodes.append(mmi)
@@ -392,7 +487,7 @@ func _shot_verify() -> void:
 	sm.rim = 0.35
 	sm.rim_tint = 0.6
 	cmi.material_override = sm
-	add_child(cmi)
+	vp.add_child(cmi)
 	cmi.transform = Transform3D(Basis(Vector3.UP, PI * 0.5), at + Vector3(1.1, 0, 0))
 	nodes.append(cmi)
 	# Exact GPU-vs-CPU check: the same spot, one at a time, silhouettes compared pixel by pixel.
@@ -419,12 +514,12 @@ func _shot_verify() -> void:
 	cmi.transform = keep
 	mmi.visible = true
 	(nodes[0] as Node3D).visible = true
-	_label(at + Vector3(-1.1, 0.95, 0), "Godot skinning, raw clip", 40)
-	_label(at + Vector3(0, 0.95, 0), "VAT on GPU", 40)
-	_label(at + Vector3(1.1, 0.95, 0), "VAT decoded on CPU", 40)
+	for l in [_label(at + Vector3(-1.1, 0.95, 0), "Godot skinning, raw clip", 30), _label(at + Vector3(0, 0.95, 0), "VAT on GPU", 30), _label(at + Vector3(1.1, 0.95, 0), "VAT decoded on CPU", 30)]:
+		(l as Node).reparent(vp)
 	await _capture("vat_verify", vp)
-	await _clear(nodes)
+	_labels.clear()
 	vp.queue_free()
+	await get_tree().process_frame
 	cam.make_current()
 
 
@@ -461,47 +556,49 @@ func _label(p: Vector3, text: String, size: int) -> Label3D:
 
 # ------------------------------------------------------------------------------------- bench
 
-## Rough render cost of 220 units: average frame times over a few hundred frames with nothing,
-## the old soldiers, and the VAT knights (run clip, ticking).
+## Rough frame cost of 220 units in the game setting: average frame and render times over a few
+## hundred frames with no army, the old soldiers, the VAT knights (run clip, ticking) and the
+## knights mid cross-fade (two clips sampled per vertex). The army is stepped and drawn every
+## frame as in a run.
 func _bench() -> void:
 	var vp_rid := get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp_rid, true)
-	_place_cam("game")
-	var results := {}
 	for mode in ["empty", "old", "vat", "vat_fade"]:
-		var nodes := []
+		d = D0
+		var a: Army = null
 		var v: VatClipScript = null
 		if mode == "old":
-			var old := CrowdView.new()
-			add_child(old)
-			old.setup(Models.soldier_mesh(), ARMY)
-			nodes.append(old)
+			a = _army(false)[0]
 		elif mode.begins_with("vat"):
-			var k := _knights(ARMY, "run", 0.0, RUN_RATE)
-			nodes.append(k[0])
+			var k := _army(true)
+			a = k[0]
 			v = k[1]
+			v.play("run", 0.0, true, VatClipScript.run_rate(Balance.RUN_SPEED))
 			if mode == "vat_fade":
 				v.play("attack", 1000.0)
-		for i in 30:
+		for i in 10:
 			await get_tree().process_frame
-		var n := 240
+		var n := int(_args.get("frames", "240"))
 		var cpu := 0.0
 		var gpu := 0.0
 		var t0 := Time.get_ticks_usec()
+		var sim_us := 0
 		for i in n:
-			for cv in nodes:
-				(cv as CrowdView).draw(_blob(), ARMY, PI, 0.08, 0.08)
-			if v:
-				v.tick(1.0 / 60.0)
+			var s0 := Time.get_ticks_usec()
+			if a:
+				await _sim(a, v, 1.0 / 60.0)
+			else:
+				d += Balance.RUN_SPEED / 60.0
+				_game_cam(2.2)
+			sim_us += Time.get_ticks_usec() - s0
 			await RenderingServer.frame_post_draw
 			cpu += RenderingServer.viewport_get_measured_render_time_cpu(vp_rid)
 			gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp_rid)
 		var wall := (Time.get_ticks_usec() - t0) / 1000.0 / n
-		results[mode] = [wall, cpu / n, gpu / n]
-		print("BENCH %-8s frame %.2f ms  render cpu %.2f ms  gpu %.2f ms  primitives %d" % [
-			mode, wall, cpu / n, gpu / n, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
-		for nd in nodes:
-			nd.queue_free()
+		print("BENCH %-8s frame %.2f ms  step+draw %.3f ms  render cpu %.2f ms  gpu %.2f ms  primitives %d" % [
+			mode, wall, sim_us / 1000.0 / n, cpu / n, gpu / n, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
+		if a:
+			a.queue_free()
 		await get_tree().process_frame
 	var t1 := Time.get_ticks_usec()
 	var tv := _new_vat()

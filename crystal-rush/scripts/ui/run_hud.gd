@@ -43,7 +43,7 @@ func _ready() -> void:
 	view.show_drag_hint(run.state == Run.State.READY)
 	run.coins_changed.connect(func(n: int): view.set_coins(n))
 	run.ult_changed.connect(_on_ult_changed)
-	run.hint.connect(view.show_hint)
+	run.hint.connect(_on_hint)
 	run.weapon_added.connect(func(kind: String, level: int): view.weapon_added(kind, level, run.weapons))
 	run.power_changed.connect(view.power_toast)
 	run.stairs_done.connect(_on_stairs_done)
@@ -57,7 +57,18 @@ func _load_portrait() -> void:
 		view.set_portrait(tex)
 
 
+## Tutorial banner; the drag hint already says "drag" while it is up, so that banner is skipped.
+func _on_hint(key: String) -> void:
+	if (key == "HINT_DRAG" or key == "DRAG_HINT") and view.drag_hint_shown():
+		return
+	view.show_hint(key)
+
+
 func _process(_delta: float) -> void:
+	# The ult button has nothing to do once the fortress fell (stairs, victory).
+	var ult_on := run.state != Run.State.STAIRS and run.state != Run.State.WON
+	if view.ult_btn.visible != ult_on:
+		view.set_ult_visible(ult_on)
 	if view.drag_hint_shown():
 		if _dragged or (run.state != Run.State.READY and run.d > DRAG_HIDE_D):
 			view.show_drag_hint(false)
