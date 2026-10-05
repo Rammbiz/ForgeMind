@@ -49,6 +49,7 @@ const STAIRS_COLORS: Array[Color] = [Color(0.18, 0.5, 1.0), Color(0.58, 0.28, 1.
 
 const GATE_H := 2.2
 const GATE_ASSET_SHADER := preload("res://shaders/gate_asset.gdshader")
+const CRYSTAL_ASSET_SHADER := preload("res://shaders/crystal_asset.gdshader")
 ## Layout of the owner's gate GLB as fractions of its bounding box (measured on the Meshy model):
 ## pylon centres at 80% of the half width, their inner edges at 60%, the crossbar's underside
 ## at 75% of the height; the crystal tips are the top. `sxz`/`sy` scale the pylons and the
@@ -110,6 +111,24 @@ static func asset(key: String, fit: AABB) -> Node3D:
 	var fc := fit.get_center()
 	inst.position = Vector3(fc.x - c.x * s, fit.position.y - box.position.y * s, fc.z - c.z * s)
 	return holder
+
+
+## Gives every mesh under an asset `shader` (gate_asset / crystal_asset) with the mesh's own
+## albedo and normal textures, so its crystals take `color`.
+static func _recolor_asset(node: Node3D, shader: Shader, color: Color) -> void:
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var src := m.get_active_material(0) as StandardMaterial3D
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		if src:
+			mat.set_shader_parameter("albedo_tex", src.albedo_texture)
+			mat.set_shader_parameter("normal_tex", src.normal_texture if src.normal_enabled else null)
+			mat.set_shader_parameter("has_normal", src.normal_enabled and src.normal_texture != null)
+		mat.set_shader_parameter("crystal_color", color)
+		m.material_override = mat
 
 
 ## The world's GLB for `key` repeated side by side to span exactly `width` (for long hazards
@@ -1410,8 +1429,9 @@ static func geode(reward: String) -> Node3D:
 	var col: Color = REWARD_COLORS.get(reward, REWARD_COLORS["army"])
 	var root := Node3D.new()
 	root.name = "Geode"
-	var over := asset("geode", AABB(Vector3(-0.75, 0, -0.75), Vector3(1.5, 1.5, 1.5)))
+	var over := asset("geode", AABB(Vector3(-0.9, 0, -0.9), Vector3(1.8, 1.8, 1.8)))
 	if over:
+		_recolor_asset(over, CRYSTAL_ASSET_SHADER, col)
 		root.add_child(over)
 	else:
 		var body := Node3D.new()
