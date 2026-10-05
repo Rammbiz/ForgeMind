@@ -48,6 +48,12 @@ const REWARD_COLORS := {"army": Color(0.35, 0.8, 1.0), "coins": Color(1.0, 0.76,
 const STAIRS_COLORS: Array[Color] = [Color(0.18, 0.5, 1.0), Color(0.58, 0.28, 1.0), Color(1.0, 0.62, 0.1)]
 
 const GATE_H := 2.2
+const GATE_ASSET_SHADER := preload("res://shaders/gate_asset.gdshader")
+## Layout of the owner's gate GLB as fractions of its bounding box (measured on the Meshy model):
+## pylon centres at 80% of the half width, their inner edges at 60%, the crossbar's underside
+## at 75% of the height; the crystal tips are the top. `sxz`/`sy` scale the pylons and the
+## height in metres per model unit of the source (1.0 wide, 0.81 tall).
+const GATE_ASSET := {"pylon": 0.8, "inner": 0.6, "bar": 0.749, "sxz": 2.2, "sy": 3.2}
 const STEP_H := 0.4
 const STEP_D := 1.4
 const FIELD_SHADER := preload("res://shaders/gate_field.gdshader")
@@ -103,6 +109,35 @@ static func asset(key: String, fit: AABB) -> Node3D:
 	var c := box.get_center()
 	var fc := fit.get_center()
 	inst.position = Vector3(fc.x - c.x * s, fit.position.y - box.position.y * s, fc.z - c.z * s)
+	return holder
+
+
+## The world's GLB for `key` repeated side by side to span exactly `width` (for long hazards
+## like barricades): n = round(width / module) copies, each stretched to width / n, `height`
+## tall and `depth` deep, resting on y = 0. Null when the world has no such model.
+static func _tiled_asset(key: String, width: float, height: float, depth: float, module: float) -> Node3D:
+	var path := str(_models_map().get(key, ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	var ps := load(path) as PackedScene
+	if ps == null:
+		return null
+	var probe := ps.instantiate() as Node3D
+	var box := _mesh_aabb(probe)
+	probe.free()
+	if box.size.x < 1e-5 or box.size.y < 1e-5:
+		return null
+	var n := maxi(1, roundi(width / module))
+	var seg := width / float(n)
+	var sc := Vector3(seg / box.size.x, height / box.size.y, depth / maxf(box.size.z, 1e-5))
+	var holder := Node3D.new()
+	holder.name = "Asset_" + key
+	for i in n:
+		var inst := ps.instantiate() as Node3D
+		inst.scale = sc
+		var cx := -width * 0.5 + seg * (float(i) + 0.5)
+		inst.position = Vector3(cx - box.get_center().x * sc.x, -box.position.y * sc.y, -box.get_center().z * sc.z)
+		holder.add_child(inst)
 	return holder
 
 
@@ -482,10 +517,11 @@ static func gate(width: float) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Gate"
 	root.set_meta("width", w)
-	var frame := asset("gate", AABB(Vector3(-hw - 0.22, 0, -0.25), Vector3(w + 0.44, GATE_H + 0.75, 0.5)))
-	if frame == null:
-		frame = _gate_frame(w)
+	var fitted := _gate_asset_frame(w)
+	var frame: Node3D = fitted.get("node") if not fitted.is_empty() else _gate_frame(w)
 	root.add_child(frame)
+	if not fitted.is_empty():
+		root.set_meta("asset_mat", fitted["mat"])
 	# Accent parts (crystal caps, light strips, emitter) share one per-gate material so a
 	# restyle is a colour change.
 	var accent := MeshInstance3D.new()
@@ -500,9 +536,10 @@ static func gate(width: float) -> Node3D:
 	accent.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(accent)
 	root.set_meta("accent_mat", am)
+	accent.visible = fitted.is_empty()
 	# Energy field.
-	var fw := w - 0.26
-	var fh := GATE_H - 0.04
+	var fw: float = float(fitted.get("field_w", w - 0.26))
+	var fh: float = float(fitted.get("field_h", GATE_H - 0.04))
 	var field := MeshInstance3D.new()
 	field.name = "Field"
 	var q := QuadMesh.new()
@@ -522,14 +559,18 @@ static func gate(width: float) -> Node3D:
 	root.set_meta("field_h", fh)
 	# Halos on the crystal caps and the crossbar gem.
 	var hm := _new_halo_mat(Color.WHITE)
-	for sgn in [-1.0, 1.0]:
-		_halo(root, Vector3(hw * sgn, GATE_H + 0.62, 0.05), Color.WHITE, 1.1, hm)
-	_halo(root, Vector3(0, GATE_H + 0.16, 0.24), Color.WHITE, 0.9, hm)
+	if fitted.is_empty():
+		for sgn in [-1.0, 1.0]:
+			_halo(root, Vector3(hw * sgn, GATE_H + 0.62, 0.05), Color.WHITE, 1.1, hm)
+		_halo(root, Vector3(0, GATE_H + 0.16, 0.24), Color.WHITE, 0.9, hm)
+	else:
+		for sgn in [-1.0, 1.0]:
+			_halo(root, Vector3(float(fitted["pylon_x"]) * sgn, float(fitted["tip_y"]) - 0.3, 0.05), Color.WHITE, 1.0, hm)
 	root.set_meta("halo_mat", hm)
 	# Charge bar under the crossbar.
 	var bar := Node3D.new()
 	bar.name = "ChargeBar"
-	bar.position = Vector3(0, GATE_H - 0.2, 0.14)
+	bar.position = Vector3(0, fh - 0.18, 0.14)
 	var bw := fw - 0.36
 	Mats.part(bar, Mats.box(Vector3(bw + 0.1, 0.22, 0.05)), Mats.solid(Color(0.05, 0.03, 0.1), 0.6), Vector3.ZERO, Vector3.ZERO, Vector3.ONE, false)
 	Mats.part(bar, Mats.box(Vector3(bw + 0.16, 0.035, 0.07)), Mats.solid(GOLD, 0.35, 0.6), Vector3(0, 0.115, 0), Vector3.ZERO, Vector3.ONE, false)
@@ -577,13 +618,110 @@ static func gate(width: float) -> Node3D:
 	root.set_meta("pill", pill)
 	var icon := Node3D.new()
 	icon.name = "Icon"
-	icon.position = Vector3(0, GATE_H * 0.74, 0.16)
+	icon.position = Vector3(0, fh * 0.77, 0.16)
 	root.add_child(icon)
 	root.set_meta("icon", icon)
 	root.set_meta("charge", 0.0)
 	root.set_meta("kind", "")
 	gate_style(root, "", "", "good")
 	return root
+
+
+## The owner's gate GLB fitted to a gate `w` wide: the pylons keep their own thickness and stand
+## at ±w/2, the crossbar stretches between them (a piecewise remap of x, cached per width).
+## Returns {} when the world has no gate model; otherwise {node, mat, field_w, field_h, pylon_x,
+## tip_y} so the field, labels and halos sit inside the real frame.
+static func _gate_asset_frame(w: float) -> Dictionary:
+	var path := str(_models_map().get("gate", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return {}
+	var hw := w * 0.5
+	var key := "gate_asset:%s:%.2f" % [path, w]
+	var src_tex: Array = [null, null]
+	if not _meshes.has(key):
+		var ps := load(path) as PackedScene
+		var inst := ps.instantiate() as Node3D if ps else null
+		if inst == null:
+			return {}
+		var box := _mesh_aabb(inst)
+		var half := box.size.x * 0.5
+		var cx := box.get_center().x
+		var by := box.position.y
+		var hy := box.size.y
+		var unit := box.size.x                      # source model: 1.0 unit wide
+		var sxz := float(GATE_ASSET["sxz"]) / unit
+		var sy := float(GATE_ASSET["sy"]) / unit
+		var pylon := float(GATE_ASSET["pylon"]) * half
+		var inner := float(GATE_ASSET["inner"]) * half
+		var inner_w := hw - (pylon - inner) * sxz   # world x of the pylons' inner edges
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			if m.mesh == null:
+				continue
+			var xf := _relative_xf(inst, m)
+			for si in m.mesh.get_surface_count():
+				var mat := m.get_active_material(si) as StandardMaterial3D
+				if mat and src_tex[0] == null:
+					src_tex = [mat.albedo_texture, mat.normal_texture if mat.normal_enabled else null]
+				var arr := m.mesh.surface_get_arrays(si)
+				var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var norms: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+				var uvs: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+				var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+				var out_v := PackedVector3Array()
+				var out_n := PackedVector3Array()
+				out_v.resize(verts.size())
+				out_n.resize(verts.size())
+				for i in verts.size():
+					var p := xf * verts[i]
+					var x := p.x - cx
+					var ax := absf(x)
+					var sg := 1.0 if x >= 0.0 else -1.0
+					var kx := sxz
+					var nx: float
+					if ax >= inner:
+						nx = sg * (hw + (ax - pylon) * sxz)
+					else:
+						kx = inner_w / maxf(inner, 1e-4)
+						nx = x * kx
+					out_v[i] = Vector3(nx, (p.y - by) * sy, p.z * sxz)
+					var n := (xf.basis * norms[i]) if norms.size() > i else Vector3.UP
+					out_n[i] = Vector3(n.x / kx, n.y / sy, n.z / sxz).normalized()
+				var na := []
+				na.resize(Mesh.ARRAY_MAX)
+				na[Mesh.ARRAY_VERTEX] = out_v
+				na[Mesh.ARRAY_NORMAL] = out_n
+				if uvs.size() == verts.size():
+					na[Mesh.ARRAY_TEX_UV] = uvs
+				if idx.size() > 0:
+					na[Mesh.ARRAY_INDEX] = idx
+				var tmp := ArrayMesh.new()
+				tmp.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, na)
+				st.append_from(tmp, 0, Transform3D.IDENTITY)
+		inst.free()
+		st.generate_tangents()
+		var mesh := st.commit()
+		_meshes[key] = mesh
+		mesh.set_meta("tex", src_tex)
+		mesh.set_meta("dims", {"field_w": inner_w * 2.0 - 0.06, "field_h": (float(GATE_ASSET["bar"]) * hy) * sy - 0.05,
+			"pylon_x": hw, "tip_y": hy * sy})
+	var gm: ArrayMesh = _meshes[key]
+	var tex: Array = gm.get_meta("tex")
+	var mat2 := ShaderMaterial.new()
+	mat2.shader = GATE_ASSET_SHADER
+	mat2.set_shader_parameter("albedo_tex", tex[0])
+	mat2.set_shader_parameter("normal_tex", tex[1])
+	mat2.set_shader_parameter("has_normal", tex[1] != null)
+	var node := MeshInstance3D.new()
+	node.name = "AssetFrame"
+	node.mesh = gm
+	node.material_override = mat2
+	var dims: Dictionary = gm.get_meta("dims")
+	var out := {"node": node, "mat": mat2}
+	out.merge(dims)
+	return out
 
 
 static func _gate_frame(w: float) -> Node3D:
@@ -726,6 +864,11 @@ static func gate_style(node: Node3D, text: String, sub: String, kind: String, ic
 	am.albedo_color = col
 	am.emission = col
 	am.emission_energy_multiplier = 0.35 if kind == "closed" else 1.25
+	if node.has_meta("asset_mat"):
+		var gm := node.get_meta("asset_mat") as ShaderMaterial
+		gm.set_shader_parameter("crystal_color", col)
+		gm.set_shader_parameter("crystal_glow", 0.3 if kind == "closed" else 1.35)
+		gm.set_shader_parameter("dim", 0.62 if kind == "closed" else 1.0)
 	var hm := node.get_meta("halo_mat") as StandardMaterial3D
 	hm.albedo_color = Color(col.r, col.g, col.b, 0.1 if kind == "closed" else 0.6)
 	var fm := node.get_meta("field_mat") as ShaderMaterial
@@ -941,7 +1084,7 @@ static func spikes(width: float, hp: int) -> Node3D:
 	var w := maxf(width, 0.8)
 	var root := Node3D.new()
 	root.name = "Spikes"
-	var body := asset("barricade", AABB(Vector3(-w * 0.5, 0, -0.35), Vector3(w, 1.3, 0.7)))
+	var body := _tiled_asset("barricade", w, 1.15, 0.8, 2.2)
 	if body == null:
 		body = Node3D.new()
 		body.name = "Body"
