@@ -38,6 +38,7 @@ const UNLOCK := {
 const FIRST_HINT := {
 	"crate": "HINT_CRATE", "barricade": "HINT_SPIKES", "charge": "HINT_CHARGE", "rotor": "HINT_BLADES",
 	"arm": "HINT_ARM", "turret": "HINT_TURRET", "geode": "HINT_GEODE", "sweeper": "HINT_BLADES",
+	"blaster": "HINT_ARM",
 }
 
 ## Weapon crate of each tutorial / unlock level.
@@ -93,16 +94,17 @@ static func goal_army(level: int) -> float:
 	return minf(55.0 + 24.0 * level, 540.0)
 
 
-## Army a good player should have at distance d: exponential from the start to the goal.
+## Army a good player should have at distance d: exponential from the start to the goal,
+## front-loaded (p^0.65) so the first rows already offer real choices.
 static func target(g: Gen, d: float) -> float:
 	var p := clampf((d - START_D) / maxf(g.length - START_D, 1.0), 0.0, 1.0)
-	return g.start * pow(g.goal / g.start, p)
+	return g.start * pow(g.goal / g.start, pow(p, 0.65))
 
 
 ## Reward a chunk ending at `d_end` should give to put a good player back on the curve.
 ## Bounded so one gate never decides a level: between 0.12 and 0.8 of the current army.
 static func want(g: Gen, d_end: float) -> float:
-	return clampf(target(g, d_end) - g.e, g.e * 0.12 + 3.0, g.e * 0.8 + 6.0)
+	return clampf(target(g, d_end) - g.e, maxf(g.e * 0.12 + 3.0, 4.0 + g.level), g.e * 0.8 + 6.0)
 
 
 ## Share of the expected army a threat is sized at; grows with the level.
@@ -162,9 +164,10 @@ static func _tutorial_2(g: Gen) -> void:
 	_coin_line(g, 0.6, 66.0, 6)
 	_hint(g, 72.0, "HINT_CRATE")
 	_crate(g, -2.0, 86.0, 6, "cannon")
-	_row(g, 96.0, [_gate("+", 12), _gate("x", 2)])
+	_row(g, 96.0, [_gate("+", 12), _gate("+", 6), _gate("x", 2)])
 	g.e *= 2.0
 	_tile_line(g, 2.2, -2.2, 106.0, 9, 1.2)
+	_recruits(g, 0.0, 118.0, 6)
 	g.e += 6.0
 	_row(g, 128.0, [_gate("-", 10), _gate("x", 2), _gate("+", 20)])
 	g.e = maxf(g.e * 2.0, g.e + 20.0) * 0.95
@@ -182,7 +185,7 @@ static func _tutorial_3(g: Gen) -> void:
 	_tile_line(g, -2.0, 0.0, 12.0, 6, 1.2)
 	_recruits(g, 2.3, 18.0, 6)
 	g.e += 10.0
-	_row(g, 30.0, [_gate("+", 10), _gate("x", 2)])
+	_row(g, 30.0, [_gate("+", 10), _gate("+", 5), _gate("x", 2)])
 	g.e *= 1.9
 	_hint(g, 36.0, "HINT_SPIKES")
 	_barricade(g, -1.6, 50.0, 3.6, 30)
@@ -208,7 +211,7 @@ static func _tutorial_3(g: Gen) -> void:
 	_recruits(g, -2.3, 156.0, 6)
 	_recruits(g, 2.3, 160.0, 6)
 	_crate(g, 2.0, 172.0, 7, "cannon")
-	_row(g, 184.0, [_gate("+", int(g.e * 0.4)), _gate("+", int(g.e * 0.25))])
+	_row(g, 184.0, [_gate("+", int(g.e * 0.4)), _gate("+", int(g.e * 0.15)), _gate("+", int(g.e * 0.25))])
 	g.e *= 1.3
 	g.d = 192.0
 
@@ -222,7 +225,7 @@ const CHUNKS := {
 	"crate": [1.6, "crate"], "barricade": [2.2, "barricade"], "charge": [1.6, "charge"],
 	"rotor": [1.8, "rotor"], "moving": [1.5, "moving"], "arm": [1.4, "arm"], "turret": [1.8, "turret"],
 	"geode": [1.5, "geode"], "power": [1.4, "power"], "blink": [1.4, "blink"], "hidden": [1.3, "hidden"],
-	"sweeper": [1.6, "sweeper"],
+	"sweeper": [1.6, "sweeper"], "blaster": [0.5, "blaster"],
 }
 const THREATS := ["squad_wall", "squad_fork", "barricade", "rotor", "turret", "sweeper"]
 
@@ -255,7 +258,7 @@ static func _procedural(g: Gen) -> void:
 					fresh.append(t)
 			pick = _weighted(g, fresh if not fresh.is_empty() else THREATS, last)
 		elif since_gate >= 2:
-			pick = _weighted(g, ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm"], last)
+			pick = _weighted(g, ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm", "blaster"], last)
 		else:
 			pick = _weighted(g, CHUNKS.keys(), last)
 		if pick == "crate":
@@ -263,7 +266,7 @@ static func _procedural(g: Gen) -> void:
 			crate_kind = ""
 		_chunk(g, pick)
 		since_threat = 0 if pick in THREATS else since_threat + 1
-		since_gate = 0 if pick in ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm", "squad_fork", "barricade"] else since_gate + 1
+		since_gate = 0 if pick in ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm", "blaster", "squad_fork", "barricade"] else since_gate + 1
 		last = pick
 		n += 1
 	# A late extra crate from level 7 on.
@@ -278,7 +281,7 @@ static func _weighted(g: Gen, pool: Array, last: String) -> String:
 		var key: String = CHUNKS[c][1]
 		if int(UNLOCK[key]) > g.level or c == last:
 			continue
-		if c == "arm" and g.arm >= (2 if g.level >= int(UNLOCK["blaster"]) else 1):
+		if (c == "arm" or c == "blaster") and g.arm >= (2 if g.level >= int(UNLOCK["blaster"]) else 1):
 			continue
 		var w := float(CHUNKS[c][0])
 		# Newer elements a little more often so each world feels different.
@@ -342,6 +345,8 @@ static func _chunk_body(g: Gen, name: String) -> void:
 			_c_moving(g)
 		"arm":
 			_c_arm(g)
+		"blaster":
+			_c_arm(g, 2)
 		"turret":
 			_c_turret(g)
 		"geode":
@@ -594,11 +599,13 @@ static func _c_moving(g: Gen) -> void:
 
 
 ## Army weapons gate: crossbows (later blasters) vs soldiers now; a squad follows.
-static func _c_arm(g: Gen) -> void:
+static func _c_arm(g: Gen, force_tier := 0) -> void:
 	var s := _side(g)
 	var a := g.e
 	var r := want(g, g.d + 28.0)
-	var tier := 2 if g.level >= int(UNLOCK["blaster"]) and g.arm >= 1 else 1
+	var tier := 1
+	if g.level >= int(UNLOCK["blaster"]) and (g.arm >= 1 or force_tier == 2 or g.rng.randf() < 0.5):
+		tier = 2
 	var arm := _gate("arm", tier)
 	var plus := _gate("+", int(round(r * 0.75)) + 3)
 	var opts: Array[Dictionary] = [arm, plus]
@@ -650,16 +657,16 @@ static func _c_power(g: Gen) -> void:
 	var s := _side(g)
 	var a := g.e
 	var r := want(g, g.d + 26.0)
-	var opts: Array[Dictionary] = [_gate("rate", 25), _gate("dmg", 1)]
+	var opts: Array[Dictionary] = [_gate("rate", 30), _gate("dmg", 1)]
 	if g.level >= int(UNLOCK["multi"]) and g.rng.randf() < 0.4:
 		opts[g.rng.randi() % 2] = _gate("multi", 1)
-	opts.append(_gate("+", int(round(r * 0.6)) + 2))
+	opts.append(_gate("+", int(round(r * 0.4)) + 2))
 	if s < 0:
 		opts.reverse()
 	_row(g, g.d + 14.0, opts)
 	var size := int(round(a * threat(g) * 0.8)) + g.level
 	_squad(g, 1.0 * s, g.d + 22.0, 3.2, size)
-	g.e = a + r * 0.6 - size * 0.4
+	g.e = a + r * 0.5 - size * 0.4
 	g.d += 26.0
 
 
@@ -725,6 +732,8 @@ static func _c_sweeper(g: Gen) -> void:
 static func _finish(g: Gen) -> Dictionary:
 	var fd := maxf(g.d + 8.0, target_length(g.level))
 	var ratio := clampf(0.25 + 0.085 * (g.level - 1), 0.25, 0.85)
+	if g.level <= 3:
+		ratio = 0.25 + 0.04 * (g.level - 1)   # tutorials stay forgiving
 	var hp := int(round(g.e * ratio)) + 6 + g.level * 2
 	g.items.append({"kind": "fortress", "x": 0.0, "d": fd, "value": hp})
 	# Stairs: a good run reaches about x2.5-x3, a great one the top.
@@ -763,8 +772,15 @@ static func _coin_line(g: Gen, x: float, d0: float, n: int) -> void:
 		g.items.append({"kind": "coin", "x": clampf(x, -3.0, 3.0), "d": d0 + k * 1.1})
 
 
+## Grey recruits worth `v` soldiers: one group of 3-8, or a cluster of groups for more.
 static func _recruits(g: Gen, x: float, d: float, v: int) -> void:
-	g.items.append({"kind": "recruits", "x": x, "d": d, "value": clampi(v, 3, 8) if g.level <= 3 else maxi(v, 3)})
+	var groups := maxi(1, ceili(v / 8.0))
+	var left := maxi(v, 3)
+	for k in groups:
+		var n := clampi(int(round(float(left) / (groups - k))), 3, 8)
+		left -= n
+		var jx := 0.0 if groups == 1 else (0.45 if k % 2 == 0 else -0.45)
+		g.items.append({"kind": "recruits", "x": clampf(x + jx, -3.0, 3.0), "d": d + k * 1.3, "value": n})
 
 
 ## A gate spec without position; `_row` lays a row out.

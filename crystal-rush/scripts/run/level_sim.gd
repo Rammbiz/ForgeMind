@@ -55,7 +55,6 @@ const KINDS := {
 const DT := 0.05
 const DT_COARSE := 0.1
 const GATE_GAIN_CAP := 15.0     # ult points from one gate
-const STRUCTURES := [K.BARRICADE, K.TURRET, K.GEODE, K.CRATE, K.FORTRESS]
 
 
 ## Static view of a level (or of a window of a live run) with per-kind index lists.
@@ -128,6 +127,9 @@ class State extends RefCounted:
 	var trace: PackedStringArray = PackedStringArray()
 	var tracing := false
 	var auto_ult := true                ## fire the ult by the auto policy (LevelSim.ult_worth)
+	var gate_margin := 0.0              ## planning only: a gate counts only this far inside its span
+	var sample_every := 0.0             ## > 0: record (d, hx, army) every this many units
+	var samples := PackedVector3Array()
 
 	func copy() -> State:
 		var s := State.new()
@@ -144,7 +146,7 @@ class State extends RefCounted:
 		s.val2 = val2.duplicate(); s.op = op.duplicate(); s.op2 = op2.duplicate(); s.rev = rev.duplicate()
 		s.hazard_deaths = hazard_deaths; s.clash_deaths = clash_deaths; s.kills = kills; s.peak = peak
 		s.army_at_fortress = army_at_fortress; s.survivors = survivors; s.stairs_mult = stairs_mult
-		s.total_coins = total_coins; s.reason = reason; s.auto_ult = auto_ult
+		s.total_coins = total_coins; s.reason = reason; s.auto_ult = auto_ult; s.gate_margin = gate_margin
 		return s
 
 
@@ -232,6 +234,7 @@ static func start_state(lv: Level, hero: String, army: int, opts := {}) -> State
 	s.upgrade = int(opts.get("power", 0))
 	s.tracing = bool(opts.get("trace", false))
 	s.auto_ult = bool(opts.get("ult", true))
+	s.sample_every = float(opts.get("sample", 0.0))
 	var n := lv.items.size()
 	s.alive.resize(n)
 	s.hp.resize(n)
@@ -274,10 +277,15 @@ static func path_x(path: PackedFloat32Array, d: float) -> float:
 
 ## Simulates a whole level along `path` and returns the result dictionary.
 static func run_path(lv: Level, hero: String, army: int, path: PackedFloat32Array, opts := {}) -> Dictionary:
+	return result(lv, simulate(lv, hero, army, path, opts))
+
+
+## Like run_path but returns the final State (samples, trace, item states).
+static func simulate(lv: Level, hero: String, army: int, path: PackedFloat32Array, opts := {}) -> State:
 	var s := start_state(lv, hero, army, opts)
 	s.hx = path_x(path, 0.0)
 	advance(lv, s, path, lv.length + 50.0, DT, 600.0)
-	return result(lv, s)
+	return s
 
 
 ## Steps `s` forward until the hero passes `d_end`, the run ends or `max_t` seconds pass.
@@ -331,6 +339,8 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 			_siege(lv, s, dt)
 	s.armor = maxf(s.armor - dt, 0.0)
 	s.peak = maxf(s.peak, s.army)
+	if s.sample_every > 0.0 and (s.samples.is_empty() or s.d >= s.samples[s.samples.size() - 1].x + s.sample_every):
+		s.samples.append(Vector3(s.d, s.hx, s.army))
 
 
 ## Squads and the fortress met before `nd`: returns the distance the hero may reach.
@@ -395,27 +405,59 @@ static func _gate_row(lv: Level, s: State, first: int) -> void:
 	for g in gates:
 		if s.alive[g] == 0:
 			continue
-		if absf(s.hx - gate_x(lv, g, s.t)) <= lv.hw[g]:
+		if absf(s.hx - gate_x(lv, g, s.t)) <= lv.hw[g] - s.gate_margin:
+			# Planning: a moving gate must hold the hero a moment before and after too.
+			if s.gate_margin > 0.0 and lv.items[g].has("move"):
+				var ok := true
+				for dt in [-PLAN_TIME_MARGIN, PLAN_TIME_MARGIN]:
+					if absf(s.hx - gate_x(lv, g, s.t + dt)) > lv.hw[g] - s.gate_margin:
+						ok = false
+				if not ok:
+					continue
 			chosen = g
 	for g in gates:
 		s.alive[g] = 0
 	if chosen < 0:
 		_log(s, "row %d: gap" % row)
 		return
-	var v := _gate_view(lv, s, chosen)
+	var v := gate_view(lv, s, chosen)
+	if s.gate_margin > 0.0 and lv.items[chosen].has("blink"):
+		# Planning: near a blink switch assume the worse face.
+		var p0 := blink_phase(lv, chosen, s.t - PLAN_TIME_MARGIN)
+		var p1 := blink_phase(lv, chosen, s.t + PLAN_TIME_MARGIN)
+		if p0 != p1:
+			var a := [s.op[chosen], s.val[chosen]]
+			var b := [s.op2[chosen], s.val2[chosen]]
+			v = a if _forecast(s, str(a[0]), float(a[1])) <= _forecast(s, str(b[0]), float(b[1])) else b
 	var before := s.army
 	_apply(lv, s, chosen, str(v[0]), float(v[1]))
 	_log(s, "row %d: %s%s  %d -> %d" % [row, v[0], str(int(v[1])), int(before), int(s.army)])
 
 
+## Army after a plain army gate (power / arm / weapon gates count as no change).
+static func _forecast(s: State, op: String, v: float) -> float:
+	match op:
+		"+":
+			return s.army + v
+		"-":
+			return maxf(s.army - v, 0.0)
+		"x":
+			return s.army * v
+		"/":
+			return floorf(s.army / maxf(v, 1.0))
+		"charge":
+			return maxf(s.army + v, 0.0) if v < 0.0 else s.army
+	return s.army
+
+
 ## The [op, value] a gate shows at the state's time.
-static func _gate_view(lv: Level, s: State, g: int) -> Array:
-	if _blink_phase(lv, g, s.t) == 1:
+static func gate_view(lv: Level, s: State, g: int) -> Array:
+	if blink_phase(lv, g, s.t) == 1:
 		return [s.op2[g], s.val2[g]]
 	return [s.op[g], s.val[g]]
 
 
-static func _blink_phase(lv: Level, g: int, t: float) -> int:
+static func blink_phase(lv: Level, g: int, t: float) -> int:
 	var it := lv.items[g]
 	if not it.has("blink"):
 		return 0
@@ -547,7 +589,7 @@ static func _targets(lv: Level, s: State, x: float, lateral: float, reach: float
 		if k == K.GATE:
 			if not gates or di < s.d:
 				continue
-			var v := _gate_view(lv, s, i)
+			var v := gate_view(lv, s, i)
 			if s.rev[i] == 1 and not Balance.GATE_HIT_GAIN.has(str(v[0])):
 				continue
 			if absf(gate_x(lv, i, s.t) - x) > lateral + lv.hw[i]:
@@ -575,7 +617,7 @@ static func _first_at(d: PackedFloat32Array, idx: PackedInt32Array, v: float) ->
 
 static func _hit_gate(lv: Level, s: State, g: int, dmg: float) -> void:
 	s.rev[g] = 1
-	var ph := _blink_phase(lv, g, s.t)
+	var ph := blink_phase(lv, g, s.t)
 	var op := s.op2[g] if ph == 1 else s.op[g]
 	if not Balance.GATE_HIT_GAIN.has(op):
 		return
@@ -1019,6 +1061,9 @@ static func _log(s: State, msg: String) -> void:
 
 const LAT_SLOPE := 4.0          # sideways units per unit run when a planned path changes x
 const PLAN_STEP := 2.0          # level_check: distance between re-plans
+const PLAN_GATE_MARGIN := 0.25
+const PLAN_TIME_MARGIN := 0.12  # planning: moving / blinking gates must hold this long
+const PAIRS := [-2.7, -1.0, 1.0, 2.7]   # coarse x for two-stage (weaving) lines
 
 
 ## How good a state is, in soldiers: the army plus what weapons, powers, coins and the ult
@@ -1037,7 +1082,8 @@ static func value(lv: Level, s: State) -> float:
 		v += s.army * float(tier["volley"]) / float(tier["period"]) * left * 0.1
 	var def: Dictionary = Balance.HEROES[s.hero]
 	var hero_dps := hero_rate(s) * float(hero_damage(s) + int(def["splash"])) * (1 + s.p_multi)
-	v += hero_dps * left * 0.12
+	# The hero's fire also pumps gates and opens crates, so it is worth more than its kills.
+	v += hero_dps * left * 0.3
 	v += s.coins * 0.15 + s.ult * 0.25
 	if s.army < 0.5:
 		v -= 30.0
@@ -1049,19 +1095,17 @@ static func hold_path(d: float, x0: float, x1: float) -> PackedFloat32Array:
 	return PackedFloat32Array([d, x0, d + maxf(absf(x1 - x0) / LAT_SLOPE, 0.15), x1])
 
 
-## Scores holding each candidate x for `horizon` units from state `s`. Returns
-## {"x": best x, "score": its value, "scores": PackedFloat32Array per candidate}.
-static func plan(lv: Level, s: State, candidates: PackedFloat32Array, horizon: float, dt := DT_COARSE, bias_x := INF, bias := 0.0) -> Dictionary:
+## Scores each candidate line from state `s` over `horizon` units: holding one x, and (with
+## `pairs`) going to x1 for the first half, then x2 (weaving between hazards). Returns
+## {"x": first x of the best line, "score": its value, "scores": PackedFloat32Array for the
+## single-x candidates in order}.
+static func plan(lv: Level, s: State, candidates: PackedFloat32Array, horizon: float, dt := DT_COARSE, bias_x := INF, bias := 0.0, pairs := PackedFloat32Array()) -> Dictionary:
 	var scores := PackedFloat32Array()
-	var best_i := 0
+	var best_x := candidates[0]
 	var best_v := -INF
 	for k in candidates.size():
 		var x := candidates[k]
-		var c := s.copy()
-		c.tracing = false
-		var p := hold_path(s.d, s.hx, x)
-		advance(lv, c, p, s.d + horizon, dt, horizon / Balance.RUN_SPEED + 4.0)
-		var v := value(lv, c)
+		var v := _line_value(lv, s, hold_path(s.d, s.hx, x), horizon, dt)
 		# Small preference for staying put (hysteresis) and for the centre on ties.
 		if bias_x != INF:
 			v -= absf(x - bias_x) * bias
@@ -1069,8 +1113,30 @@ static func plan(lv: Level, s: State, candidates: PackedFloat32Array, horizon: f
 		scores.append(v)
 		if v > best_v:
 			best_v = v
-			best_i = k
-	return {"x": candidates[best_i], "score": best_v, "scores": scores}
+			best_x = x
+	var mid := s.d + horizon * 0.5
+	for x1 in pairs:
+		for x2 in pairs:
+			if absf(x1 - x2) < 0.5:
+				continue
+			var p := hold_path(s.d, s.hx, x1)
+			p.append_array(PackedFloat32Array([mid, x1, mid + absf(x2 - x1) / LAT_SLOPE, x2]))
+			var v2 := _line_value(lv, s, p, horizon, dt) - 0.5
+			if bias_x != INF:
+				v2 -= absf(x1 - bias_x) * bias
+			if v2 > best_v:
+				best_v = v2
+				best_x = x1
+	return {"x": best_x, "score": best_v, "scores": scores}
+
+
+static func _line_value(lv: Level, s: State, path: PackedFloat32Array, horizon: float, dt: float) -> float:
+	var c := s.copy()
+	c.tracing = false
+	# Plans keep clear of gate edges so a slightly late hero still lands in the gate.
+	c.gate_margin = PLAN_GATE_MARGIN
+	advance(lv, c, path, s.d + horizon, dt, horizon / Balance.RUN_SPEED + 4.0)
+	return value(lv, c)
 
 
 ## Evenly spaced candidate x across the bridge.
@@ -1091,13 +1157,13 @@ static func best_path(lv: Level, hero: String, army: int, opts := {}) -> Diction
 	var guard := 0
 	while s.mode != Mode.WON and s.mode != Mode.LOST and s.d < lv.length + 50.0 and guard < 2000:
 		guard += 1
-		var pick := plan(lv, s, cands, horizon, DT_COARSE, s.hx, 0.05)
+		var pick := plan(lv, s, cands, horizon, DT_COARSE, s.hx, 0.05, PackedFloat32Array(PAIRS))
 		var x := float(pick["x"])
 		var seg := hold_path(s.d, s.hx, x)
 		path.append_array(seg)
 		advance(lv, s, seg, s.d + PLAN_STEP, DT, 30.0)
 	var res := result(lv, s)
-	return {"path": path, "result": res, "trace": s.trace}
+	return {"path": path, "result": res, "trace": s.trace, "samples": s.samples}
 
 
 ## Straight down the middle (the "lazy" player).
@@ -1117,3 +1183,37 @@ static func random_path(length: float, rng: RandomNumberGenerator) -> PackedFloa
 		d += absf(nx - x) / LAT_SLOPE
 		x = nx
 	return p
+
+
+## Points the state's item cursors at distance s.d (for a state started mid-run, e.g. a bot
+## snapshot): things the hero has already crossed are not triggered again.
+static func sync_cursors(lv: Level, s: State) -> void:
+	s.pk = _first_after(lv.d, lv.pick, s.d)
+	s.bk = 0
+	while s.bk < lv.block.size() and lv.d[lv.block[s.bk]] - Balance.CONTACT < s.d - 0.001:
+		s.bk += 1
+	s.hz = _first_after(lv.d, lv.haz, army_center_d(s))
+
+
+static func _first_after(d: PackedFloat32Array, idx: PackedInt32Array, v: float) -> int:
+	var lo := 0
+	var hi := idx.size()
+	while lo < hi:
+		var mid := (lo + hi) >> 1
+		if d[idx[mid]] <= v:
+			lo = mid + 1
+		else:
+			hi = mid
+	return lo
+
+
+## Builds a Level from item dictionaries that are already in d order (e.g. a window of a live
+## run's items, with base positions for moving things).
+static func level_from_items(items: Array, level: int, length: float) -> Level:
+	var lv := Level.new()
+	lv.level = level
+	lv.length = length
+	for it: Dictionary in items:
+		lv.items.append(it)
+	_index(lv)
+	return lv
