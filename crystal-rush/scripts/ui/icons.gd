@@ -536,4 +536,378 @@ static func draw_icon(ci: CanvasItem, k: String, r: Rect2, tint := Color.WHITE, 
 			ci.draw_colored_polygon(_pts(r, [0.5, 0.06, 0.56, 0.06, 0.56, 0.44, 0.44, 0.44, 0.44, 0.06]), Color(1.0, 0.8, 0.34) * tint)
 			ci.draw_colored_polygon(_pts(r, [0.24, 0.24, 0.4, 0.14, 0.36, 0.4, 0.24, 0.4]), Color(1, 1, 1, 0.6) * tint)
 		_:
-			ci.draw_circle(c, w * 0.4, tint)
+			if not _meta_icon(ci, k, r, tint):
+				ci.draw_circle(c, w * 0.4, tint)
+
+
+# ------------------------------------------------------------------ Meta-1 icons (WS4)
+## Machines (mortar, gatling, railgun, prism; the other five are above), families (fam_*),
+## statuses (st_*), currencies (gem, crown, blueprint, wild, core), caches, hub tabs (tab_*),
+## Barracks tracks and small UI glyphs (info, laurel, deck, chevron, arrow_up, fortress,
+## percent, plus, swap). Sticker style: ink outline, bright fill, a light top highlight.
+## Returns false for an unknown kind.
+static func _meta_icon(ci: CanvasItem, k: String, r: Rect2, tint: Color) -> bool:
+	var w := r.size.x
+	var c := r.get_center()
+	var ow := maxf(1.2, w * 0.035)
+	var gold := Color(1.0, 0.8, 0.34) * tint
+	var gold_d := Color(0.72, 0.46, 0.14) * tint
+	var white := Color(0.94, 0.95, 1.0) * tint
+	var navy := Color(0.2, 0.25, 0.45) * tint
+	match k:
+		"mortar":
+			_poly(ci, _pts(r, [0.12, 0.9, 0.2, 0.62, 0.8, 0.62, 0.88, 0.9]), navy, ow)
+			ci.draw_line(_p(r, 0.2, 0.66), _p(r, 0.8, 0.66), gold, w * 0.03)
+			var a := _p(r, 0.42, 0.66)
+			var b := _p(r, 0.7, 0.3)
+			_stroke(ci, a, b, w * 0.26, white, ow, false)
+			_stroke(ci, a, b, w * 0.26, white, ow)
+			var d := (b - a).normalized()
+			var n := Vector2(-d.y, d.x)
+			ci.draw_line(a + n * w * 0.07, b + n * w * 0.07, Color(1, 1, 1, 0.8) * tint, w * 0.035)
+			for t in [0.35, 0.7]:
+				var m := a.lerp(b, t)
+				ci.draw_line(m + n * w * 0.14, m - n * w * 0.14, INK, w * 0.08)
+				ci.draw_line(m + n * w * 0.13, m - n * w * 0.13, gold, w * 0.05)
+			_disc(ci, b + d * w * 0.03, w * 0.1, Color(0.12, 0.12, 0.2) * tint, ow * 0.7)
+			_disc(ci, _p(r, 0.5, 0.74), w * 0.09, gold, ow)
+			_glow(ci, _p(r, 0.86, 0.12), w * 0.12, Color(1.0, 0.6, 0.25, 0.9) * tint)
+			_disc(ci, _p(r, 0.86, 0.12), w * 0.06, Color(0.25, 0.25, 0.3) * tint, ow * 0.7)
+		"gatling":
+			_rr(ci, Rect2(_p(r, 0.08, 0.3), Vector2(0.34, 0.4) * w).grow(ow), w * 0.1 + ow, INK)
+			_rr(ci, Rect2(_p(r, 0.08, 0.3), Vector2(0.34, 0.4) * w), w * 0.1, navy)
+			ci.draw_line(_p(r, 0.12, 0.36), _p(r, 0.38, 0.36), Color(1, 1, 1, 0.35) * tint, w * 0.03)
+			for i in 3:
+				var y := 0.38 + i * 0.12
+				_stroke(ci, _p(r, 0.36, y), _p(r, 0.84, y), w * 0.075, white, ow, false)
+			for i in 3:
+				var y2 := 0.38 + i * 0.12
+				_stroke(ci, _p(r, 0.36, y2), _p(r, 0.84, y2), w * 0.075, white, ow)
+			for x0 in [0.48, 0.72]:
+				_rr(ci, Rect2(_p(r, x0, 0.31), Vector2(0.06, 0.38) * w).grow(ow * 0.6), w * 0.02, INK)
+				_rr(ci, Rect2(_p(r, x0, 0.31), Vector2(0.06, 0.38) * w), w * 0.02, gold)
+			_glow(ci, _p(r, 0.93, 0.5), w * 0.16, Color(1.0, 0.75, 0.3, 0.9) * tint)
+			var fl := PackedVector2Array()
+			for i in 8:
+				var aa := TAU * i / 8.0
+				fl.append(_p(r, 0.93, 0.5) + Vector2(cos(aa), sin(aa)) * w * (0.1 if i % 2 == 0 else 0.045))
+			ci.draw_colored_polygon(fl, Color(1.0, 0.95, 0.6) * tint)
+			_rr(ci, Rect2(_p(r, 0.14, 0.7), Vector2(0.18, 0.18) * w).grow(ow), w * 0.03, INK)
+			_rr(ci, Rect2(_p(r, 0.14, 0.7), Vector2(0.18, 0.18) * w), w * 0.03, gold_d)
+		"railgun":
+			var a := _p(r, 0.12, 0.84)
+			var b := _p(r, 0.9, 0.16)
+			var d := (b - a).normalized()
+			var n := Vector2(-d.y, d.x)
+			for s in [-1.0, 1.0]:
+				_stroke(ci, a + n * w * 0.11 * s, b + n * w * 0.11 * s, w * 0.07, white, ow, false)
+			ci.draw_line(a, b, Color(0.4, 0.9, 1.0, 0.25) * tint, w * 0.16)
+			ci.draw_line(a.lerp(b, 0.15), b, Color(0.55, 0.95, 1.0, 0.85) * tint, w * 0.06)
+			ci.draw_line(a.lerp(b, 0.15), b, Color(0.95, 1.0, 1.0) * tint, w * 0.022)
+			for s in [-1.0, 1.0]:
+				_stroke(ci, a + n * w * 0.11 * s, b + n * w * 0.11 * s, w * 0.07, white, ow)
+			for t in [0.2, 0.4, 0.6]:
+				var m := a.lerp(b, t)
+				_disc(ci, m, w * 0.08, Color(0.3, 0.85, 1.0) * tint, ow * 0.7)
+				ci.draw_circle(m, w * 0.035, Color(0.9, 1, 1) * tint)
+			_rr(ci, Rect2(a - Vector2(w * 0.1, w * 0.06), Vector2(w * 0.22, w * 0.14)).grow(ow), w * 0.04, INK)
+			_rr(ci, Rect2(a - Vector2(w * 0.1, w * 0.06), Vector2(w * 0.22, w * 0.14)), w * 0.04, gold)
+			_glow(ci, b, w * 0.16, Color(0.5, 0.95, 1.0, 1.0) * tint)
+		"prism":
+			var beam_in := _p(r, 0.02, 0.62)
+			ci.draw_line(beam_in, _p(r, 0.42, 0.52), Color(1, 1, 1, 0.35) * tint, w * 0.1)
+			ci.draw_line(beam_in, _p(r, 0.42, 0.52), Color(1, 1, 1, 0.95) * tint, w * 0.035)
+			var cols := [Color(1.0, 0.35, 0.4), Color(1.0, 0.75, 0.25), Color(0.5, 1.0, 0.45), Color(0.35, 0.8, 1.0), Color(0.75, 0.45, 1.0)]
+			for i in 5:
+				var e := _p(r, 0.98, 0.2 + i * 0.14)
+				ci.draw_line(_p(r, 0.6, 0.48), e, (cols[i] as Color) * Color(1, 1, 1, 0.9) * tint, w * 0.05)
+			var tri := _pts(r, [0.5, 0.1, 0.84, 0.82, 0.16, 0.82])
+			_poly(ci, tri, Color(0.75, 0.92, 1.0, 0.95) * tint, ow)
+			ci.draw_colored_polygon(_pts(r, [0.5, 0.1, 0.5, 0.82, 0.16, 0.82]), Color(0.92, 0.98, 1.0, 0.95) * tint)
+			ci.draw_colored_polygon(_pts(r, [0.5, 0.22, 0.6, 0.5, 0.5, 0.7, 0.4, 0.5]), Color(1, 1, 1, 0.75) * tint)
+			ci.draw_line(_p(r, 0.16, 0.82), _p(r, 0.84, 0.82), gold, w * 0.05)
+		# ---------------------------------------------------------- families
+		"fam_kinetic", "chevron":
+			var col := Color(1.0, 0.72, 0.5) * tint if k == "fam_kinetic" else gold
+			for i in (2 if k == "fam_kinetic" else 1):
+				var y0 := 0.62 - i * 0.26 if k == "fam_kinetic" else 0.7
+				_poly(ci, _pts(r, [0.12, y0, 0.5, y0 - 0.32, 0.88, y0, 0.88, y0 + 0.16, 0.5, y0 - 0.16, 0.12, y0 + 0.16]), col, ow)
+		"fam_volt":
+			_glow(ci, c, w * 0.42, Color(1.0, 0.5, 1.0, 0.5) * tint)
+			_poly(ci, _pts(r, [0.6, 0.04, 0.2, 0.56, 0.46, 0.56, 0.36, 0.96, 0.82, 0.4, 0.54, 0.4]), Color(1.0, 0.62, 1.0) * tint, ow)
+			ci.draw_colored_polygon(_pts(r, [0.58, 0.12, 0.3, 0.5, 0.46, 0.5]), Color(1, 0.92, 1, 0.8) * tint)
+		"fam_frost", "st_chill":
+			var fc := Color(0.65, 0.93, 1.0) * tint
+			for i in 3:
+				var aa := PI / 3.0 * i + PI / 2.0
+				var d2 := Vector2(cos(aa), sin(aa))
+				_stroke(ci, c - d2 * w * 0.42, c + d2 * w * 0.42, w * 0.08, fc, ow, false)
+			for i in 3:
+				var aa2 := PI / 3.0 * i + PI / 2.0
+				var d3 := Vector2(cos(aa2), sin(aa2))
+				_stroke(ci, c - d3 * w * 0.42, c + d3 * w * 0.42, w * 0.08, fc, ow)
+				for s in [-1.0, 1.0]:
+					var tip: Vector2 = c + d3 * w * 0.3 * s
+					var n2 := Vector2(-d3.y, d3.x)
+					ci.draw_line(tip, tip + (d3 * float(s) * 0.6 + n2 * 0.8).normalized() * w * 0.12, fc, w * 0.05)
+					ci.draw_line(tip, tip + (d3 * float(s) * 0.6 - n2 * 0.8).normalized() * w * 0.12, fc, w * 0.05)
+			_disc(ci, c, w * 0.09, Color(0.95, 1.0, 1.0) * tint, ow * 0.7)
+		"fam_plasma":
+			_glow(ci, c, w * 0.48, Color(1.0, 0.3, 0.6, 0.7) * tint)
+			ci.draw_arc(c, w * 0.4, -0.4, PI - 0.4, 24, INK, w * 0.07 + ow * 2.0, true)
+			_disc(ci, c, w * 0.28, Color(1.0, 0.36, 0.62) * tint, ow)
+			ci.draw_circle(c + Vector2(-w * 0.04, -w * 0.05), w * 0.16, Color(1.0, 0.72, 0.85) * tint)
+			ci.draw_circle(c + Vector2(-w * 0.09, -w * 0.1), w * 0.06, Color(1, 1, 1, 0.9) * tint)
+			ci.draw_arc(c, w * 0.4, -0.4, PI - 0.4, 24, Color(1.0, 0.65, 0.85) * tint, w * 0.07, true)
+		"fam_tech", "focus":
+			var tc := Color(0.55, 1.0, 0.4) * tint if k == "fam_tech" else gold
+			ci.draw_arc(c, w * 0.32, 0, TAU, 32, INK, w * 0.09 + ow * 2.0, true)
+			ci.draw_arc(c, w * 0.32, 0, TAU, 32, tc, w * 0.09, true)
+			for d4 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+				_stroke(ci, c + d4 * w * 0.18, c + d4 * w * 0.46, w * 0.08, tc, ow, false)
+				_stroke(ci, c + d4 * w * 0.18, c + d4 * w * 0.46, w * 0.08, tc, ow)
+			_disc(ci, c, w * 0.08, tc.lightened(0.4), ow * 0.7)
+		"fam_rune", "st_seal":
+			var rc := Color(0.5, 0.58, 1.0) * tint if k == "fam_rune" else Color(0.45, 0.7, 1.0) * tint
+			_glow(ci, c, w * 0.46, Color(rc.r, rc.g, rc.b, 0.45))
+			ci.draw_arc(c, w * 0.38, 0, TAU, 40, INK, w * 0.08 + ow * 2.0, true)
+			ci.draw_arc(c, w * 0.38, 0, TAU, 40, rc, w * 0.08, true)
+			for i in 6:
+				var aa3 := TAU * i / 6.0
+				ci.draw_circle(c + Vector2(cos(aa3), sin(aa3)) * w * 0.38, w * 0.035, Color(1, 1, 1, 0.9) * tint)
+			_stroke(ci, _p(r, 0.5, 0.26), _p(r, 0.5, 0.74), w * 0.08, rc.lightened(0.5), ow, false)
+			_stroke(ci, _p(r, 0.5, 0.26), _p(r, 0.5, 0.74), w * 0.08, rc.lightened(0.5), ow)
+			_stroke(ci, _p(r, 0.5, 0.4), _p(r, 0.66, 0.28), w * 0.06, rc.lightened(0.5), 0.0)
+			_stroke(ci, _p(r, 0.5, 0.58), _p(r, 0.34, 0.46), w * 0.06, rc.lightened(0.5), 0.0)
+		"fam_rift":
+			var ec := Color(0.9, 0.8, 1.0) * tint
+			var eye := PackedVector2Array()
+			for i in 24:
+				var t2 := float(i) / 24.0 * TAU
+				eye.append(c + Vector2(cos(t2) * w * 0.44, sin(t2) * w * 0.24 * (1.0 if sin(t2) > 0 else 1.0)))
+			_poly(ci, eye, ec, ow)
+			_disc(ci, c, w * 0.17, Color(0.55, 0.3, 0.95) * tint, ow * 0.7)
+			ci.draw_circle(c, w * 0.07, Color(0.08, 0.04, 0.15) * tint)
+			ci.draw_circle(c + Vector2(-w * 0.05, -w * 0.05), w * 0.04, Color(1, 1, 1, 0.9) * tint)
+		# ---------------------------------------------------------- statuses
+		"st_stagger":
+			var sc := Color(1.0, 0.75, 0.45) * tint
+			var star := PackedVector2Array()
+			for i in 14:
+				var aa4 := -PI / 2.0 + i * TAU / 14.0
+				star.append(c + Vector2(cos(aa4), sin(aa4)) * w * (0.46 if i % 2 == 0 else 0.24))
+			_poly(ci, star, sc, ow)
+			_poly(ci, _pts(r, [0.3, 0.6, 0.5, 0.36, 0.7, 0.6, 0.7, 0.7, 0.5, 0.48, 0.3, 0.7]), white, ow * 0.6)
+		"st_jolt":
+			_glow(ci, c, w * 0.44, Color(1.0, 0.5, 1.0, 0.55) * tint)
+			var z := _pts(r, [0.1, 0.5, 0.32, 0.22, 0.42, 0.56, 0.6, 0.2, 0.68, 0.6, 0.9, 0.34])
+			ci.draw_polyline(z, INK, w * 0.12 + ow * 2.0, true)
+			ci.draw_polyline(z, Color(1.0, 0.6, 1.0) * tint, w * 0.12, true)
+			ci.draw_polyline(z, Color(1.0, 0.95, 1.0) * tint, w * 0.04, true)
+			for q in [Vector2(0.24, 0.76), Vector2(0.76, 0.8), Vector2(0.86, 0.14)]:
+				ci.draw_circle(_p(r, q.x, q.y), w * 0.05, Color(1.0, 0.8, 1.0) * tint)
+		"st_freeze":
+			_rr(ci, Rect2(_p(r, 0.14, 0.14), Vector2(0.72, 0.72) * w).grow(ow), w * 0.14 + ow, INK)
+			_rr(ci, Rect2(_p(r, 0.14, 0.14), Vector2(0.72, 0.72) * w), w * 0.14, Color(0.55, 0.88, 1.0, 0.95) * tint)
+			ci.draw_colored_polygon(_pts(r, [0.2, 0.2, 0.62, 0.2, 0.2, 0.62]), Color(0.9, 0.98, 1.0, 0.7) * tint)
+			ci.draw_line(_p(r, 0.3, 0.7), _p(r, 0.72, 0.28), Color(1, 1, 1, 0.8) * tint, w * 0.04)
+		"st_burn", "flame":
+			_glow(ci, _p(r, 0.5, 0.6), w * 0.42, Color(1.0, 0.45, 0.15, 0.6) * tint)
+			var fo := _pts(r, [0.5, 0.04, 0.72, 0.34, 0.86, 0.58, 0.78, 0.84, 0.5, 0.96, 0.22, 0.84, 0.14, 0.58, 0.3, 0.42, 0.38, 0.56])
+			_poly(ci, fo, Color(1.0, 0.42, 0.14) * tint, ow)
+			ci.draw_colored_polygon(_pts(r, [0.52, 0.36, 0.7, 0.62, 0.64, 0.86, 0.5, 0.92, 0.36, 0.86, 0.32, 0.66, 0.44, 0.6]), Color(1.0, 0.78, 0.25) * tint)
+			ci.draw_colored_polygon(_pts(r, [0.52, 0.6, 0.6, 0.78, 0.5, 0.88, 0.42, 0.78]), Color(1.0, 0.97, 0.75) * tint)
+		"st_mark":
+			var mc := Color(1.0, 0.36, 0.3) * tint
+			_poly(ci, _pts(r, [0.5, 0.08, 0.92, 0.5, 0.5, 0.92, 0.08, 0.5]), Color(1, 1, 1, 0.12) * tint, 0.0)
+			ci.draw_polyline(_pts(r, [0.5, 0.08, 0.92, 0.5, 0.5, 0.92, 0.08, 0.5, 0.5, 0.08]), INK, w * 0.08 + ow * 2.0, true)
+			ci.draw_polyline(_pts(r, [0.5, 0.08, 0.92, 0.5, 0.5, 0.92, 0.08, 0.5, 0.5, 0.08]), mc, w * 0.08, true)
+			_disc(ci, c, w * 0.12, mc, ow)
+			ci.draw_circle(c, w * 0.05, Color(1, 0.9, 0.85) * tint)
+		# ---------------------------------------------------------- currencies
+		"gem":
+			var gp := _pts(r, [0.24, 0.16, 0.76, 0.16, 0.94, 0.38, 0.5, 0.92, 0.06, 0.38])
+			_poly(ci, gp, Color(0.25, 0.85, 0.95) * tint, ow)
+			ci.draw_colored_polygon(_pts(r, [0.24, 0.16, 0.5, 0.38, 0.06, 0.38]), Color(0.6, 0.97, 1.0) * tint)
+			ci.draw_colored_polygon(_pts(r, [0.76, 0.16, 0.94, 0.38, 0.5, 0.38]), Color(0.15, 0.62, 0.8) * tint)
+			ci.draw_colored_polygon(_pts(r, [0.5, 0.38, 0.94, 0.38, 0.5, 0.92]), Color(0.12, 0.55, 0.75) * tint)
+			ci.draw_colored_polygon(_pts(r, [0.24, 0.16, 0.76, 0.16, 0.5, 0.38]), Color(0.82, 1.0, 1.0) * tint)
+			ci.draw_circle(_p(r, 0.32, 0.27), w * 0.04, Color(1, 1, 1, 0.95) * tint)
+		"crown", "lead":
+			var cp := _pts(r, [0.08, 0.3, 0.3, 0.52, 0.5, 0.18, 0.7, 0.52, 0.92, 0.3, 0.84, 0.8, 0.16, 0.8])
+			_poly(ci, cp, Color(1.0, 0.8, 0.28) * tint, ow)
+			ci.draw_colored_polygon(_pts(r, [0.16, 0.66, 0.84, 0.66, 0.84, 0.8, 0.16, 0.8]), gold_d)
+			ci.draw_colored_polygon(_pts(r, [0.14, 0.4, 0.3, 0.56, 0.5, 0.28, 0.5, 0.4, 0.3, 0.62, 0.16, 0.5]), Color(1.0, 0.95, 0.7, 0.8) * tint)
+			for q in [Vector2(0.08, 0.3), Vector2(0.5, 0.18), Vector2(0.92, 0.3)]:
+				_disc(ci, _p(r, q.x, q.y), w * 0.07, Color(1.0, 0.92, 0.6) * tint, ow * 0.7)
+			_disc(ci, _p(r, 0.5, 0.72), w * 0.06, Color(1.0, 0.3, 0.35) * tint, ow * 0.5)
+			_disc(ci, _p(r, 0.3, 0.72), w * 0.045, Color(0.35, 0.8, 1.0) * tint, ow * 0.5)
+			_disc(ci, _p(r, 0.7, 0.72), w * 0.045, Color(0.35, 0.8, 1.0) * tint, ow * 0.5)
+		"blueprint", "wild":
+			var paper := Color(0.3, 0.6, 1.0) * tint if k == "blueprint" else Color(0.66, 0.42, 1.0) * tint
+			var body := Rect2(_p(r, 0.14, 0.18), Vector2(0.66, 0.64) * w)
+			_rr(ci, body.grow(ow), w * 0.06 + ow, INK)
+			_rr(ci, body, w * 0.06, paper)
+			for i in 4:
+				var gx := body.position.x + body.size.x * (0.2 + i * 0.2)
+				ci.draw_line(Vector2(gx, body.position.y + 3), Vector2(gx, body.end.y - 3), Color(1, 1, 1, 0.22) * tint, maxf(1.0, w * 0.015))
+				var gy := body.position.y + body.size.y * (0.2 + i * 0.2)
+				ci.draw_line(Vector2(body.position.x + 3, gy), Vector2(body.end.x - 3, gy), Color(1, 1, 1, 0.22) * tint, maxf(1.0, w * 0.015))
+			ci.draw_arc(_p(r, 0.44, 0.52), w * 0.14, 0, TAU, 20, Color(1, 1, 1, 0.85) * tint, w * 0.035, true)
+			ci.draw_line(_p(r, 0.3, 0.36), _p(r, 0.6, 0.68), Color(1, 1, 1, 0.7) * tint, w * 0.03)
+			_disc(ci, _p(r, 0.82, 0.24), w * 0.11, paper.lightened(0.35), ow)
+			_rr(ci, Rect2(_p(r, 0.71, 0.24), Vector2(0.22, 0.6) * w).grow(ow), w * 0.08, INK)
+			_rr(ci, Rect2(_p(r, 0.71, 0.24), Vector2(0.22, 0.6) * w), w * 0.08, paper.lightened(0.35))
+			ci.draw_line(_p(r, 0.76, 0.3), _p(r, 0.76, 0.78), Color(1, 1, 1, 0.5) * tint, w * 0.03)
+			if k == "wild":
+				_glow(ci, _p(r, 0.26, 0.24), w * 0.2, Color(1, 0.9, 1, 0.9) * tint)
+				var sp := PackedVector2Array()
+				for i in 8:
+					var aa5 := -PI / 2.0 + i * TAU / 8.0
+					sp.append(_p(r, 0.26, 0.24) + Vector2(cos(aa5), sin(aa5)) * w * (0.2 if i % 2 == 0 else 0.06))
+				_poly(ci, sp, Color(1.0, 0.95, 0.6) * tint, ow * 0.6)
+		"core":
+			_glow(ci, c, w * 0.46, Color(1.0, 0.4, 0.3, 0.5) * tint)
+			for i in 3:
+				var a0 := -PI / 2.0 + i * TAU / 3.0 + 0.12
+				ci.draw_arc(c, w * 0.38, a0, a0 + TAU / 3.0 - 0.24, 12, INK, w * 0.1 + ow * 2.0, true)
+				ci.draw_arc(c, w * 0.38, a0, a0 + TAU / 3.0 - 0.24, 12, gold, w * 0.1, true)
+			_disc(ci, c, w * 0.2, Color(1.0, 0.4, 0.3) * tint, ow)
+			ci.draw_circle(c + Vector2(-w * 0.05, -w * 0.05), w * 0.08, Color(1.0, 0.8, 0.7) * tint)
+		"cache_stone", "cache_world", "vault":
+			var base_c := Color(0.5, 0.56, 0.7) * tint if k != "cache_world" else Color(0.25, 0.22, 0.34) * tint
+			var seam := Color(0.35, 0.7, 1.0) * tint if k != "cache_world" else Color(0.78, 0.45, 1.0) * tint
+			var egg := PackedVector2Array()
+			for i in 32:
+				var t3 := TAU * i / 32.0
+				var sy := sin(t3)
+				var rr2 := w * (0.34 if sy < 0.0 else 0.38)
+				egg.append(c + Vector2(cos(t3) * rr2 * 0.92, sy * w * (0.44 if sy < 0.0 else 0.38)) + Vector2(0, w * 0.04))
+			_glow(ci, c, w * 0.5, Color(seam.r, seam.g, seam.b, 0.4))
+			_poly(ci, egg, base_c, ow)
+			ci.draw_polyline(_pts(r, [0.22, 0.42, 0.36, 0.5, 0.5, 0.4, 0.64, 0.52, 0.8, 0.44]), seam, w * 0.05, true)
+			ci.draw_polyline(_pts(r, [0.2, 0.66, 0.38, 0.72, 0.52, 0.64, 0.7, 0.74, 0.82, 0.66]), seam, w * 0.045, true)
+			ci.draw_arc(c + Vector2(0, w * 0.04), w * 0.34, PI * 1.15, PI * 1.45, 10, Color(1, 1, 1, 0.45) * tint, w * 0.04, true)
+			ci.draw_line(_p(r, 0.14, 0.56), _p(r, 0.86, 0.56), gold, w * 0.05)
+		# ---------------------------------------------------------- hub tabs
+		"tab_shop", "chest":
+			_rr(ci, Rect2(_p(r, 0.1, 0.42), Vector2(0.8, 0.46) * w).grow(ow), w * 0.06 + ow, INK)
+			_rr(ci, Rect2(_p(r, 0.1, 0.42), Vector2(0.8, 0.46) * w), w * 0.06, Color(0.62, 0.34, 0.16) * tint)
+			var lid := PackedVector2Array()
+			for i in 17:
+				var t4 := PI + PI * i / 16.0
+				lid.append(_p(r, 0.5, 0.44) + Vector2(cos(t4) * w * 0.4, sin(t4) * w * 0.3))
+			_poly(ci, lid, Color(0.78, 0.45, 0.2) * tint, ow)
+			for x0 in [0.2, 0.72]:
+				_rr(ci, Rect2(_p(r, x0, 0.16), Vector2(0.08, 0.72) * w), w * 0.02, gold)
+			ci.draw_line(_p(r, 0.1, 0.44), _p(r, 0.9, 0.44), gold, w * 0.06)
+			_rr(ci, Rect2(_p(r, 0.42, 0.4), Vector2(0.16, 0.2) * w).grow(ow * 0.7), w * 0.03, INK)
+			_rr(ci, Rect2(_p(r, 0.42, 0.4), Vector2(0.16, 0.2) * w), w * 0.03, Color(1.0, 0.9, 0.5) * tint)
+			ci.draw_line(_p(r, 0.2, 0.26), _p(r, 0.42, 0.18), Color(1, 1, 1, 0.45) * tint, w * 0.035)
+		"tab_arsenal":
+			# A plasma cannon on a gold cog: "machines".
+			for i in 8:
+				var aa6 := TAU * i / 8.0
+				var dd := Vector2(cos(aa6), sin(aa6))
+				ci.draw_line(_p(r, 0.36, 0.64) + dd * w * 0.2, _p(r, 0.36, 0.64) + dd * w * 0.34, INK, w * 0.13 + ow * 2.0)
+			for i in 8:
+				var aa7 := TAU * i / 8.0
+				var dd2 := Vector2(cos(aa7), sin(aa7))
+				ci.draw_line(_p(r, 0.36, 0.64) + dd2 * w * 0.2, _p(r, 0.36, 0.64) + dd2 * w * 0.33, gold, w * 0.13)
+			_disc(ci, _p(r, 0.36, 0.64), w * 0.24, gold, ow)
+			ci.draw_circle(_p(r, 0.36, 0.64), w * 0.1, gold_d)
+			var a2 := _p(r, 0.4, 0.58)
+			var b2 := _p(r, 0.84, 0.18)
+			_stroke(ci, a2, b2, w * 0.2, white, ow, false)
+			_stroke(ci, a2, b2, w * 0.2, white, ow)
+			_glow(ci, _p(r, 0.88, 0.14), w * 0.18, Color(0.8, 0.55, 1.0, 0.9) * tint)
+			_disc(ci, _p(r, 0.88, 0.14), w * 0.08, Color(0.75, 0.55, 1.0) * tint, ow * 0.7)
+		"tab_play":
+			draw_icon(ci, "swords", r, tint)
+		"tab_heroes", "helmet":
+			var hp := _pts(r, [0.5, 0.1, 0.8, 0.24, 0.86, 0.56, 0.78, 0.9, 0.22, 0.9, 0.14, 0.56, 0.2, 0.24])
+			_poly(ci, hp, white, ow)
+			ci.draw_colored_polygon(_pts(r, [0.5, 0.12, 0.78, 0.26, 0.82, 0.5, 0.5, 0.5]), Color(0.75, 0.8, 0.95) * tint)
+			_rr(ci, Rect2(_p(r, 0.24, 0.46), Vector2(0.52, 0.12) * w), w * 0.04, INK)
+			_rr(ci, Rect2(_p(r, 0.47, 0.56), Vector2(0.06, 0.26) * w), w * 0.03, INK)
+			ci.draw_colored_polygon(_pts(r, [0.46, 0.1, 0.54, 0.1, 0.56, 0.44, 0.44, 0.44]), gold)
+			var plume := _pts(r, [0.5, 0.12, 0.62, 0.0, 0.92, 0.04, 0.78, 0.14, 0.94, 0.22, 0.6, 0.2])
+			_poly(ci, plume, Color(1.0, 0.36, 0.3) * tint, ow * 0.8)
+		"tab_barracks", "fortress":
+			var tc2 := white if k == "tab_barracks" else Color(0.6, 0.62, 0.72) * tint
+			_poly(ci, _pts(r, [0.14, 0.92, 0.14, 0.36, 0.24, 0.36, 0.24, 0.28, 0.34, 0.28, 0.34, 0.36, 0.44, 0.36, 0.44, 0.28, 0.56, 0.28, 0.56, 0.36, 0.66, 0.36, 0.66, 0.28, 0.76, 0.28, 0.76, 0.36, 0.86, 0.36, 0.86, 0.92]), tc2, ow)
+			ci.draw_line(_p(r, 0.14, 0.44), _p(r, 0.86, 0.44), gold, w * 0.04)
+			_rr(ci, Rect2(_p(r, 0.4, 0.62), Vector2(0.2, 0.3) * w), w * 0.08, INK)
+			ci.draw_line(_p(r, 0.5, 0.28), _p(r, 0.5, 0.02), INK, w * 0.05)
+			_poly(ci, _pts(r, [0.5, 0.02, 0.78, 0.08, 0.5, 0.16]), Color(1.0, 0.36, 0.3) * tint if k == "tab_barracks" else Color(0.85, 0.2, 0.2) * tint, ow * 0.6)
+		# ---------------------------------------------------------- barracks tracks
+		"recruits":
+			draw_icon(ci, "soldier", Rect2(r.position + Vector2(-w * 0.06, w * 0.04), r.size * 0.9), tint)
+			_disc(ci, _p(r, 0.78, 0.76), w * 0.18, Color(0.35, 0.85, 0.4) * tint, ow)
+			ci.draw_line(_p(r, 0.68, 0.76), _p(r, 0.88, 0.76), Color.WHITE * tint, w * 0.06)
+			ci.draw_line(_p(r, 0.78, 0.66), _p(r, 0.78, 0.86), Color.WHITE * tint, w * 0.06)
+		"reserves":
+			for q in [Vector2(-0.22, 0.06), Vector2(0.22, 0.06), Vector2(0.0, 0.0)]:
+				draw_icon(ci, "soldier", Rect2(r.position + Vector2(q.x, q.y) * w + r.size * 0.15, r.size * 0.7), tint)
+		"drill":
+			ci.draw_circle(c + Vector2(0, w * 0.04), w * 0.4, INK)
+			for i in 3:
+				ci.draw_circle(c + Vector2(0, w * 0.04), w * (0.38 - i * 0.12), (Color(1.0, 0.36, 0.3) if i % 2 == 0 else Color(1, 0.96, 0.9)) * tint)
+			_stroke(ci, _p(r, 0.94, 0.06), c + Vector2(0, w * 0.04), w * 0.06, white, ow, false)
+			_stroke(ci, _p(r, 0.94, 0.06), c + Vector2(0, w * 0.04), w * 0.06, Color(0.62, 0.38, 0.2) * tint, ow)
+			_poly(ci, _pts(r, [0.94, 0.06, 0.98, 0.2, 0.86, 0.12]), gold, ow * 0.5)
+		"volley":
+			for i in 3:
+				var x1 := 0.22 + i * 0.28
+				_stroke(ci, _p(r, x1 - 0.12, 0.9), _p(r, x1 + 0.06, 0.24), w * 0.05, white, ow, false)
+			for i in 3:
+				var x2 := 0.22 + i * 0.28
+				var tip2 := _p(r, x2 + 0.06, 0.24)
+				var dir2 := (tip2 - _p(r, x2 - 0.12, 0.9)).normalized()
+				var n3 := Vector2(-dir2.y, dir2.x)
+				_stroke(ci, _p(r, x2 - 0.12, 0.9), tip2, w * 0.05, white, ow)
+				_poly(ci, PackedVector2Array([tip2 + dir2 * w * 0.14, tip2 + n3 * w * 0.08, tip2 - n3 * w * 0.08]), Color(0.45, 0.88, 1.0) * tint, ow)
+		# ---------------------------------------------------------- small glyphs
+		"info":
+			_disc(ci, c, w * 0.44, Color(0.3, 0.6, 1.0) * tint, ow)
+			ci.draw_circle(c + Vector2(0, -w * 0.06), w * 0.38, Color(0.42, 0.72, 1.0) * tint)
+			ci.draw_circle(_p(r, 0.5, 0.28), w * 0.07, Color.WHITE * tint)
+			_rr(ci, Rect2(_p(r, 0.44, 0.4), Vector2(0.12, 0.36) * w), w * 0.04, Color.WHITE * tint)
+		"percent":
+			ci.draw_line(_p(r, 0.78, 0.16), _p(r, 0.22, 0.84), tint, w * 0.1)
+			ci.draw_arc(_p(r, 0.28, 0.28), w * 0.13, 0, TAU, 20, tint, w * 0.08, true)
+			ci.draw_arc(_p(r, 0.72, 0.72), w * 0.13, 0, TAU, 20, tint, w * 0.08, true)
+		"plus":
+			ci.draw_line(_p(r, 0.5, 0.16), _p(r, 0.5, 0.84), tint, w * 0.16)
+			ci.draw_line(_p(r, 0.16, 0.5), _p(r, 0.84, 0.5), tint, w * 0.16)
+		"arrow_up":
+			_poly(ci, _pts(r, [0.5, 0.06, 0.92, 0.5, 0.66, 0.5, 0.66, 0.92, 0.34, 0.92, 0.34, 0.5, 0.08, 0.5]), Color(0.4, 0.95, 0.35) * tint, ow)
+			ci.draw_colored_polygon(_pts(r, [0.5, 0.14, 0.78, 0.44, 0.5, 0.36, 0.22, 0.44]), Color(0.8, 1.0, 0.7, 0.8) * tint)
+		"laurel":
+			for s in [-1.0, 1.0]:
+				var cc := c + Vector2(s * w * 0.04, w * 0.1)
+				ci.draw_arc(cc, w * 0.36, PI * 0.5 + s * 0.2, PI * 0.5 + s * 2.2, 16, gold, w * 0.05, true)
+				for i in 5:
+					var aa8: float = PI * 0.5 + s * (0.5 + i * 0.36)
+					var lp := cc + Vector2(cos(aa8), sin(aa8)) * w * 0.36
+					var ld := Vector2(cos(aa8 + s * 0.9), sin(aa8 + s * 0.9))
+					_poly(ci, PackedVector2Array([lp, lp + ld * w * 0.16 + ld.orthogonal() * w * 0.05, lp + ld * w * 0.2, lp + ld * w * 0.16 - ld.orthogonal() * w * 0.05]), gold, ow * 0.5)
+		"deck":
+			for i in 3:
+				var rot := (i - 1) * 0.28
+				var cr := Rect2(-Vector2(0.26, 0.36) * w, Vector2(0.52, 0.72) * w)
+				ci.draw_set_transform(c + Vector2((i - 1) * w * 0.16, w * 0.06 + absf(i - 1) * w * 0.04), rot, Vector2.ONE)
+				_rr(ci, cr.grow(ow), w * 0.08 + ow, INK)
+				_rr(ci, cr, w * 0.08, (white if i == 1 else Color(0.8, 0.84, 0.96) * tint))
+				_rr(ci, cr.grow(-w * 0.07), w * 0.05, (Color(0.3, 0.6, 1.0) if i == 1 else Color(0.5, 0.55, 0.75)) * tint)
+				ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		"swap", "auto":
+			ci.draw_arc(c, w * 0.32, PI * 1.1, PI * 1.9, 16, tint, w * 0.1, true)
+			ci.draw_arc(c, w * 0.32, PI * 0.1, PI * 0.9, 16, tint, w * 0.1, true)
+			var t5 := c + Vector2(cos(PI * 1.9), sin(PI * 1.9)) * w * 0.32
+			ci.draw_colored_polygon(PackedVector2Array([t5 + Vector2(w * 0.14, 0), t5 + Vector2(-w * 0.06, -w * 0.14), t5 + Vector2(-w * 0.08, w * 0.08)]), tint)
+			var t6 := c + Vector2(cos(PI * 0.9), sin(PI * 0.9)) * w * 0.32
+			ci.draw_colored_polygon(PackedVector2Array([t6 + Vector2(-w * 0.14, 0), t6 + Vector2(w * 0.06, w * 0.14), t6 + Vector2(w * 0.08, -w * 0.08)]), tint)
+		_:
+			return false
+	return true

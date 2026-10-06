@@ -107,7 +107,7 @@ func _draw() -> void:
 			x += sep_w
 			continue
 		var unit := pow(10.0, float(k))
-		var q := floor(x_val / unit)
+		var q := floorf(x_val / unit)
 		var d := int(fposmod(q, 10.0))
 		var rem := x_val - q * unit
 		var roll := 0.0

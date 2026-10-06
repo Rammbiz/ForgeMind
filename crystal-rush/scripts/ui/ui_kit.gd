@@ -256,6 +256,70 @@ static func _spec(kind: String) -> Dictionary:
 				{"inset": 2.5, "lip": 7.0, "top": Color(0.55, 0.95, 0.45), "bot": Color(0.16, 0.66, 0.26)},
 				{"inset": 2.5, "lip": 7.0, "sheen": 0.3},
 			]}
+		# ---- Meta hub (WS4): warm parchment, glass sheets, segmented controls
+		"parch":
+			return {"rad": 34.0, "shadow": 22.0, "pad": Vector2(30, 26), "layers": [
+				{"inset": 0.0, "top": Color(1.0, 0.92, 0.6), "bot": Color(0.68, 0.4, 0.12)},
+				{"inset": 3.5, "top": Color(0.42, 0.24, 0.08), "bot": Color(0.3, 0.16, 0.05)},
+				{"inset": 5.5, "top": Color(1.0, 0.86, 0.48), "bot": Color(0.78, 0.5, 0.16)},
+				{"inset": 8.0, "top": Color(1.0, 0.97, 0.88), "bot": Color(0.95, 0.85, 0.66)},
+				{"inset": 8.0, "sheen": 0.18},
+				{"inset": 12.0, "ring": 1.5, "top": Color(0.7, 0.45, 0.15, 0.35), "bot": Color(0.7, 0.45, 0.15, 0.12)},
+			]}
+		"parch_card":
+			return {"rad": 24.0, "shadow": 10.0, "pad": Vector2(16, 12), "layers": [
+				{"inset": 0.0, "top": Color(0.86, 0.62, 0.28), "bot": Color(0.6, 0.36, 0.12)},
+				{"inset": 2.5, "top": Color(1.0, 0.98, 0.92), "bot": Color(0.97, 0.89, 0.72)},
+				{"inset": 2.5, "sheen": 0.2},
+			]}
+		"parch_well":
+			return {"rad": 18.0, "shadow": 0.0, "pad": Vector2(12, 8), "layers": [
+				{"inset": 0.0, "top": Color(0.62, 0.44, 0.24, 0.55), "bot": Color(0.86, 0.72, 0.5, 0.4)},
+				{"inset": 1.5, "top": Color(0.84, 0.72, 0.52), "bot": Color(0.93, 0.84, 0.66)},
+			]}
+		"sheet":
+			return {"rad": 40.0, "shadow": 24.0, "pad": Vector2(26, 26), "layers": [
+				{"inset": 0.0, "top": Color(1.0, 0.9, 0.56), "bot": Color(0.5, 0.3, 0.1)},
+				{"inset": 3.0, "top": Color(0.11, 0.13, 0.27, 0.98), "bot": Color(0.03, 0.035, 0.08, 0.99)},
+				{"inset": 3.0, "sheen": 0.07},
+				{"inset": 7.0, "ring": 1.5, "top": Color(1, 0.85, 0.5, 0.18), "bot": Color(1, 0.85, 0.5, 0.03)},
+			]}
+		"glass":
+			return {"rad": 22.0, "shadow": 8.0, "pad": Vector2(16, 10), "layers": [
+				{"inset": 0.0, "top": Color(0.09, 0.11, 0.22, 0.82), "bot": Color(0.02, 0.03, 0.07, 0.86)},
+				{"inset": 0.0, "sheen": 0.07},
+				{"inset": 1.0, "ring": 1.2, "top": Color(1, 1, 1, 0.18), "bot": Color(1, 1, 1, 0.04)},
+			]}
+		"seg":
+			return {"rad": 28.0, "shadow": 6.0, "pad": Vector2(6, 6), "layers": [
+				{"inset": 0.0, "top": Color(0.02, 0.03, 0.08, 0.9), "bot": Color(0.06, 0.07, 0.15, 0.9)},
+				{"inset": 1.0, "ring": 1.5, "top": Color(1, 0.85, 0.5, 0.35), "bot": Color(1, 0.85, 0.5, 0.12)},
+			]}
+		"seg_sel":
+			return {"rad": 24.0, "shadow": 6.0, "lip": 3.0, "pad": Vector2(18, 6), "layers": [
+				{"inset": 0.0, "top": Color(0.62, 0.3, 0.06), "bot": Color(0.45, 0.2, 0.03)},
+				{"inset": 0.0, "lip": 3.0, "top": Color(1.0, 0.96, 0.74), "bot": Color(0.95, 0.62, 0.2)},
+				{"inset": 2.0, "lip": 3.0, "top": Color(1.0, 0.86, 0.38), "bot": Color(0.96, 0.56, 0.14)},
+				{"inset": 2.0, "lip": 3.0, "sheen": 0.3},
+			]}
+		"tabbar":
+			return {"rad": 34.0, "shadow": 18.0, "pad": Vector2(8, 8), "layers": [
+				{"inset": 0.0, "top": Color(1.0, 0.88, 0.5), "bot": Color(0.46, 0.27, 0.08)},
+				{"inset": 2.5, "top": Color(0.13, 0.16, 0.31, 0.98), "bot": Color(0.03, 0.04, 0.09, 0.99)},
+				{"inset": 2.5, "sheen": 0.1},
+			]}
+		"tab_sel":
+			return {"rad": 26.0, "shadow": 10.0, "glow": Color(1.0, 0.75, 0.3, 0.5), "pad": Vector2(8, 8), "layers": [
+				{"inset": 0.0, "top": Color(1.0, 0.95, 0.7), "bot": Color(0.78, 0.45, 0.12)},
+				{"inset": 3.0, "top": Color(0.3, 0.36, 0.62), "bot": Color(0.1, 0.12, 0.26)},
+				{"inset": 3.0, "sheen": 0.2},
+			]}
+		"chip":
+			return {"rad": 24.0, "shadow": 8.0, "pad": Vector2(14, 4), "layers": [
+				{"inset": 0.0, "top": Color(0.02, 0.025, 0.06, 0.88), "bot": Color(0.06, 0.07, 0.14, 0.9)},
+				{"inset": 1.0, "ring": 2.0, "top": Color(1, 0.86, 0.5, 0.55), "bot": Color(0.6, 0.38, 0.12, 0.45)},
+				{"inset": 3.0, "sheen": 0.06},
+			]}
 		"green_pressed":
 			return {"rad": 30.0, "shadow": 10.0, "lip": 2.0, "pad": Vector2(32, 18), "layers": [
 				{"inset": 0.0, "top": Color(0.05, 0.3, 0.12), "bot": Color(0.03, 0.2, 0.07)},
@@ -524,6 +588,30 @@ static func gradient_heading(text: String, size := 64, top := Color(1.0, 0.98, 0
 	l.resized.connect(fit)
 	l.ready.connect(fit)
 	return l
+
+
+## Largest font size <= `start` (down to `min_size`) at which `text` fits in `max_w` px.
+static func fit_size(text: String, max_w: float, start: int, min_size := 18, bold := true) -> int:
+	var fs := start
+	var f := font(bold)
+	while fs > min_size and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+		fs -= 1
+	return fs
+
+
+## A Button with a painted style kind (e.g. "green", "seg_sel"): normal/hover from `kind`,
+## pressed from `kind`_pressed when that style exists.
+static func styled_button(text: String, kind: String, min_size := Vector2(200, 72), font_size := 28) -> Button:
+	var b := button(text, false, min_size.x)
+	b.custom_minimum_size = min_size
+	b.add_theme_font_size_override("font_size", font_size)
+	var pressed_kind := kind + "_pressed" if kind in ["primary", "green", "button"] else kind
+	for st: String in ["normal", "hover", "focus"]:
+		b.add_theme_stylebox_override(st, lux(kind) if st != "focus" else StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("pressed", lux(pressed_kind))
+	b.add_theme_stylebox_override("hover_pressed", lux(pressed_kind))
+	b.add_theme_stylebox_override("disabled", lux("button_disabled"))
+	return b
 
 
 static func button(text: String, primary := false, min_width := 280.0) -> Button:
