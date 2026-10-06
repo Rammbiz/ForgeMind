@@ -12,7 +12,7 @@ signal rendered(key: String, tex: Texture2D)
 
 const PX := 256
 ## Bump when the procedural models change their look (old PNGs are ignored).
-const VERSION := "m1c"
+const VERSION := "m1d"
 
 static var _cache := {}
 var _queue: Array[String] = []
@@ -124,6 +124,7 @@ func _render(id: String, asc: bool) -> Texture2D:
 		c.queue_free()
 	var m := WeaponModels.machine(id, {"rank": 1, "ascended": asc, "crew": true})
 	_holder.add_child(m)
+	HubShowcase.hide_rank_marks(m)
 	m.rotation.y = PI - 0.62
 	WeaponModels.animate(m, 0.3, 0.0, 0.0)
 	var box := WeaponModels._visual_aabb(m, m.transform)

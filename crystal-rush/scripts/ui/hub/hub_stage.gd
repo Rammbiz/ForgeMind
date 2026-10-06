@@ -68,6 +68,7 @@ func refresh() -> void:
 			continue
 		var lv := Meta.machine_level(id)
 		var m := WeaponModels.machine(id, {"rank": 1, "ascended": lv >= ArsenalData.ASCENSION_LEVEL, "crew": true})
+		HubShowcase.hide_rank_marks(m)
 		m.position = slots[i]
 		m.rotation.y = PI + (0.35 if slots[i].x < 0 else (-0.35 if slots[i].x > 0 else 0.0))
 		m.scale = Vector3.ONE * 0.9

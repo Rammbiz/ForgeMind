@@ -614,6 +614,48 @@ static func styled_button(text: String, kind: String, min_size := Vector2(200, 7
 	return b
 
 
+## Segmented control: a dark track with one gold pill per option. `options` = [[id, label], ...].
+## Calls `on_change(id)` when another option is tapped. Returns the control; call
+## `set_meta("select", id)` is not needed - use segmented_select(seg, id) to change it.
+static func segmented(options: Array, selected: String, on_change: Callable, height := 62.0, font_size := 24) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", lux("seg"))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	p.add_child(row)
+	for o: Array in options:
+		var b := Button.new()
+		b.text = str(o[1])
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(0, height - 12)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", font_size)
+		b.set_meta("id", str(o[0]))
+		b.pressed.connect(func():
+			if str(p.get_meta("selected", "")) == str(o[0]):
+				return
+			segmented_select(p, str(o[0]))
+			Audio.play("click", -8.0)
+			on_change.call(str(o[0])))
+		row.add_child(b)
+	segmented_select(p, selected)
+	return p
+
+
+static func segmented_select(seg: PanelContainer, id: String) -> void:
+	seg.set_meta("selected", id)
+	var row := seg.get_child(0)
+	for b: Button in row.get_children():
+		var on := str(b.get_meta("id")) == id
+		var st: StyleBox = lux("seg_sel") if on else StyleBoxEmpty.new()
+		for k: String in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+			b.add_theme_stylebox_override(k, st)
+		b.add_theme_color_override("font_color", BROWN if on else TEXT_DIM)
+		b.add_theme_color_override("font_hover_color", BROWN if on else TEXT)
+		b.add_theme_color_override("font_pressed_color", BROWN if on else TEXT)
+		b.add_theme_constant_override("outline_size", 0 if on else 5)
+
+
 static func button(text: String, primary := false, min_width := 280.0) -> Button:
 	var b := Button.new()
 	b.text = text

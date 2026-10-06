@@ -13,7 +13,7 @@ signal tapped
 
 const BEAM_SHADER := """
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled;
 uniform vec4 color : source_color = vec4(0.5, 0.7, 1.0, 1.0);
 uniform float strength = 0.35;
 varying float vy;
@@ -21,8 +21,8 @@ void vertex() { vy = UV.y; }
 void fragment() {
 	float edge = abs(dot(NORMAL, VIEW));
 	float a = (1.0 - vy) * (1.0 - vy) * pow(clamp(edge, 0.0, 1.0), 1.5) * strength;
-	ALBEDO = color.rgb * a;
-	ALPHA = 1.0;
+	ALBEDO = color.rgb;
+	ALPHA = clamp(a, 0.0, 1.0);
 }
 """
 
@@ -159,7 +159,6 @@ func _build_dais() -> void:
 	var gm := StandardMaterial3D.new()
 	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	gm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	gm.albedo_texture = _radial_tex()
 	gm.albedo_color = Color(accent.r, accent.g, accent.b, 0.5)
 	glow.material_override = gm
@@ -208,7 +207,6 @@ func _build_dais() -> void:
 	var mm := StandardMaterial3D.new()
 	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mm.albedo_texture = _radial_tex()
 	mm.vertex_color_use_as_albedo = true
@@ -255,7 +253,7 @@ func set_accent(c: Color) -> void:
 
 ## Shows machine `id` at account level `lvl` (Ascension look from Lv8); `locked` = silhouette.
 func show_machine(id: String, lvl := 1, locked := false) -> void:
-	var key := "%s:%d:%s" % [id, lvl >= ArsenalData.ASCENSION_LEVEL, locked]
+	var key := "%s:%s:%s" % [id, lvl >= ArsenalData.ASCENSION_LEVEL, locked]
 	if key == _subject_key:
 		return
 	_subject_key = key
@@ -264,6 +262,7 @@ func show_machine(id: String, lvl := 1, locked := false) -> void:
 	if not WeaponModels.KINDS.has(id):
 		return
 	var m := WeaponModels.machine(id, {"rank": 1, "ascended": lvl >= ArsenalData.ASCENSION_LEVEL and not locked, "crew": true})
+	hide_rank_marks(m)
 	_fit(m, 1.75, 1.15)
 	if locked:
 		_silhouette(m)
@@ -286,6 +285,14 @@ func show_hero(id: String) -> void:
 	_turn.rotation.y = 0.35
 	_spin_boost = 1.5
 	set_accent(Balance.HEROES[id]["color"] if Balance.HEROES.has(id) else accent)
+
+
+## Hides the in-run Rank chevrons and aura of a machine shown in the hub.
+static func hide_rank_marks(m: Node3D) -> void:
+	for n in ["Chevrons", "Stars", "Aura"]:
+		var c := m.get_node_or_null(n) as Node3D
+		if c:
+			c.visible = false
 
 
 func _clear_subject() -> void:

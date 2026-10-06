@@ -1,5 +1,5 @@
 extends Node
-## Scene router: menu <-> run, with fade transitions.
+## Scene router: hub (Hub, the meta home screen) <-> run, with fade transitions.
 ## Dev flags (after `--`): --autotest, --levelcheck, --shot=path.png, --screen=menu|run, --level=N,
 ## --hero=bolt|titan
 ## The run scripts are loaded on demand, so the router (menu, level_check) still works while
@@ -50,14 +50,21 @@ func _start_dev(tool: String) -> void:
 	add_child(dev)
 
 
+## The home screen: the meta hub on its Play tab.
 func show_menu() -> void:
-	var m := Menu.new()
-	m.play.connect(start_run)
-	_switch(m)
+	show_hub("play")
+
+
+## The meta hub (Hub) opened on `tab` (play | arsenal | heroes | barracks | shop); the loss
+## screen's "Арсенал" button uses show_hub("arsenal").
+func show_hub(tab := "play") -> void:
+	var h := Hub.new(tab)
+	h.play.connect(start_run)
+	_switch(h)
 
 
 func start_run() -> void:
-	_switch(make_play(Save.level, Save.hero))
+	_switch(make_play(Meta.level(), Meta.hero()))
 
 
 ## A run with its HUD, wired to the router. Dev tools use it too.
