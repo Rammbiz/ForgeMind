@@ -204,6 +204,15 @@ func _lineup() -> void:
 
 func _one_machine() -> void:
 	var id := str(args.get("id", "mortar"))
+	if args.has("solo"):
+		var m0 := _place(id, Vector3.ZERO, {"rank": int(args.get("rank", "1")), "ascended": args.has("asc")})
+		m0.rotation.y = deg_to_rad(float(args.get("yaw", "-25")))
+		if args.has("pose"):
+			WeaponModels.set_crew_pose(m0, str(args["pose"]))
+		var ang := deg_to_rad(float(args.get("orbit", "20")))
+		var dist := float(args.get("dist", "3.2"))
+		_studio_cam(Vector3(sin(ang) * dist, dist * 0.78, cos(ang) * dist), Vector3(0, 0.45, 0), 40.0)
+		return
 	var spots := [[Vector3(-1.05, 0, 0.9), 1, false], [Vector3(1.05, 0, 0.9), 2, false], [Vector3(-1.05, 0, -1.4), 3, false], [Vector3(1.05, 0, -1.4), 3, true]]
 	for s: Array in spots:
 		var m := _place(id, s[0], {"rank": s[1], "ascended": s[2]})
