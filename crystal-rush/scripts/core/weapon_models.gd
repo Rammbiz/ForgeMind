@@ -405,10 +405,10 @@ static func asset_material(arr: Dictionary, shader: Shader) -> ShaderMaterial:
 static func asset_groups(arr: Dictionary, regions: Dictionary) -> Dictionary:
 	var sv: PackedVector3Array = arr["v"]
 	var sidx: PackedInt32Array = arr["idx"]
-	var out := {"body": PackedInt32Array()}
+	var lists := {"body": []}
 	var names: Array = regions.keys()
 	for nm in names:
-		out[nm] = PackedInt32Array()
+		lists[nm] = []
 	for tri in sidx.size() / 3:
 		var p := (sv[sidx[tri * 3]] + sv[sidx[tri * 3 + 1]] + sv[sidx[tri * 3 + 2]]) / 3.0
 		var hit := "body"
@@ -422,7 +422,10 @@ static func asset_groups(arr: Dictionary, regions: Dictionary) -> Dictionary:
 			elif (sp["box"] as AABB).has_point(p):
 				hit = nm
 				break
-		(out[hit] as PackedInt32Array).append(tri)
+		(lists[hit] as Array).append(tri)
+	var out := {}
+	for nm in lists:
+		out[nm] = PackedInt32Array(lists[nm])
 	return out
 
 
@@ -2100,7 +2103,7 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 	pillar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pillar.position = Vector3(0, cm.height * 0.5, 0)
 	root.add_child(pillar)
-	var label_y := 1.98 if top <= 0.0 else top + 0.78
+	var label_y := 1.98 if top <= 0.0 else top + 0.9
 	var l := _label(str(hp) if hp > 0 else "", 120, Color(1.0, 0.96, 0.86))
 	l.position = Vector3(0, label_y, 0)
 	root.add_child(l)
@@ -2119,8 +2122,8 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 ## Crystal tint of the owner's crate per rarity (§2.1 shells): colour and how far the
 ## owner's ice blue turns towards it.
 const OWNER_CRATE_TINT := {
-	"C": [Color(0.78, 0.86, 0.95), 0.45], "R": [Color(0.3, 0.66, 1.0), 0.55], "E": [Color(0.72, 0.42, 1.0), 0.9],
-	"L": [Color(1.0, 0.74, 0.25), 0.9], "M": [Color(0.94, 0.84, 1.0), 0.75], "new": [Color(0.95, 0.98, 1.0), 0.7],
+	"C": [Color(0.48, 0.62, 0.84), 0.7], "R": [Color(0.22, 0.56, 1.0), 0.8], "E": [Color(0.66, 0.32, 1.0), 0.95],
+	"L": [Color(1.0, 0.66, 0.16), 0.95], "M": [Color(0.9, 0.74, 1.0), 0.85], "new": [Color(0.92, 0.97, 1.0), 0.6],
 }
 
 
@@ -2131,7 +2134,7 @@ const OWNER_CRATE_TINT := {
 ## False when there is no GLB.
 static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: bool, shell: Dictionary, glow_col: Color) -> bool:
 	var key := "crate_new" if is_new and asset_path("crate_new") != "" else "crate"
-	var arr := asset_arrays(key, AABB(Vector3(-0.55, 0, -0.55), Vector3(1.1, 1.3, 1.1)))
+	var arr := asset_arrays(key, AABB(Vector3(-0.5, 0, -0.5), Vector3(1.0, 1.12, 1.0)))
 	if arr.is_empty():
 		return false
 	var ck := "owner_crate_mesh:" + key
@@ -2146,7 +2149,7 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 	var mat := asset_material(arr, ASSET_SHADER)
 	mat.set_shader_parameter("crystal_color", tint[0])
 	mat.set_shader_parameter("crystal_mix", float(tint[1]))
-	mat.set_shader_parameter("crystal_glow", 1.05 if rarity in ["E", "L", "M"] or is_new else 0.85)
+	mat.set_shader_parameter("crystal_glow", 0.7 if rarity in ["E", "L", "M"] or is_new else 0.5)
 	mat.set_shader_parameter("use_cracks", true)
 	mat.set_shader_parameter("noise_tex", NOISE_TEX)
 	var shell_mi := MeshInstance3D.new()
@@ -2166,7 +2169,7 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 	Mats.part(holo, Mats.cyl(0.25, 0.29, 0.05, 24, false), gold, Vector3(0, 0.025, 0))
 	Mats.part(holo, Mats.torus(0.22, 0.25, 32, 4), gold, Vector3(0, 0.055, 0))
 	var lens_col := Color(0.92, 0.97, 1.0) if is_new else (glow_col if ArsenalData.MACHINES.has(weapon) else ICE_HOT)
-	Mats.part(holo, Mats.cyl(0.2, 0.2, 0.02, 24, false), Mats.glow(lens_col.lerp(Color.WHITE, 0.3), 2.8), Vector3(0, 0.055, 0), Vector3.ZERO, Vector3.ONE, false)
+	Mats.part(holo, Mats.cyl(0.2, 0.2, 0.02, 24, false), Mats.glow(lens_col.lerp(Color.WHITE, 0.2), 1.7), Vector3(0, 0.055, 0), Vector3.ZERO, Vector3.ONE, false)
 	var pips := 0 if is_new else int((ArsenalData.RARITIES.get(rarity, {}) as Dictionary).get("pips", 1))
 	var inlay := Mats.glow(shell["inlay"], 2.6)
 	for i in pips:
@@ -2191,7 +2194,7 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 	pm.shader = PILLAR_SHADER
 	pm.set_shader_parameter("color", lens_col.lerp(Color.WHITE, 0.2))
 	pm.set_shader_parameter("noise_tex", NOISE_TEX)
-	pm.set_shader_parameter("strength", 0.9)
+	pm.set_shader_parameter("strength", 0.45)
 	cone.material_override = pm
 	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	cone.position = Vector3(0, top + 0.37, 0)
@@ -2203,15 +2206,15 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 	root.add_child(content)
 	root.set_meta("content", content)
 	root.set_meta("content_y", top + 0.1)
-	root.set_meta("mini_k", 1.18)
+	root.set_meta("mini_k", 1.35)
 	_crate_fill(root, weapon)
 	var lamp := OmniLight3D.new()
 	lamp.name = "Lamp"
 	lamp.light_color = glow_col.lerp(ICE, 0.4)
-	lamp.light_energy = 1.4
-	lamp.omni_range = 2.2
-	lamp.omni_attenuation = 1.4
-	lamp.position = Vector3(0, top + 0.45, 0.35)
+	lamp.light_energy = 0.7
+	lamp.omni_range = 1.4
+	lamp.omni_attenuation = 1.6
+	lamp.position = Vector3(0, top + 0.35, 0.45)
 	lamp.shadow_enabled = false
 	root.add_child(lamp)
 	return true

@@ -128,7 +128,7 @@ static func owner_dais(w: float) -> Dictionary:
 	mi.position.y = -float(d["top"])
 	var mat := WeaponModels.asset_material(arr, CacheModels.ALTAR_SHADER)
 	mat.set_shader_parameter("rune_color", Color(0.45, 0.82, 1.0))
-	mat.set_shader_parameter("rune_k", 0.55)
+	mat.set_shader_parameter("rune_k", 0.3)
 	mat.set_shader_parameter("rune_mix", 0.0)
 	mat.set_shader_parameter("gem_k", 0.6)
 	mi.material_override = mat
@@ -139,11 +139,12 @@ static var _dais_meshes := {}
 
 
 func _build_dais() -> void:
-	var owner := owner_dais(2.5) if mode != "army" else {}
+	var dw := 2.1 if mode == "hero" else 2.0
+	var owner := owner_dais(dw) if mode != "army" else {}
 	if not owner.is_empty():
 		_dais_mat = owner["mat"]
 		_root.add_child(owner["node"])
-		_build_glow_fx(1.25, -float(owner["depth"]) - 0.01)
+		_build_glow_fx(dw * 0.5, -float(owner["depth"]) - 0.01)
 		return
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.08, 0.1, 0.2) if mode == "machine" else Color(0.32, 0.22, 0.14)
@@ -311,8 +312,8 @@ func set_accent(c: Color) -> void:
 	if _dais_mat:
 		# The hero keeps the owner's ice ring warmed by its colour; a machine's ring takes the
 		# family accent.
-		_dais_mat.set_shader_parameter("rune_color", Color(0.45, 0.82, 1.0).lerp(c, 0.3 if mode == "hero" else 0.75))
-		_dais_mat.set_shader_parameter("rune_mix", 0.35 if mode == "hero" else 0.8)
+		_dais_mat.set_shader_parameter("rune_color", Color(0.3, 0.7, 1.0).lerp(c, 0.25 if mode == "hero" else 0.7))
+		_dais_mat.set_shader_parameter("rune_mix", 0.5 if mode == "hero" else 0.8)
 	var g := _root.get_node_or_null("FloorGlow") as MeshInstance3D
 	if g:
 		(g.material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, 0.55)
@@ -334,7 +335,7 @@ func show_machine(id: String, lvl := 1, locked := false) -> void:
 		return
 	var m := WeaponModels.machine(id, {"rank": 1, "ascended": lvl >= ArsenalData.ASCENSION_LEVEL and not locked, "crew": true})
 	hide_rank_marks(m)
-	_fit(m, 1.75, 1.15)
+	_fit(m, 1.75, 1.15 if _dais_mat == null else 1.45)
 	if locked:
 		_silhouette(m)
 	_subject = m

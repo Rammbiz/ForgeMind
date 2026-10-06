@@ -218,13 +218,13 @@ static func _owner_egg(type: String, h: float, r: float) -> Dictionary:
 		var cell := _egg_cell(p, info)
 		var key := cell.x * 10 + cell.y
 		if not cells.has(key):
-			cells[key] = PackedInt32Array()
-		(cells[key] as PackedInt32Array).append(tri)
+			cells[key] = []
+		(cells[key] as Array).append(tri)
 	var out_cells: Array[Dictionary] = []
 	var keys := cells.keys()
 	keys.sort()
 	for key: int in keys:
-		var tris: PackedInt32Array = cells[key]
+		var tris := PackedInt32Array(cells[key])
 		var band := key / 10
 		var j := key % 10
 		var cen := Vector3.ZERO

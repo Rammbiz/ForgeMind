@@ -33,19 +33,19 @@ void fragment() {
 	float quartz = smoothstep(0.32, 0.6, lum) * (1.0 - smoothstep(0.08, 0.2, sat));
 	// Gold bands: glossy metal.
 	float gold = smoothstep(0.12, 0.3, c.r - c.b) * smoothstep(-0.02, 0.04, c.g - c.b);
-	vec3 gemc = mix(c, tell_color.rgb * (0.45 + lum * 1.2), clamp(k * 0.55, 0.0, 0.85));
+	vec3 gemc = mix(c, tell_color.rgb * (0.45 + lum * 1.2), clamp(k * 0.5, 0.0, 0.7));
 	vec3 alb = mix(c, gemc, gem);
 	vec3 emit = gemc * gem * gem_glow * (0.35 + 0.5 * k);
-	emit += tell_color.rgb * quartz * k * 0.55;
+	emit += tell_color.rgb * quartz * k * 0.4;
 	float cl = (1.0 - smoothstep(crack_w * 0.35, crack_w, edge)) * step(0.0001, crack_w);
 	alb = mix(alb, tell_color.rgb, cl * 0.75);
 	emit += tell_color.rgb * cl * 3.2;
 	float fres = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-	emit += tell_color.rgb * fres * fres * fres * k * 0.45;
+	emit += tell_color.rgb * fres * fres * fres * k * 0.32;
 	float rough = mix(mix(0.62, 0.3, gem), 0.3, gold);
 	if (!FRONT_FACING) {
 		alb = mix(c * 0.25, tell_color.rgb, 0.35);
-		emit = tell_color.rgb * (0.25 + 0.8 * k);
+		emit = tell_color.rgb * (0.15 + 0.4 * k);
 		rough = 0.8;
 		gold = 0.0;
 	}

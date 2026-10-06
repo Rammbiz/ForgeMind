@@ -31,10 +31,9 @@ void fragment() {
 	float gold = smoothstep(0.12, 0.3, c.r - c.b) * smoothstep(-0.02, 0.04, c.g - c.b) * (1.0 - cry);
 	// White enamel: bright, unsaturated.
 	float white = smoothstep(0.4, 0.68, lum) * (1.0 - smoothstep(0.06, 0.18, sat)) * (1.0 - cry);
-	vec3 tinted = crystal_color.rgb * (0.38 + lum * 1.25);
-	vec3 crystal = mix(c, tinted, crystal_mix);
-	vec3 alb = mix(c, crystal, cry);
-	vec3 emit = crystal * cry * crystal_glow * (0.45 + lum * 0.8);
+	vec3 tinted = crystal_color.rgb * (0.22 + lum * 0.8);
+	vec3 alb = mix(c, mix(c, tinted, crystal_mix), cry);
+	vec3 emit = mix(c, crystal_color.rgb, crystal_mix) * cry * crystal_glow * (0.3 + lum * 0.7);
 	if (use_cracks) {
 		vec2 cuv = UV * 3.0;
 		float n = texture(noise_tex, cuv).r;
