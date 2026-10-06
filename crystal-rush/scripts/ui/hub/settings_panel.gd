@@ -160,6 +160,7 @@ class Toggle extends Control:
 		var t := 1.0 if on else 0.0
 		if _k < 0.0:
 			_k = t
+			queue_redraw()
 		if not is_equal_approx(_k, t):
 			_k = move_toward(_k, t, delta * 7.0)
 			queue_redraw()
