@@ -595,8 +595,9 @@ const MACHINES := {
 const FIT := {
 	"drone": {"fit": AABB(Vector3(-0.4, 0.4, -0.4), Vector3(0.8, 0.4, 0.8)), "deck_y": 0.62, "yaw_pivot": Vector3(0, 0.62, 0),
 			"muzzle": Vector3(0, -0.07, -0.25), "forward_deg": 0.0, "parts": {}, "measured": false},
+	# The owner's Frostbolt Ballista GLB points its bolt along -X: turned -90° to face -Z.
 	"ballista": {"fit": AABB(Vector3(-0.5, 0, -0.7), Vector3(1.0, 0.6, 1.4)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
-			"muzzle": Vector3(0, 0.245, -0.6), "forward_deg": 0.0, "parts": {}, "measured": false},
+			"muzzle": Vector3(0, 0.37, -0.5), "forward_deg": -90.0, "parts": {}, "measured": true},
 	"cannon": {"fit": AABB(Vector3(-0.45, 0, -0.75), Vector3(0.9, 0.7, 1.5)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
 			"muzzle": Vector3(0, 0.15, -0.72), "forward_deg": 0.0, "parts": {}, "measured": false},
 	"rockets": {"fit": AABB(Vector3(-0.45, 0, -0.5), Vector3(0.9, 0.7, 1.0)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
