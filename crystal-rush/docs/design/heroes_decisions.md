@@ -111,3 +111,10 @@ emoji icons). Consequences for heroes/champions:
   chibi (they are tiny and shown by the hundred, so the camera barely shows their proportions).
 - Owner rule (binding for every prompt from now on): always hand over the COMPLETE prompt text with all changes already merged in;
   never send "replace this block / add this line" patch instructions.
+
+## Addendum 6 — answers to heroes_design.md §15.2 (2026-10-06)
+- Q6 names: «Грані» + «Майстерня» (accepted).
+- Q11 Vesta's cape: CRIMSON-ORANGE as already generated (splash, Meshy sheet) — use the crimson-orange prompt set everywhere.
+- Q4 launch shop: cosmetics only (accepted).
+- Q7 Мейра: guest at L5, joins for good at L24 (accepted).
+- Q1, Q2, Q3, Q5, Q9, Q10 and the rest of Q11: defaults stand unless the owner says otherwise. Q8 (trademark search): owner.
