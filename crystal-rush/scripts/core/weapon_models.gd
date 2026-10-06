@@ -617,14 +617,12 @@ static func _animate_crew(node: Node3D, t: float, kick: float) -> void:
 	var crew: Node3D = _nm(node, "crew")
 	if crew == null or not crew.visible:
 		return
-	var torso: Node3D = crew.get_meta("torso")
-	var head: Node3D = crew.get_meta("head")
 	var arms: Array = crew.get_meta("arms")
 	var pose := str(node.get_meta("crew_pose", "idle"))
 	var breathe := sin(t * TAU / 1.6)
-	torso.scale = Vector3(1.0, 1.0 + 0.025 * breathe, 1.0)
+	crew.scale = Vector3(1.0, 1.0 + 0.025 * breathe, 1.0)
 	var load := kick if pose == "idle" else (1.0 if pose == "load" else 0.0)
-	head.rotation.y = sin(t * 0.7) * 0.35 * (1.0 - load)
+	crew.rotation.y = sin(t * 0.7) * 0.18 * (1.0 - load)
 	crew.position.y = float(crew.get_meta("y0")) + (absf(sin(t * 7.0)) * 0.05 if pose == "cheer" else 0.0)
 	for i in arms.size():
 		var arm := arms[i] as Node3D
@@ -651,7 +649,9 @@ static func _mat(key: String) -> Material:
 		"navy":
 			m = Mats.solid(NAVY, 0.55, 0.3)
 		"tyre":
-			m = Mats.solid(Color(0.1, 0.12, 0.2), 0.8)
+			# Metallic 0.3 puts tyres in the baked "metal" class with the gold: one draw call
+			# for a whole wheel row.
+			m = Mats.solid(Color(0.1, 0.12, 0.2), 0.8, 0.3)
 		"copper":
 			m = Mats.solid(COPPER, 0.32, 0.8)
 		"steel":
@@ -856,8 +856,8 @@ static func _wheels(ctx: Dictionary, zs: Array, x: float, r: float, hub: String)
 			var c := Vector3(x * sx, 0, 0)
 			_p(axle, Mats.cyl(r, r, 0.13, 18, false), "tyre", c, Vector3(0, 0, 90))
 			_p(axle, Mats.cyl(r * 0.65, r * 0.65, 0.14, 14, false), "gold", c, Vector3(0, 0, 90))
-			_p(axle, Mats.box(Vector3(0.15, r * 1.18, 0.035)), "white", c)
-			_p(axle, Mats.box(Vector3(0.15, 0.035, r * 1.18)), "white", c)
+			_p(axle, Mats.box(Vector3(0.15, r * 1.18, 0.035)), "steel", c)
+			_p(axle, Mats.box(Vector3(0.15, 0.035, r * 1.18)), "steel", c)
 			_p(axle, Mats.cyl(r * 0.28, r * 0.28, 0.16, 8, false), hub, c, Vector3(0, 0, 90))
 			for k in 8:
 				var a := TAU * k / 8.0
@@ -908,7 +908,8 @@ static func _halo(ctx: Dictionary) -> void:
 
 ## Crew operator (crew Meshy A-69 stand-in): a small Crystal Knight - white plate, navy
 ## tabard, gold belt and pauldrons, ice visor and the army's ice crystal crest - standing on
-## the rear step facing the enemy. Pivots: torso (breathing), head (looks round), two arms.
+## the rear step facing the enemy. One static body (breathes by scale) and two arm pivots;
+## no shadows (5 draw calls).
 static func _crew(ctx: Dictionary) -> void:
 	var rig: Node3D = ctx["rig_body"] if ctx.has("rig_body") else ctx["rig"]
 	var crew := Node3D.new()
@@ -917,38 +918,31 @@ static func _crew(ctx: Dictionary) -> void:
 	crew.position = Vector3(0, y0, float(ctx.get("step_z", 0.5)))
 	crew.set_meta("y0", y0)
 	rig.add_child(crew)
+	var parts: Array[MeshInstance3D] = []
 	for sx: float in [-1.0, 1.0]:
-		_p(crew, bevel_box(Vector3(0.05, 0.12, 0.06), 0.015), "navy", Vector3(0.035 * sx, 0.06, 0))
-		_p(crew, bevel_box(Vector3(0.055, 0.03, 0.075), 0.01), "white", Vector3(0.035 * sx, 0.015, -0.008))
-	var torso := Node3D.new()
-	torso.name = "Torso"
-	torso.position = Vector3(0, 0.12, 0)
-	crew.add_child(torso)
-	_p(torso, bevel_box(Vector3(0.13, 0.12, 0.09), 0.03), "white", Vector3(0, 0.06, 0))
-	_p(torso, bevel_box(Vector3(0.136, 0.022, 0.096), 0.008), "gold", Vector3(0, 0.005, 0))
-	_p(torso, bevel_box(Vector3(0.07, 0.09, 0.012), 0.004), "navy", Vector3(0, 0.03, -0.05))
-	_p(torso, bevel_box(Vector3(0.07, 0.09, 0.012), 0.004), "navy", Vector3(0, 0.03, 0.05))
+		parts.append(_p(crew, bevel_box(Vector3(0.05, 0.12, 0.06), 0.015), "navy", Vector3(0.035 * sx, 0.06, 0)))
+		parts.append(_p(crew, bevel_box(Vector3(0.055, 0.03, 0.075), 0.01), "white", Vector3(0.035 * sx, 0.015, -0.008)))
+	parts.append(_p(crew, bevel_box(Vector3(0.13, 0.12, 0.09), 0.03), "white", Vector3(0, 0.18, 0)))
+	parts.append(_p(crew, bevel_box(Vector3(0.136, 0.022, 0.096), 0.008), "gold", Vector3(0, 0.125, 0)))
+	parts.append(_p(crew, bevel_box(Vector3(0.07, 0.09, 0.012), 0.004), "navy", Vector3(0, 0.15, -0.05)))
+	parts.append(_p(crew, bevel_box(Vector3(0.07, 0.09, 0.012), 0.004), "navy", Vector3(0, 0.15, 0.05)))
 	for sx: float in [-1.0, 1.0]:
-		_p(torso, Mats.sphere(0.036, -1, 10, 5), "gold", Vector3(0.072 * sx, 0.115, 0))
-	var head := Node3D.new()
-	head.name = "Head"
-	head.position = Vector3(0, 0.15, 0)
-	torso.add_child(head)
-	_p(head, Mats.sphere(0.058, 0.11, 14, 7), "white", Vector3(0, 0.045, 0))
-	_p(head, Mats.torus(0.052, 0.064, 18, 4), "gold", Vector3(0, 0.025, 0))
-	_p(head, bevel_box(Vector3(0.075, 0.02, 0.012), 0.005), "ice", Vector3(0, 0.05, -0.054))
-	_p(head, Mats.crystal(0.022, 0.1), "ice", Vector3(0, 0.13, 0.005))
+		parts.append(_p(crew, Mats.sphere(0.036, -1, 10, 5), "gold", Vector3(0.072 * sx, 0.235, 0)))
+	parts.append(_p(crew, Mats.sphere(0.058, 0.11, 14, 7), "white", Vector3(0, 0.315, 0)))
+	parts.append(_p(crew, Mats.torus(0.052, 0.064, 18, 4), "gold", Vector3(0, 0.295, 0)))
+	parts.append(_p(crew, bevel_box(Vector3(0.075, 0.02, 0.012), 0.005), "ice", Vector3(0, 0.32, -0.054)))
+	parts.append(_p(crew, Mats.crystal(0.022, 0.1), "ice", Vector3(0, 0.4, 0.005)))
 	var arms: Array[Node3D] = []
 	for sx: float in [-1.0, 1.0]:
 		var arm := Node3D.new()
 		arm.name = "Arm"
-		arm.position = Vector3(0.085 * sx, 0.105, 0)
-		torso.add_child(arm)
-		_p(arm, bevel_box(Vector3(0.042, 0.11, 0.045), 0.014), "white", Vector3(0, -0.05, 0))
-		_p(arm, Mats.sphere(0.024, -1, 8, 4), "gold", Vector3(0, -0.11, 0))
+		arm.position = Vector3(0.085 * sx, 0.225, 0)
+		crew.add_child(arm)
+		parts.append(_p(arm, bevel_box(Vector3(0.042, 0.11, 0.045), 0.014), "white", Vector3(0, -0.05, 0)))
+		parts.append(_p(arm, Mats.sphere(0.026, -1, 8, 4), "white", Vector3(0, -0.11, 0)))
 		arms.append(arm)
-	crew.set_meta("torso", torso)
-	crew.set_meta("head", head)
+	for mi in parts:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	crew.set_meta("arms", arms)
 	ctx["root"].set_meta("crew", crew)
 
@@ -1298,6 +1292,8 @@ static func _railgun(ctx: Dictionary) -> void:
 	var muzzle: Node3D = ctx["muzzle"]
 	var charge_mats: Array[StandardMaterial3D] = []
 	var vg: Color = FAMILY_GLOW["volt"]
+	# Everything that glows with the charge is merged into one mesh with its own material.
+	var charge := Node3D.new()
 	_p(yaw, Mats.cyl(0.17, 0.19, 0.05, 18, false), "navy", Vector3(0, 0.025, 0.05))
 	_p(yaw, bevel_box(Vector3(0.26, 0.1, 0.34), 0.03), "white", Vector3(0, 0.09, 0.08))
 	for sx: float in [-1.0, 1.0]:
@@ -1305,11 +1301,7 @@ static func _railgun(ctx: Dictionary) -> void:
 	for sx: float in [-1.0, 1.0]:
 		_p(recoil, bevel_box(Vector3(0.06, 0.09, 1.04), 0.02), "white", Vector3(0.088 * sx, 0.2, -0.26))
 		_p(recoil, bevel_box(Vector3(0.064, 0.016, 0.98), 0.005), "gold", Vector3(0.088 * sx, 0.252, -0.27))
-		var strip := Mats.part(recoil, Mats.box(Vector3(0.012, 0.05, 0.92)), null, Vector3(0.055 * sx, 0.2, -0.3), Vector3.ZERO, Vector3.ONE, false)
-		var cm := _dyn_glow(vg, 0.35)
-		strip.material_override = cm
-		strip.set_meta("no_bake", true)
-		charge_mats.append(cm)
+		Mats.part(charge, Mats.box(Vector3(0.012, 0.05, 0.92)), _mat("acc_volt"), Vector3(0.055 * sx, 0.2, -0.3))
 	for z: float in [-0.08, -0.38, -0.66]:
 		_p(recoil, bevel_box(Vector3(0.27, 0.035, 0.06), 0.01), "gold", Vector3(0, 0.27, z))
 		_p(recoil, bevel_box(Vector3(0.27, 0.035, 0.06), 0.01), "gold", Vector3(0, 0.13, z))
@@ -1319,11 +1311,7 @@ static func _railgun(ctx: Dictionary) -> void:
 	_p(recoil, bevel_box(Vector3(0.26, 0.16, 0.24), 0.04), "white", Vector3(0, 0.2, 0.22))
 	_p(recoil, bevel_box(Vector3(0.27, 0.02, 0.25), 0.006), "gold", Vector3(0, 0.12, 0.22))
 	for sx: float in [-1.0, 0.0, 1.0]:
-		var cell := Mats.part(recoil, Mats.cyl(0.03, 0.03, 0.07, 10, false), null, Vector3(0.075 * sx, 0.31, 0.22), Vector3.ZERO, Vector3.ONE, false)
-		var cm2 := _dyn_glow(vg, 0.35)
-		cell.material_override = cm2
-		cell.set_meta("no_bake", true)
-		charge_mats.append(cm2)
+		Mats.part(charge, Mats.cyl(0.03, 0.03, 0.07, 10, false), _mat("acc_volt"), Vector3(0.075 * sx, 0.31, 0.22))
 		_p(recoil, Mats.cyl(0.036, 0.036, 0.015, 10, false), "gold", Vector3(0.075 * sx, 0.35, 0.22))
 	# Bolt glyph on the back plate.
 	_p(recoil, bevel_box(Vector3(0.12, 0.12, 0.012), 0.01), "navy", Vector3(0, 0.2, 0.345))
@@ -1332,6 +1320,15 @@ static func _railgun(ctx: Dictionary) -> void:
 		var a := pts[i]
 		var b := pts[i + 1]
 		_p(recoil, Mats.box(Vector3(0.018, a.distance_to(b) + 0.01, 0.01)), "acc_volt", (a + b) * 0.5, Vector3(0, 0, rad_to_deg(atan2(b.x - a.x, a.y - b.y))))
+	var cmi := MeshInstance3D.new()
+	cmi.name = "ChargeGlow"
+	cmi.mesh = merge(charge)
+	var cm := _dyn_glow(vg, 0.35)
+	cmi.material_override = cm
+	cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	cmi.set_meta("no_bake", true)
+	recoil.add_child(cmi)
+	charge_mats.append(cm)
 	var slug := Node3D.new()
 	slug.name = "Slug"
 	slug.position = Vector3(0, 0.2, -0.24)

@@ -36,6 +36,7 @@ var _anim_extra: Array[Callable] = []
 var _rng := RandomNumberGenerator.new()
 var _done_once := {}
 var _d := 20.0
+var _origin := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -62,17 +63,18 @@ func _ready() -> void:
 		a.free()
 		get_tree().quit(0)
 		return
-	var studio := view in ["lineup", "machine", "ranks", "caches", "rarity", "altar", "crates", "dock"]
+	var studio := args.has("studio")
 	if studio:
 		_studio()
 	else:
 		track = Track.new()
 		add_child(track)
 		track.build(160.0, true, Worlds.LIST["space"])
+	_origin = Vector3(0, 0, -_d)
 	fx = Effects.new()
 	add_child(fx)
 	cam = Camera3D.new()
-	cam.keep_aspect = Camera3D.KEEP_WIDTH if studio else Camera3D.KEEP_HEIGHT
+	cam.keep_aspect = Camera3D.KEEP_HEIGHT
 	cam.far = 400.0
 	cam.fov = 40.0
 	add_child(cam)
@@ -103,9 +105,9 @@ func _ready() -> void:
 		"dock":
 			_dock()
 	if args.has("cam"):
-		cam.position = _v3(str(args["cam"]))
+		cam.position = _origin + _v3(str(args["cam"]))
 	if args.has("look"):
-		cam.look_at(_v3(str(args["look"])))
+		cam.look_at(_origin + _v3(str(args["look"])))
 
 
 func _count_meshes(n: Node) -> int:
@@ -117,6 +119,15 @@ func _count_meshes(n: Node) -> int:
 			c += 1
 		c += _count_meshes(ch)
 	return c
+
+
+## Camera relative to the scene origin; `fov` is the HORIZONTAL field of view (portrait).
+func _studio_cam(pos: Vector3, look: Vector3, fov_h: float) -> void:
+	var size := get_viewport().get_visible_rect().size
+	var aspect := size.x / maxf(size.y, 1.0)
+	cam.fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(fov_h * 0.5)) / aspect))
+	cam.position = _origin + pos
+	cam.look_at(_origin + look)
 
 
 func _v3(s: String) -> Vector3:
@@ -170,7 +181,7 @@ func _studio() -> void:
 
 func _place(kind: String, pos: Vector3, opts := {}) -> Node3D:
 	var m := WeaponModels.machine(kind, opts)
-	m.position = pos
+	m.position = pos if view in ["run", "fire"] else _origin + pos
 	add_child(m)
 	_machines.append(m)
 	_fire[m] = 0.0
@@ -186,9 +197,7 @@ func _lineup() -> void:
 		var row := i / 3
 		var m := _place(kinds[i], Vector3((col - 1) * 1.75, 0, -row * 2.1), {"rank": rank, "ascended": asc})
 		m.rotation.y = deg_to_rad(-28)
-	cam.fov = 40.0
-	cam.position = Vector3(0, 6.4, 6.1)
-	cam.look_at(Vector3(0, 0.3, -2.4))
+	_studio_cam(Vector3(0, 6.4, 5.2), Vector3(0, 0.3, -2.2), 50.0)
 
 
 func _one_machine() -> void:
@@ -199,9 +208,7 @@ func _one_machine() -> void:
 		m.rotation.y = deg_to_rad(-30)
 		if s[1] == 3:
 			WeaponModels.set_crew_pose(m, "cheer" if s[2] else "load")
-	cam.fov = 38.0
-	cam.position = Vector3(0, 4.6, 5.4)
-	cam.look_at(Vector3(0, 0.45, -0.45))
+	_studio_cam(Vector3(0.0, 3.6, 4.2), Vector3(0, 0.3, -0.3), 52.0)
 
 
 func _ranks() -> void:
@@ -210,9 +217,7 @@ func _ranks() -> void:
 		for c in 3:
 			var m := _place(ids[r], Vector3((c - 1) * 1.6, 0, -r * 2.0), {"rank": c + 1})
 			m.rotation.y = deg_to_rad(-28)
-	cam.fov = 40.0
-	cam.position = Vector3(0, 6.0, 5.4)
-	cam.look_at(Vector3(0, 0.3, -2.0))
+	_studio_cam(Vector3(0, 6.0, 4.8), Vector3(0, 0.3, -2.0), 50.0)
 
 
 # ------------------------------------------------------------------ run views
@@ -413,14 +418,12 @@ func _cache_stages() -> void:
 	var rar := ["R", "E", "L", "L"]
 	for i in 4:
 		var c := CacheModels.cache(type)
-		c.position = Vector3((i % 2) * 2.0 - 1.0, 0, -(i / 2) * 2.4)
+		c.position = _origin + Vector3((i % 2) * 2.0 - 1.0, 0, -(i / 2) * 2.4)
 		add_child(c)
 		CacheModels.set_tell(c, str(args.get("rarity", rar[i])))
 		CacheModels.set_crack(c, i)
 		_caches.append(c)
-	cam.fov = 40.0
-	cam.position = Vector3(0, 3.4, 4.6)
-	cam.look_at(Vector3(0, 0.6, -1.2))
+	_studio_cam(Vector3(0, 3.4, 4.6), Vector3(0, 0.6, -1.2), 46.0)
 
 
 func _cache_rarity() -> void:
@@ -428,18 +431,17 @@ func _cache_rarity() -> void:
 	for i in 4:
 		for j in 2:
 			var c := CacheModels.cache("stone" if j == 0 else "world")
-			c.position = Vector3((i % 2) * 1.9 - 0.95 + (j - 0.5) * 0.0, 0, -(i / 2) * 2.3 - j * 4.6)
+			c.position = _origin + Vector3((i % 2) * 1.9 - 0.95, 0, -(i / 2) * 2.3 - j * 4.6)
 			add_child(c)
 			CacheModels.set_tell(c, rs[i])
 			CacheModels.set_crack(c, 1)
 			_caches.append(c)
-	cam.fov = 44.0
-	cam.position = Vector3(0, 5.8, 5.0)
-	cam.look_at(Vector3(0, 0.4, -3.4))
+	_studio_cam(Vector3(0, 5.8, 5.0), Vector3(0, 0.4, -3.4), 50.0)
 
 
 func _altar() -> void:
 	var a := CacheModels.altar()
+	a.position = _origin
 	add_child(a)
 	_caches.append(a)
 	var c := CacheModels.cache(str(args.get("type", "world")))
@@ -451,12 +453,10 @@ func _altar() -> void:
 	CacheModels.altar_light(a, 1.0 if stage > 0 else 0.4, ArsenalData.RARITIES[str(args.get("rarity", "L"))]["ui_color"] if stage > 0 else Color(0.5, 0.8, 1.0))
 	_caches.append(c)
 	var hero := HeroModels.hero("bolt")
-	hero.position = Vector3(-1.5, 0, 1.3)
+	hero.position = _origin + Vector3(-1.5, 0, 1.3)
 	hero.rotation.y = deg_to_rad(150)
 	add_child(hero)
-	cam.fov = 42.0
-	cam.position = Vector3(0.6, 2.6, 5.4)
-	cam.look_at(Vector3(0, 1.2, 0))
+	_studio_cam(Vector3(0.6, 2.6, 5.4), Vector3(0, 1.2, 0), 50.0)
 
 
 func _crates() -> void:
@@ -465,14 +465,12 @@ func _crates() -> void:
 	for i in specs.size():
 		var s: Array = specs[i]
 		var c := WeaponModels.crate(s[0], s[1], s[2])
-		c.position = Vector3((i % 3 - 1) * 1.7, 0, -(i / 3) * 2.8)
+		c.position = _origin + Vector3((i % 3 - 1) * 1.7, 0, -(i / 3) * 2.8)
 		add_child(c)
 		if s[2].has("bonus"):
 			WeaponModels.crate_bonus(c, 0.42)
 		_anim_extra.append(func() -> void: WeaponModels.animate(c, _t, 0.0))
-	cam.fov = 44.0
-	cam.position = Vector3(0, 4.4, 5.6)
-	cam.look_at(Vector3(0, 0.9, -1.6))
+	_studio_cam(Vector3(0, 4.4, 5.6), Vector3(0, 0.9, -1.6), 50.0)
 
 
 func _dock() -> void:
@@ -482,9 +480,7 @@ func _dock() -> void:
 		m.rotation.y = deg_to_rad(-25)
 		var u: float = us[i]
 		_anim_extra.append(func() -> void: WeaponModels.dock(m, u))
-	cam.fov = 36.0
-	cam.position = Vector3(0, 3.0, 5.0)
-	cam.look_at(Vector3(0, 0.4, 0))
+	_studio_cam(Vector3(0, 3.0, 5.0), Vector3(0, 0.4, 0), 44.0)
 
 
 func _save() -> void:
