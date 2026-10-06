@@ -294,7 +294,7 @@ func _drone_goal(m: Dictionary, slot: Vector3) -> Vector3:
 	if tg.is_empty() or not tg.get("alive", false):
 		return slot
 	var aim := run.aim_point(tg)
-	var goal := Vector3(aim.x * 0.8 + slot.x * 0.2, 0.75, aim.z + 2.6)
+	var goal := Vector3(aim.x * 0.8 + slot.x * 0.2, 1.5, aim.z + 3.2)
 	# Keep within range of the army.
 	if goal.z < slot.z - 7.0:
 		goal.z = slot.z - 7.0
@@ -382,6 +382,9 @@ func deal(m: Dictionary, it: Dictionary, n: float, amp := false, status := true)
 	if it.is_empty() or not it.get("alive", false) or n <= 0.0:
 		return 0.0
 	var id := str(m["id"])
+	# Prism Rank III: bolts, orbs and darts split in 2 after crossing (two halves at 80%).
+	if amp and id in ["ballista", "cannon", "drone"] and int(find("prism").get("rank", 1)) >= 3:
+		n *= 1.6
 	var dealt := run.hurt(it, n * _b2(m, amp) * _vs(m, it), id)
 	if str(it.get("kind", "")) == "squad":
 		m["kills"] = float(m["kills"]) + dealt
@@ -670,7 +673,11 @@ func _shell_hit(m: Dictionary, land: Vector3, r: float) -> void:
 				area(m, p, br, bd + br * AREA_KILLS * 0.5, bd))
 	var quake := float(((m["e"] as Dictionary).get("mods", {}) as Dictionary).get("quake_s", 0.0))
 	if quake > 0.0:
+		# Titan Mortar (Ascension): a quake ring that Staggers everything around the impact.
 		run.effects.ring(land + Vector3(0, 0.05, 0), WeaponModels.glow_color("mortar"), r * 1.6, quake)
+		for it in run.machine_targets_near(land, r * 1.6):
+			if str(it["kind"]) == "squad":
+				statuses.apply(it, "stagger", 1.0, {"id": "mortar", "stats": st, "mods": (m["e"] as Dictionary).get("mods", {})})
 
 
 func _gatling(m: Dictionary, dt: float) -> void:

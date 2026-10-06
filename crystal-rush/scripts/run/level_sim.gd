@@ -45,7 +45,7 @@ class_name LevelSim
 ##   machines. Crates (hero / ult only) hold the NEW machine, the run's resolved content, or a
 ##   CratePicker draw from the profile deck (seeded per crate); OPEN hp then BONUS hp (+1 Rank),
 ##   an open crate is taken at army contact; the first opened crate of a pair folds the other.
-##   RANK gates rank up the lowest fielded machine below III, else apply their fallback.
+##   RANK gates rank up the fielded machine closest to Rank III, else apply their fallback.
 ## - Army volleys (crossbows/blasters) hit the nearest squad ahead within range (blasters also
 ##   turrets, barricades and the fortress) for volley * army every period.
 ## - Ult points: soldiers gained (gate gains capped at 15 per gate) + enemies killed, not while the
@@ -570,9 +570,10 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 				wk = CratePicker.parse(_pick(lv, s, g, ""))[0]
 			add_weapon(s, wk)
 		"rank":
+			# The machine closest to Rank III (Run._resolve_rank_gate).
 			var low := -1
 			for k in s.weapons.size():
-				if int(s.weapons[k][1]) < 3 and (low < 0 or int(s.weapons[k][1]) < int(s.weapons[low][1])):
+				if int(s.weapons[k][1]) < 3 and (low < 0 or int(s.weapons[k][1]) > int(s.weapons[low][1])):
 					low = k
 			if low < 0:
 				var fb: Dictionary = lv.items[g].get("fallback", {"op": "+", "value": 10})
@@ -861,6 +862,9 @@ static func prism_amp(s: State) -> float:
 
 
 const MACHINE_TICK := 0.25
+## Planning worth of a machine's crowd kill rate over the rest of the level (share of the
+## time it has something to shoot; etap1 used 0.22 for the 5 machines).
+const MACHINE_WORTH := 0.4
 
 
 static func _machines(lv: Level, s: State, dt: float) -> void:
@@ -1479,7 +1483,7 @@ static func value(lv: Level, s: State) -> float:
 	var left := maxf(lv.length - s.d, 0.0) / Balance.RUN_SPEED
 	var v := s.army
 	for w: Array in s.weapons:
-		v += weapon_dps(s, w) * left * 0.22
+		v += weapon_dps(s, w) * left * MACHINE_WORTH
 	if s.arm > 0:
 		var tier: Dictionary = Balance.ARM_TIERS[s.arm]
 		v += s.army * float(tier["volley"]) / float(tier["period"]) * left * 0.1

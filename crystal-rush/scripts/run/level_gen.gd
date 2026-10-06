@@ -645,7 +645,7 @@ static func _c_rank(g: Gen) -> void:
 	var r := want(g, g.d + 20.0)
 	var rank := _gate("rank", 1)
 	rank["fallback"] = {"op": "+", "value": int(round(r * 0.55)) + 2}
-	var plus := _gate("+", int(round(r * 0.5)) + 2)
+	var plus := _gate("+", int(round(r * 0.3)) + 2)
 	_row(g, g.d + 14.0, [rank, plus] if s > 0 else [plus, rank])
 	_tile_line(g, 1.65 * s, 1.65 * s, g.d + 3.0, 5, 1.1)
 	g.e = a + r * 0.5

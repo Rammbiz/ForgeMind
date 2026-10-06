@@ -72,6 +72,7 @@ func apply(it: Dictionary, st: String, stacks: float, src: Dictionary = {}) -> v
 		"jolt":
 			life += float(mods.get("jolt_s_add", 0.0))
 			e["r"] = float(rule.get("chain_r", 2.0)) + float(mods.get("jump_r_add", 0.0))
+			e["chains"] = 1 + int(mods.get("chain_add", 0))
 		"stagger":
 			var push := float(rule.get("push", 0.3)) * float(mods.get("stagger_push_mult", 1.0))
 			run.hazards.push_squad(it, push)
@@ -103,17 +104,24 @@ func on_hit(it: Dictionary, n: float, source: String) -> void:
 	if source in ["burn", "chain", "clash", "siege"] or n <= 0.0 or not has(it, "jolt"):
 		return
 	var e: Dictionary = (it["status"] as Dictionary)["jolt"]
-	var other := _nearest_squad(it, float(e.get("r", 2.0)))
-	if other.is_empty():
-		return
-	e["stacks"] = int(e.get("stacks", 1)) - 1
-	if int(e["stacks"]) <= 0:
-		e["t"] = 0.0
-	var a := _center(it) + Vector3(0, 0.7, 0)
-	var b := _center(other) + Vector3(0, 0.7, 0)
-	var col: Color = (Effects.STATUS_LOOK["jolt"] as Dictionary)["color"]
-	run.effects.lightning([a, a.lerp(b, 0.5) + Vector3(0, 0.6, 0), b], col, 0.22, 0.06, true)
-	run.hurt(other, n * CHAIN_SHARE, "chain")
+	var from := it
+	var hit: Array[Dictionary] = [it]
+	# Capacitor (+chain_add): the chain jumps on to further squads.
+	for k in maxi(int(e.get("chains", 1)), 1):
+		var other := _nearest_squad(from, float(e.get("r", 2.0)), hit)
+		if other.is_empty():
+			break
+		if k == 0:
+			e["stacks"] = int(e.get("stacks", 1)) - 1
+			if int(e["stacks"]) <= 0:
+				e["t"] = 0.0
+		var a := _center(from) + Vector3(0, 0.7, 0)
+		var b := _center(other) + Vector3(0, 0.7, 0)
+		var col: Color = (Effects.STATUS_LOOK["jolt"] as Dictionary)["color"]
+		run.effects.lightning([a, a.lerp(b, 0.5) + Vector3(0, 0.6, 0), b], col, 0.22, 0.06, true)
+		run.hurt(other, n * pow(CHAIN_SHARE, k + 1), "chain")
+		hit.append(other)
+		from = other
 
 
 ## Decays statuses and ticks Burn.
@@ -176,7 +184,7 @@ func draw() -> void:
 			var cv := it["crowd"] as CrowdView
 			if tint != "":
 				var col: Color = (Effects.STATUS_LOOK[tint] as Dictionary)["color"]
-				cv.set_overlay(col, (0.55 if tint != "stagger" else 0.3) * tint_k)
+				cv.set_overlay(col, (0.8 if tint != "stagger" else 0.35) * tint_k)
 			else:
 				cv.set_overlay(Color.BLACK, 0.0)
 
@@ -199,12 +207,12 @@ func _on_wiped(it: Dictionary) -> void:
 	run.effects.projectile(a, b, "plasma", 0.3, Callable())
 
 
-func _nearest_squad(it: Dictionary, reach: float) -> Dictionary:
+func _nearest_squad(it: Dictionary, reach: float, skip: Array[Dictionary] = []) -> Dictionary:
 	var best: Dictionary = {}
 	var bd := reach
 	var p := _center(it)
 	for sq: Dictionary in run.hazards.squads:
-		if sq == it or not sq.get("alive", false):
+		if sq == it or not sq.get("alive", false) or skip.has(sq):
 			continue
 		var q := _center(sq)
 		var dist := Vector2(p.x - q.x, p.z - q.z).length() - float(sq.get("w", 2.4)) * 0.5

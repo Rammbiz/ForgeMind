@@ -1730,7 +1730,9 @@ func _after_grant(res: Dictionary, is_new: bool) -> void:
 	weapons = arsenal.summary()
 	var id := str(res.get("id", ""))
 	var m := arsenal.find(id)
-	weapon_added.emit(id, int(m.get("rank", 1)) if not m.is_empty() else 1)
+	# Overflow copies only punch their slot (rank_changed); new machines and Ranks get the card.
+	if str(res.get("kind", "")) != "overflow":
+		weapon_added.emit(id, int(m.get("rank", 1)) if not m.is_empty() else 1)
 	juice.haptic("weapon")
 	Audio.play("weapon_get", -3.0)
 	if is_new:
@@ -1746,13 +1748,14 @@ func _on_ranked(id: String, rank: int) -> void:
 	_restyle_crates()
 
 
-## A RANK gate locks its machine 30 u ahead: the fielded machine with the lowest Rank below III
-## (Meta-1 has no recipes); with none it becomes its fallback "+N" gate.
+## A RANK gate locks its machine 30 u ahead: the fielded machine closest to Rank III (the
+## highest Rank below III, first fielded on ties; Meta-1 has no recipes to be "closest to");
+## with none it becomes its fallback "+N" gate.
 func _resolve_rank_gate(it: Dictionary) -> void:
 	it["resolved"] = true
 	var best: Dictionary = {}
 	for m in arsenal.machines:
-		if int(m["rank"]) < 3 and (best.is_empty() or int(m["rank"]) < int(best["rank"])):
+		if int(m["rank"]) < 3 and (best.is_empty() or int(m["rank"]) > int(best["rank"])):
 			best = m
 	if best.is_empty():
 		var fb: Dictionary = it.get("fallback", {"op": "+", "value": 10})
