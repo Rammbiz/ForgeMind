@@ -153,10 +153,10 @@ func _on_run_finished(holder: Node, won: bool) -> void:
 		var v := view as Control
 		v.create_tween().tween_property(v, "modulate:a", 0.0, 0.25)
 	# The big army count over the hero would print through the flow's scrim.
+	run.set("hide_army_label", true)
 	var al: Variant = run.get("_army_label")
 	if al is Label3D and is_instance_valid(al):
-		var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-		tw.tween_property(al, "transparency", 1.0, 0.25)
+		(al as Label3D).visible = false
 	if won:
 		var flow := ResultFlow.new()
 		flow.setup(bundle, res)

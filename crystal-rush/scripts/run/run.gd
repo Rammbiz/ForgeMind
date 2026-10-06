@@ -179,6 +179,8 @@ var _stair_phase := 0
 var _stair_plan_rest := 0
 var _pop_cd := {}
 var _army_label: Label3D
+## Set by main when the result / loss flow opens: the big army count would print through its scrim.
+var hide_army_label := false
 var _label_off := Vector3.ZERO
 var _tiles: MultiMeshInstance3D
 var _coins_mm: MultiMeshInstance3D
@@ -2596,7 +2598,7 @@ func _visuals(delta: float) -> void:
 	_label_off = off if delta <= 0.0 else _label_off.lerp(off, 1.0 - exp(-12.0 * dt))
 	_army_label.position = hero.position + _label_off
 	# On the stairs the step multipliers own that space.
-	_army_label.visible = army > 0 and not (on_stairs and _stair_phase >= 2)
+	_army_label.visible = army > 0 and not (on_stairs and _stair_phase >= 2) and not hide_army_label
 	juice.popup_velocity = Vector3(0, 0, -Balance.RUN_SPEED) if state == State.RUNNING else Vector3.ZERO
 	_fade_passing_gate()
 	hazards.draw(t, dt, d, _foe if state == State.CLASH else {})
