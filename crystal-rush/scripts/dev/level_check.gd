@@ -5,7 +5,7 @@ extends Node
 ## prints the in-run arsenal the best path builds (machines and Ranks at the fortress) with the
 ## band shares of design §3.2 (P(Rank II+), P(Rank III)).
 ##   godot --headless --path . -- --levelcheck --from=1 --to=20 [--profile=fresh|expected|max|reference]
-##        [--hero=bolt|titan|both] [--random=8] [--army=0] [--power=0] [--trace=LEVEL] [--map=LEVEL]
+##        [--hero=bolt|titan|seer|both|all] [--random=8] [--army=0] [--power=0] [--trace=LEVEL] [--map=LEVEL]
 ## Runs through main.gd (the dev route), so the Meta autoload builds the synthetic accounts
 ## (Meta.synthetic_account, design §9.4). Levels never see the profile (LevelGen keeps
 ## START_ARMY and its own reference players); only the simulated player does.
@@ -18,7 +18,9 @@ func _ready() -> void:
 	var from := int(args.get("from", "1"))
 	var to := int(args.get("to", "20"))
 	var heroes: Array[String] = ["bolt", "titan"]
-	if str(args.get("hero", "both")) != "both":
+	if str(args.get("hero", "both")) == "all":
+		heroes = Balance.HERO_ORDER.duplicate()
+	elif str(args.get("hero", "both")) != "both":
 		heroes = [str(args["hero"])]
 	var randoms := int(args.get("random", "8"))
 	var army := Balance.start_army(int(args.get("army", "0")))

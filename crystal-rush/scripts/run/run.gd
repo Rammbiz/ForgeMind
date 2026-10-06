@@ -1932,7 +1932,7 @@ func _shot_fx(at: Vector3, k: int) -> void:
 	if hero_type == "seer":
 		# Twin violet orbs from her hands, curling onto their targets.
 		from = hero.muzzle() + Vector3(-0.22 if k % 2 == 0 else 0.22, 0.12, 0.0)
-		effects.projectile(from, at, "arcane", from.distance_to(at) / 20.0, Callable())
+		effects.projectile(from, at, "arcane", from.distance_to(at) / 17.0, Callable())
 		effects.muzzle(from, Effects.ARCANE)
 		if k == 0:
 			Audio.play("laser", -16.0, 0.3)
@@ -2089,6 +2089,8 @@ func _rift_tick() -> void:
 		var src := _rift_pos() + Vector3(randf_range(-2.4, 2.4), randf_range(2.6, 4.0), randf_range(-0.6, 0.6))
 		effects.projectile(src, at, "arcane", src.distance_to(at) / 24.0, Callable())
 	_ult_hit(d - 0.5, d + reach, true)
+	# A slow-time pulse rolls out of the rift on every tick.
+	effects.shockwave(_rift_pos(), Effects.ARCANE, 2.6)
 	Audio.play("laser", -10.0, 0.3)
 	juice.add_trauma(0.07)
 

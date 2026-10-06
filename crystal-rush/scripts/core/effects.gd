@@ -55,7 +55,7 @@ const KINDS := {
 	"tracer": {"color": Color(1.0, 0.82, 0.62), "glow": 0.25, "len": 0.9, "width": 0.07, "arc": 0.0, "head": Color(1.0, 1.0, 0.9)},
 	"volley": {"color": Color(1.0, 0.9, 0.62), "glow": 0.0, "len": 1.25, "width": 0.11, "arc": 0.07, "head": Color(1.0, 1.0, 1.0)},
 	"turret": {"color": Color(1.0, 0.42, 0.15), "glow": 0.85, "len": 1.6, "width": 0.22, "arc": 0.0, "head": Color(1.0, 0.6, 0.3)},
-	"arcane": {"color": Color(0.62, 0.3, 1.0), "glow": 0.85, "len": 1.1, "width": 0.26, "arc": 0.12, "head": Color(0.9, 0.75, 1.0)},
+	"arcane": {"color": Color(0.62, 0.3, 1.0), "glow": 1.05, "len": 1.3, "width": 0.3, "arc": 0.12, "head": Color(0.9, 0.75, 1.0)},
 }
 ## The Seer's violet (orbs, rift).
 const ARCANE := Color(0.66, 0.32, 1.0)
@@ -1417,7 +1417,7 @@ func rift_open(pos: Vector3, width := 6.6) -> Node3D:
 	var mats: Array[ShaderMaterial] = []
 	for mode in 2:
 		var mi := MeshInstance3D.new()
-		mi.mesh = Mats.quad(Vector2(width, 2.6 if mode == 0 else 3.2), mode == 0)
+		mi.mesh = Mats.quad(Vector2(width, 4.0 if mode == 0 else 3.4), mode == 0)
 		var m := ShaderMaterial.new()
 		m.shader = RIFT_SHADER
 		m.set_shader_parameter("noise_tex", NOISE_TEX)
@@ -1428,7 +1428,7 @@ func rift_open(pos: Vector3, width := 6.6) -> Node3D:
 		if mode == 0:
 			mi.position.y = 0.06
 		else:
-			mi.position.y = 1.6
+			mi.position.y = 1.7
 		root.add_child(mi)
 		mats.append(m)
 	_rifts.append({"node": root, "mats": mats, "k": 0.0, "t": 0.0, "closing": false, "w": width, "spark": 0.0})
@@ -1465,6 +1465,13 @@ func _step_rifts(delta: float) -> void:
 			var p := node.global_position + Vector3(randf_range(-w * 0.45, w * 0.45), 0.1, randf_range(-0.3, 0.3))
 			var c := ARCANE.lerp(Color(1.0, 0.85, 0.5), randf() * randf())
 			_sparks.add(p, Vector3(randf_range(-0.2, 0.2), randf_range(1.2, 3.2), randf_range(-0.2, 0.2)), c, randf_range(0.5, 0.9), 0.045, 0.012, 0.4, 1.2, 0.05)
+		# Flares riding the rim of the tear.
+		var kk := float(r["k"])
+		if kk > 0.05:
+			for j in 5:
+				var fx := (float(j) - 2.0) / 2.0 * w * 0.36
+				var pul := 0.75 + 0.25 * sin(float(r["t"]) * 5.0 + float(j) * 1.7)
+				_frame_glows.append([node.global_position + Vector3(fx, 0.25, 0.0), (1.0 - absf(fx) / w) * 1.3 * kk * pul, ARCANE, 0.5, fposmod(float(r["t"]) * 0.7 + j, TAU), 0.8])
 		if r["closing"] and float(r["k"]) <= 0.0:
 			node.queue_free()
 			_rifts.remove_at(i)

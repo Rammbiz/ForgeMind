@@ -39,7 +39,7 @@ const CLIP_HEROES := {
 		},
 		"upper": ["Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
 				"RightShoulder", "RightArm", "RightForeArm", "RightHand"],
-		"portrait_dz": 1.6, "face_up": 0.1, "lift": 0.35,
+		"portrait_dz": 1.6, "face_up": 0.1, "lift": 0.2,
 	},
 }
 
@@ -251,8 +251,8 @@ static func _hero_material(src: StandardMaterial3D, quality_high: bool, lift := 
 	m.rim = 0.35
 	m.rim_tint = 0.6
 	if lift > 0.0:
-		m.rim = 0.7
-		m.rim_tint = 0.3
+		m.rim = 0.5
+		m.rim_tint = 0.4
 		m.emission_enabled = true
 		m.emission = Color.WHITE
 		m.emission_texture = src.albedo_texture
