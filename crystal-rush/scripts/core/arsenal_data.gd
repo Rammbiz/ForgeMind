@@ -590,18 +590,53 @@ const MACHINES := {
 	},
 }
 
-## Import data per machine model (§10.3); WS3 measures and overwrites these in
-## gallery_weapons.gd. Placeholders follow the etap1 procedural models ("measured": false).
+## Import data per machine model (§10.3). Placeholders follow the etap1 procedural models
+## ("measured": false); the owner's GLB machines (WeaponModels._owner_machine) are measured in
+## their fitted space (machine faces -Z, bottom on y = 0): fit (box the GLB is scaled into),
+## forward_deg (turn of the GLB about Y), muzzle, split {name: {shape "cyl" c r hw | "box" box,
+## pivot, role "wheel" | "barrel"}} (single-mesh parts cut out to move), tint / tint_mix / glow
+## (crystal recolour), crew_at (crew step), armour {x y z len} (Rank II plates), crest (Rank
+## III), star_y (Rank chevrons), yaw_limit (degrees the whole body may turn to aim), hover_y.
 const FIT := {
-	"drone": {"fit": AABB(Vector3(-0.4, 0.4, -0.4), Vector3(0.8, 0.4, 0.8)), "deck_y": 0.62, "yaw_pivot": Vector3(0, 0.62, 0),
-			"muzzle": Vector3(0, -0.07, -0.25), "forward_deg": 0.0, "parts": {}, "measured": false},
-	# The owner's Frostbolt Ballista GLB points its bolt along -X: turned -90° to face -Z.
-	"ballista": {"fit": AABB(Vector3(-0.5, 0, -0.7), Vector3(1.0, 0.6, 1.4)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
-			"muzzle": Vector3(0, 0.37, -0.5), "forward_deg": -90.0, "parts": {}, "measured": true},
-	"cannon": {"fit": AABB(Vector3(-0.45, 0, -0.75), Vector3(0.9, 0.7, 1.5)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
-			"muzzle": Vector3(0, 0.15, -0.72), "forward_deg": 0.0, "parts": {}, "measured": false},
-	"rockets": {"fit": AABB(Vector3(-0.45, 0, -0.5), Vector3(0.9, 0.7, 1.0)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
-			"muzzle": Vector3(0, 0.02, -0.34), "forward_deg": 0.0, "parts": {}, "measured": false},
+	# The owner's Aethercore Drone GLB faces +Z (eye and blaster): turned 180°. Box relative to
+	# the hover point (hover_y above the road).
+	"drone": {"fit": AABB(Vector3(-0.43, -0.35, -0.38), Vector3(0.86, 0.7, 0.76)), "deck_y": 0.62, "yaw_pivot": Vector3(0, 0.62, 0),
+			"muzzle": Vector3(0, -0.12, -0.38), "forward_deg": 180.0, "parts": {}, "measured": true, "hover_y": 0.62,
+			"tint": Color(0.5, 1.0, 0.3), "tint_mix": 0.55, "glow": 1.1, "star_y": 0.5},
+	# The owner's Frostbolt Ballista GLB points its bolt along -X: turned -90° to face -Z. Four
+	# wheels split out to roll; its frost bow keeps the owner's ice blue.
+	"ballista": {"fit": AABB(Vector3(-0.6, 0, -0.55), Vector3(1.2, 0.7, 1.1)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0, 0),
+			"muzzle": Vector3(0, 0.52, -0.56), "forward_deg": -90.0, "parts": {}, "measured": true, "yaw_limit": 32.0,
+			"split": {
+				"wheel_fl": {"shape": "cyl", "c": Vector3(-0.275, 0.14, -0.09), "r": 0.15, "hw": 0.085, "role": "wheel"},
+				"wheel_fr": {"shape": "cyl", "c": Vector3(0.275, 0.14, -0.09), "r": 0.15, "hw": 0.085, "role": "wheel"},
+				"wheel_rl": {"shape": "cyl", "c": Vector3(-0.22, 0.085, 0.375), "r": 0.095, "hw": 0.065, "role": "wheel"},
+				"wheel_rr": {"shape": "cyl", "c": Vector3(0.22, 0.085, 0.375), "r": 0.095, "hw": 0.065, "role": "wheel"}},
+			"tint": Color(0.36, 0.82, 1.0), "tint_mix": 0.0, "glow": 0.75, "crew_at": Vector3(0.08, 0.2, 0.6),
+			"crest": Vector3(0, 0.5, 0.36), "star_y": 0.86},
+	# The owner's Crystal Cannon Rover GLB: barrel along -X, turned -90°. The barrel recoils on
+	# its own, four wheels roll; plasma rose crystals.
+	"cannon": {"fit": AABB(Vector3(-0.55, 0, -0.65), Vector3(1.1, 1.0, 1.3)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0, 0),
+			"muzzle": Vector3(0, 0.77, -0.68), "forward_deg": -90.0, "parts": {}, "measured": true, "yaw_limit": 32.0,
+			"split": {
+				"barrel": {"shape": "box", "box": AABB(Vector3(-0.2, 0.58, -0.72), Vector3(0.4, 0.4, 0.44)), "pivot": Vector3(0, 0.77, -0.3), "role": "barrel"},
+				"wheel_fl": {"shape": "cyl", "c": Vector3(-0.39, 0.2, -0.3), "r": 0.2, "hw": 0.12, "role": "wheel"},
+				"wheel_fr": {"shape": "cyl", "c": Vector3(0.39, 0.2, -0.3), "r": 0.2, "hw": 0.12, "role": "wheel"},
+				"wheel_rl": {"shape": "cyl", "c": Vector3(-0.39, 0.2, 0.4), "r": 0.2, "hw": 0.12, "role": "wheel"},
+				"wheel_rr": {"shape": "cyl", "c": Vector3(0.39, 0.2, 0.4), "r": 0.2, "hw": 0.12, "role": "wheel"}},
+			"tint": Color(1.0, 0.34, 0.62), "tint_mix": 0.85, "glow": 1.0, "crew_at": Vector3(0.12, 0.3, 0.72),
+			"armour": {"x": 0.27, "y": 0.36, "z": 0.05, "len": 0.3}, "crest": Vector3(0, 0.95, 0.15), "star_y": 1.15},
+	# The owner's Aegis Crystal Rover GLB (Rocket Pod): launcher tubes along -X, turned -90°.
+	# Four wheels roll; tech lime warheads.
+	"rockets": {"fit": AABB(Vector3(-0.46, 0, -0.53), Vector3(0.92, 1.05, 1.06)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0, 0),
+			"muzzle": Vector3(0, 0.82, -0.37), "forward_deg": -90.0, "parts": {}, "measured": true, "yaw_limit": 32.0,
+			"split": {
+				"wheel_fl": {"shape": "cyl", "c": Vector3(-0.375, 0.2, -0.33), "r": 0.19, "hw": 0.1, "role": "wheel"},
+				"wheel_fr": {"shape": "cyl", "c": Vector3(0.375, 0.2, -0.33), "r": 0.19, "hw": 0.1, "role": "wheel"},
+				"wheel_rl": {"shape": "cyl", "c": Vector3(-0.375, 0.2, 0.35), "r": 0.19, "hw": 0.1, "role": "wheel"},
+				"wheel_rr": {"shape": "cyl", "c": Vector3(0.375, 0.2, 0.35), "r": 0.19, "hw": 0.1, "role": "wheel"}},
+			"tint": Color(0.5, 1.0, 0.22), "tint_mix": 0.7, "glow": 1.1, "crew_at": Vector3(0.1, 0.3, 0.62),
+			"armour": {"x": 0.25, "y": 0.34, "z": 0.01, "len": 0.32}, "crest": Vector3(0, 1.02, 0.25), "star_y": 1.22},
 	"mortar": {"fit": AABB(Vector3(-0.45, 0, -0.55), Vector3(0.9, 0.8, 1.1)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),
 			"muzzle": Vector3(0, 0.55, -0.4), "forward_deg": 0.0, "parts": {}, "measured": false},
 	"gatling": {"fit": AABB(Vector3(-0.45, 0, -0.7), Vector3(0.9, 0.65, 1.4)), "deck_y": 0.34, "yaw_pivot": Vector3(0, 0.34, 0),

@@ -5,9 +5,12 @@ extends SubViewportContainer
 ##   mode "machine": a navy spotlight stage - dark pedestal with a gold rim and an accent ring,
 ##                   a light cone from above, rising motes, the machine on a slow turntable
 ##                   (silhouette for a locked machine);
-##   mode "hero":    the hero on a gold dais in warm key light;
+##   mode "hero":    the hero on the owner's dais (navy stone, gold filigree, a glowing
+##                   ice-crystal ring; assets/ui/dais.glb) in warm key light;
 ##   mode "army":    a formation of the owner's Crystal Knights (VAT idle) on a stone dais.
-## Rendering stops while the container is hidden (UPDATE_WHEN_VISIBLE).
+## The machine stage stands on the same dais, its crystal ring in the family accent. Without
+## the GLB both keep the procedural pedestal. Rendering stops while the container is hidden
+## (UPDATE_WHEN_VISIBLE).
 
 signal tapped
 
@@ -36,6 +39,7 @@ var _subject: Node3D
 var _subject_key := ""
 var _turn: Node3D
 var _ring_mat: StandardMaterial3D
+var _dais_mat: ShaderMaterial
 var _beam_mat: ShaderMaterial
 var _motes: CPUParticles3D
 var _t := 0.0
@@ -99,7 +103,48 @@ func _build_stage() -> void:
 	resized.connect(_frame)
 
 
+## The owner's dais `w` wide with its top centre at y = 0 (mesh cached per width):
+## {node: MeshInstance3D, mat: ShaderMaterial (asset_altar: the ring glows with rune_k /
+## rune_color)}, or {} without assets/ui/dais.glb.
+static func owner_dais(w: float) -> Dictionary:
+	var arr := WeaponModels.asset_arrays("dais", AABB(Vector3(-w * 0.5, 0, -w * 0.5), Vector3(w, 2.0, w)), 0.0, "width")
+	if arr.is_empty():
+		return {}
+	var key := "%.3f" % w
+	if not _dais_meshes.has(key):
+		var sv: PackedVector3Array = arr["v"]
+		var top := 0.0
+		for p in sv:
+			if Vector2(p.x, p.z).length() < w * 0.15:
+				top = maxf(top, p.y)
+		var all := PackedInt32Array()
+		for i in (arr["idx"] as PackedInt32Array).size() / 3:
+			all.append(i)
+		_dais_meshes[key] = {"mesh": WeaponModels.asset_submesh(arr, all), "top": top}
+	var d: Dictionary = _dais_meshes[key]
+	var mi := MeshInstance3D.new()
+	mi.name = "Dais"
+	mi.mesh = d["mesh"]
+	mi.position.y = -float(d["top"])
+	var mat := WeaponModels.asset_material(arr, CacheModels.ALTAR_SHADER)
+	mat.set_shader_parameter("rune_color", Color(0.45, 0.82, 1.0))
+	mat.set_shader_parameter("rune_k", 0.55)
+	mat.set_shader_parameter("rune_mix", 0.0)
+	mat.set_shader_parameter("gem_k", 0.6)
+	mi.material_override = mat
+	return {"node": mi, "mat": mat, "depth": float(d["top"])}
+
+
+static var _dais_meshes := {}
+
+
 func _build_dais() -> void:
+	var owner := owner_dais(2.5) if mode != "army" else {}
+	if not owner.is_empty():
+		_dais_mat = owner["mat"]
+		_root.add_child(owner["node"])
+		_build_glow_fx(1.25, -float(owner["depth"]) - 0.01)
+		return
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.08, 0.1, 0.2) if mode == "machine" else Color(0.32, 0.22, 0.14)
 	dark.metallic = 0.6
@@ -152,6 +197,12 @@ func _build_dais() -> void:
 	ring.position.y = 0.005
 	ring.scale = Vector3(1, 0.2, 1)
 	_root.add_child(ring)
+	_build_glow_fx(r, -0.37)
+
+
+## Floor glow (at `floor_y`), the machine stage's light cone and the rising motes round a dais
+## of radius `r`.
+func _build_glow_fx(r: float, floor_y: float) -> void:
 	var glow := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(r * 4.2, r * 4.2)
@@ -163,7 +214,7 @@ func _build_dais() -> void:
 	gm.albedo_texture = _radial_tex()
 	gm.albedo_color = Color(accent.r, accent.g, accent.b, 0.5)
 	glow.material_override = gm
-	glow.position.y = -0.37
+	glow.position.y = floor_y
 	glow.set_meta("glow_mat", gm)
 	_root.add_child(glow)
 	glow.name = "FloorGlow"
@@ -257,6 +308,11 @@ func set_accent(c: Color) -> void:
 	accent = c
 	if _ring_mat:
 		_ring_mat.albedo_color = c.lightened(0.15)
+	if _dais_mat:
+		# The hero keeps the owner's ice ring warmed by its colour; a machine's ring takes the
+		# family accent.
+		_dais_mat.set_shader_parameter("rune_color", Color(0.45, 0.82, 1.0).lerp(c, 0.3 if mode == "hero" else 0.75))
+		_dais_mat.set_shader_parameter("rune_mix", 0.35 if mode == "hero" else 0.8)
 	var g := _root.get_node_or_null("FloorGlow") as MeshInstance3D
 	if g:
 		(g.material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, 0.55)
@@ -400,6 +456,8 @@ func _process(delta: float) -> void:
 	if _ring_mat:
 		var k := 0.75 + 0.25 * sin(fmod(_t, 100.0 * PI) * 2.2)
 		_ring_mat.albedo_color = accent.lightened(0.15) * Color(k, k, k, 1.0)
+	if _dais_mat:
+		_dais_mat.set_shader_parameter("pulse", 0.5 + 0.5 * sin(fmod(_t, 100.0 * PI) * 2.2))
 
 
 func _gui_input(event: InputEvent) -> void:

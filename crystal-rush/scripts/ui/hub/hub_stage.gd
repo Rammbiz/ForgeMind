@@ -2,10 +2,14 @@ class_name HubStage
 extends Node3D
 ## The 3D world behind the Play tab (arsenal_design.md §7.1 "hero showcase"): the current
 ## world's road under its sky, the chosen hero in front and the Deck machines flanking it, a
-## slow orbiting camera. Other tabs cover it with their own backdrop; then `active = false`
-## stops the animation work and hides the props (the sky still clears the screen).
+## slow orbiting camera. The hero stands on the owner's dais (HubShowcase.owner_dais, its
+## ice-crystal ring breathing) when assets/ui/dais.glb exists. Other tabs cover it with their
+## own backdrop; then `active = false` stops the animation work and hides the props (the sky
+## still clears the screen).
 
 const HERO_Z := -6.0
+## Width of the hero's dais on the road.
+const DAIS_W := 1.7
 
 var active := true:
 	set(v):
@@ -18,6 +22,8 @@ var _hero_id := ""
 var _machines: Array[Node3D] = []
 var _deck_key := ""
 var _props: Node3D
+var _dais_mat: ShaderMaterial
+var _hero_y := 0.0
 var _t := 0.0
 ## Camera framing: the hero stands in the upper middle of the screen, above the level path.
 var look_y := -0.62
@@ -32,6 +38,13 @@ func _ready() -> void:
 	_props = Node3D.new()
 	_props.name = "Props"
 	add_child(_props)
+	var dais := HubShowcase.owner_dais(DAIS_W)
+	if not dais.is_empty():
+		_hero_y = float(dais["depth"])
+		var dn: Node3D = dais["node"]
+		dn.position = Vector3(0, dn.position.y + _hero_y, HERO_Z)
+		_props.add_child(dn)
+		_dais_mat = dais["mat"]
 	_cam = Camera3D.new()
 	_cam.keep_aspect = Camera3D.KEEP_WIDTH
 	_cam.fov = 50.0
@@ -48,7 +61,7 @@ func refresh() -> void:
 		if _hero:
 			_hero.queue_free()
 		_hero = HeroModels.hero(h)
-		_hero.position = Vector3(0, 0, HERO_Z)
+		_hero.position = Vector3(0, _hero_y, HERO_Z)
 		_props.add_child(_hero)
 	var d := Meta.deck()
 	var key := ",".join(d)
@@ -85,6 +98,8 @@ func _process(delta: float) -> void:
 		_hero.rotation.y = sin(_t * 0.4) * 0.3
 	for i in _machines.size():
 		WeaponModels.animate(_machines[i], _t + i * 0.7, 0.0, 0.0)
+	if _dais_mat:
+		_dais_mat.set_shader_parameter("pulse", 0.5 + 0.5 * sin(fmod(_t, 100.0 * PI) * 2.2))
 	var a := sin(fmod(_t, 200.0 * PI) * 0.15) * 0.28
 	_cam.position = Vector3(sin(a) * cam_d, cam_h, HERO_Z + cos(a) * cam_d)
 	_cam.look_at(Vector3(0, look_y, HERO_Z))

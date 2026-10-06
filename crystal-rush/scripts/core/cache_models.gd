@@ -17,15 +17,23 @@ class_name CacheModels
 ## amethyst seams, amethyst clusters and double gold rings; Royal = obsidian with gold seams;
 ## X-Ray = pale opal (Meta-3 stubs).
 ##
-## Asset hook: a GLB "cache_<type>" (Worlds models or res://assets/machines/) replaces the
-## intact egg for stages 0..2 (a sheen in the tell colour shows the crack); the procedural
-## chunks take over for the burst. "altar" replaces the altar body (rune ring, pylons and the
-## socket stay procedural so altar_light() keeps working).
+## Owner assets: a GLB "cache_<type>" (res://assets/machines/, WeaponModels.asset_path) is cut
+## into the same 18 shell chunks (triangles by latitude band and sector), so the crack stages,
+## gaps, tell glow and burst physics run on the owner's egg (asset_cache.gdshader: gems and
+## quartz take the tell colour, crack lines glow along the chunk edges, the inside of the shell
+## glows). "altar" replaces the altar body (asset_altar.gdshader: its rune band and amethyst
+## pillars glow with altar_light()); the rune ring, socket claws and floating shards are placed
+## on its measured top. Without the files everything stays procedural.
 
 const NOISE_TEX := preload("res://assets/textures/cloud_noise.png")
 const SHELL_SHADER := preload("res://shaders/cache_shell.gdshader")
 const BEAM_SHADER := preload("res://shaders/rarity_beam.gdshader")
 const SHEEN_SHADER := preload("res://shaders/rarity_sheen.gdshader")
+const ASSET_SHADER := preload("res://shaders/asset_cache.gdshader")
+const ALTAR_SHADER := preload("res://shaders/asset_altar.gdshader")
+## Owner altar fit: diameter (world units) and turn (its four pillars on the diagonals).
+const ALTAR_W := 2.6
+const ALTAR_TURN := 45.0
 ## Egg size per type (height, radius) and its looks.
 const TYPES := {
 	"stone": {"h": 1.04, "r": 0.37, "base": Color(0.46, 0.52, 0.64), "base2": Color(0.3, 0.34, 0.45), "gem": Color(0.26, 0.56, 1.0),
@@ -46,6 +54,8 @@ const NAVY := Color(0.14, 0.18, 0.31)
 const ICE := Color(0.36, 0.82, 1.0)
 
 static var _shell_mats := {}
+static var _owner_eggs := {}
+static var _owner_altar := {}
 
 
 ## Rarity colour of the meta UI (§5.7; Mythic is opal and hue-cycles in animate()).
@@ -91,13 +101,34 @@ static func cache(type := "stone") -> Node3D:
 	core.position = Vector3(0, h * 0.5, 0)
 	body.add_child(core)
 	root.set_meta("core", core)
-	var mat := _shell_material(type)
+	var owner := _owner_egg(type, h, r)
+	var mat: ShaderMaterial = _shell_material(type) if owner.is_empty() else WeaponModels.asset_material(owner["arr"], ASSET_SHADER)
 	root.set_meta("shell_mat", mat)
 	var chunks: Array[Dictionary] = []
 	var centre := Vector3(0, h * 0.5, 0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(type) + 7
-	for band in SECTORS.size():
+	if not owner.is_empty():
+		core.scale = Vector3.ONE * 0.86
+		root.set_meta("owner", true)
+		for cell: Dictionary in owner["cells"]:
+			var pivot := Node3D.new()
+			pivot.name = "Chunk"
+			pivot.position = cell["centroid"]
+			body.add_child(pivot)
+			var mi := MeshInstance3D.new()
+			mi.mesh = cell["mesh"]
+			mi.material_override = mat
+			pivot.add_child(mi)
+			var dir: Vector3 = Vector3(cell["centroid"]) - Vector3(owner["centre"])
+			dir = dir.normalized() if dir.length_squared() > 1e-6 else Vector3.UP
+			var band0 := int(cell["band"])
+			var j0 := int(cell["j"])
+			chunks.append({"node": pivot, "rest": cell["centroid"], "dir": dir, "band": band0, "j": j0,
+				"axis": Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized(),
+				"spin": rng.randf_range(4.0, 9.0), "speed": rng.randf_range(2.4, 4.2), "lift": rng.randf_range(1.6, 3.4),
+				"tilt": rng.randf_range(-1.0, 1.0), "wide": (band0 + j0) % 3 == 0})
+	for band in (SECTORS.size() if owner.is_empty() else 0):
 		var n: int = SECTORS[band]
 		var offset := band * 0.53
 		for j in n:
@@ -123,8 +154,9 @@ static func cache(type := "stone") -> Node3D:
 			chunks.append(info)
 			_decorate(type, spec, pivot, info, data, rng)
 	root.set_meta("chunks", chunks)
-	# Gold rings round the caps (they ride with the cap chunks).
-	_rings(type, spec, chunks, h, r)
+	# Gold rings round the caps (they ride with the cap chunks; the owner's egg has its own).
+	if owner.is_empty():
+		_rings(type, spec, chunks, h, r)
 	var lamp := OmniLight3D.new()
 	lamp.name = "Lamp"
 	lamp.light_color = ICE
@@ -158,16 +190,103 @@ static func cache(type := "stone") -> Node3D:
 		root.add_child(p)
 		pillars.append(p)
 	root.set_meta("pillars", pillars)
-	var glb := WeaponModels.asset("cache_" + type, AABB(Vector3(-r, 0, -r), Vector3(r * 2.0, h, r * 2.0)))
-	if glb != null:
-		glb.name = "Asset"
-		root.add_child(glb)
-		root.set_meta("asset", glb)
-		for c: Dictionary in chunks:
-			(c["node"] as Node3D).visible = false
 	set_tell(root, "C")
 	set_crack(root, 0)
 	return root
+
+
+## The owner's egg for `type` cut into shell chunks (cached): {arr, centre, cells: [{mesh,
+## centroid, band, j}]} or {} without a GLB. The egg is scaled to the type's height `h`;
+## every triangle goes to the latitude band / sector cell (BANDS, SECTORS, jittered like the
+## procedural chunks) that holds its centre; UV2.x of each vertex is its distance to the
+## cell's edge (crack lines in asset_cache.gdshader).
+static func _owner_egg(type: String, h: float, r: float) -> Dictionary:
+	if _owner_eggs.has(type):
+		return _owner_eggs[type]
+	var arr := WeaponModels.asset_arrays("cache_" + type, AABB(Vector3(-r, 0, -r), Vector3(r * 2.0, h, r * 2.0)), 0.0, "height")
+	if arr.is_empty():
+		_owner_eggs[type] = {}
+		return {}
+	var box: AABB = arr["box"]
+	var centre := box.get_center()
+	var info := {"y0": box.position.y, "hh": box.size.y, "rr": maxf(box.size.x, box.size.z) * 0.5, "centre": centre}
+	var sv: PackedVector3Array = arr["v"]
+	var sidx: PackedInt32Array = arr["idx"]
+	var cells := {}
+	for tri in sidx.size() / 3:
+		var p := (sv[sidx[tri * 3]] + sv[sidx[tri * 3 + 1]] + sv[sidx[tri * 3 + 2]]) / 3.0
+		var cell := _egg_cell(p, info)
+		var key := cell.x * 10 + cell.y
+		if not cells.has(key):
+			cells[key] = PackedInt32Array()
+		(cells[key] as PackedInt32Array).append(tri)
+	var out_cells: Array[Dictionary] = []
+	var keys := cells.keys()
+	keys.sort()
+	for key: int in keys:
+		var tris: PackedInt32Array = cells[key]
+		var band := key / 10
+		var j := key % 10
+		var cen := Vector3.ZERO
+		for tri in tris:
+			cen += (sv[sidx[tri * 3]] + sv[sidx[tri * 3 + 1]] + sv[sidx[tri * 3 + 2]]) / 3.0
+		cen /= float(tris.size())
+		var edge_fn := func(v: Vector3) -> Vector2: return Vector2(_egg_edge(v, info, band, j), 0.0)
+		out_cells.append({"mesh": WeaponModels.asset_submesh(arr, tris, cen, edge_fn), "centroid": cen, "band": band, "j": j})
+	var out := {"arr": arr, "centre": centre, "cells": out_cells}
+	_owner_eggs[type] = out
+	return out
+
+
+## Egg latitude (0 bottom .. PI top) and longitude of a point, matching _egg().
+static func _egg_angles(p: Vector3, info: Dictionary) -> Vector2:
+	var u := clampf((p.y - float(info["y0"])) / float(info["hh"]), 0.0, 1.0)
+	var q: Vector3 = p - Vector3(info["centre"])
+	return Vector2(acos(clampf(1.0 - 2.0 * u, -1.0, 1.0)), atan2(q.z, q.x))
+
+
+## Longitude where sector `j` of `band` starts (jittered like the procedural chunks).
+static func _sector_start(band: int, j: int) -> float:
+	var n: int = SECTORS[band]
+	return TAU * j / n + band * 0.53 + 0.11 * sin((j % n) * 2.3 + band)
+
+
+## (band, sector) cell of a point on the egg.
+static func _egg_cell(p: Vector3, info: Dictionary) -> Vector2i:
+	var a := _egg_angles(p, info)
+	var band := SECTORS.size() - 1
+	for b in SECTORS.size() - 1:
+		if a.x < _lat(b + 1, a.y):
+			band = b
+			break
+	var n: int = SECTORS[band]
+	if n == 1:
+		return Vector2i(band, 0)
+	for j in n:
+		var s0 := _sector_start(band, j)
+		var s1 := _sector_start(band, (j + 1) % n)
+		if fposmod(a.y - s0, TAU) < fposmod(s1 - s0, TAU):
+			return Vector2i(band, j)
+	return Vector2i(band, 0)
+
+
+## Distance (world units, approx.) from a vertex to the edge of cell (band, j).
+static func _egg_edge(v: Vector3, info: Dictionary, band: int, j: int) -> float:
+	var a := _egg_angles(v, info)
+	var meridian := 0.5 * (float(info["hh"]) * 0.5 + float(info["rr"]))
+	var d := 1e9
+	if band > 0:
+		d = minf(d, (a.x - _lat(band, a.y)) * meridian)
+	if band < SECTORS.size() - 1:
+		d = minf(d, (_lat(band + 1, a.y) - a.x) * meridian)
+	var n: int = SECTORS[band]
+	if n > 1:
+		var ring := float(info["rr"]) * sin(a.x)
+		var s0 := _sector_start(band, j)
+		var s1 := _sector_start(band, (j + 1) % n)
+		d = minf(d, wrapf(a.y - s0, -PI, PI) * ring)
+		d = minf(d, wrapf(s1 - a.y, -PI, PI) * ring)
+	return maxf(d, 0.0)
 
 
 static func _shell_material(type: String) -> ShaderMaterial:
@@ -560,9 +679,33 @@ static func altar(opts := {}) -> Node3D:
 	var body := Node3D.new()
 	body.name = "Body"
 	root.add_child(body)
-	var glb := WeaponModels.asset("altar", AABB(Vector3(-1.4, 0, -1.4), Vector3(2.8, 0.72, 2.8)))
-	if glb != null:
-		body.add_child(glb)
+	var owner := _owner_altar_mesh()
+	var top_y := 0.712
+	if not owner.is_empty():
+		var amat := WeaponModels.asset_material(owner["arr"], ALTAR_SHADER)
+		var ami := MeshInstance3D.new()
+		ami.name = "Asset"
+		ami.mesh = owner["mesh"]
+		ami.material_override = amat
+		body.add_child(ami)
+		root.set_meta("asset_mat", amat)
+		top_y = float(owner["top"])
+		# A soft glow pool round the base grounds it on the road.
+		var pool := MeshInstance3D.new()
+		pool.name = "BaseGlow"
+		pool.mesh = Mats.quad(Vector2(ALTAR_W * 1.7, ALTAR_W * 1.7))
+		var pm := StandardMaterial3D.new()
+		pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		pm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		pm.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		pm.albedo_texture = Mats.soft_texture()
+		pm.albedo_color = Color(0.45, 0.6, 1.0, 0.35)
+		pool.material_override = pm
+		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pool.position = Vector3(0, 0.02, 0)
+		root.add_child(pool)
+		root.set_meta("base_glow", pm)
 	else:
 		Mats.part(body, Mats.cyl(2.3, 2.35, 0.06, 8, true), Mats.solid(Color(0.16, 0.19, 0.32), 0.35, 0.3), Vector3(0, 0.03, 0), Vector3(0, 22.5, 0))
 		Mats.part(body, Mats.torus(1.95, 2.0, 48, 3), gold, Vector3(0, 0.065, 0), Vector3.ZERO, Vector3(1, 0.4, 1))
@@ -588,7 +731,7 @@ static func altar(opts := {}) -> Node3D:
 	# Rune ring (glows with altar_light()).
 	var ring := Node3D.new()
 	ring.name = "RuneRing"
-	ring.position = Vector3(0, 0.712, 0)
+	ring.position = Vector3(0, top_y + (0.004 if not owner.is_empty() else 0.0), 0)
 	root.add_child(ring)
 	var rune_mat := _dyn_glow(Color(0.45, 0.75, 1.0), 1.2)
 	var rm := Mats.part(ring, Mats.torus(0.58, 0.61, 48, 3), rune_mat, Vector3.ZERO, Vector3.ZERO, Vector3(1, 0.3, 1), false)
@@ -610,10 +753,11 @@ static func altar(opts := {}) -> Node3D:
 	# Socket: three gold claws holding the egg.
 	var socket := Node3D.new()
 	socket.name = "Socket"
-	socket.position = Vector3(0, 0.72, 0)
+	socket.position = Vector3(0, top_y + 0.008, 0)
 	root.add_child(socket)
 	var claws := Node3D.new()
 	claws.name = "Claws"
+	claws.position.y = top_y - 0.712
 	root.add_child(claws)
 	Mats.part(claws, Mats.cyl(0.22, 0.26, 0.05, 18, false), gold, Vector3(0, 0.735, 0))
 	for k in 3:
@@ -626,10 +770,22 @@ static func altar(opts := {}) -> Node3D:
 	Mats.bake(claws)
 	root.set_meta("socket", socket)
 	root.set_meta("rune_mats", [rune_mat])
-	# Pylons.
+	# Pylons (the owner's altar has its own amethyst pillars: floating shards crown them).
 	var pylon_mat := _dyn_glow(ICE, 1.6)
 	var pylons: Array[Node3D] = []
-	for k in 4:
+	if not owner.is_empty():
+		for p: Vector3 in owner["pillars"]:
+			var shard := Node3D.new()
+			shard.name = "Shard"
+			shard.position = p + Vector3(0, 0.2, 0)
+			shard.set_meta("y0", shard.position.y)
+			root.add_child(shard)
+			var s1 := Mats.part(shard, Mats.crystal(0.055, 0.26), pylon_mat, Vector3.ZERO, Vector3(180, 0, 0), Vector3.ONE, false)
+			s1.set_meta("no_bake", true)
+			var s2 := Mats.part(shard, Mats.crystal(0.03, 0.12), pylon_mat, Vector3(0.06, -0.02, 0.02), Vector3(160, 0, 20), Vector3.ONE, false)
+			s2.set_meta("no_bake", true)
+			pylons.append(shard)
+	for k in (4 if owner.is_empty() else 0):
 		var a := TAU * k / 4.0 + PI / 4.0
 		var d := Vector3(sin(a), 0, cos(a))
 		var py := Node3D.new()
@@ -650,6 +806,7 @@ static func altar(opts := {}) -> Node3D:
 		var c3 := Mats.part(cluster, Mats.crystal(0.05, 0.36), pylon_mat, Vector3(-0.08, 0.15, -0.05), Vector3(14, 0, 18), Vector3.ONE, false)
 		c3.set_meta("no_bake", true)
 		Mats.bake(py)
+		cluster.set_meta("y0", 0.42)
 		pylons.append(cluster)
 	root.set_meta("pylons", pylons)
 	root.set_meta("pylon_mats", [pylon_mat])
@@ -666,6 +823,42 @@ static func altar(opts := {}) -> Node3D:
 	root.set_meta("lamp", lamp)
 	altar_light(root, 0.4, Color(0.5, 0.8, 1.0))
 	return root
+
+
+## The owner's altar mesh (cached): {arr, mesh, top (height of the disc the Cache stands on),
+## pillars (tops of its four amethyst pillars)} or {} without a GLB.
+static func _owner_altar_mesh() -> Dictionary:
+	if _owner_altar.has("none"):
+		return {}
+	if not _owner_altar.is_empty():
+		return _owner_altar
+	var arr := WeaponModels.asset_arrays("altar", AABB(Vector3(-ALTAR_W * 0.5, 0, -ALTAR_W * 0.5), Vector3(ALTAR_W, 1.2, ALTAR_W)), ALTAR_TURN, "width")
+	if arr.is_empty():
+		_owner_altar["none"] = true
+		return {}
+	var sv: PackedVector3Array = arr["v"]
+	var all := PackedInt32Array()
+	for i in (arr["idx"] as PackedInt32Array).size() / 3:
+		all.append(i)
+	# The disc top: highest point near the centre; the pillars: highest point per quadrant out
+	# at the rim.
+	var top := 0.0
+	var tips: Array[Vector3] = [Vector3(0, -1, 0), Vector3(0, -1, 0), Vector3(0, -1, 0), Vector3(0, -1, 0)]
+	var rim := ALTAR_W * 0.5
+	for p in sv:
+		var d := Vector2(p.x, p.z).length()
+		if d < rim * 0.3:
+			top = maxf(top, p.y)
+		elif d > rim * 0.6:
+			var q := (0 if p.x >= 0.0 else 1) + (0 if p.z >= 0.0 else 2)
+			if p.y > tips[q].y:
+				tips[q] = p
+	var pillars: Array[Vector3] = []
+	for tp in tips:
+		if tp.y > 0.0:
+			pillars.append(tp)
+	_owner_altar = {"arr": arr, "mesh": WeaponModels.asset_submesh(arr, all), "top": top, "pillars": pillars}
+	return _owner_altar
 
 
 static func _temple(root: Node3D, marble: Material, marble2: Material, gold: Material, navy: Material, ice: Material) -> void:
@@ -724,6 +917,15 @@ static func altar_light(altar_node: Node3D, k: float, color: Color) -> void:
 		m2.albedo_color = c
 		m2.emission = c
 		m2.emission_energy_multiplier = 0.7 + 0.9 * k
+	var am: ShaderMaterial = _nm(altar_node, "asset_mat")
+	if am:
+		am.set_shader_parameter("rune_color", ICE.lerp(color, clampf(k, 0.0, 1.0)))
+		am.set_shader_parameter("rune_k", k)
+		am.set_shader_parameter("gem_k", 0.35 + 0.65 * k)
+		am.set_shader_parameter("gem_tint", 0.45 * clampf(k, 0.0, 1.0))
+	var bg: StandardMaterial3D = _nm(altar_node, "base_glow")
+	if bg:
+		bg.albedo_color = Color(color.r, color.g, color.b, 0.22 + 0.25 * k)
 	var lamp: OmniLight3D = _nm(altar_node, "lamp")
 	if lamp:
 		lamp.light_color = color
@@ -735,13 +937,17 @@ static func _animate_altar(node: Node3D, t: float, _dt: float) -> void:
 	if ring:
 		ring.rotation.y = fposmod(t * 0.25, TAU)
 	var i := 0
+	var tw := fmod(t, 100.0 * TAU)
 	for c: Node3D in node.get_meta("pylons", []):
-		c.position.y = 0.42 + 0.03 * sin(t * 1.4 + i * 1.7)
+		c.position.y = float(c.get_meta("y0", 0.42)) + 0.03 * sin(tw * 1.4 + i * 1.7)
 		c.rotation.y = fposmod(t * 0.3 + i, TAU)
 		i += 1
+	var k := float(node.get_meta("light_k", 0.4))
 	for m: StandardMaterial3D in node.get_meta("rune_mats", []):
-		var k := float(node.get_meta("light_k", 0.4))
-		m.emission_energy_multiplier = (0.4 + 2.6 * k) * (0.85 + 0.15 * sin(t * 2.2))
+		m.emission_energy_multiplier = (0.4 + 2.6 * k) * (0.85 + 0.15 * sin(tw * 2.2))
+	var am: ShaderMaterial = _nm(node, "asset_mat")
+	if am:
+		am.set_shader_parameter("pulse", 0.5 + 0.5 * sin(tw * 2.2))
 
 
 static func _dyn_glow(c: Color, energy: float) -> StandardMaterial3D:

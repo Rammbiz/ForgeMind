@@ -51,6 +51,8 @@ const WHEEL_R := 0.17
 const DRONE_Y := 0.62
 const PRISM_Y := 1.1
 const MACHINE_DIR := "res://assets/machines/"
+const UI_DIR := "res://assets/ui/"
+const ASSET_SHADER := preload("res://shaders/asset_machine.gdshader")
 const GLASS_SHADER := preload("res://shaders/weapon_glass.gdshader")
 const PILLAR_SHADER := preload("res://shaders/loot_pillar.gdshader")
 const SHEEN_SHADER := preload("res://shaders/rarity_sheen.gdshader")
@@ -69,6 +71,8 @@ static var _meshes := {}
 static var _mats := {}
 static var _ring_tex: Texture2D
 static var _font: Font
+static var _asset_cache := {}
+static var _owner_built := {}
 
 
 ## Family accent of a machine (ArsenalData.FAMILIES): HUD chips, projectile and muzzle tints.
@@ -123,9 +127,7 @@ static func _machine_body(kind: String, opts := {}) -> Node3D:
 	root.add_child(rig)
 	root.set_meta("rig", rig)
 	var crew := bool(opts.get("crew", _has_crew(kind))) and not bool(opts.get("mini", false))
-	var glb := asset_for(kind)
-	if glb != null:
-		_from_asset(root, rig, kind, glb, crew)
+	if _owner_machine(root, rig, kind, crew):
 		return root
 	var yaw := Node3D.new()
 	yaw.name = "Yaw"
@@ -236,96 +238,417 @@ static func _apply_groups(node: Node3D) -> void:
 
 # ------------------------------------------------------------------ asset hook
 
-## The owner's sculpted machine for `kind`, fitted with ArsenalData.FIT[kind], or null.
+## Path of the owner's GLB for model `key`: a world's "models" entry (Worlds.LIST), else
+## res://assets/machines/<key>.glb or res://assets/ui/<key>.glb. "" when none exists.
+static func asset_path(key: String) -> String:
+	for w: Dictionary in Worlds.LIST.values():
+		var p := str((w.get("models", {}) as Dictionary).get(key, ""))
+		if p != "" and ResourceLoader.exists(p):
+			return p
+	for dir: String in [MACHINE_DIR, UI_DIR]:
+		if ResourceLoader.exists(dir + key + ".glb"):
+			return dir + key + ".glb"
+	return ""
+
+
+## The owner's GLB `key` flattened into fitted space (cached): turned `forward_deg` about Y,
+## then scaled into `fit` - mode "contain" (the whole model inside the box), "height" or
+## "width" (that size matches the box) - with its bottom on fit.position.y, centred in X/Z.
+## {} without a file. Keys: v, n (PackedVector3Array), t (tangents, 4 floats a vertex, may be
+## empty), uv (PackedVector2Array), idx (PackedInt32Array, triangles), albedo, normal (the
+## first material's textures or null), box (fitted AABB), k (scale).
+static func asset_arrays(key: String, fit: AABB, forward_deg := 0.0, mode := "contain") -> Dictionary:
+	var path := asset_path(key)
+	if path == "":
+		return {}
+	var ck := "%s|%s|%s|%.2f|%s" % [path, fit.position, fit.size, forward_deg, mode]
+	if _asset_cache.has(ck):
+		return _asset_cache[ck]
+	var ps := load(path) as PackedScene
+	var inst := ps.instantiate() as Node3D if ps else null
+	if inst == null:
+		return {}
+	var rot := Basis(Vector3.UP, deg_to_rad(forward_deg))
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var tg := PackedFloat32Array()
+	var uv := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var albedo: Texture2D = null
+	var normal: Texture2D = null
+	var all_tangents := true
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var xf := Transform3D(rot) * _xform_to(mi, inst)
+		for si in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(si)
+			var sv: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var sn: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			var st = arr[Mesh.ARRAY_TANGENT]
+			var su = arr[Mesh.ARRAY_TEX_UV]
+			var si_idx = arr[Mesh.ARRAY_INDEX]
+			var base := v.size()
+			var nb := xf.basis.orthonormalized()
+			for i in sv.size():
+				v.append(xf * sv[i])
+				n.append((nb * sn[i]).normalized() if i < sn.size() else Vector3.UP)
+				uv.append((su as PackedVector2Array)[i] if su != null and i < (su as PackedVector2Array).size() else Vector2.ZERO)
+			if st != null and (st as PackedFloat32Array).size() == sv.size() * 4:
+				var stp := st as PackedFloat32Array
+				for i in sv.size():
+					var tv := nb * Vector3(stp[i * 4], stp[i * 4 + 1], stp[i * 4 + 2])
+					tg.append_array(PackedFloat32Array([tv.x, tv.y, tv.z, stp[i * 4 + 3]]))
+			else:
+				all_tangents = false
+			if si_idx != null and (si_idx as PackedInt32Array).size() > 0:
+				for j: int in si_idx as PackedInt32Array:
+					idx.append(base + j)
+			else:
+				for j in sv.size():
+					idx.append(base + j)
+			var mat := mi.get_active_material(si) as StandardMaterial3D
+			if mat and albedo == null:
+				albedo = mat.albedo_texture
+				normal = mat.normal_texture if mat.normal_enabled else null
+	inst.free()
+	if not all_tangents:
+		tg = PackedFloat32Array()
+	if v.is_empty():
+		return {}
+	var box := AABB(v[0], Vector3.ZERO)
+	for p in v:
+		box = box.expand(p)
+	var k := minf(fit.size.x / box.size.x, minf(fit.size.y / box.size.y, fit.size.z / box.size.z))
+	match mode:
+		"height":
+			k = fit.size.y / box.size.y
+		"width":
+			k = fit.size.x / box.size.x
+	var c := box.get_center()
+	var off := Vector3(fit.get_center().x - c.x * k, fit.position.y - box.position.y * k, fit.get_center().z - c.z * k)
+	for i in v.size():
+		v[i] = v[i] * k + off
+	var out := {"v": v, "n": n, "t": tg, "uv": uv, "idx": idx, "albedo": albedo, "normal": normal,
+		"box": AABB(box.position * k + off, box.size * k), "k": k}
+	_asset_cache[ck] = out
+	return out
+
+
+## An ArrayMesh of the triangles `tris` (triangle numbers into arr.idx) of `arr`
+## (asset_arrays), vertices relative to `origin`. `uv2_fn` (optional) maps a fitted vertex
+## position to its UV2 (e.g. the Cache shell's crack-edge distance).
+static func asset_submesh(arr: Dictionary, tris: PackedInt32Array, origin := Vector3.ZERO, uv2_fn := Callable()) -> ArrayMesh:
+	var sv: PackedVector3Array = arr["v"]
+	var sn: PackedVector3Array = arr["n"]
+	var stg: PackedFloat32Array = arr["t"]
+	var su: PackedVector2Array = arr["uv"]
+	var sidx: PackedInt32Array = arr["idx"]
+	var remap := {}
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var tg := PackedFloat32Array()
+	var uv := PackedVector2Array()
+	var uv2 := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var has_t := stg.size() == sv.size() * 4
+	for tri in tris:
+		for c in 3:
+			var o: int = sidx[tri * 3 + c]
+			if not remap.has(o):
+				remap[o] = v.size()
+				v.append(sv[o] - origin)
+				n.append(sn[o])
+				uv.append(su[o])
+				if has_t:
+					tg.append_array(stg.slice(o * 4, o * 4 + 4))
+				if uv2_fn.is_valid():
+					uv2.append(uv2_fn.call(sv[o]))
+			idx.append(remap[o])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = v
+	arrays[Mesh.ARRAY_NORMAL] = n
+	arrays[Mesh.ARRAY_TEX_UV] = uv
+	if uv2_fn.is_valid():
+		arrays[Mesh.ARRAY_TEX_UV2] = uv2
+	arrays[Mesh.ARRAY_INDEX] = idx
+	if has_t:
+		arrays[Mesh.ARRAY_TANGENT] = tg
+	var mesh := ArrayMesh.new()
+	if idx.is_empty():
+		return mesh
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	if not has_t and arr["normal"] != null:
+		var st := SurfaceTool.new()
+		st.create_from(mesh, 0)
+		st.generate_tangents()
+		mesh = st.commit()
+	return mesh
+
+
+## A material of `shader` (an asset_* shader) wearing the asset's own albedo and normal maps.
+static func asset_material(arr: Dictionary, shader: Shader) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = shader
+	m.set_shader_parameter("albedo_tex", arr.get("albedo"))
+	m.set_shader_parameter("normal_tex", arr.get("normal"))
+	m.set_shader_parameter("has_normal", arr.get("normal") != null)
+	return m
+
+
+## Triangles of `arr` grouped by `regions` {name: spec}; each triangle goes to the first region
+## (in `order`) that holds its centre, the rest to "body". Specs: {shape "cyl", c: Vector3
+## (centre), r, hw (half width along X)} - a wheel on an axle along X - or {shape "box",
+## box: AABB}. Returns {name: PackedInt32Array of triangle numbers}.
+static func asset_groups(arr: Dictionary, regions: Dictionary) -> Dictionary:
+	var sv: PackedVector3Array = arr["v"]
+	var sidx: PackedInt32Array = arr["idx"]
+	var out := {"body": PackedInt32Array()}
+	var names: Array = regions.keys()
+	for nm in names:
+		out[nm] = PackedInt32Array()
+	for tri in sidx.size() / 3:
+		var p := (sv[sidx[tri * 3]] + sv[sidx[tri * 3 + 1]] + sv[sidx[tri * 3 + 2]]) / 3.0
+		var hit := "body"
+		for nm in names:
+			var sp: Dictionary = regions[nm]
+			if str(sp.get("shape", "box")) == "cyl":
+				var c: Vector3 = sp["c"]
+				if absf(p.x - c.x) <= float(sp["hw"]) and Vector2(p.y - c.y, p.z - c.z).length() <= float(sp["r"]):
+					hit = nm
+					break
+			elif (sp["box"] as AABB).has_point(p):
+				hit = nm
+				break
+		(out[hit] as PackedInt32Array).append(tri)
+	return out
+
+
+## Built meshes of the owner's machine `kind` (cached): {"body": ArrayMesh, "parts": {name:
+## {mesh, spec, pivot}}, "mat": ShaderMaterial, "box": AABB} or {} without a GLB.
+static func _owner_meshes(kind: String) -> Dictionary:
+	if _owner_built.has(kind):
+		return _owner_built[kind]
+	var fit: Dictionary = ArsenalData.FIT.get(kind, {})
+	if fit.is_empty() or asset_path(kind) == "":
+		return {}
+	var arr := asset_arrays(kind, fit["fit"], float(fit.get("forward_deg", 0.0)), str(fit.get("fit_mode", "contain")))
+	if arr.is_empty():
+		return {}
+	var regions: Dictionary = fit.get("split", {})
+	var groups := asset_groups(arr, regions)
+	var parts := {}
+	for nm: String in regions:
+		var tris: PackedInt32Array = groups[nm]
+		if tris.is_empty():
+			continue
+		var sp: Dictionary = regions[nm]
+		var pivot: Vector3 = sp.get("pivot", sp.get("c", Vector3.ZERO))
+		parts[nm] = {"mesh": asset_submesh(arr, tris, pivot), "spec": sp, "pivot": pivot}
+	var mat := asset_material(arr, ASSET_SHADER)
+	mat.set_shader_parameter("crystal_color", fit.get("tint", ICE))
+	mat.set_shader_parameter("crystal_mix", float(fit.get("tint_mix", 0.0)))
+	mat.set_shader_parameter("crystal_glow", float(fit.get("glow", 0.9)))
+	var out := {"body": asset_submesh(arr, groups["body"]), "parts": parts, "mat": mat, "box": arr["box"]}
+	_owner_built[kind] = out
+	return out
+
+
+## Builds the machine from the owner's GLB (single mesh, see ArsenalData.FIT[kind]): the
+## model is cut into its body and the FIT "split" parts (wheels roll, a "barrel" recoils),
+## the whole body sits in the Yaw (aim turns it, within FIT "yaw_limit" degrees) and kicks on
+## a shot (nose up, jolt back); a free machine (Drone) hovers. Crew, Rank II plates, Rank III
+## crest, Ascension halo and the drone's Rank II wingman / Rank III antenna are added on top.
+## Returns false (nothing built) when the machine has no GLB.
+static func _owner_machine(root: Node3D, rig: Node3D, kind: String, crew: bool) -> bool:
+	var built := _owner_meshes(kind)
+	if built.is_empty():
+		return false
+	var fit: Dictionary = ArsenalData.FIT[kind]
+	var box: AABB = built["box"]
+	var free := _mount(kind) == "free" or kind == "drone" or kind == "prism"
+	var base: Node3D = rig
+	if free:
+		var hover := Node3D.new()
+		hover.name = "Hover"
+		var hy := float(fit.get("hover_y", DRONE_Y))
+		hover.position = Vector3(0, hy, 0)
+		rig.add_child(hover)
+		root.set_meta("hover", hover)
+		root.set_meta("hover_y", hy)
+		base = hover
+	var yaw := Node3D.new()
+	yaw.name = "Yaw"
+	base.add_child(yaw)
+	var recoil := Node3D.new()
+	recoil.name = "Recoil"
+	yaw.add_child(recoil)
+	# Kick pivot near the back so a shot lifts the nose.
+	var kick_at := Vector3(0, box.position.y, box.end.z * 0.6)
+	var body := Node3D.new()
+	body.name = "Body"
+	body.position = kick_at
+	recoil.add_child(body)
+	var model := Node3D.new()
+	model.name = "Model"
+	model.position = -kick_at
+	body.add_child(model)
+	var mat: ShaderMaterial = built["mat"]
+	var mi := MeshInstance3D.new()
+	mi.name = "Asset"
+	mi.mesh = built["body"]
+	mi.material_override = mat
+	model.add_child(mi)
+	var wheels: Array[Node3D] = []
+	var muzzle_parent: Node3D = model
+	var muzzle_off := Vector3.ZERO
+	var parts: Dictionary = built["parts"]
+	for nm: String in parts:
+		var part: Dictionary = parts[nm]
+		var sp: Dictionary = part["spec"]
+		var pv := Node3D.new()
+		pv.name = "Part_" + nm
+		pv.position = part["pivot"]
+		model.add_child(pv)
+		var pm := MeshInstance3D.new()
+		pm.mesh = part["mesh"]
+		pm.material_override = mat
+		pv.add_child(pm)
+		match str(sp.get("role", "")):
+			"wheel":
+				pv.set_meta("r", float(sp.get("r", WHEEL_R)))
+				wheels.append(pv)
+			"barrel":
+				pv.set_meta("z0", pv.position.z)
+				root.set_meta("barrel", pv)
+				muzzle_parent = pv
+				muzzle_off = part["pivot"]
+	var mz := Node3D.new()
+	mz.name = "Muzzle"
+	mz.position = (fit.get("muzzle", Vector3(0, box.get_center().y, box.position.z)) as Vector3) - muzzle_off
+	muzzle_parent.add_child(mz)
+	var star_y := float(fit.get("star_y", box.end.y + 0.2)) + (float(fit.get("hover_y", DRONE_Y)) if free else 0.0)
+	var ctx := {"root": root, "rig": rig, "rig_body": model, "yaw": yaw, "recoil": recoil, "muzzle": mz, "kind": kind,
+		"groups": [], "star_y": star_y, "deck": float(fit.get("deck_y", box.size.y * 0.5)), "half": box.size.x * 0.5,
+		"crest": fit.get("crest", Vector3(0, box.end.y, box.end.z - box.size.z * 0.3)), "crest_parent": model}
+	if not free:
+		var arm: Dictionary = fit.get("armour", {})
+		if not arm.is_empty():
+			ctx["half"] = float(arm.get("x", box.size.x * 0.5))
+			ctx["deck"] = float(arm.get("y", 0.3)) + 0.13
+			ctx["armour_z"] = float(arm.get("z", 0.0))
+			ctx["armour_len"] = float(arm.get("len", 0.5))
+			_armour(ctx)
+		if crew:
+			var at: Vector3 = fit.get("crew_at", Vector3(0.0, 0.22, box.end.z + 0.06))
+			ctx["crew_x"] = at.x
+			ctx["step_y"] = at.y
+			ctx["step_z"] = at.z
+			_owner_step(model, at)
+			_crew(ctx)
+	else:
+		_owner_drone_extras(ctx, built, box)
+	_crest(ctx)
+	_halo(ctx)
+	root.set_meta("yaw", yaw)
+	root.set_meta("yaw_y", yaw.position.y)
+	root.set_meta("recoil", recoil)
+	root.set_meta("muzzle", mz)
+	root.set_meta("wheels", wheels)
+	root.set_meta("star_y", star_y)
+	root.set_meta("groups", ctx["groups"])
+	root.set_meta("spin_parts", [])
+	root.set_meta("rotors", [])
+	root.set_meta("asset", true)
+	root.set_meta("asset_body", body)
+	root.set_meta("kick_at", kick_at)
+	root.set_meta("yaw_limit", deg_to_rad(float(fit.get("yaw_limit", 0.0))))
+	return true
+
+
+## The rear step a crew member stands on behind an owner's machine: a pearl plate with a
+## gold rail and two gold hangers.
+static func _owner_step(parent: Node3D, at: Vector3) -> void:
+	var y := at.y - 0.018
+	_p(parent, bevel_box(Vector3(0.3, 0.035, 0.16), 0.012), "pearl", Vector3(at.x, y, at.z))
+	_p(parent, bevel_box(Vector3(0.32, 0.02, 0.02), 0.006), "gold", Vector3(at.x, y + 0.02, at.z + 0.075))
+	for sx: float in [-1.0, 1.0]:
+		_p(parent, bevel_box(Vector3(0.03, 0.1, 0.03), 0.008), "gold", Vector3(at.x + 0.13 * sx, y + 0.05, at.z - 0.07))
+
+
+## Drone extras on the owner's model: Rank II wingman (a small copy orbiting), Rank III gold
+## antenna with a lime halo, the light pool under it.
+static func _owner_drone_extras(ctx: Dictionary, built: Dictionary, box: AABB) -> void:
+	var root: Node3D = ctx["root"]
+	var rig: Node3D = ctx["rig"]
+	var yaw: Node3D = ctx["yaw"]
+	var wing := _group(ctx, yaw, "R2_Wingman", 2)
+	var wbody := Node3D.new()
+	wbody.name = "WingBody"
+	wbody.scale = Vector3.ONE * 0.45
+	wing.add_child(wbody)
+	var wm := MeshInstance3D.new()
+	wm.mesh = built["body"]
+	wm.material_override = built["mat"]
+	wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	wbody.add_child(wm)
+	for nm: String in built["parts"]:
+		var part: Dictionary = built["parts"][nm]
+		var pm := MeshInstance3D.new()
+		pm.mesh = part["mesh"]
+		pm.material_override = built["mat"]
+		pm.position = part["pivot"]
+		wbody.add_child(pm)
+	root.set_meta("wingman", wing)
+	var r3 := _group(ctx, yaw, "R3_Antenna", 3)
+	var top := box.end.y
+	_p(r3, Mats.cyl(0.01, 0.014, 0.2, 6), "gold", Vector3(0, top + 0.08, 0.06))
+	_p(r3, Mats.torus(0.05, 0.065, 16, 4), "acc_tech", Vector3(0, top + 0.2, 0.06), Vector3(90, 0, 0))
+	_p(r3, Mats.sphere(0.022, -1, 8, 4), "hot", Vector3(0, top + 0.2, 0.06))
+	ctx["crest"] = Vector3(0, top - 0.02, 0.12)
+	ctx["crest_parent"] = yaw
+	var pool := MeshInstance3D.new()
+	pool.name = "LightPool"
+	pool.mesh = Mats.quad(Vector2(0.95, 0.95))
+	pool.material_override = _pool_material(ICE)
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pool.position = Vector3(0, 0.025, 0)
+	pool.set_meta("no_sheen", true)
+	rig.add_child(pool)
+
+
+## The owner's sculpted machine for `kind` as one fitted node (ArsenalData.FIT[kind]), or null.
+## machine() builds GLB machines through _owner_machine(); this stays for previews.
 static func asset_for(kind: String) -> Node3D:
 	var fit: Dictionary = ArsenalData.FIT.get(kind, {})
 	var box: AABB = fit.get("fit", AABB(Vector3(-0.4, 0, -0.5), Vector3(0.8, 0.85, 1.0)))
 	return asset(kind, box, float(fit.get("forward_deg", 0.0)))
 
 
-## Optional sculpted override: a GLB listed in a world's "models" under `key` (or
-## res://assets/machines/<key>.glb), turned by `forward_deg` about Y and scaled to fit `fit`
-## (bottom centred). Returns null when no file exists.
+## Optional sculpted override as one node: the GLB for `key` (asset_path), turned by
+## `forward_deg` about Y and scaled to fit `fit` (bottom centred). Null when no file exists.
 static func asset(key: String, fit: AABB, forward_deg := 0.0) -> Node3D:
-	var paths: Array[String] = []
-	for w: Dictionary in Worlds.LIST.values():
-		var p := str((w.get("models", {}) as Dictionary).get(key, ""))
-		if p != "":
-			paths.append(p)
-	paths.append(MACHINE_DIR + key + ".glb")
-	for path in paths:
-		if not ResourceLoader.exists(path):
-			continue
-		var scene := load(path) as PackedScene
-		if scene == null:
-			continue
-		var raw := scene.instantiate() as Node3D
-		var inst := Node3D.new()
-		inst.name = "Asset_" + key
-		inst.add_child(raw)
-		raw.rotation.y = deg_to_rad(forward_deg)
-		var box := _visual_aabb(inst, Transform3D.IDENTITY)
-		if box.size.length() < 0.0001:
-			return inst
-		var k := minf(fit.size.x / box.size.x, minf(fit.size.y / box.size.y, fit.size.z / box.size.z))
-		inst.scale = Vector3.ONE * k
-		var centre := box.get_center() * k
-		inst.position = Vector3(fit.get_center().x - centre.x, fit.position.y - box.position.y * k, fit.get_center().z - centre.z)
+	var path := asset_path(key)
+	if path == "":
+		return null
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return null
+	var raw := scene.instantiate() as Node3D
+	var inst := Node3D.new()
+	inst.name = "Asset_" + key
+	inst.add_child(raw)
+	raw.rotation.y = deg_to_rad(forward_deg)
+	var box := _visual_aabb(inst, Transform3D.IDENTITY)
+	if box.size.length() < 0.0001:
 		return inst
-	return null
-
-
-static func _from_asset(root: Node3D, rig: Node3D, kind: String, glb: Node3D, crew: bool) -> void:
-	var fit: Dictionary = ArsenalData.FIT.get(kind, {})
-	var box: AABB = fit.get("fit", AABB(Vector3(-0.4, 0, -0.5), Vector3(0.8, 0.85, 1.0)))
-	var yaw := Node3D.new()
-	yaw.name = "Yaw"
-	rig.add_child(yaw)
-	yaw.add_child(glb)
-	var recoil := Node3D.new()
-	recoil.name = "Recoil"
-	yaw.add_child(recoil)
-	var mz := Node3D.new()
-	mz.name = "Muzzle"
-	mz.position = fit.get("muzzle", Vector3(0, 0.45, -0.55))
-	recoil.add_child(mz)
-	# Named moving parts: wrap each in a pivot so animate() can spin it.
-	var spins: Array[Dictionary] = []
-	var parts: Dictionary = fit.get("parts", {})
-	var sheet: Dictionary = (ArsenalData.MACHINES.get(kind, {}) as Dictionary).get("parts", {})
-	for pname: String in parts:
-		var spec: Dictionary = parts[pname]
-		var src := glb.find_child(str(spec.get("node", pname)), true, false) as Node3D
-		if src == null:
-			continue
-		var pivot := Node3D.new()
-		pivot.name = "Part_" + pname
-		pivot.position = spec.get("pivot", Vector3.ZERO)
-		yaw.add_child(pivot)
-		var xf := _xform_to(src, yaw)
-		src.get_parent().remove_child(src)
-		pivot.add_child(src)
-		src.transform = pivot.transform.affine_inverse() * xf
-		var s2: Dictionary = sheet.get(pname, {})
-		spins.append({"node": pivot, "axis": spec.get("axis", s2.get("axis", Vector3.FORWARD)),
-			"speed": float(spec.get("speed", s2.get("speed", 0.0))), "firing": float(s2.get("speed_firing", spec.get("speed", s2.get("speed", 0.0))))})
-	root.set_meta("spin_parts", spins)
-	var ctx := {"root": root, "rig": rig, "yaw": yaw, "recoil": recoil, "muzzle": mz, "kind": kind, "groups": [],
-		"star_y": box.end.y + 0.2, "deck": box.size.y * 0.5, "half": box.size.x * 0.5,
-		"crest": Vector3(0, box.end.y, box.end.z - box.size.z * 0.3), "crest_parent": yaw, "len": box.size.z}
-	if crew:
-		ctx["step_z"] = box.end.z + 0.04
-		_crew(ctx)
-	_crest(ctx)
-	_halo(ctx)
-	root.set_meta("yaw", yaw)
-	root.set_meta("yaw_y", 0.0)
-	root.set_meta("recoil", recoil)
-	root.set_meta("muzzle", mz)
-	root.set_meta("wheels", [])
-	root.set_meta("star_y", float(ctx["star_y"]))
-	root.set_meta("groups", ctx["groups"])
-	root.set_meta("asset", true)
+	var k := minf(fit.size.x / box.size.x, minf(fit.size.y / box.size.y, fit.size.z / box.size.z))
+	inst.scale = Vector3.ONE * k
+	var centre := box.get_center() * k
+	inst.position = Vector3(fit.get_center().x - centre.x, fit.position.y - box.position.y * k, fit.get_center().z - centre.z)
+	return inst
 
 
 static func _xform_to(n: Node3D, ancestor: Node3D) -> Transform3D:
@@ -450,7 +773,13 @@ static func dock(node: Node3D, u: float) -> void:
 		var sy := lerpf(0.45, 1.0, back)
 		var sxz := lerpf(0.75, 1.0, clampf(u * 1.6, 0.0, 1.0))
 		rig.scale = Vector3(sxz, sy, sxz) * rs
-	if yaw:
+	if yaw and node.has_meta("asset_body"):
+		# One-piece model: it hops out, nose first, and lands level.
+		var y1 := float(node.get_meta("yaw_y", 0.0))
+		var hu := clampf(u * 1.25, 0.0, 1.0)
+		yaw.position.y = y1 + sin(hu * PI) * 0.28
+		yaw.rotation.x = (1.0 - smoothstep(0.2, 0.9, u)) * -0.35
+	elif yaw:
 		var y0 := float(node.get_meta("yaw_y", yaw.position.y))
 		var tu := smoothstep(0.25, 0.85, u)
 		yaw.position.y = y0 - (1.0 - tu) * 0.22
@@ -492,6 +821,9 @@ static func aim(node: Node3D, target: Vector3, weight := 1.0) -> void:
 	if Vector2(local.x, local.z).length_squared() < 0.0001:
 		return
 	var want := atan2(-local.x, -local.z)
+	var lim := float(node.get_meta("yaw_limit", 0.0))
+	if lim > 0.0:
+		want = clampf(want, -lim, lim)
 	yaw.rotation.y = lerp_angle(yaw.rotation.y, want, clampf(weight, 0.0, 1.0))
 
 
@@ -524,6 +856,9 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 	var halo: Node3D = _nm(node, "halo")
 	if halo and halo.visible:
 		halo.rotation.y = fposmod(t * 0.8, TAU)
+	if node.has_meta("asset_body"):
+		_animate_owner(node, t, dt, kick, dist)
+		return
 	var recoil: Node3D = _nm(node, "recoil")
 	if recoil == null:
 		return
@@ -615,6 +950,41 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 				crown.rotation.y = fposmod(-t * 1.2, TAU)
 		_:
 			recoil.position.z = kick * 0.1
+
+
+## An owner's single-mesh machine: the whole body kicks on a shot (nose up, jolt back; the
+## "barrel" part slides further), rumbles while it rolls, and a drone hovers, tilts and swings
+## its Rank II wingman.
+static func _animate_owner(node: Node3D, t: float, dt: float, kick: float, dist: float) -> void:
+	var body: Node3D = node.get_meta("asset_body")
+	var recoil: Node3D = node.get_meta("recoil")
+	var at: Vector3 = node.get_meta("kick_at", Vector3.ZERO)
+	var hover: Node3D = _nm(node, "hover")
+	if hover:
+		var hy := float(node.get_meta("hover_y", DRONE_Y))
+		hover.position.y = hy + sin(fmod(t, 100.0 * TAU) * 2.6) * 0.05
+		hover.rotation.z = sin(fmod(t, 100.0 * TAU) * 1.7) * 0.07
+		hover.rotation.x = sin(fmod(t, 100.0 * TAU) * 2.1) * 0.05
+		body.rotation.x = kick * 0.22
+		recoil.position.z = kick * 0.06
+		var wing: Node3D = _nm(node, "wingman")
+		if wing and wing.visible:
+			var a2 := fposmod(t * 1.4, TAU)
+			wing.position = Vector3(cos(a2) * 0.66, 0.14 + sin(fmod(t, 100.0 * TAU) * 3.1) * 0.05, sin(a2) * 0.66)
+			wing.rotation.y = -a2
+		return
+	# Rumble only while the machine actually rolls (the hub parks it).
+	var last := float(node.get_meta("last_dist", dist))
+	node.set_meta("last_dist", dist)
+	var speed := absf(dist - last) / maxf(dt, 0.001) if dt > 0.0 else 0.0
+	var roll_k := clampf(speed / 4.0, 0.0, 1.0)
+	var tw := fmod(t, 100.0 * TAU)
+	body.position = at + Vector3(0, roll_k * (0.006 * sin(tw * 29.0) + 0.004 * sin(tw * 17.0)), 0)
+	body.rotation.x = kick * 0.1 + roll_k * 0.006 * sin(tw * 11.0)
+	recoil.position.z = kick * 0.07
+	var barrel: Node3D = _nm(node, "barrel")
+	if barrel:
+		barrel.position.z = float(barrel.get_meta("z0", 0.0)) + kick * 0.12
 
 
 static func _animate_crew(node: Node3D, t: float, kick: float) -> void:
@@ -911,12 +1281,14 @@ static func _armour(ctx: Dictionary) -> void:
 	var g := _group(ctx, rig, "R2_Armour", 2)
 	var half := float(ctx["half"]) + 0.035
 	var y := float(ctx["deck"]) - 0.13
+	var z0 := float(ctx.get("armour_z", 0.0))
+	var ln := float(ctx.get("armour_len", 0.5))
 	for sx: float in [-1.0, 1.0]:
-		_p(g, bevel_box(Vector3(0.04, 0.13, 0.5), 0.015), "pearl", Vector3(half * sx, y, 0.0))
-		_p(g, bevel_box(Vector3(0.05, 0.02, 0.52), 0.006), "gold", Vector3(half * sx, y + 0.07, 0.0))
-		_p(g, bevel_box(Vector3(0.05, 0.12, 0.02), 0.006), "gold", Vector3(half * sx, y, -0.25))
-		for z: float in [-0.14, 0.0, 0.14]:
-			_p(g, Mats.sphere(0.017, -1, 8, 4), "gold", Vector3((half + 0.022) * sx, y, z))
+		_p(g, bevel_box(Vector3(0.04, 0.13, ln), 0.015), "pearl", Vector3(half * sx, y, z0))
+		_p(g, bevel_box(Vector3(0.05, 0.02, ln + 0.02), 0.006), "gold", Vector3(half * sx, y + 0.07, z0))
+		_p(g, bevel_box(Vector3(0.05, 0.12, 0.02), 0.006), "gold", Vector3(half * sx, y, z0 - ln * 0.5))
+		for z: float in [-0.28, 0.0, 0.28]:
+			_p(g, Mats.sphere(0.017, -1, 8, 4), "gold", Vector3((half + 0.022) * sx, y, z0 + z * ln))
 
 
 ## Rank III gold crest: a fan of three gold blades round an ice crystal.
@@ -1613,9 +1985,9 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 	var shell: Dictionary = CRATE_SHELLS["new" if is_new else rarity] if CRATE_SHELLS.has(rarity) or is_new else CRATE_SHELLS["C"]
 	var col := Color(0.92, 0.97, 1.0) if is_new else icon_color(weapon)
 	var glow_col := Color(0.9, 0.97, 1.0) if is_new else glow_color(weapon)
-	var glb := asset("crate_new" if is_new else "crate", AABB(Vector3(-0.6, 0, -0.6), Vector3(1.2, 1.4, 1.2)))
-	if glb != null:
-		root.add_child(glb)
+	var top := 0.0
+	if _owner_crate(root, weapon, rarity, is_new, shell, glow_col):
+		top = float(root.get_meta("top_y"))
 	else:
 		var white := Mats.solid(shell["body"], 0.3, float(shell["metal"]))
 		var pearl := Mats.solid(PEARL, 0.45, 0.25)
@@ -1675,6 +2047,7 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 		content.position = Vector3(0, 0.58, 0)
 		root.add_child(content)
 		root.set_meta("content", content)
+		root.set_meta("content_y", 0.58)
 		_crate_fill(root, weapon)
 		var lamp := OmniLight3D.new()
 		lamp.name = "Lamp"
@@ -1727,19 +2100,121 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 	pillar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pillar.position = Vector3(0, cm.height * 0.5, 0)
 	root.add_child(pillar)
+	var label_y := 1.98 if top <= 0.0 else top + 0.78
 	var l := _label(str(hp) if hp > 0 else "", 120, Color(1.0, 0.96, 0.86))
-	l.position = Vector3(0, 1.98, 0)
+	l.position = Vector3(0, label_y, 0)
 	root.add_child(l)
 	root.set_meta("label", l)
 	var badge := str(opts.get("badge", ""))
 	if badge != "":
 		var b := _label(badge, 64, Color(1.0, 0.86, 0.4))
-		b.position = Vector3(0, 2.42, 0)
+		b.position = Vector3(0, label_y + 0.44, 0)
 		root.add_child(b)
 		root.set_meta("badge", b)
 	if int(opts.get("bonus", 0)) > 0:
 		_bonus_ring(root)
 	return root
+
+
+## Crystal tint of the owner's crate per rarity (§2.1 shells): colour and how far the
+## owner's ice blue turns towards it.
+const OWNER_CRATE_TINT := {
+	"C": [Color(0.78, 0.86, 0.95), 0.45], "R": [Color(0.3, 0.66, 1.0), 0.55], "E": [Color(0.72, 0.42, 1.0), 0.9],
+	"L": [Color(1.0, 0.74, 0.25), 0.9], "M": [Color(0.94, 0.84, 1.0), 0.75], "new": [Color(0.95, 0.98, 1.0), 0.7],
+}
+
+
+## The owner's weapon crate (white / gold capsule, crystal window towards the army): its
+## crystals take the rarity colour; a gold holo-projector on the lid shows the miniature
+## machine inside (or the "?" crystal). Sets the metas crate() promises (content, content_y,
+## mini, glass = the shell whose material takes damage / flash) plus top_y, mini_k, holo.
+## False when there is no GLB.
+static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: bool, shell: Dictionary, glow_col: Color) -> bool:
+	var key := "crate_new" if is_new and asset_path("crate_new") != "" else "crate"
+	var arr := asset_arrays(key, AABB(Vector3(-0.55, 0, -0.55), Vector3(1.1, 1.3, 1.1)))
+	if arr.is_empty():
+		return false
+	var ck := "owner_crate_mesh:" + key
+	if not _meshes.has(ck):
+		var all := PackedInt32Array()
+		for i in (arr["idx"] as PackedInt32Array).size() / 3:
+			all.append(i)
+		_meshes[ck] = asset_submesh(arr, all)
+	var box: AABB = arr["box"]
+	var top := box.end.y
+	var tint: Array = OWNER_CRATE_TINT["new" if is_new else (rarity if OWNER_CRATE_TINT.has(rarity) else "C")]
+	var mat := asset_material(arr, ASSET_SHADER)
+	mat.set_shader_parameter("crystal_color", tint[0])
+	mat.set_shader_parameter("crystal_mix", float(tint[1]))
+	mat.set_shader_parameter("crystal_glow", 1.05 if rarity in ["E", "L", "M"] or is_new else 0.85)
+	mat.set_shader_parameter("use_cracks", true)
+	mat.set_shader_parameter("noise_tex", NOISE_TEX)
+	var shell_mi := MeshInstance3D.new()
+	shell_mi.name = "Shell"
+	shell_mi.mesh = _meshes[ck]
+	shell_mi.material_override = mat
+	root.add_child(shell_mi)
+	root.set_meta("glass", shell_mi)
+	root.set_meta("top_y", top)
+	# Holo-projector on the lid: a gold ring, an accent lens, rarity pips and a soft light cone.
+	var gold := _mat("gold")
+	var holo := Node3D.new()
+	holo.name = "Holo"
+	holo.position = Vector3(0, top, 0)
+	root.add_child(holo)
+	root.set_meta("holo", holo)
+	Mats.part(holo, Mats.cyl(0.25, 0.29, 0.05, 24, false), gold, Vector3(0, 0.025, 0))
+	Mats.part(holo, Mats.torus(0.22, 0.25, 32, 4), gold, Vector3(0, 0.055, 0))
+	var lens_col := Color(0.92, 0.97, 1.0) if is_new else (glow_col if ArsenalData.MACHINES.has(weapon) else ICE_HOT)
+	Mats.part(holo, Mats.cyl(0.2, 0.2, 0.02, 24, false), Mats.glow(lens_col.lerp(Color.WHITE, 0.3), 2.8), Vector3(0, 0.055, 0), Vector3.ZERO, Vector3.ONE, false)
+	var pips := 0 if is_new else int((ArsenalData.RARITIES.get(rarity, {}) as Dictionary).get("pips", 1))
+	var inlay := Mats.glow(shell["inlay"], 2.6)
+	for i in pips:
+		var a := TAU * i / maxf(pips, 1.0)
+		Mats.part(holo, Mats.crystal(0.026, 0.07), inlay, Vector3(sin(a) * 0.27, 0.07, cos(a) * 0.27), Vector3(0, 0, 0), Vector3.ONE, false)
+	if is_new:
+		for k in 8:
+			var a2 := TAU * k / 8.0
+			Mats.part(holo, Mats.crystal(0.022, 0.13), Mats.glow(Color(1.0, 0.86, 0.45), 2.6), Vector3(sin(a2) * 0.27, 0.09, cos(a2) * 0.27), Vector3(cos(a2) * 35.0, 0, -sin(a2) * 35.0), Vector3.ONE, false)
+	var cone := MeshInstance3D.new()
+	cone.name = "HoloCone"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.34
+	cm.bottom_radius = 0.2
+	cm.height = 0.62
+	cm.radial_segments = 20
+	cm.rings = 1
+	cm.cap_top = false
+	cm.cap_bottom = false
+	cone.mesh = cm
+	var pm := ShaderMaterial.new()
+	pm.shader = PILLAR_SHADER
+	pm.set_shader_parameter("color", lens_col.lerp(Color.WHITE, 0.2))
+	pm.set_shader_parameter("noise_tex", NOISE_TEX)
+	pm.set_shader_parameter("strength", 0.9)
+	cone.material_override = pm
+	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	cone.position = Vector3(0, top + 0.37, 0)
+	root.add_child(cone)
+	Mats.bake(holo)
+	var content := Node3D.new()
+	content.name = "Content"
+	content.position = Vector3(0, top + 0.1, 0)
+	root.add_child(content)
+	root.set_meta("content", content)
+	root.set_meta("content_y", top + 0.1)
+	root.set_meta("mini_k", 1.18)
+	_crate_fill(root, weapon)
+	var lamp := OmniLight3D.new()
+	lamp.name = "Lamp"
+	lamp.light_color = glow_col.lerp(ICE, 0.4)
+	lamp.light_energy = 1.4
+	lamp.omni_range = 2.2
+	lamp.omni_attenuation = 1.4
+	lamp.position = Vector3(0, top + 0.45, 0.35)
+	lamp.shadow_enabled = false
+	root.add_child(lamp)
+	return true
 
 
 ## Swaps the miniature in the crate window (e.g. when a "deck" crate resolves at
@@ -1768,11 +2243,12 @@ static func _crate_fill(root: Node3D, weapon: String) -> void:
 	var mini := _machine_body(weapon, {"mini": true})
 	_apply_groups(mini)
 	var big := weapon in ["railgun", "gatling", "cannon", "laser"]
-	mini.scale = Vector3.ONE * (0.6 if weapon == "drone" else (0.4 if weapon == "prism" else (0.46 if big else 0.52)))
+	var ks := float(root.get_meta("mini_k", 1.0))
+	mini.scale = Vector3.ONE * ks * (0.6 if weapon == "drone" else (0.4 if weapon == "prism" else (0.46 if big else 0.52)))
 	if weapon == "drone":
-		mini.position.y = -0.24
+		mini.position.y = -0.24 * ks
 	elif weapon == "prism":
-		mini.position.y = -0.28
+		mini.position.y = -0.28 * ks
 	content.add_child(mini)
 	root.set_meta("mini", mini)
 
@@ -1818,7 +2294,10 @@ static func _animate_crate(node: Node3D, t: float, fire: float) -> void:
 	var content: Node3D = _nm(node, "content")
 	if content:
 		content.rotation.y = fposmod(t * 1.1, TAU)
-		content.position.y = 0.58 + sin(t * 2.2) * 0.025
+		content.position.y = float(node.get_meta("content_y", 0.58)) + sin(fmod(t, 100.0 * TAU) * 2.2) * 0.025
+	var holo: Node3D = _nm(node, "holo")
+	if holo:
+		holo.rotation.y = fposmod(-t * 0.7, TAU)
 	var mini: Node3D = _nm(node, "mini")
 	if mini and is_instance_valid(mini):
 		animate(mini, t, 0.0, 0.0)
