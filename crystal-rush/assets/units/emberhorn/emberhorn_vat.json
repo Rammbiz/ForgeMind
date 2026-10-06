@@ -1,0 +1,72 @@
+{
+	"version": 1,
+	"source": "res://assets/units/emberhorn/emberhorn_src.glb",
+	"vertex_count": 2059,
+	"triangles": 1800,
+	"width": 2048,
+	"rows_per_frame": 2,
+	"frames_total": 64,
+	"height": 0.8,
+	"scale": 0.470679079582219,
+	"origin": [
+		0.00729325972497463,
+		0.0000170230887306388,
+		-0.0910392701625824
+	],
+	"facing": "+Z",
+	"bounds": [
+		-0.349966138601303,
+		-0.00826988741755486,
+		-0.859018087387085,
+		0.758567452430725,
+		0.901193141937256,
+		1.54756116867065
+	],
+	"textures": {
+		"pos": "emberhorn_vat_pos.res",
+		"nrm": "emberhorn_vat_nrm.res",
+		"albedo": "emberhorn_vat_albedo.res"
+	},
+	"clips": {
+		"run": {
+			"frame": 0,
+			"row": 0,
+			"frames": 20,
+			"fps": 31.5789626245757,
+			"length": 0.633333027362823,
+			"loop": true,
+			"ground_speed": 1.34756519418026,
+			"lift": 0.0358471050858498
+		},
+		"attack": {
+			"frame": 20,
+			"row": 40,
+			"frames": 16,
+			"fps": 20.0,
+			"length": 0.8,
+			"loop": true,
+			"ground_speed": 0.0,
+			"lift": -0.000545872084330767
+		},
+		"idle": {
+			"frame": 36,
+			"row": 72,
+			"frames": 12,
+			"fps": 5.0,
+			"length": 2.4,
+			"loop": true,
+			"ground_speed": 0.0,
+			"lift": -0.000545859802514315
+		},
+		"death": {
+			"frame": 48,
+			"row": 96,
+			"frames": 16,
+			"fps": 20.0,
+			"length": 0.75,
+			"loop": false,
+			"ground_speed": 0.0,
+			"lift": -0.000545946706552058
+		}
+	}
+}

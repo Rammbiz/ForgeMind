@@ -8,6 +8,10 @@ extends Node3D
 ## formation), kills the army units that touch a blade or the spikes (one per unit, through
 ## Run.hazard_kills), fires the turrets at the nearest soldier, and plays the hit and break
 ## effects. Squads get their crowd only when they come into view and lose it behind the camera.
+## Squads are the owner's Emberhorn Sentinels (VAT bake, VatClip.EMBER) when the bake is present:
+## a menacing guard idle while they wait, a charge (run) as the clash starts, and the front rank
+## stabbing (zone clip) while the ranks behind run up; their deaths are UnitFx's baked fall. The
+## procedural raider stays as the fallback.
 ## Rules mirror LevelSim (blade angle = phase + speed * t, sweeper x = x + amp sin(2pi t / period
 ## + phase), hit boxes shrunk by HAZARD_SHRINK plus the soldier radius).
 
@@ -21,6 +25,13 @@ const ROTOR_HUB := 0.45         # solid hub radius
 const VIEW_AHEAD := 75.0
 const VIEW_BEHIND := 14.0
 const TURRET_SHOT_SPEED := 17.0
+## Emberhorn squads: march speed of the charge (step_squads moves units at 4.2 u/s), their run
+## clip rate (stylised like the knights', VatClip.RUN_RATE), the stab rate and unit size.
+const SQUAD_CHARGE_SPEED := 4.2
+const EMBER_RUN_RATE := 1.25
+const EMBER_ATTACK_RATE := 1.2
+const EMBER_SCALE := 1.0
+const EMBER_SCALE_DENSE := 0.9   # at SQUAD_SHOWN units
 
 ## Formation and crowd of one enemy squad (kept in the item under "sq").
 class Squad extends RefCounted:
@@ -30,6 +41,10 @@ class Squad extends RefCounted:
 	var per_row := 4
 	var charging := false
 	var shown := 0
+	## Baked Emberhorn clips of this squad (null: procedural raiders).
+	var anim: VatClip
+	## Units still running to their place in the charge (CLASH).
+	var moving := false
 
 
 var run: Run
@@ -40,11 +55,15 @@ var turrets: Array[Dictionary] = []
 var geodes: Array[Dictionary] = []
 var crates: Array[Dictionary] = []
 var _rng := RandomNumberGenerator.new()
+var _ember := false
 
 
 func setup(p_run: Run) -> void:
 	run = p_run
 	_rng.seed = 991
+	_ember = ResourceLoader.exists(VatClip.EMBER + "_vat_mesh.res")
+	if _ember and run.fx:
+		run.fx.set_enemy_vat(VatClip.create(VatClip.EMBER))
 
 
 ## Builds the model of a hazard / hostile item and fills in its runtime fields.
@@ -273,12 +292,21 @@ func squad_state(it: Dictionary) -> Squad:
 	sq.view = CrowdView.new()
 	sq.view.name = "Squad"
 	add_child(sq.view)
-	sq.view.setup(Models.raider_mesh(), SQUAD_SHOWN)
+	if _ember:
+		sq.anim = VatClip.create(VatClip.EMBER)
+	sq.view.setup(sq.anim.mesh if sq.anim else Models.raider_mesh(), SQUAD_SHOWN)
 	sq.view.set_edge(Color(1.0, 0.4, 0.15), 0.4)
 	sq.view.set_gait(14.0)
 	it["crowd"] = sq.view
 	it["sq"] = sq
 	_layout(it, sq, mini(ceili(float(it["hp"])), SQUAD_SHOWN))
+	if sq.anim:
+		sq.anim.attach(sq.view)
+		sq.anim.spread["idle"] = 1.0
+		sq.anim.play("idle", 0.0)
+		# Each squad starts somewhere else in its breath.
+		sq.anim.seek(_rng.randf() * sq.anim.length("idle"))
+		_size_squad(sq)
 	var l := Models.label(str(ceili(float(it["hp"]))), 120, Color(1.0, 0.93, 0.9), true)
 	l.outline_modulate = Color(0.35, 0.03, 0.02)
 	l.outline_size = 24
@@ -302,6 +330,31 @@ func _layout(it: Dictionary, sq: Squad, n: int) -> void:
 		sq.home[k] = p
 		sq.pos[k] = p
 	sq.shown = n
+
+
+## Emberhorn unit size: a little smaller in big squads so horns and spears stay apart.
+func _size_squad(sq: Squad) -> void:
+	if sq.anim == null:
+		return
+	var k := clampf((sq.shown - 24.0) / float(SQUAD_SHOWN - 24), 0.0, 1.0)
+	var s := lerpf(EMBER_SCALE, EMBER_SCALE_DENSE, k)
+	sq.anim.set_unit_scale(s)
+	if run.fx:
+		run.fx.unit_scale[1] = s
+
+
+## Clip per squad state: guard idle while waiting; in the clash the ranks still moving up run,
+## the front rank (beyond the line) stabs, and everyone stands guard once in place.
+func _animate_squad(sq: Squad, dt: float, fighting: bool, line_z: float) -> void:
+	if sq.anim == null:
+		return
+	if fighting:
+		sq.anim.play("run" if sq.moving else "idle", 0.15, false, EMBER_RUN_RATE if sq.moving else 1.0)
+		sq.anim.set_zone("attack", line_z - 0.1, 0.12, EMBER_ATTACK_RATE)
+	else:
+		sq.anim.play("idle", 0.25, false, 1.0)
+		sq.anim.clear_zone()
+	sq.anim.tick(dt)
 
 
 ## Middle of the squad's formation (labels, aiming).
@@ -337,6 +390,7 @@ func squad_losses(it: Dictionary) -> void:
 		sq.pos.remove_at(best)
 		sq.home.remove_at(best)
 		sq.shown -= 1
+	_size_squad(sq)
 
 
 ## Moves and draws the squads near the camera; frees the crowds far behind.
@@ -351,6 +405,7 @@ func step_squads(dt: float, d: float, foe: Dictionary, line_z: float, army_x: fl
 		var sq := squad_state(it)
 		var fighting := foe == it
 		sq.charging = fighting
+		var moving := false
 		for k in sq.shown:
 			var p := sq.pos[k]
 			var h := sq.home[k]
@@ -359,11 +414,14 @@ func step_squads(dt: float, d: float, foe: Dictionary, line_z: float, army_x: fl
 				var tx := lerpf(h.x, army_x + (h.x - float(it["x"])) * 0.8, 0.35)
 				var tz := line_z - rank * 0.3
 				p.x += (tx - p.x) * (1.0 - exp(-4.0 * dt))
-				p.z = move_toward(p.z, tz, 4.2 * dt)
+				p.z = move_toward(p.z, tz, SQUAD_CHARGE_SPEED * dt)
+				moving = moving or absf(p.z - tz) > 0.04
 			else:
 				p.x += (h.x - p.x) * (1.0 - exp(-3.0 * dt))
 				p.z += (h.z - p.z) * (1.0 - exp(-3.0 * dt))
 			sq.pos[k] = p
+		sq.moving = moving
+		_animate_squad(sq, dt, fighting, line_z)
 
 
 func _free_squad(it: Dictionary) -> void:

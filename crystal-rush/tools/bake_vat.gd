@@ -9,8 +9,11 @@ extends SceneTree
 ##                                    Animation resource). Default: <out>/<name>_anims.res if present.
 ##       --save-anims                 also write the extra animations to <out>/<name>_anims.res, so the
 ##                                    big source GLBs do not have to live in the project
-##       --clips=run,walk,...         bake only these clips (default: all of CLIPS)
-##       --height=0.75                height of the baked unit in world units (feet at y = 0)
+##       --profile=knight|emberhorn   clip table and settings (PROFILES; default: the output name when
+##                                    it is a profile, else "knight")
+##       --clips=run,walk,...         bake only these clips (default: all of the profile's clips)
+##       --height=0.75                height of the baked unit in world units (feet at y = 0;
+##                                    default: the profile's height)
 ##       --max-width=2048             widest texture row; more vertices wrap onto several rows per frame
 ##                                    (2048 = the GLES3 guaranteed minimum texture size, safe on any phone)
 ##       --albedo=PATH                albedo image (default <in without .glb>_albedo.jpg, else the GLB's)
@@ -32,6 +35,11 @@ extends SceneTree
 ##   <name>_vat_albedo.res  albedo with mipmaps (ETC2 by default)
 ##   <name>_vat.json        the clip table, human readable
 ## Texel of vertex v in frame f: (v % width, f * rows_per_frame + v / width).
+##
+## Second model, the owner's Emberhorn Sentinel (enemy squads):
+##   godot --headless --path . --script res://tools/bake_vat.gd -- \
+##       --in=res://assets/units/emberhorn/emberhorn_src.glb --out=res://assets/units/emberhorn/
+## (the profile follows from the output name). Clips: run (its own Running), attack, idle, death.
 
 ## name: clip id. src: "anim:<Animation name>" or "proc:<function>". frames: baked frames.
 ## start/length: seconds of the source to sample ("auto" length = the loop period; Meshy/Mixamo
@@ -60,9 +68,38 @@ const CLIPS := [
 		"loop_blend": 0.35, "jump": [1.08, 1.86, 0.42]},
 ]
 
+## The Emberhorn Sentinel: real Running (in place, spear rigid in the fist), a spear stab and a
+## menacing guard idle made here, and a one-shot death (recoil, fall on the back, spear dropped).
+## "loop": false clips sample both ends (the last frame is the final pose).
+const EMBER_CLIPS := [
+	{"name": "run", "src": "anim:Running", "frames": 20, "start": 0.0, "length": "auto", "loop": true,
+		"leg_fix": true, "ground": "clip", "prop_follow": 1.0},
+	{"name": "attack", "src": "proc:ember_attack", "frames": 16, "start": 0.0, "length": 0.8, "loop": true,
+		"ground": "clip"},
+	{"name": "idle", "src": "proc:ember_idle", "frames": 12, "start": 0.0, "length": 2.4, "loop": true,
+		"ground": "clip"},
+	{"name": "death", "src": "proc:ember_death", "frames": 16, "start": 0.0, "length": 0.75, "loop": false,
+		"ground": "frame"},
+]
+
+## Per-model bake setups.
+##   height     baked unit height (world units)
+##   glow_mask  greyscale image on the albedo's UVs stored as the albedo's alpha (the emission
+##              mask of shaders that read it: the Emberhorn's eyes); the albedo is then RGBA
+##   spear      the held spear as a line from butt `a` to tip `b` (model units, rest pose): vertices
+##              within `r` of it (`r_blade` past `blade` of its length) become the rigid prop, for
+##              meshes where the spear is welded to the body (no separate island to find)
+const PROFILES := {
+	"knight": {"clips": CLIPS, "height": 0.75},
+	"emberhorn": {"clips": EMBER_CLIPS, "height": 0.8,
+		"glow_mask": "res://assets/units/emberhorn/emberhorn_src_glow.png",
+		"spear": {"a": [-0.37, 0.0, -0.07], "b": [-0.54, 1.66, 0.41], "r": 0.045, "r_blade": 0.17, "blade": 0.6}},
+}
+
 const FOOT_BONES := ["LeftFoot", "LeftToeBase", "LeftToe_End", "RightFoot", "RightToeBase", "RightToe_End"]
 
 var _args := {}
+var _profile := {}
 var _exit := 1
 var _frame := 0
 var _verify_state := 0
@@ -138,7 +175,12 @@ func _bake() -> bool:
 	var src := str(_args.get("in", "res://assets/units/knight/knight_src.glb"))
 	var out := str(_args.get("out", src.get_base_dir())).trim_suffix("/") + "/"
 	var prefix := str(_args.get("name", src.get_file().get_basename().trim_suffix("_src")))
-	var height := float(_args.get("height", "0.75"))
+	var profile_name := str(_args.get("profile", prefix if PROFILES.has(prefix) else "knight"))
+	if not PROFILES.has(profile_name):
+		push_error("bake_vat: no profile '%s' (have %s)" % [profile_name, ", ".join(PROFILES.keys())])
+		return false
+	_profile = PROFILES[profile_name]
+	var height := float(_args.get("height", str(_profile["height"])))
 	var max_w := int(_args.get("max-width", "2048"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 
@@ -187,12 +229,12 @@ func _bake() -> bool:
 	var hips: Transform3D = _rest_glob[_bone["Hips"]]
 	_origin = Vector3(hips.origin.x, lo.y, hips.origin.z)
 	_scale = height / maxf(hi.y - lo.y, 1e-4)
-	print("source: %d vertices, %d triangles, %d bones, %d binds, %d weights/vertex, %.3f tall -> scale %.4f" % [
-		_vcount, _idx.size() / 3, _nb, _bind.size(), _wpv, hi.y - lo.y, _scale])
+	print("source: %d vertices, %d triangles, %d bones, %d binds, %d weights/vertex, %.3f tall -> scale %.4f (profile %s)" % [
+		_vcount, _idx.size() / 3, _nb, _bind.size(), _wpv, hi.y - lo.y, _scale, profile_name])
 
 	var want := PackedStringArray(str(_args.get("clips", "")).split(",", false))
 	var clips: Array = []
-	for c in CLIPS:
+	for c in _profile["clips"]:
 		if want.is_empty() or want.has(c["name"]):
 			clips.append(c)
 	var width := mini(_vcount, max_w)
@@ -233,13 +275,15 @@ func _bake() -> bool:
 				pos_img.set_pixel(x, y, Color(p.x * cy - p.z * sy, p.y, p.x * sy + p.z * cy, yaw[f]))
 				nrm_img.set_pixel(x, y, Color(n.x * cy - n.z * sy, n.y, n.x * sy + n.z * cy, 0.0))
 		var length: float = res["length"]
+		# One-shots: frames span [0, length] (n - 1 steps), so the last frame shows at `length`.
+		var steps := frames.size() if bool(c.get("loop", true)) else maxi(frames.size() - 1, 1)
 		table[c["name"]] = {
 			"frame": frame0, "row": frame0 * rpf, "frames": frames.size(),
-			"fps": frames.size() / length, "length": length, "loop": bool(c.get("loop", true)),
+			"fps": steps / length, "length": length, "loop": bool(c.get("loop", true)),
 			"ground_speed": res["ground_speed"], "lift": res["lift"],
 		}
 		print("  %-8s frames %3d..%3d  %.3f s @ %.2f fps  loop=%s  lift=%.3f  ground speed %.2f u/s  (%d ms)" % [
-			c["name"], frame0, frame0 + frames.size() - 1, length, frames.size() / length,
+			c["name"], frame0, frame0 + frames.size() - 1, length, steps / length,
 			c.get("loop", true), res["lift"], res["ground_speed"], Time.get_ticks_msec() - t0])
 		frame0 += frames.size()
 
@@ -278,6 +322,20 @@ func _bake() -> bool:
 	err = maxi(err, ResourceSaver.save(ImageTexture.create_from_image(nrm_img), out + prefix + "_vat_nrm.res", ResourceSaver.FLAG_COMPRESS))
 	err = maxi(err, ResourceSaver.save(mesh, out + prefix + "_vat_mesh.res", ResourceSaver.FLAG_COMPRESS))
 	var alb := _albedo_image(src)
+	if alb and _profile.has("glow_mask"):
+		var gm := Image.load_from_file(ProjectSettings.globalize_path(str(_profile["glow_mask"])))
+		if gm == null:
+			push_error("bake_vat: cannot read glow mask " + str(_profile["glow_mask"]))
+			return false
+		gm.convert(Image.FORMAT_L8)
+		gm.resize(alb.get_width(), alb.get_height(), Image.INTERPOLATE_BILINEAR)
+		alb.convert(Image.FORMAT_RGBA8)
+		for y in alb.get_height():
+			for x in alb.get_width():
+				var c := alb.get_pixel(x, y)
+				c.a = gm.get_pixel(x, y).r
+				alb.set_pixel(x, y, c)
+		print("  glow mask %s -> albedo alpha" % str(_profile["glow_mask"]))
 	if alb:
 		alb.generate_mipmaps()
 		if str(_args.get("albedo-format", "etc2")) == "etc2":
@@ -686,6 +744,9 @@ func _prop_matrix(G: Array) -> Transform3D:
 ##   shield-like islands: small islands mixing one side's arm and leg weights, away from the legs
 ##          -> that side's forearm.
 func _fix_props(model_h: float) -> void:
+	if _profile.has("spear"):
+		_fix_spear_line(_profile["spear"], model_h)
+		return
 	var islands := _islands()
 	var hips_x: float = (_rest_glob[_bone["Hips"]] as Transform3D).origin.x
 	# Spear shaft.
@@ -803,6 +864,64 @@ func _fix_props(model_h: float) -> void:
 				print("  prop: %d-vertex island at %s re-bound from %s leg+arm to %sForeArm" % [isl.size(), c, side, side])
 
 
+## A spear welded to the body (one mesh island): the profile gives its line; vertices hugging it
+## become the prop pseudo-bone, held (like _fix_props) by the bone that owns the fist around the
+## middle of the shaft.
+func _fix_spear_line(sp: Dictionary, model_h: float) -> void:
+	var lo := Vector3(sp["a"][0], sp["a"][1], sp["a"][2])
+	var hi := Vector3(sp["b"][0], sp["b"][1], sp["b"][2])
+	var axis := (hi - lo).normalized()
+	var span := lo.distance_to(hi)
+	var r := float(sp["r"])
+	var r_blade := float(sp.get("r_blade", r))
+	var blade := float(sp.get("blade", 1.0))
+	var prop := {}
+	for v in _vcount:
+		var d := _pos[v] - lo
+		var t := d.dot(axis)
+		if t < -0.03 * span or t > 1.03 * span:
+			continue
+		if (d - axis * t).length() <= (r_blade if t > blade * span else r):
+			prop[v] = true
+	var votes := {}
+	var grip := Vector3.ZERO
+	var nh := 0
+	for v in _vcount:
+		if prop.has(v):
+			continue
+		var d := _pos[v] - lo
+		var t := d.dot(axis)
+		if t < 0.1 * span or t > 0.8 * span or (d - axis * t).length() > 0.05 * model_h:
+			continue
+		var o := v * _wpv
+		var dom := 0
+		for k in _wpv:
+			if _vw[o + k] > _vw[o + dom]:
+				dom = k
+		var b := _bind_bone[_vbone[o + dom]]
+		votes[b] = int(votes.get(b, 0)) + 1
+		grip += lo + axis * t
+		nh += 1
+	if nh == 0 or prop.is_empty():
+		push_warning("bake_vat: no vertices along the profile's spear line")
+		return
+	var holder := -1
+	for b in votes:
+		if holder < 0 or votes[b] > votes[holder]:
+			holder = b
+	_prop_bone = holder
+	_prop_grip = grip / nh
+	_prop_axis = axis
+	_prop_butt = lo
+	for v in prop:
+		var o: int = v * _wpv
+		for k in _wpv:
+			_vbone[o + k] = _bind.size() if k == 0 else 0
+			_vw[o + k] = 1.0 if k == 0 else 0.0
+	print("  prop: %d spear vertices (profile line) re-bound to a pseudo-bone held by %s at %s, axis %s, %.3f long" % [
+		prop.size(), _sk.get_bone_name(holder), _prop_grip, axis, span])
+
+
 ## Connected mesh islands (vertices welded by position across UV seams).
 func _islands() -> Array:
 	var par := PackedInt32Array()
@@ -879,8 +998,10 @@ func _bake_clip(c: Dictionary) -> Dictionary:
 	var ankles := []
 	var hips_rest: Basis = (_fk(_rest)[_bone["Hips"]] as Transform3D).basis
 	var prev_yaw := 0.0
+	var looping := bool(c.get("loop", true))
 	for f in n:
-		var tl := length * f / n
+		# A loop leaves out its end (= its start); a one-shot ends on its final pose.
+		var tl := length * f / n if looping else length * f / maxf(n - 1, 1)
 		var L := L0 if f == 0 else _clip_locals(c, start + tl)
 		if blend_w > 0.0 and tl > length - blend_w:
 			L = _blend(L, L0, smoothstep(0.0, 1.0, (tl - (length - blend_w)) / blend_w))
@@ -982,7 +1103,7 @@ func _verify_step() -> bool:
 		mean += e
 	mean /= maxf(1.0, v.size())
 	print("verify (%s frame 3): Godot skinning vs CPU bake: max %.6f, mean %.6f units (unit height %.2f)" % [
-		_verify_clip["name"], worst, mean, float(_args.get("height", "0.75"))])
+		_verify_clip["name"], worst, mean, float(_args.get("height", str(_profile.get("height", 0.75))))])
 	_exit = 0 if worst < 0.002 else 1
 	return false
 
@@ -1100,3 +1221,104 @@ func _proc_cheer(u: float) -> Array:
 	var G := _fk(L)
 	var elbow: Vector3 = (G[fore] as Transform3D).origin
 	return _ik(L, _bone["RightArm"], fore, _bone["RightHand"], grip, elbow + Vector3(-0.4, 0.0, -0.2), null, eff)
+
+
+# ------------------------------------------------------------- procedural clips: Emberhorn
+
+## Model-space point `rel` from the rest hips (procedural clips of models other than the knight
+## are written relative to their hips, so they survive a different origin).
+func _from_hips(rel: Vector3) -> Vector3:
+	return _rest_global("Hips").origin + rel
+
+
+## Puts the spear's grip at `grip` (model space) aimed along `aim` by IK on the right arm.
+func _hold_spear(L: Array, grip: Vector3, aim: Vector3, pole: Vector3) -> Array:
+	if _prop_bone < 0:
+		return L
+	_prop_aim = Basis(Quaternion(_prop_axis, aim.normalized()))
+	var fore: int = _bone["RightForeArm"]
+	var eff: Vector3 = (_rest_glob[fore] as Transform3D).affine_inverse() * _prop_grip
+	var G := _fk(L)
+	var elbow: Vector3 = (G[fore] as Transform3D).origin
+	return _ik(L, _bone["RightArm"], fore, _bone["RightHand"], grip, elbow + pole, null, eff)
+
+
+## Menacing guard: hunched forward, head lowered to glare, heavy breathing that lifts the
+## shoulders, a slow weight shift, the free fist clenched forward, the spear levelled at a slant
+## towards the enemy and bobbing with the breath.
+func _proc_ember_idle(u: float) -> Array:
+	var b := sin(TAU * u)
+	var c := cos(TAU * u)
+	var w := sin(TAU * u + 0.9)
+	var rot := {
+		_bone["Hips"]: _deg(5.0, 3.0 * w, 1.5 * w),
+		_bone["Spine1"]: _deg(4.0 + 1.6 * b, -2.0 * w, 0.0),
+		_bone["Spine2"]: _deg(4.0 + 2.0 * b, -1.5 * w, 0.0),
+		_bone["Head"]: _deg(9.0 - 2.5 * b, -3.0 * c, 2.0 * w),
+		_bone["LeftShoulder"]: _deg(0.0, 0.0, 3.0 + 2.5 * b),
+		_bone["RightShoulder"]: _deg(0.0, 0.0, -2.0 - 2.0 * b),
+		_bone["LeftArm"]: _deg(-22.0, 0.0, 18.0 + 2.0 * b),
+		_bone["LeftForeArm"]: _deg(-48.0 - 4.0 * b, 0.0, 0.0),
+	}
+	var L := _pose(_rest, rot, {_bone["Hips"]: Vector3(0.012 * w, -0.04 - 0.012 * (0.5 + 0.5 * b), 0.01)})
+	L = _plant_feet(L, Vector3(0.035, 0.0, 0.05), Vector3(-0.035, 0.0, -0.04))
+	var grip := _from_hips(Vector3(-0.37, 0.07 + 0.012 * b, 0.13))
+	var aim := Vector3(0.06, 0.78 + 0.03 * b, 0.62)
+	return _hold_spear(L, grip, aim, Vector3(-0.4, -0.1, -0.3))
+
+
+## Spear stab like the knight's: wind up with the fist beside the hip, lunge and drive the spear
+## level at the enemy; the free arm swings against the thrust.
+func _proc_ember_attack(u: float) -> Array:
+	var k := _thrust(u)
+	var twist := lerpf(-24.0, 26.0, k)
+	var rot := {
+		_bone["Hips"]: _deg(lerpf(3.0, 9.0, k), twist * 0.45, 0.0),
+		_bone["Spine1"]: _deg(lerpf(-2.0, 7.0, k), twist * 0.3, 0.0),
+		_bone["Spine2"]: _deg(lerpf(-2.0, 6.0, k), twist * 0.25, 0.0),
+		_bone["Head"]: _deg(lerpf(4.0, -6.0, k), -twist * 0.8, 0.0),
+		_bone["LeftArm"]: _deg(lerpf(-30.0, 25.0, k), 0.0, lerpf(14.0, 22.0, k)),
+		_bone["LeftForeArm"]: _deg(lerpf(-45.0, -20.0, k), 0.0, 0.0),
+	}
+	var hips_move := Vector3(lerpf(0.01, -0.02, k), lerpf(-0.035, -0.075, k), lerpf(-0.03, 0.08, k))
+	var L := _pose(_rest, rot, {_bone["Hips"]: hips_move})
+	L = _plant_feet(L, Vector3(0.0, 0.0, 0.09), Vector3(0.0, 0.0, -0.06))
+	var grip := _from_hips(Vector3(-0.378, 0.034, -0.153)).lerp(_from_hips(Vector3(-0.198, 0.084, 0.427)), k)
+	var aim := Vector3(0.06, lerpf(0.02, -0.14, k), 1.0)
+	return _hold_spear(L, grip, aim, Vector3(-0.4, -0.2, -0.3))
+
+
+## Death (one-shot, 0.75 s): the hit snaps the head and chest back, the arms fling out, the
+## knees buckle and the Sentinel topples onto its back, pivoting on its heels, the spear going
+## down with the arm; a small bounce on impact. Ground "frame" keeps every frame above the road.
+func _proc_ember_death(u: float) -> Array:
+	var rc := _ease(u / 0.1) * (1.0 - _ease((u - 0.12) / 0.3))
+	var a := clampf((u - 0.06) / 0.62, 0.0, 1.0)
+	var fall := 84.0 * a * a
+	if u > 0.68:
+		fall = 84.0 - 9.0 * sin(PI * clampf((u - 0.68) / 0.2, 0.0, 1.0))
+	var kb := sin(PI * clampf((u - 0.05) / 0.7, 0.0, 1.0))
+	var fling := _ease(u / 0.25)
+	var q_fall := _deg(-fall, 0.0, 0.0)
+	var rot := {
+		_bone["Hips"]: q_fall * _deg(-6.0 * rc, 0.0, 0.0),
+		_bone["Spine1"]: _deg(-10.0 * rc + 4.0 * a, 0.0, 0.0),
+		_bone["Spine2"]: _deg(-9.0 * rc + 3.0 * a, 0.0, 0.0),
+		_bone["Head"]: _deg(-24.0 * rc - 8.0 * a + 10.0 * maxf(0.0, (u - 0.7) / 0.3), 6.0 * a, 0.0),
+		_bone["LeftArm"]: _deg(-20.0 * fling, 0.0, 65.0 * fling),
+		_bone["LeftForeArm"]: _deg(-20.0 * fling, 0.0, 0.0),
+		_bone["RightArm"]: _deg(-15.0 * fling, 0.0, -35.0 * fling),
+		_bone["LeftUpLeg"]: _deg(-28.0 * kb, 0.0, 4.0 * kb),
+		_bone["LeftLeg"]: _deg(46.0 * kb, 0.0, 0.0),
+		_bone["RightUpLeg"]: _deg(-12.0 * kb, 0.0, -4.0 * kb),
+		_bone["RightLeg"]: _deg(30.0 * kb, 0.0, 0.0),
+	}
+	# Topple about the heels: move the hips so the rotation pivots on the floor behind the feet.
+	var hips := _rest_global("Hips").origin
+	var heel := Vector3(hips.x, 0.0, _rest_global("LeftFoot").origin.z - 0.06)
+	var move := heel + q_fall * (hips - heel) - hips + Vector3(0.0, 0.0, -0.05 * rc)
+	var L := _pose(_rest, rot, {_bone["Hips"]: move})
+	if _prop_bone >= 0:
+		# The spear stays in the fist and goes down with the body, tilted out to the side.
+		_prop_aim = Basis(q_fall * _deg(0.0, 0.0, -25.0 * fling))
+	return L

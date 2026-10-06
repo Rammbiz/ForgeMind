@@ -18,6 +18,9 @@ extends RefCounted
 ##
 ## Clips of the knight bake: run, walk, attack (spear stab), idle, victory (jump with the spear
 ## thrust up, loops), spin (the 360 power spin jump).
+## Clips of the Emberhorn bake (enemy squads, VatClip.create(EMBER)): run, attack, idle (guard),
+## death (one-shot). A bake may ship its own shader as <base>_vat.gdshader (the Emberhorn's adds a
+## zone clip and per-unit clocks, see set_zone() and play_per_unit()).
 ##
 ## The clip clock runs here in double precision and reaches the shader as `clip_time`; without
 ## tick() the shader falls back to TIME wrapped to whole loops (fine for a looping clip).
@@ -27,6 +30,8 @@ const SHADER := preload("res://shaders/crowd_vat.gdshader")
 ## (1.15 u/s at rate 1) while the army moves at 6.5 u/s; a foot-locked rate (5.6) is a blur, so
 ## the cadence is stylised (≈ 4.3 steps a second) and scales with the march speed (run_rate()).
 const RUN_RATE := 1.35
+## Bake prefix of the owner's Emberhorn Sentinel (enemy squads).
+const EMBER := "res://assets/units/emberhorn/emberhorn"
 # The script itself, so create() works before the editor has registered the class_name.
 const _SELF := preload("res://scripts/run/vat_clip.gd")
 
@@ -42,6 +47,11 @@ var speed := 1.0
 ## phases cover (1 = every unit somewhere else in its stride, 0.3 = a ragged wave). Clips not
 ## listed use 1. Takes effect on the next play().
 var spread := {"victory": 0.55, "spin": 0.3, "attack": 0.8}
+## Bake prefix this clip set was loaded from.
+var base := ""
+## Zone clip (shaders with zone support): the clip units past `zone_z` play (see set_zone()).
+var zone := ""
+var zone_speed := 1.0
 
 var _t := 0.0
 var _loop := true
@@ -51,12 +61,14 @@ var _prev_speed := 1.0
 var _prev_loop := true
 var _fade := 1.0
 var _fade_len := 0.0
+var _zone_t := 0.0
 
 
 ## Loads `<base>_vat_mesh.res` and its textures (cached by the resource loader) and builds a
 ## material for one crowd. `base` is the bake output prefix, e.g. "res://assets/units/knight/knight".
 static func create(base := "res://assets/units/knight/knight") -> _SELF:
 	var v: _SELF = _SELF.new()
+	v.base = base
 	v.mesh = load(base + "_vat_mesh.res") as ArrayMesh
 	if v.mesh == null or not v.mesh.has_meta("vat"):
 		push_error("VatClip: no baked mesh at %s_vat_mesh.res (run tools/bake_vat.gd)" % base)
@@ -68,6 +80,9 @@ static func create(base := "res://assets/units/knight/knight") -> _SELF:
 	v.albedo = load(dir.path_join(tex["albedo"])) as Texture2D
 	var m := ShaderMaterial.new()
 	m.shader = SHADER
+	# A bake-specific look (same VAT decode and uniforms) when one sits next to the bake.
+	if ResourceLoader.exists(base + "_vat.gdshader"):
+		m.shader = load(base + "_vat.gdshader") as Shader
 	m.set_shader_parameter("vat_pos", load(dir.path_join(tex["pos"])))
 	m.set_shader_parameter("vat_nrm", load(dir.path_join(tex["nrm"])))
 	m.set_shader_parameter("vat_width", int(meta["width"]))
@@ -86,7 +101,7 @@ func attach(view: GeometryInstance3D) -> void:
 	var old: Material = view.get("mat") if "mat" in view else view.material_override
 	if old is ShaderMaterial and old != material:
 		var mine := {}
-		for u: Dictionary in SHADER.get_shader_uniform_list():
+		for u: Dictionary in material.shader.get_shader_uniform_list():
 			mine[u["name"]] = true
 		for u: Dictionary in (old as ShaderMaterial).shader.get_shader_uniform_list():
 			var n: String = u["name"]
@@ -162,10 +177,61 @@ static func crowd_scale(shown: int) -> float:
 	return lerpf(1.0, 0.86, clampf((shown - 40.0) / 180.0, 0.0, 1.0))
 
 
+## Zone clip (shaders with a `zone_on` uniform, e.g. the Emberhorn's): units standing beyond world
+## z = `z` (towards +Z) play `clip_name` on its own clock, blended in over `band`; the others keep
+## the main clip. Squads: the front rank stabs while the ranks behind run up. Calling it again
+## with the same clip only moves the line.
+func set_zone(clip_name: String, z: float, band := 0.3, playback_speed := 1.0) -> void:
+	if not clips.has(clip_name):
+		return
+	if clip_name != zone:
+		zone = clip_name
+		_zone_t = 0.0
+		material.set_shader_parameter("zone_clip", _clip_vec(clip_name, bool(clips[clip_name]["loop"])))
+	zone_speed = playback_speed
+	material.set_shader_parameter("zone_on", true)
+	material.set_shader_parameter("zone_z", z)
+	material.set_shader_parameter("zone_band", band)
+
+
+func clear_zone() -> void:
+	if zone == "":
+		return
+	zone = ""
+	material.set_shader_parameter("zone_on", false)
+
+
+## Per-unit clocks (shaders with an `instance_time` uniform): every instance plays `clip_name` at
+## its own time in seconds, written by the owner into INSTANCE_CUSTOM.x (UnitFx's dying enemies).
+func play_per_unit(clip_name: String, playback_speed := 1.0) -> void:
+	if not clips.has(clip_name):
+		push_warning("VatClip: no clip '%s'" % clip_name)
+		return
+	clip = clip_name
+	_loop = bool(clips[clip_name]["loop"])
+	speed = playback_speed
+	_fade = 1.0
+	material.set_shader_parameter("instance_time", true)
+	material.set_shader_parameter("clip", _clip_vec(clip_name, _loop))
+	material.set_shader_parameter("speed", playback_speed)
+	material.set_shader_parameter("clip_blend", 1.0)
+
+
+## True when this material's shader has the uniform `uniform_name` (bake-specific features).
+func has_uniform(uniform_name: String) -> bool:
+	for u: Dictionary in material.shader.get_shader_uniform_list():
+		if u["name"] == uniform_name:
+			return true
+	return false
+
+
 ## Advances the clock (call once per frame with the frame's delta).
 func tick(delta: float) -> void:
 	if clip == "":
 		return
+	if zone != "":
+		_zone_t += delta * zone_speed
+		material.set_shader_parameter("zone_time", _wrapped(zone, _zone_t, bool(clips[zone]["loop"])))
 	_t += delta * speed
 	if _fade < 1.0:
 		_prev_t += delta * _prev_speed

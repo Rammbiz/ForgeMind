@@ -8,6 +8,9 @@ extends Node3D
 ##   (pool of 64, the oldest is recycled);
 ## - one soft contact shadow under the army blob.
 ## Teams: 0 army (white/gold/ice blue), 1 enemy (red/steel), 2 recruit (grey).
+## Enemies baked to VAT (set_enemy_vat(), the Emberhorn Sentinel) die differently: the hit pop
+## and burst, then each body plays the baked death on its own clock (recoil, topple onto its
+## back, a dust puff on impact), lies a moment and sinks away in a puff of rising embers.
 
 const DIE_LIFE := 0.35
 const DIE_POP := 0.07           # the white pop before the shrink
@@ -18,6 +21,10 @@ const DEBRIS_POOL := 64
 const GRAVITY := 15.0
 const MOTE_STRIDE := 20         # 12 transform + 4 colour + 4 custom floats
 const SHADOW_ALPHA := 0.42
+const ENEMY_DIE_LIFE := 1.15     # VAT enemies: death clip (0.75 s), a short rest, sink
+const ENEMY_SINK_AT := 0.86      # age the body starts to sink and burn away
+const ENEMY_LAND_AT := 0.5       # age the falling body hits the road (dust)
+const EMBER_COLORS: Array[Color] = [Color(1.0, 0.55, 0.15), Color(1.0, 0.75, 0.3), Color(1.0, 0.35, 0.1)]
 const NOISE_TEX := preload("res://assets/textures/cloud_noise.png")
 
 const PUFF_COLORS: Array[Color] = [Color(0.4, 0.66, 1.0), Color(1.0, 0.4, 0.2), Color(0.8, 0.81, 0.85)]
@@ -36,6 +43,8 @@ class Dying:
 	var spin := 0.0
 	var yaw := 0.0
 	var age := 0.0
+	var landed := false
+	var burnt := false
 
 
 class Mote:
@@ -82,6 +91,8 @@ var _debris_dirty := false
 var _debris_buf := PackedFloat32Array()
 var _shadow: MeshInstance3D
 var _rng := RandomNumberGenerator.new()
+## The enemies' baked crowd (Emberhorn) playing "death" per dying unit; null = tumbling pool.
+var _enemy_vat: VatClip
 
 
 ## Builds the pools. `soldier_mesh` is used for the army and the recruits (greyed),
@@ -126,8 +137,25 @@ func set_soldier_mesh(mesh: Mesh) -> void:
 		_die_mmi[2].multimesh.mesh = mesh
 
 
+## Extra: dying enemies use a baked VAT crowd with a "death" clip (the Emberhorn: VatClip.create(
+## VatClip.EMBER)) instead of tumbling: the team-1 pool takes its mesh and a material of its own
+## that plays the clip on every dying unit's own clock. Ignored for bakes without per-unit clocks.
+func set_enemy_vat(clip: VatClip) -> void:
+	if clip == null or _die_mmi.size() < 2 or not clip.has_clip("death") or not clip.has_uniform("instance_time"):
+		return
+	_enemy_vat = clip
+	clip.play_per_unit("death")
+	clip.material.set_shader_parameter("edge_color", Color(1.0, 0.4, 0.15))
+	clip.material.set_shader_parameter("edge_amount", 0.4)
+	clip.material.set_shader_parameter("sway_scale", 0.0)
+	_die_mmi[1].multimesh.mesh = clip.mesh
+	_die_mmi[1].material_override = clip.material
+	_die_mmi[1].extra_cull_margin = 2.5
+
+
 ## A unit dies at `pos` (feet): pop, hop up 3–5 u/s, tumble, shrink to nothing in 0.35 s,
 ## a puff in the team colour and 1–2 debris shards. `push` adds a sideways shove (world u/s).
+## VAT enemies (set_enemy_vat) play their death instead, sliding a little with the push.
 func die(pos: Vector3, team: int, push: Vector3) -> void:
 	team = clampi(team, 0, 2)
 	var list: Array = _dying[team]
@@ -135,6 +163,18 @@ func die(pos: Vector3, team: int, push: Vector3) -> void:
 		list.pop_front()
 	var d := Dying.new()
 	d.pos = pos
+	if team == 1 and _enemy_vat:
+		var shove := Vector3(push.x, 0.0, push.z)
+		d.vel = shove * 0.45 + Vector3(_rng.randf_range(-0.25, 0.25), 0.0, 0.0)
+		d.yaw = _rng.randf_range(-0.35, 0.35) + push.x * 0.12
+		d.age = _rng.randf_range(0.0, 0.04)
+		list.append(d)
+		var hit := pos + Vector3(0, 0.42, 0)
+		_puff(hit, PUFF_COLORS[1], shove * 0.5)
+		_burst_sparks(hit, SPARK_COLORS[1], shove)
+		for i in (1 if _rng.randf() < 0.6 else 2):
+			_spawn_shard(hit, DEBRIS_COLORS[1][_rng.randi() % DEBRIS_COLORS[1].size()], shove * 0.5)
+		return
 	var flat := Vector3(push.x, 0.0, push.z)
 	d.vel = flat * 0.8 + Vector3(_rng.randf_range(-0.7, 0.7), _rng.randf_range(3.0, 5.0), _rng.randf_range(-0.7, 0.7))
 	# Tumble away from the push (or a random side), with some yaw mixed in.
@@ -219,6 +259,9 @@ func _tick_dying(team: int, delta: float) -> void:
 		if mm.visible_instance_count != 0:
 			mm.visible_instance_count = 0
 		return
+	if team == 1 and _enemy_vat:
+		_tick_enemy_vat(list, mm, delta)
+		return
 	var keep: Array = []
 	for d: Dying in list:
 		d.age += delta
@@ -254,6 +297,91 @@ func _tick_dying(team: int, delta: float) -> void:
 		i += 1
 	mm.buffer = buf
 	mm.visible_instance_count = i
+
+
+## VAT enemies: each body plays the death clip at its own age (INSTANCE_CUSTOM.x), slides out
+## with the push, raises dust where it lands, then sinks into the road and burns away in embers.
+func _tick_enemy_vat(list: Array, mm: MultiMesh, delta: float) -> void:
+	var keep: Array = []
+	for d: Dying in list:
+		d.age += delta
+		if d.age >= ENEMY_DIE_LIFE:
+			continue
+		d.pos += d.vel * delta
+		d.vel *= maxf(0.0, 1.0 - 5.0 * delta)
+		if not d.landed and d.age >= ENEMY_LAND_AT:
+			d.landed = true
+			_dust(d.pos + Basis(Vector3.UP, d.yaw) * Vector3(0, 0.05, -0.3))
+		if not d.burnt and d.age >= ENEMY_SINK_AT:
+			d.burnt = true
+			_embers(d.pos + Basis(Vector3.UP, d.yaw) * Vector3(0, 0.12, -0.28))
+		keep.append(d)
+	_dying[1] = keep
+	var buf := _die_buf[1]
+	var i := 0
+	for d: Dying in keep:
+		var k := clampf((d.age - ENEMY_SINK_AT) / (ENEMY_DIE_LIFE - ENEMY_SINK_AT), 0.0, 1.0)
+		var e := k * k
+		var s := maxf(unit_scale[1] * (1.0 - 0.75 * e), 0.001)
+		var b := Basis(Vector3.UP, d.yaw).scaled(Vector3(s, s, s))
+		var o := i * 20
+		_write_xf(buf, o, Transform3D(b, d.pos + Vector3(0, -0.22 * e, 0)))
+		buf[o + 12] = 1.0 - 0.6 * e
+		buf[o + 13] = 1.0 - 0.75 * e
+		buf[o + 14] = 1.0 - 0.8 * e
+		buf[o + 15] = 1.0
+		buf[o + 16] = d.age
+		buf[o + 17] = 0.0
+		buf[o + 18] = 0.0
+		buf[o + 19] = clampf(1.0 - d.age / 0.14, 0.0, 1.0)
+		i += 1
+	mm.buffer = buf
+	mm.visible_instance_count = i
+
+
+## A low dust puff where a falling body hits the road.
+func _dust(pos: Vector3) -> void:
+	for i in 4:
+		var m := Mote.new()
+		var a := _rng.randf() * TAU
+		var dir := Vector3(cos(a), 0.15, sin(a))
+		m.pos = pos + dir * 0.1
+		m.vel = dir * _rng.randf_range(0.8, 1.4)
+		m.life = _rng.randf_range(0.4, 0.55)
+		m.size0 = _rng.randf_range(0.16, 0.22)
+		m.size1 = _rng.randf_range(0.36, 0.5)
+		m.drag = 5.0
+		m.grav = -0.3
+		m.color = Color(0.42, 0.36, 0.38, 0.45)
+		m.seed = Vector2(_rng.randf(), _rng.randf())
+		_add_mote(_puffs, PUFF_POOL, m)
+
+
+## The body burns away: glowing embers drift up with a little dark smoke.
+func _embers(pos: Vector3) -> void:
+	for i in 5:
+		var m := Mote.new()
+		var a := _rng.randf() * TAU
+		m.pos = pos + Vector3(cos(a) * 0.18, _rng.randf_range(0.0, 0.12), sin(a) * 0.25)
+		m.vel = Vector3(cos(a) * 0.3, _rng.randf_range(1.0, 1.9), sin(a) * 0.3)
+		m.life = _rng.randf_range(0.5, 0.8)
+		m.size0 = _rng.randf_range(0.07, 0.11)
+		m.size1 = 0.02
+		m.drag = 1.5
+		m.grav = -0.8
+		m.color = EMBER_COLORS[i % EMBER_COLORS.size()]
+		m.color.a = 1.0
+		_add_mote(_sparks, SPARK_POOL, m)
+	var smoke := Mote.new()
+	smoke.pos = pos + Vector3(0, 0.1, 0)
+	smoke.vel = Vector3(0, 0.6, 0)
+	smoke.life = 0.6
+	smoke.size0 = 0.3
+	smoke.size1 = 0.6
+	smoke.drag = 2.0
+	smoke.color = Color(0.18, 0.12, 0.12, 0.4)
+	smoke.seed = Vector2(_rng.randf(), _rng.randf())
+	_add_mote(_puffs, PUFF_POOL, smoke)
 
 
 # ------------------------------------------------------------------ puffs and sparks
