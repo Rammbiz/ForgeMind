@@ -66,7 +66,7 @@ const HEROES := {
 	# while an arcane barrage hits everything within `range` every `tick` s.
 	"seer": {
 		"name": "HERO_SEER", "desc": "HERO_SEER_DESC", "color": Color(0.68, 0.4, 1.0),
-		"hp": 20, "rate": 1.8, "damage": 1, "splash": 0, "range": 16.0, "corridor": 1.0,
+		"hp": 20, "rate": 2.0, "damage": 1, "splash": 0, "range": 16.0, "corridor": 1.0,
 		"targets": 2, "reveal_row": true, "charge_mult": 1.5, "aspect": "foresight",
 		"ult": {"name": "ULT_RIFT", "icon": "fam_rift", "charge": 38, "duration": 4.0, "slow": 0.6, "ahead": 7.0,
 				"range": 16.0, "tick": 0.5, "kills": 5, "breaks": 4},

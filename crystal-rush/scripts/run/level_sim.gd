@@ -739,6 +739,12 @@ static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> voi
 	if s.aspect == "forked_fox" and (s.casts + 1) % 3 == 0:
 		shots += 1
 	var targets := _targets(lv, s, s.hx, corridor, float(def["range"]), shots, true)
+	# Extra shots never split onto the partner of a crate pair (Run._hero_attack).
+	for j in range(targets.size() - 1, 0, -1):
+		var a := lv.items[targets[0]]
+		var b := lv.items[targets[j]]
+		if lv.kind[targets[j]] == K.CRATE and a.has("pair") and b.has("pair") and int(a["pair"]) == int(b["pair"]):
+			targets.remove_at(j)
 	if targets.is_empty():
 		s.atk_cd = 0.0
 		return

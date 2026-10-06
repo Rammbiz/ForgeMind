@@ -1887,6 +1887,10 @@ func _hero_attack(dt: float) -> void:
 	if list.is_empty():
 		_atk_cd = 0.0
 		return
+	# Extra shots never split onto the partner of a crate pair (opening one folds the other).
+	for j in range(list.size() - 1, 0, -1):
+		if list[j].has("pair") and list[0].has("pair") and int(list[j]["pair"]) == int(list[0]["pair"]) and str(list[j]["kind"]) == "crate":
+			list.remove_at(j)
 	_atk_cd += 1.0 / _hero_rate()
 	_atk_cd = maxf(_atk_cd, 0.02)
 	hero.strike()
