@@ -777,11 +777,11 @@ static func dock(node: Node3D, u: float) -> void:
 		var sxz := lerpf(0.75, 1.0, clampf(u * 1.6, 0.0, 1.0))
 		rig.scale = Vector3(sxz, sy, sxz) * rs
 	if yaw and node.has_meta("asset_body"):
-		# One-piece model: it hops out, nose first, and lands level.
+		# One-piece model (the caller carries the hop): it leaves the crate nose down and lands
+		# level, with a small settle bounce.
 		var y1 := float(node.get_meta("yaw_y", 0.0))
-		var hu := clampf(u * 1.25, 0.0, 1.0)
-		yaw.position.y = y1 + sin(hu * PI) * 0.28
-		yaw.rotation.x = (1.0 - smoothstep(0.2, 0.9, u)) * -0.35
+		yaw.position.y = y1
+		yaw.rotation.x = (1.0 - smoothstep(0.2, 0.85, u)) * -0.38 + sin(smoothstep(0.85, 1.0, u) * PI) * 0.05
 	elif yaw:
 		var y0 := float(node.get_meta("yaw_y", yaw.position.y))
 		var tu := smoothstep(0.25, 0.85, u)
@@ -2159,7 +2159,7 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 	root.add_child(shell_mi)
 	root.set_meta("glass", shell_mi)
 	root.set_meta("top_y", top)
-	# Holo-projector on the lid: a gold ring, an accent lens, rarity pips and a soft light cone.
+	# Holo-projector on the lid: a gold ring, an accent lens and the rarity pips.
 	var gold := _mat("gold")
 	var holo := Node3D.new()
 	holo.name = "Holo"
@@ -2169,7 +2169,7 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 	Mats.part(holo, Mats.cyl(0.25, 0.29, 0.05, 24, false), gold, Vector3(0, 0.025, 0))
 	Mats.part(holo, Mats.torus(0.22, 0.25, 32, 4), gold, Vector3(0, 0.055, 0))
 	var lens_col := Color(0.92, 0.97, 1.0) if is_new else (glow_col if ArsenalData.MACHINES.has(weapon) else ICE_HOT)
-	Mats.part(holo, Mats.cyl(0.2, 0.2, 0.02, 24, false), Mats.glow(lens_col.lerp(Color.WHITE, 0.2), 1.7), Vector3(0, 0.055, 0), Vector3.ZERO, Vector3.ONE, false)
+	Mats.part(holo, Mats.cyl(0.2, 0.2, 0.02, 24, false), Mats.glow(lens_col.lerp(Color.WHITE, 0.2), 1.3), Vector3(0, 0.055, 0), Vector3.ZERO, Vector3.ONE, false)
 	var pips := 0 if is_new else int((ArsenalData.RARITIES.get(rarity, {}) as Dictionary).get("pips", 1))
 	var inlay := Mats.glow(shell["inlay"], 2.6)
 	for i in pips:
@@ -2179,26 +2179,6 @@ static func _owner_crate(root: Node3D, weapon: String, rarity: String, is_new: b
 		for k in 8:
 			var a2 := TAU * k / 8.0
 			Mats.part(holo, Mats.crystal(0.022, 0.13), Mats.glow(Color(1.0, 0.86, 0.45), 2.6), Vector3(sin(a2) * 0.27, 0.09, cos(a2) * 0.27), Vector3(cos(a2) * 35.0, 0, -sin(a2) * 35.0), Vector3.ONE, false)
-	var cone := MeshInstance3D.new()
-	cone.name = "HoloCone"
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.34
-	cm.bottom_radius = 0.2
-	cm.height = 0.62
-	cm.radial_segments = 20
-	cm.rings = 1
-	cm.cap_top = false
-	cm.cap_bottom = false
-	cone.mesh = cm
-	var pm := ShaderMaterial.new()
-	pm.shader = PILLAR_SHADER
-	pm.set_shader_parameter("color", lens_col.lerp(Color.WHITE, 0.2))
-	pm.set_shader_parameter("noise_tex", NOISE_TEX)
-	pm.set_shader_parameter("strength", 0.45)
-	cone.material_override = pm
-	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	cone.position = Vector3(0, top + 0.37, 0)
-	root.add_child(cone)
 	Mats.bake(holo)
 	var content := Node3D.new()
 	content.name = "Content"
