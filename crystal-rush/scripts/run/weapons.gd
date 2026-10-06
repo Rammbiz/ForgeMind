@@ -633,19 +633,24 @@ func _rocket_hit(m: Dictionary, it: Dictionary, at: Vector3, dmg: float, amp: bo
 func _mortar(m: Dictionary) -> void:
 	var st: Dictionary = m["st"]
 	var ahead := float((((m["e"] as Dictionary).get("move", {})) as Dictionary).get("ahead", 12.0))
+	var r := float(st.get("radius", 1.6))
 	m["tg"] = {}
-	# The ring shows where the next shell will land: (hero x, hero d + 12).
-	m["aim"] = Vector3(run.hx, 0.0, -run.d - ahead)
+	var land := Vector3(run.hx, 0.0, -run.d - ahead)
+	# While the army fights (clash / siege) the shells fall on the foe it is locked with.
+	var foe := run.engaged()
+	if not foe.is_empty():
+		var fp := run.aim_point(foe)
+		land = Vector3(clampf(run.hx, fp.x - run.half_span(foe), fp.x + run.half_span(foe)), 0.0, fp.z - 0.6)
+	m["aim"] = land
 	if float(m["cd"]) > 0.0:
 		return
-	# Hold fire until something hostile is ahead (no shells into an empty road).
-	if run.machine_targets(run.hx, 3.5, ahead + 4.0, 1).is_empty():
+	# Fire when something hostile is under the landing ring (12 u ahead, the hero's x is the
+	# player's aim): no shells into an empty road, none that would fall short of a squad.
+	if foe.is_empty() and run.machine_targets_near(land, r + 0.4).is_empty():
 		m["cd"] = 0.0
 		return
 	m["cd"] = float(st.get("period", 2.2))
 	m["kick"] = 1.0
-	var land := Vector3(run.hx, 0.0, -run.d - ahead)
-	var r := float(st.get("radius", 1.6))
 	var tele := float(st.get("telegraph", 0.8))
 	var col := WeaponModels.glow_color("mortar")
 	run.effects.telegraph_ring(land, r, col, tele)

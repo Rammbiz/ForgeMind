@@ -1823,6 +1823,13 @@ func machine_targets_near(pos: Vector3, r: float) -> Array[Dictionary]:
 	return out
 
 
+## The squad (clash) or the fortress (siege) the army is locked with, {} otherwise.
+func engaged() -> Dictionary:
+	if (state == State.CLASH or state == State.SIEGE) and not _foe.is_empty() and _foe.get("alive", false):
+		return _foe
+	return {}
+
+
 ## Half span of an item (corridor / overlap tests).
 func half_span(it: Dictionary) -> float:
 	return _hw(it)

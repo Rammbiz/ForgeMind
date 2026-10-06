@@ -141,6 +141,8 @@ func _on_finished(won: bool, coins: int, reason: String) -> void:
 	# Arsenal (Meta-1): what the run reports to Meta.finish_run.
 	var st: Dictionary = res.get("stats", {})
 	r["profile"] = str((_run.get("profile") as Dictionary).get("profile", "")) if _run.get("profile") is Dictionary else ""
+	r["deck"] = (_run.get("profile") as Dictionary).get("deck", []) if _run.get("profile") is Dictionary else []
+	r["lead"] = str((_run.get("profile") as Dictionary).get("lead", "")) if _run.get("profile") is Dictionary else ""
 	r["crates"] = int(st.get("crates_opened", 0))
 	r["bonus"] = int(st.get("crate_bonus", 0))
 	r["rank_gates"] = int(st.get("rank_gates", 0))
