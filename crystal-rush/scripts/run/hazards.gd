@@ -572,8 +572,12 @@ func style_crate(it: Dictionary, text: String) -> void:
 		b.name = "Badge"
 		b.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		b.font = UIKit.font(true)
-		b.font_size = 64
+		b.font_size = 60
 		b.pixel_size = 0.0068
+		# Two crates of a pair stand 2.2 u apart: long names wrap instead of running together.
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.width = 270.0
+		b.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 		b.outline_size = 18
 		b.outline_modulate = Color(0.12, 0.06, 0.0)
 		b.modulate = Color(1.0, 0.86, 0.4)
