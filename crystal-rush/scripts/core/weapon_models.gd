@@ -2086,8 +2086,8 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 	var pillar := MeshInstance3D.new()
 	pillar.name = "Pillar"
 	var cm := CylinderMesh.new()
-	cm.top_radius = 0.55 if not tall else 0.42
-	cm.bottom_radius = 0.6 if not tall else 0.5
+	cm.top_radius = 0.55 if not tall else 0.34
+	cm.bottom_radius = 0.6 if not tall else 0.46
 	cm.height = 5.0 if not tall else 9.0
 	cm.radial_segments = 20
 	cm.rings = 1
@@ -2096,9 +2096,11 @@ static func crate(weapon: String, hp := 0, opts := {}) -> Node3D:
 	pillar.mesh = cm
 	var pm := ShaderMaterial.new()
 	pm.shader = PILLAR_SHADER
-	pm.set_shader_parameter("color", (Color(1, 1, 1) if tall else glow_col.lerp(Color.WHITE, 0.15)))
+	# Toned so the forecast badge and hp count stay readable through the beam under bloom
+	# (the NEW crate's pure white x2.1 washed its own label out).
+	pm.set_shader_parameter("color", (Color(0.78, 0.9, 1.0) if tall else glow_col.lerp(Color.WHITE, 0.15)))
 	pm.set_shader_parameter("noise_tex", NOISE_TEX)
-	pm.set_shader_parameter("strength", 1.7 if not tall else 2.1)
+	pm.set_shader_parameter("strength", 1.35 if not tall else 0.9)
 	pillar.material_override = pm
 	pillar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pillar.position = Vector3(0, cm.height * 0.5, 0)

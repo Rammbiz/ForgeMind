@@ -87,12 +87,12 @@ func refresh() -> void:
 	_all_btn.modulate = Color.WHITE if any else Color(1, 1, 1, 0.6)
 
 
-## The effect number alone ("+2", "+6%") for the "Далі" line.
+## The effect number alone ("+2", "+6%", "+1,5") for the "Далі" line.
 static func value_short(track: String, lvl: int) -> String:
 	var v := EconData.barracks_value(track, lvl)
 	if track in ["drill", "volleys"]:
 		return "+%d%%" % int(round(v * 100.0))
-	return "+%d" % int(round(v))
+	return "+" + _num(v)
 
 
 static func value_text(track: String, lvl: int) -> String:
@@ -101,7 +101,17 @@ static func value_text(track: String, lvl: int) -> String:
 	match track:
 		"drill", "volleys":
 			return Loc.f(str(def["desc"]), [int(round(v * 100.0))])
+	if not is_equal_approx(v, round(v)):
+		return Loc.f("BAR_RECRUITS_DESC_F", [_num(v)])
 	return Loc.f(str(def["desc"]), [int(round(v))])
+
+
+## 2 -> "2", 1.5 -> "1,5" (uk) / "1.5" (en).
+static func _num(v: float) -> String:
+	if is_equal_approx(v, round(v)):
+		return str(int(round(v)))
+	var s := "%.1f" % v
+	return s.replace(".", ",") if Loc.lang == "uk" else s
 
 
 func _row(track: String, cap: int) -> Control:

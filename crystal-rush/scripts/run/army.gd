@@ -469,9 +469,16 @@ func volley_mult() -> float:
 	return maxf(float(_army_block().get("volley_mult", 1.0)), 0.0)
 
 
-## Barracks Recruits: extra soldiers each grey recruit group brings.
+var _recruit_acc := 0.5
+
+## Barracks Recruits: extra soldiers the NEXT grey recruit group brings. The profile value is an
+## average per group (+0.5 per Barracks level); the fractions add up group by group, starting
+## rounded, so Lv1 gives +1 to every other group (call once per group).
 func recruit_bonus() -> int:
-	return maxi(int(_army_block().get("recruit_bonus", 0)), 0)
+	_recruit_acc += maxf(float(_army_block().get("recruit_bonus", 0)), 0.0)
+	var n := int(floor(_recruit_acc + 1e-6))
+	_recruit_acc -= n
+	return n
 
 
 ## Barracks Reserves (+ Glory reserves): soldiers who join at the siege.

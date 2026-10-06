@@ -54,7 +54,9 @@ const BARRACKS_EXP := 1.55
 ## Track cap = BARRACKS_CAP_BASE + BARRACKS_CAP_PER_WORLD x world reached (W1 4 ... W4+ 10).
 const BARRACKS_CAP_BASE := 2
 const BARRACKS_CAP_PER_WORLD := 2
-## Effect of each track at level L: value = per_level x L (floor(L / every) x per for "every").
+## Effect of each track at level L: value = per_level x L (per x L / every for "every": Recruits is
+## +0.5 soldier per group per level on average; the run hands the halves out alternately, so every
+## level counts).
 const BARRACKS_ORDER: Array[String] = ["recruits", "reserves", "scrape_guard", "drill", "volleys"]
 const BARRACKS := {
 	"recruits": {"name": "BAR_RECRUITS", "desc": "BAR_RECRUITS_DESC", "per": 1, "every": 2, "unit": "soldiers_per_group", "icon": "recruits"},
@@ -295,7 +297,7 @@ static func barracks_cap(world_reached: int) -> int:
 static func barracks_value(track: String, lvl: int) -> float:
 	var t: Dictionary = BARRACKS[track]
 	if t.has("every"):
-		return float(int(t["per"]) * (lvl / int(t["every"])))
+		return float(t["per"]) * float(lvl) / float(t["every"])
 	return float(t["per_level"]) * float(lvl)
 
 

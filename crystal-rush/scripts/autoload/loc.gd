@@ -455,6 +455,7 @@ const STRINGS := {
 	"RF_TO_VAULT": ["У сховище", "To the Vault"],
 	"RF_IN_VAULT": ["Чекає у сховищі", "Waiting in the Vault"],
 	"RF_EARNED": ["Здобуто", "Earned"],
+	"BAR_RECRUITS_DESC_F": ["+%s до кожної групи рекрутів (у середньому)", "+%s soldiers per recruit group (on average)"],
 }
 
 var lang := "uk"

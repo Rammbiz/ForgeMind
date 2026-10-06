@@ -56,7 +56,7 @@ static func value(acc: Dictionary, track: String) -> float:
 ## Run-ready army block (§9.4 "army").
 static func profile(acc: Dictionary) -> Dictionary:
 	return {
-		"recruit_bonus": int(value(acc, "recruits")),
+		"recruit_bonus": value(acc, "recruits"),          # average per group (halves alternate)
 		"reserves": int(value(acc, "reserves")),
 		"scrape_guard": int(value(acc, "scrape_guard")),
 		"drill": value(acc, "drill"),
