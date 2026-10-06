@@ -836,6 +836,19 @@ func prism_flash(pos: Vector3, color: Color, dir := Vector3(0, 0, -1), split := 
 		_sparks.add(pos + o * 0.2, o * 2.5, Color(1.0, 0.85, 0.95), 0.22, 0.03, 0.01, 0.0, 3.0, 0.04)
 
 
+## A beam bent by the Prism (§2.5: a beam that crosses it splits into 3 at 60%): `from` to the
+## prism, then one thinner beam per target. Call every frame like beam(); ids `id` ..
+## `id + targets.size()` are used. The prism itself flares while a beam passes.
+func refract_beam(id: int, from: Vector3, prism_pos: Vector3, targets: Array[Vector3], color: Color, on: bool, ramp := 0.0) -> void:
+	_ensure_pools()
+	beam(id, from, prism_pos, color, on, ramp)
+	for i in targets.size():
+		beam(id + 1 + i, prism_pos, targets[i], color.lerp(Color.WHITE, 0.15), on, ramp, 0.16)
+	if on:
+		var flick := 0.9 + 0.1 * sin(_time * 31.0)
+		_frame_glows.append([prism_pos, 0.7 * flick, color, 1.0, fposmod(_time * 2.0, TAU), 1.0])
+
+
 ## Mortar shell landing (§2.8 shell_arc impact): white flash, a copper dust shockwave of
 ## `radius`, flying debris, a grey smoke column and a quick ring of Stagger chevron sparks.
 func shell_impact(pos: Vector3, radius: float, color := Color(1.0, 0.8, 0.62)) -> void:

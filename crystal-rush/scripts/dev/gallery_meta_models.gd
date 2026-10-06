@@ -226,13 +226,22 @@ var _squad_at := Vector3.ZERO
 var _hero: Node3D
 
 
+## The run camera of Run._camera_goal (CAM_NEAR..CAM_FAR by the army's size).
 func _run_camera() -> void:
 	var size := get_viewport().get_visible_rect().size
 	var aspect := size.x / maxf(size.y, 1.0)
 	cam.fov = clampf(rad_to_deg(2.0 * atan(tan(deg_to_rad(20.0)) / aspect)), 50.0, 66.0)
-	var h := float(args.get("h", "8.6"))
-	cam.position = Vector3(0, h, -_d + 6.0 + (h - 8.6) * 0.8)
-	cam.look_at(Vector3(0, 0, -_d - 3.2))
+	var n := float(args.get("army", "60"))
+	var rad := sqrt(n / 30.0)
+	var rear := Balance.HERO_GAP + 2.0 * rad * Balance.BLOB_STRETCH + 0.5 + 0.9
+	var k := clampf((rear - 2.5) / 4.0, 0.0, 1.25)
+	var near := Vector3(7.6, 7.0, 3.6)
+	var far := Vector3(10.4, 12.2, 1.2)
+	var h := lerpf(near.x, far.x, k) * float(args.get("zoom", "1.0"))
+	var back := lerpf(near.y, far.y, k) * float(args.get("zoom", "1.0"))
+	var ahead := lerpf(near.z, far.z, k)
+	cam.position = Vector3(0, h, -_d + back)
+	cam.look_at(Vector3(0, 0, -_d - ahead))
 
 
 func _run_scene(firing: bool) -> void:
@@ -269,7 +278,7 @@ func _run_scene(firing: bool) -> void:
 	add_child(rmi)
 	var ids: PackedStringArray
 	if firing:
-		ids = PackedStringArray([str(args.get("id", "mortar"))])
+		ids = str(args.get("id", "mortar")).split(",")
 	else:
 		ids = str(args.get("ids", "mortar,gatling,railgun")).split(",")
 	var rank := int(args.get("rank", "1"))
@@ -314,46 +323,81 @@ func _process(delta: float) -> void:
 		_save()
 
 
-var _next := 0.0
-var _rail_t := -1.0
+var _next := {}
+var _cycle := {}
 
 
+## Fires every machine in the scene with its Meta-1 VFX (telegraphs included).
 func _shoot() -> void:
+	var dt := get_process_delta_time()
 	for m in _machines:
 		var kind := str(m.get_meta("kind"))
 		var mz := (m.get_meta("muzzle") as Node3D).global_position
 		var tgt := _squad_at + Vector3(0.2, 0.0, 0.3)
+		var col := WeaponModels.glow_color(kind)
+		var prism := _prism_pos()
 		match kind:
 			"laser":
-				fx.beam(m.get_instance_id(), mz, tgt, WeaponModels.glow_color("laser"), _t > 0.3)
+				if prism != Vector3.INF:
+					fx.refract_beam(m.get_instance_id(), mz, prism, [tgt + Vector3(-0.8, 0, 0), tgt, tgt + Vector3(0.8, 0, 0.3)] as Array[Vector3], col, _t > 0.3, 0.6)
+				else:
+					fx.beam(m.get_instance_id(), mz, tgt, col, _t > 0.3, 0.6)
 			"gatling":
-				fx.stream(m.get_instance_id(), mz, tgt, WeaponModels.glow_color("gatling"), _t > 0.2)
+				fx.stream(m.get_instance_id(), mz, tgt, col, _t > 0.2, clampf(_t, 0.0, 1.0))
 			"railgun":
-				var ch := fposmod(_t, 2.0) / 2.0
-				var dir := Vector3(0, 0, -1)
-				if ch > 0.8:
-					fx.rail_telegraph(m.get_instance_id(), Vector3(mz.x, 0.0, mz.z), dir, 22.0, WeaponModels.glow_color("railgun"), true)
-				if fposmod(_t, 2.0) < fposmod(_t - 0.016, 2.0) and _t > 0.5:
-					fx.rail_fire(mz, mz + dir * 22.0, WeaponModels.glow_color("railgun"))
+				var period := 2.4
+				var ph := fposmod(_t + 0.6, period)
+				var ch := ph / period
+				WeaponModels.set_charge(m, ch)
+				fx.rail_charge(mz, col, ch)
+				var c := int((_t + 0.6) / period)
+				if ph >= period - 0.4 and _cycle.get(m, -1) != c:
+					_cycle[m] = c
+					var d := Vector3(0, 0, -1).rotated(Vector3.UP, (m.get_meta("yaw") as Node3D).global_rotation.y)
+					fx.telegraph_rails(Vector3(mz.x, 0.0, mz.z), d, 22.0, col, 0.4)
+				if ph < dt * 1.5 and _t > 0.5:
+					var d2 := Vector3(0, 0, -1).rotated(Vector3.UP, (m.get_meta("yaw") as Node3D).global_rotation.y)
+					fx.rail_fire(mz, mz + d2 * 22.0, col)
 					_fire[m] = 1.0
-	if _t < _next:
-		return
-	_next = _t + 0.5
+			"prism":
+				pass
+			_:
+				var rate := {"mortar": 2.2, "ballista": 1.1, "cannon": 1.6, "rockets": 2.5, "drone": 0.5}.get(kind, 1.0) as float
+				if _t < float(_next.get(m, 0.15)):
+					continue
+				_next[m] = _t + rate
+				var target := _squad_at + Vector3(_rng.randf_range(-0.8, 0.8), 0.0, _rng.randf_range(-0.6, 0.6))
+				if kind == "mortar":
+					var land := Vector3(_hero.position.x, 0.0, _hero.position.z - 12.0)
+					fx.telegraph_ring(land, 1.6, col, 0.8)
+					fx.projectile(mz, land, "shell_arc", 0.8, Callable())
+				elif kind == "rockets":
+					for k in 4:
+						var off := Vector3(_rng.randf_range(-0.4, 0.4), 0, _rng.randf_range(-0.4, 0.4))
+						get_tree().create_timer(0.07 * k).timeout.connect(func() -> void:
+							fx.projectile(mz, target + off, "missile_trail", mz.distance_to(target) / 15.0, Callable()))
+				else:
+					fx.projectile(mz, target, Effects.shot_kind(kind), mz.distance_to(target) / 18.0, Callable())
+				fx.muzzle(mz, col, (target - mz).normalized())
+				_fire[m] = 1.0
+	# Hero shots through the prism (amp flash where they cross it).
+	var pp := _prism_pos()
+	if pp != Vector3.INF and _hero:
+		if _t >= float(_next.get("hero", 0.1)):
+			_next["hero"] = _t + 0.3
+			var from := _hero.global_position + Vector3(0, 0.9, -0.3)
+			var to := _squad_at + Vector3(_rng.randf_range(-0.6, 0.6), 0.2, 0)
+			var t_cross := from.distance_to(pp) / 24.0
+			fx.projectile(from, to, "bolt", from.distance_to(to) / 24.0, Callable())
+			get_tree().create_timer(t_cross).timeout.connect(func() -> void:
+				fx.prism_flash(pp, WeaponModels.glow_color("prism"), (to - from).normalized(), 1))
+
+
+func _prism_pos() -> Vector3:
 	for m in _machines:
-		var kind := str(m.get_meta("kind"))
-		if kind in ["laser", "gatling", "railgun", "prism"]:
-			continue
-		var mz := (m.get_meta("muzzle") as Node3D).global_position
-		var target := _squad_at + Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-0.8, 0.8))
-		if kind == "mortar":
-			var land := Vector3(_hero.position.x, 0.0, _hero.position.z - 12.0)
-			fx.telegraph_ring(land, 1.6, WeaponModels.glow_color("mortar"), 0.8)
-			fx.projectile(mz, land, "shell_arc", 0.8, Callable())
-		else:
-			var pk := Effects.shot_kind(kind)
-			fx.projectile(mz, target, pk, mz.distance_to(target) / 16.0, Callable())
-		fx.muzzle(mz, WeaponModels.glow_color(kind), (target - mz).normalized())
-		_fire[m] = 1.0
+		if str(m.get_meta("kind")) == "prism":
+			return (m.get_meta("muzzle") as Node3D).global_position
+	return Vector3.INF
 
 
 # ------------------------------------------------------------------ fx views
@@ -477,7 +521,7 @@ func _crates() -> void:
 		if s[2].has("bonus"):
 			WeaponModels.crate_bonus(c, 0.42)
 		_anim_extra.append(func() -> void: WeaponModels.animate(c, _t, 0.0))
-	_studio_cam(Vector3(0, 4.4, 5.6), Vector3(0, 0.9, -1.6), 50.0)
+	_studio_cam(Vector3(0, 7.6, 5.6), Vector3(0, 0.6, -1.6), 56.0)
 
 
 func _dock() -> void:

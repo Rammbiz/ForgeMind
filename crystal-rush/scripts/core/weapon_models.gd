@@ -140,6 +140,9 @@ static func _machine_body(kind: String, opts := {}) -> Node3D:
 		var hover := Node3D.new()
 		hover.name = "Hover"
 		hover.position = Vector3(0, PRISM_Y if kind == "prism" else DRONE_Y, 0)
+		if kind == "prism":
+			# The Legendary reads big: it floats alone in the hero's lane.
+			hover.scale = Vector3.ONE * 1.25
 		rig.add_child(hover)
 		hover.add_child(yaw)
 		root.set_meta("hover", hover)
@@ -1550,7 +1553,7 @@ static func _prism(ctx: Dictionary) -> void:
 	root.set_meta("prism_body", body)
 	root.set_meta("crown", crown)
 	root.set_meta("wheels", [])
-	ctx["star_y"] = PRISM_Y + 0.72
+	ctx["star_y"] = PRISM_Y + 0.9
 	var pool := MeshInstance3D.new()
 	pool.name = "LightPool"
 	pool.mesh = Mats.quad(Vector2(1.3, 1.3))
