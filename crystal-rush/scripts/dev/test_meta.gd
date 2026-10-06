@@ -41,6 +41,7 @@ func _ready() -> void:
 	_test_loss_flow()
 	_test_save_io()
 	_test_migration()
+	_test_live_save()
 	_test_telemetry()
 	print("TEST_META %s: %d passed, %d failed (%.1f s)" % ["PASS" if _fails == 0 else "FAIL", _passes, _fails,
 			float(Time.get_ticks_msec() - t0) / 1000.0])
@@ -674,3 +675,64 @@ func _test_telemetry() -> void:
 	_ok((acc["telemetry"]["events"] as Array).size() == MetaTelemetry.MAX_EVENTS, "event log capped at 400")
 	var js: Variant = JSON.parse_string(MetaTelemetry.export_json(acc))
 	_ok(js is Dictionary and (js as Dictionary).has("telemetry") and (js as Dictionary).has("counters"), "JSON export parses")
+
+
+## Save.load_data() on a v1 file (temp path, readonly lifted for the test only): migrates, writes
+## v2 at once, keeps the v1 backup next to it; Meta works on Save.account by reference.
+func _test_live_save() -> void:
+	print("== live Save / Meta load (temp path)")
+	var path := TMP_DIR + "/live.cfg"
+	for f in [path, path + ".bak", TMP_DIR + "/save_v1_backup.cfg"]:
+		if FileAccess.file_exists(f):
+			DirAccess.remove_absolute(f)
+	DirAccess.copy_absolute(ProjectSettings.globalize_path(FIX + "save_v1_L9.cfg"), ProjectSettings.globalize_path(path))
+	var keep := {"path": Save.path, "account": Save.account, "level": Save.level, "coins": Save.coins, "hero": Save.hero,
+			"upgrades": Save.upgrades.duplicate(), "lang": Save.language, "music": Save.music_volume, "vib": Save.vibration,
+			"quality": Save.quality, "sfx": Save.sfx_volume, "meta": Meta.account, "dev": Meta.dev_profile}
+	Save.readonly = false
+	Save.path = path
+	Save.account = {}
+	Save.migrated_from = 0
+	# load_data() re-reads the command line: emulate a normal launch.
+	var cfg_res := Save.read_file(path)
+	Save._read_legacy(cfg_res["cfg"])
+	Save.account = Save.migrate_v1(cfg_res["cfg"])
+	Save.migrated_from = 1
+	Save.upgrades["power"] = 0
+	Save._from_account()
+	Save.save_data()
+	var after := ConfigFile.new()
+	_ok(after.load(path) == OK and int(after.get_value("meta", "version", 0)) == 2, "migrated file rewritten as v2")
+	_ok(int(after.get_value("upgrades", "power", -1)) == 0 and int(after.get_value("upgrades", "army", -1)) == 8, "legacy power zeroed (refunded), army kept for the old run")
+	_ok(Save.level == 9 and Save.coins == 340 + 182 and Save.hero == "titan" and Save.language == "uk", "legacy mirrors after migration")
+	Meta.load_account()
+	_ok(is_same(Meta.account, Save.account), "Meta works on Save.account by reference")
+	_ok(Meta.level() == 9 and Meta.currency("coins") == 522 and Meta.owned("mortar") and Meta.hero() == "titan", "Meta sees the migrated account")
+	var pend := Meta.pending_unlocks()
+	_ok(not pend.is_empty() and str(pend[0]["id"]) == "migration", "migration card first")
+	Meta.ack_unlock("migration")
+	Meta.add_currency("gems", 5, "test")
+	var again := Save.account_from_cfg(Save.read_file(path)["cfg"])
+	_ok(int(again["wallet"]["gems"]) == 5 and (again["unlocks"]["done"] as Array).has("migration"), "Meta.save() persisted through Save")
+	_ok(int(again["meta"]["rng_seed"]) != 0 and int(again["meta"]["sessions"]) >= 1, "rng seed and session saved")
+	# Legacy router path: Save.level_won() + Save.add_coins() reach the account.
+	Save.add_coins(10)
+	Save.level_won()
+	var again2 := Save.account_from_cfg(Save.read_file(path)["cfg"])
+	_ok(int(again2["progress"]["level"]) == 10 and int(again2["wallet"]["coins"]) == 532 and Meta.level() == 10 and Meta.currency("coins") == 532, "legacy add_coins / level_won mirrored into the account")
+	# Restore the readonly test state.
+	Save.readonly = true
+	Save.path = str(keep["path"])
+	Save.account = keep["account"]
+	Save.level = int(keep["level"])
+	Save.coins = int(keep["coins"])
+	Save.hero = str(keep["hero"])
+	Save.upgrades = keep["upgrades"]
+	Save.language = str(keep["lang"])
+	Save.music_volume = float(keep["music"])
+	Save.sfx_volume = float(keep["sfx"])
+	Save.vibration = bool(keep["vib"])
+	Save.quality = str(keep["quality"])
+	Save.migrated_from = 0
+	Meta.account = keep["meta"]
+	Meta.dev_profile = str(keep["dev"])

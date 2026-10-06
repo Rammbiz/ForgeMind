@@ -20,7 +20,7 @@ signal coins_changed(coins: int)
 
 const PATH := "user://save.cfg"
 const VERSION := 2
-const V1_BACKUP := "user://save_v1_backup.cfg"
+const V1_BACKUP := "user://save_v1_backup.cfg"   ## (next to `path`)
 ## Keys of shared sections that belong to the legacy fields, not to `account`.
 const LEGACY_KEYS := {"progress": ["coins", "hero"], "settings": ["music", "sfx", "language", "quality", "vibration"]}
 
@@ -75,8 +75,9 @@ func load_data() -> void:
 	else:
 		account = migrate_v1(cfg)
 		migrated_from = 1
-		if FileAccess.file_exists(path) and not FileAccess.file_exists(V1_BACKUP):
-			DirAccess.copy_absolute(path, V1_BACKUP)
+		var v1 := path.get_base_dir().path_join(V1_BACKUP.get_file())
+		if FileAccess.file_exists(path) and not FileAccess.file_exists(v1):
+			DirAccess.copy_absolute(path, v1)
 		upgrades["power"] = 0        # refunded in coins by the migration
 	_from_account()
 	if migrated_from == 1:
