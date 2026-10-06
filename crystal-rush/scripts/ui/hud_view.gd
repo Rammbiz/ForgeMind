@@ -54,6 +54,7 @@ var _hint_lbl: Label
 var _hint_badge: IconBadge
 var _hint_tw: Tween
 var _hint_key := ""
+var _hint_hold := false
 var _toasts: VBoxContainer
 var _big_toast: Label
 var _big_tw: Tween
@@ -336,7 +337,7 @@ func show_hint(key: String) -> void:
 	if ik == "":
 		ik = ult_icon if key == "HINT_ULT" else "star"
 	_hint_badge.set_icon(ik)
-	_hint.visible = true
+	_hint.visible = not _hint_hold
 	_place_hint()
 	var y := _hint.position.y
 	_hint.modulate.a = 0.0
@@ -486,6 +487,8 @@ func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 	var vp := get_viewport_rect().size
 	_card.reset_size()
 	_card.position = Vector2((vp.x - _card.size.x) * 0.5, maxf(vp.y * 0.29 - _card.size.y * 0.5, 160.0 + insets.y))
+	# The card stands where the tutorial banner sits: the banner steps aside while it is up.
+	_hold_hint(true)
 	_card.pivot_offset = _card.size * 0.5
 	var card := _card
 	var target_slot := _slots[slot_i]
@@ -512,7 +515,15 @@ func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 		target_slot.flash()
 		if _card == card:
 			_card = null
+			_hold_hint(false)
 		card.queue_free())
+
+
+## Hides the tutorial banner while a machine card is up (its own tween keeps running).
+func _hold_hint(on: bool) -> void:
+	_hint_hold = on
+	if _hint:
+		_hint.visible = not on and _hint_key != ""
 
 
 static func _vivid(c: Color) -> Color:

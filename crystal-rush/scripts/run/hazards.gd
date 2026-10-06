@@ -539,7 +539,8 @@ func _crate_node(it: Dictionary) -> Node3D:
 	var l := c.get_meta("label") as Label3D
 	if l:
 		l.no_depth_test = true
-		l.render_priority = 5
+		l.render_priority = 7
+		l.outline_render_priority = 6
 		l.outline_size = 22
 	return c
 
@@ -588,7 +589,10 @@ func style_crate(it: Dictionary, text: String) -> void:
 		b.outline_modulate = Color(0.12, 0.06, 0.0)
 		b.modulate = Color(1.0, 0.86, 0.4)
 		b.no_depth_test = true
-		b.render_priority = 5
+		# Above the gate labels (3) with its own outline too, so a gate row behind the crate
+		# never prints through the forecast name.
+		b.render_priority = 9
+		b.outline_render_priority = 8
 		b.position = Vector3(0, 2.46, 0)
 		c.add_child(b)
 		c.set_meta("badge", b)
