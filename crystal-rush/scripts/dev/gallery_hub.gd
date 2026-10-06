@@ -165,8 +165,8 @@ func _shot_step(s: String) -> void:
 			await _shot("hub_beat")
 			await _wait(2.5)
 		"unlock":
-			_close_modals()
-			hub.call("_show_pending_unlocks")
+			if not hub.has_modal():
+				hub.call("_show_pending_unlocks")
 			await _wait(1.2)
 			await _shot("hub_unlock")
 

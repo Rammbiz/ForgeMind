@@ -279,6 +279,13 @@ func push_modal(c: Control, sticky := false) -> void:
 func pop_modal() -> void:
 	if _modals.is_empty():
 		return
+	var top: Control = _modals.back()
+	var top_c: Control = top.get_meta("content")
+	# Closing an unlock card (Android back) still counts as seen: ack it through its own path.
+	if top_c is UnlockCard and not bool(top_c.get_meta("acked", false)):
+		top_c.set_meta("acked", true)
+		(top_c as UnlockCard).done.emit()
+		return
 	var holder: Control = _modals.pop_back()
 	var c: Control = holder.get_meta("content")
 	var tw: Tween = null
@@ -417,6 +424,7 @@ func _show_pending_unlocks() -> void:
 	var u: Dictionary = list[0]
 	var card := UnlockCard.new(u)
 	card.done.connect(func():
+		card.set_meta("acked", true)
 		Meta.ack_unlock(str(u.get("id", "")))
 		pop_modal()
 		_refresh_locks()

@@ -805,23 +805,18 @@ static func _meta_icon(ci: CanvasItem, k: String, r: Rect2, tint: Color) -> bool
 			_rr(ci, Rect2(_p(r, 0.42, 0.4), Vector2(0.16, 0.2) * w), w * 0.03, Color(1.0, 0.9, 0.5) * tint)
 			ci.draw_line(_p(r, 0.2, 0.26), _p(r, 0.42, 0.18), Color(1, 1, 1, 0.45) * tint, w * 0.035)
 		"tab_arsenal":
-			# A plasma cannon on a gold cog: "machines".
-			for i in 8:
-				var aa6 := TAU * i / 8.0
+			# The plasma cannon on a gold cog: "machines".
+			for i in 10:
+				var aa6 := TAU * i / 10.0
 				var dd := Vector2(cos(aa6), sin(aa6))
-				ci.draw_line(_p(r, 0.36, 0.64) + dd * w * 0.2, _p(r, 0.36, 0.64) + dd * w * 0.34, INK, w * 0.13 + ow * 2.0)
-			for i in 8:
-				var aa7 := TAU * i / 8.0
+				ci.draw_line(_p(r, 0.34, 0.68) + dd * w * 0.18, _p(r, 0.34, 0.68) + dd * w * 0.3, INK, w * 0.1 + ow * 2.0)
+			for i in 10:
+				var aa7 := TAU * i / 10.0
 				var dd2 := Vector2(cos(aa7), sin(aa7))
-				ci.draw_line(_p(r, 0.36, 0.64) + dd2 * w * 0.2, _p(r, 0.36, 0.64) + dd2 * w * 0.33, gold, w * 0.13)
-			_disc(ci, _p(r, 0.36, 0.64), w * 0.24, gold, ow)
-			ci.draw_circle(_p(r, 0.36, 0.64), w * 0.1, gold_d)
-			var a2 := _p(r, 0.4, 0.58)
-			var b2 := _p(r, 0.84, 0.18)
-			_stroke(ci, a2, b2, w * 0.2, white, ow, false)
-			_stroke(ci, a2, b2, w * 0.2, white, ow)
-			_glow(ci, _p(r, 0.88, 0.14), w * 0.18, Color(0.8, 0.55, 1.0, 0.9) * tint)
-			_disc(ci, _p(r, 0.88, 0.14), w * 0.08, Color(0.75, 0.55, 1.0) * tint, ow * 0.7)
+				ci.draw_line(_p(r, 0.34, 0.68) + dd2 * w * 0.18, _p(r, 0.34, 0.68) + dd2 * w * 0.29, gold, w * 0.1)
+			_disc(ci, _p(r, 0.34, 0.68), w * 0.2, gold, ow)
+			ci.draw_circle(_p(r, 0.34, 0.68), w * 0.08, gold_d)
+			draw_icon(ci, "cannon", Rect2(r.position + Vector2(w * 0.12, -w * 0.06), r.size * 0.9), tint)
 		"tab_play":
 			draw_icon(ci, "swords", r, tint)
 		"tab_heroes", "helmet":
