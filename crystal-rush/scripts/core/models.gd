@@ -50,6 +50,7 @@ const STAIRS_COLORS: Array[Color] = [Color(0.18, 0.5, 1.0), Color(0.58, 0.28, 1.
 const GATE_H := 2.2
 const GATE_ASSET_SHADER := preload("res://shaders/gate_asset.gdshader")
 const CRYSTAL_ASSET_SHADER := preload("res://shaders/crystal_asset.gdshader")
+const EMBER_ASSET_SHADER := preload("res://shaders/ember_asset.gdshader")
 ## The owner's turret GLB: the dome and barrel (above 59.5% of its height) turn on the base;
 ## its barrel points along -X in the model, so the moving part is turned to face +Z.
 const TURRET_SPLIT := 0.595
@@ -211,7 +212,10 @@ static func _split_asset(key: String, fit: AABB, split: float) -> Dictionary:
 ## Gives every mesh under an asset `shader` (gate_asset / crystal_asset) with the mesh's own
 ## albedo and normal textures, so its crystals take `color`.
 static func _recolor_asset(node: Node3D, shader: Shader, color: Color) -> void:
-	for mi in node.find_children("*", "MeshInstance3D", true, false):
+	var meshes: Array[Node] = node.find_children("*", "MeshInstance3D", true, false)
+	if node is MeshInstance3D:
+		meshes.append(node)
+	for mi in meshes:
 		var m := mi as MeshInstance3D
 		if m.mesh == null:
 			continue
@@ -1467,6 +1471,8 @@ static func turret() -> Node3D:
 	var over: Node3D = null
 	if not split.is_empty():
 		over = split["base"]
+		_recolor_asset(over, EMBER_ASSET_SHADER, Color.WHITE)
+		_recolor_asset(split["top"], EMBER_ASSET_SHADER, Color.WHITE)
 		root.add_child(over)
 		head.position = split["pivot"]
 		var top := split["top"] as Node3D
@@ -1591,6 +1597,7 @@ static func fortress(width: float, hp: int) -> Node3D:
 	var over := asset("fortress", AABB(Vector3(-tower_x - 1.3, 0, -3.5), Vector3((tower_x + 1.3) * 2.0, 10.0, 4.7)))
 	var points: Array[Vector3] = []
 	if over:
+		_recolor_asset(over, EMBER_ASSET_SHADER, Color.WHITE)
 		root.add_child(over)
 		for i in 8:
 			points.append(Vector3(randf_range(-w * 0.5, w * 0.5), randf_range(1.0, 4.0), 1.2))
