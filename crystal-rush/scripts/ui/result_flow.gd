@@ -420,13 +420,19 @@ func _step_stats() -> void:
 	var i := 0
 	for n: Control in [_stats.get_child(0)] + _crowns:
 		var c := n
-		_at(i * 0.08, func():
+		_at(i * UITokens.STAGGER + i * 0.01, func():
 			c.modulate.a = 1.0
-			UIJuice.pop(c, 0.0, 0.28, 0.5)
 			if c is CrownSlot and (c as CrownSlot).on:
+				# Crowns stamp in (2x -> 1x, back easing); a new best adds a thud and sparks.
+				c.pivot_offset = c.size * 0.5
+				c.scale = Vector2(2.0, 2.0)
+				c.create_tween().tween_property(c, "scale", Vector2.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 				Audio.note(7 + _crowns.find(c) * 2, -9.0)
 				if (c as CrownSlot).fresh:
-					UIKit.sparkles(root, c.get_global_rect().get_center(), UIKit.GOLD_LIGHT, 14, 120.0))
+					UIJuice.haptic("THUD", 0.6)
+					UIKit.sparkles(root, c.get_global_rect().get_center(), UIKit.GOLD_LIGHT, 14, 120.0)
+			else:
+				UIJuice.pop(c, 0.0, 0.28, 0.5))
 		i += 1
 	_at(0.1 + i * 0.08, _step_rewards)
 

@@ -10,8 +10,8 @@ extends Node
 ##   walkout_altar  a NEW machine card walking out on the Altar
 ##   inline       the inline Stone reveal (present, burst, cards)
 ##   walkout      the result-flow NEW machine walkout (silhouette, light, name)
-##   win          the win result flow over a still backdrop (no run)
-##   loss         the loss screen
+##   stages       tell, heavy crack and burst for Common, Rare, Epic and Legendary
+## The win result flow and the loss screen run over a real run: main.gd `-- --loop`.
 
 var out_dir := "/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d101a978/scratchpad/rshots/ws5"
 var shots: Array[String] = ["altar"]
@@ -32,7 +32,6 @@ func _ready() -> void:
 				shots.clear()
 				for s in v.split(",", false):
 					shots.append(s)
-	printerr("GA start")
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	Save.readonly = true
 	Save.level = level
@@ -40,14 +39,11 @@ func _ready() -> void:
 	var acc := Meta.synthetic_account(level, "expected")
 	(acc["wallet"] as Dictionary)["coins"] = 2480
 	Meta.account = acc
-	printerr("GA acc")
 	MachineThumbs.service(get_tree())
 	await get_tree().process_frame
 	for id in ArsenalData.live_ids():
 		MachineThumbs.get_thumb(self, id, false)
-	printerr("GA wait")
 	await _wait(1.5)
-	printerr("GA waited")
 	for s in shots:
 		await _run_shot(s)
 	print("GALLERY_ALTAR done ", _n)
@@ -111,9 +107,7 @@ func _clear() -> void:
 
 
 func _run_shot(s: String) -> void:
-	printerr("GA shot ", s)
 	await _clear()
-	printerr("GA cleared")
 	match s:
 		"altar":
 			var a := _altar(world_rev("E"))
@@ -232,36 +226,6 @@ func _run_shot(s: String) -> void:
 			await _snap("walkout_3_name")
 			await _wait(0.75)
 			await _snap("walkout_4_volley")
-		"probe":
-			var t0 := Time.get_ticks_msec()
-			HubShowcase.owner_dais(1.5)
-			printerr("GA dais ms ", Time.get_ticks_msec() - t0)
-			t0 = Time.get_ticks_msec()
-			var e := EggView.new("stone")
-			printerr("GA egg ms ", Time.get_ticks_msec() - t0)
-			t0 = Time.get_ticks_msec()
-			add_child(e)
-			printerr("GA egg add ms ", Time.get_ticks_msec() - t0)
-			await get_tree().process_frame
-			printerr("GA frame")
-			await _wait(0.3)
-			printerr("GA waited 0.3")
-		"probe2":
-			var bg := _backdrop()
-			printerr("GA bg")
-			await _wait(0.3)
-			printerr("GA bg waited")
-			var w := Walkout.new()
-			w.setup("railgun", true)
-			printerr("GA w new")
-			bg.add_child(w)
-			printerr("GA w added")
-			await get_tree().process_frame
-			printerr("GA w frame")
-			await _wait(0.3)
-			printerr("GA w waited")
-		"win", "loss":
-			pass
 
 
 func _until_idle(a: CacheAltar) -> void:

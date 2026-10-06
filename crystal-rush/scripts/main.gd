@@ -122,6 +122,17 @@ func make_play(level: int, hero: String) -> Node:
 	return holder
 
 
+## The Best-upgrade row's target: a machine opens its detail in the Arsenal, a hero the
+## Heroes tab, a Barracks track the Barracks tab.
+func open_best(id: String) -> void:
+	if ArsenalData.MACHINES.has(id):
+		show_hub("arsenal", id)
+	elif EconData.BARRACKS.has(id):
+		show_hub("barracks")
+	else:
+		show_hub("heroes")
+
+
 ## The run ended: book it exactly once (Meta.finish_run pays, saves and returns the bundle),
 ## then the win ResultFlow or the LossScreen over the run (autotest books but shows nothing).
 func _on_run_finished(holder: Node, won: bool) -> void:
@@ -145,7 +156,7 @@ func _on_run_finished(holder: Node, won: bool) -> void:
 		flow.setup(bundle, res)
 		flow.next.connect(func(): show_hub("play"))
 		flow.altar.connect(func(index: int): open_altar(index))
-		flow.upgrade.connect(func(id: String): show_hub("arsenal", id))
+		flow.upgrade.connect(open_best)
 		holder.add_child(flow)
 		holder.set_meta("flow", flow)
 	else:
