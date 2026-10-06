@@ -421,7 +421,8 @@ static func set_ascended(node: Node3D, on: bool, branch := "a") -> void:
 		mat.shader = SHEEN_SHADER
 		var c := glow_color(str(node.get_meta("kind", "")))
 		mat.set_shader_parameter("color", c)
-		mat.set_shader_parameter("strength", 0.9)
+		mat.set_shader_parameter("strength", 1.3)
+		mat.set_shader_parameter("rim_power", 1.3)
 	_overlay(rig, mat)
 
 
@@ -691,7 +692,8 @@ static func _p(parent: Node3D, mesh: Mesh, key: String, pos := Vector3.ZERO, rot
 # ------------------------------------------------------------------ family chassis
 
 ## Shared rear step the crew stands on, and the rear deck crystals (team signature).
-static func _rear(ctx: Dictionary, z_end: float, y: float, half: float) -> void:
+## The family emblem on the hull's rear face (the face the run camera sees): `y` its height.
+static func _rear(ctx: Dictionary, z_end: float, y: float, half: float, emblem_y := -1.0) -> void:
 	var rig: Node3D = ctx["rig"]
 	_p(rig, bevel_box(Vector3(0.36, 0.035, 0.15), 0.012), "pearl", Vector3(0, y, z_end + 0.07))
 	_p(rig, bevel_box(Vector3(0.38, 0.02, 0.02), 0.006), "gold", Vector3(0, y + 0.02, z_end + 0.145))
@@ -699,7 +701,41 @@ static func _rear(ctx: Dictionary, z_end: float, y: float, half: float) -> void:
 		_p(rig, bevel_box(Vector3(0.03, 0.12, 0.03), 0.008), "gold", Vector3(0.17 * sx, y - 0.06, z_end + 0.02))
 	ctx["step_z"] = z_end + 0.07
 	ctx["step_y"] = y + 0.018
+	ctx["crew_x"] = 0.1
 	ctx["half"] = half
+	_emblem(rig, _family(str(ctx["kind"])), Vector3(-0.12, emblem_y if emblem_y > 0.0 else y + 0.09, z_end + 0.012), 1.0)
+
+
+## Family glyph on a gold-rimmed navy plate facing +Z (§2.1 glyphs: Kinetic chevron, Volt
+## bolt, Plasma orb, Tech reticle; Frost / Rune / Rift fall back to a crystal).
+static func _emblem(parent: Node3D, fam: String, pos: Vector3, k: float) -> void:
+	var acc := "acc_" + fam
+	_p(parent, Mats.cyl(0.075 * k, 0.075 * k, 0.02, 12, false), "gold", pos, Vector3(90, 0, 0))
+	_p(parent, Mats.cyl(0.062 * k, 0.062 * k, 0.024, 12, false), "navy", pos + Vector3(0, 0, 0.002), Vector3(90, 0, 0))
+	var f := pos + Vector3(0, 0, 0.016)
+	match fam:
+		"kinetic":
+			for sx: float in [-1.0, 1.0]:
+				_p(parent, Mats.box(Vector3(0.062 * k, 0.018 * k, 0.012)), acc, f + Vector3(0.021 * sx, 0.0, 0) * k, Vector3(0, 0, 38.0 * sx))
+			for sx: float in [-1.0, 1.0]:
+				_p(parent, Mats.box(Vector3(0.05 * k, 0.014 * k, 0.012)), acc, f + Vector3(0.017 * sx, -0.028, 0) * k, Vector3(0, 0, 38.0 * sx))
+		"plasma":
+			_p(parent, Mats.torus(0.03 * k, 0.04 * k, 14, 4), acc, f, Vector3(90, 0, 0))
+			_p(parent, Mats.sphere(0.018 * k, -1, 8, 4), acc, f)
+		"tech":
+			_p(parent, Mats.torus(0.026 * k, 0.034 * k, 14, 4), acc, f, Vector3(90, 0, 0))
+			for q in 4:
+				var a := TAU * q / 4.0
+				_p(parent, Mats.box(Vector3(0.008, 0.02, 0.01) * k), acc, f + Vector3(cos(a), sin(a), 0) * 0.044 * k, Vector3(0, 0, rad_to_deg(a) + 90.0))
+			_p(parent, Mats.sphere(0.008 * k, -1, 6, 3), acc, f)
+		"volt":
+			var pts: Array[Vector3] = [Vector3(0.018, 0.04, 0), Vector3(-0.008, 0.002, 0), Vector3(0.01, -0.004, 0), Vector3(-0.016, -0.042, 0)]
+			for i in pts.size() - 1:
+				var a2 := pts[i] * k
+				var b2 := pts[i + 1] * k
+				_p(parent, Mats.box(Vector3(0.016 * k, a2.distance_to(b2) + 0.008, 0.012)), acc, f + (a2 + b2) * 0.5, Vector3(0, 0, rad_to_deg(atan2(b2.x - a2.x, a2.y - b2.y))))
+		_:
+			_p(parent, Mats.crystal(0.025 * k, 0.08 * k), acc, f)
 
 
 ## Kinetic: a bevelled white cart on four spoked wheels, copper side armour with rivets, a
@@ -722,7 +758,7 @@ static func _chassis_kinetic(ctx: Dictionary) -> void:
 	for sx: float in [-1.0, 1.0]:
 		_p(rig, Mats.crystal(0.04, 0.16), "ice", Vector3(0.2 * sx, 0.47, 0.33))
 	_wheels(ctx, [-0.27, 0.27], 0.33, WHEEL_R, "copper")
-	_rear(ctx, 0.43, 0.235, 0.28)
+	_rear(ctx, 0.43, 0.235, 0.28, 0.33)
 	ctx["deck"] = 0.44
 
 
@@ -761,7 +797,7 @@ static func _chassis_plasma(ctx: Dictionary) -> void:
 	pool.set_meta("no_sheen", true)
 	rig.add_child(pool)
 	ctx["rig_body"] = body
-	_rear(ctx, 0.44, 0.2, 0.33)
+	_rear(ctx, 0.455, 0.2, 0.33, 0.33)
 	# The step hangs from the floating pod.
 	for ch in rig.get_children():
 		if ch is MeshInstance3D and ch != pool:
@@ -807,7 +843,7 @@ static func _chassis_tech(ctx: Dictionary) -> void:
 	_p(rig, Mats.cyl(0.012, 0.016, 0.42, 6), "navy", Vector3(-0.14, 0.58, 0.3))
 	_p(rig, Mats.sphere(0.03, -1, 8, 4), "acc_tech", Vector3(-0.14, 0.8, 0.3))
 	_p(rig, Mats.crystal(0.04, 0.15), "ice", Vector3(0.14, 0.45, 0.3))
-	_rear(ctx, 0.43, 0.24, 0.33)
+	_rear(ctx, 0.43, 0.24, 0.33, 0.3)
 	ctx["deck"] = 0.43
 
 
@@ -837,7 +873,7 @@ static func _chassis_volt(ctx: Dictionary) -> void:
 		_p(rig, Mats.box(Vector3(0.022, a.distance_to(b) + 0.012, 0.02)), "acc_volt", mid, Vector3(0, 0, ang))
 	_p(rig, Mats.cyl(0.19, 0.225, 0.05, 20, false), "gold", Vector3(0, 0.375, -0.02))
 	_wheels(ctx, [-0.36, 0.0, 0.36], 0.29, 0.13, "gold")
-	_rear(ctx, 0.51, 0.215, 0.26)
+	_rear(ctx, 0.51, 0.215, 0.26, 0.28)
 	ctx["deck"] = 0.4
 	ctx["star_y"] = 1.0
 
@@ -915,7 +951,7 @@ static func _crew(ctx: Dictionary) -> void:
 	var crew := Node3D.new()
 	crew.name = "Crew"
 	var y0 := float(ctx.get("step_y", 0.25))
-	crew.position = Vector3(0, y0, float(ctx.get("step_z", 0.5)))
+	crew.position = Vector3(float(ctx.get("crew_x", 0.0)), y0, float(ctx.get("step_z", 0.5)))
 	crew.set_meta("y0", y0)
 	rig.add_child(crew)
 	var parts: Array[MeshInstance3D] = []
@@ -1298,15 +1334,18 @@ static func _railgun(ctx: Dictionary) -> void:
 	_p(yaw, bevel_box(Vector3(0.26, 0.1, 0.34), 0.03), "white", Vector3(0, 0.09, 0.08))
 	for sx: float in [-1.0, 1.0]:
 		_p(yaw, bevel_box(Vector3(0.012, 0.04, 0.24), 0.004), "acc_volt", Vector3(0.132 * sx, 0.09, 0.08))
+	# Two rails: navy cores under white caps with gold edges; the orchid charge lines run along
+	# the inner top edges (seen from the run camera).
 	for sx: float in [-1.0, 1.0]:
-		_p(recoil, bevel_box(Vector3(0.06, 0.09, 1.04), 0.02), "white", Vector3(0.088 * sx, 0.2, -0.26))
-		_p(recoil, bevel_box(Vector3(0.064, 0.016, 0.98), 0.005), "gold", Vector3(0.088 * sx, 0.252, -0.27))
-		Mats.part(charge, Mats.box(Vector3(0.012, 0.05, 0.92)), _mat("acc_volt"), Vector3(0.055 * sx, 0.2, -0.3))
-	for z: float in [-0.08, -0.38, -0.66]:
-		_p(recoil, bevel_box(Vector3(0.27, 0.035, 0.06), 0.01), "gold", Vector3(0, 0.27, z))
-		_p(recoil, bevel_box(Vector3(0.27, 0.035, 0.06), 0.01), "gold", Vector3(0, 0.13, z))
-		for sx: float in [-1.0, 1.0]:
-			_p(recoil, bevel_box(Vector3(0.03, 0.17, 0.06), 0.01), "gold", Vector3(0.135 * sx, 0.2, z))
+		_p(recoil, bevel_box(Vector3(0.06, 0.08, 1.06), 0.02), "navy", Vector3(0.09 * sx, 0.19, -0.27))
+		_p(recoil, bevel_box(Vector3(0.075, 0.035, 1.02), 0.012), "white", Vector3(0.09 * sx, 0.24, -0.27))
+		_p(recoil, bevel_box(Vector3(0.012, 0.012, 0.98), 0.004), "gold", Vector3(0.128 * sx, 0.255, -0.27))
+		Mats.part(charge, Mats.box(Vector3(0.016, 0.014, 0.94)), _mat("acc_volt"), Vector3(0.055 * sx, 0.255, -0.29))
+		Mats.part(charge, Mats.box(Vector3(0.01, 0.05, 0.9)), _mat("acc_volt"), Vector3(0.058 * sx, 0.19, -0.3))
+		# Muzzle tips.
+		_p(recoil, bevel_box(Vector3(0.085, 0.1, 0.06), 0.02), "gold", Vector3(0.09 * sx, 0.21, -0.79))
+	for z: float in [-0.12, -0.5]:
+		_p(recoil, Mats.torus(0.15, 0.185, 20, 5), "gold", Vector3(0, 0.21, z), Vector3(90, 0, 0), Vector3(1.0, 0.75, 1.0))
 	# Capacitor bank.
 	_p(recoil, bevel_box(Vector3(0.26, 0.16, 0.24), 0.04), "white", Vector3(0, 0.2, 0.22))
 	_p(recoil, bevel_box(Vector3(0.27, 0.02, 0.25), 0.006), "gold", Vector3(0, 0.12, 0.22))
@@ -1450,9 +1489,20 @@ static func _prism(ctx: Dictionary) -> void:
 	var body := Node3D.new()
 	body.name = "Body"
 	recoil.add_child(body)
-	Mats.part(body, Mats.crystal(0.21, 0.62), Mats.glow(Color(1.0, 0.8, 0.92), 1.5), Vector3.ZERO, Vector3.ZERO, Vector3.ONE, false)
-	Mats.part(body, Mats.crystal(0.11, 0.4), Mats.glow(Color(1.0, 0.96, 1.0), 3.2), Vector3.ZERO, Vector3(0, 30, 0), Vector3.ONE, false)
+	# A glass diamond (see-through rose facets) round a white-hot core, caged by gold edges.
+	var glass := Mats.part(body, Mats.crystal(0.21, 0.62), _prism_glass(), Vector3.ZERO, Vector3.ZERO, Vector3.ONE, false)
+	glass.set_meta("no_bake", true)
+	Mats.part(body, Mats.crystal(0.1, 0.36), Mats.glow(Color(1.0, 0.86, 0.96), 3.4), Vector3.ZERO, Vector3(0, 30, 0), Vector3.ONE, false)
 	_p(body, Mats.torus(0.2, 0.235, 6, 4), "gold", Vector3.ZERO, Vector3(0, 30, 0))
+	for k in 6:
+		var a0 := deg_to_rad(30.0 + 60.0 * k)
+		var eq := Vector3(cos(a0) * 0.21, 0, sin(a0) * 0.21)
+		for tip: Vector3 in [Vector3(0, 0.31, 0), Vector3(0, -0.31, 0)]:
+			var bar := MeshInstance3D.new()
+			bar.mesh = Mats.box(Vector3(0.014, 0.014, eq.distance_to(tip)))
+			bar.material_override = _mat("gold")
+			body.add_child(bar)
+			bar.transform = Transform3D(Basis.looking_at(tip - eq, Vector3.UP if absf((tip - eq).normalized().y) < 0.99 else Vector3.RIGHT), (eq + tip) * 0.5)
 	_p(body, Mats.cyl(0.0, 0.05, 0.1, 6), "gold", Vector3(0, 0.33, 0))
 	_p(body, Mats.cyl(0.05, 0.0, 0.1, 6), "gold", Vector3(0, -0.33, 0))
 	for k in 6:
@@ -1509,6 +1559,25 @@ static func _prism(ctx: Dictionary) -> void:
 	pool.position = Vector3(0, 0.025, 0)
 	pool.set_meta("no_sheen", true)
 	rig.add_child(pool)
+
+
+static func _prism_glass() -> StandardMaterial3D:
+	if _mats.has("prism_glass"):
+		return _mats["prism_glass"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.7, 0.88, 0.5)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.06
+	m.metallic = 0.3
+	m.metallic_specular = 0.9
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.3, 0.62)
+	m.emission_energy_multiplier = 0.45
+	m.rim_enabled = true
+	m.rim = 0.6
+	m.rim_tint = 0.2
+	_mats["prism_glass"] = m
+	return m
 
 
 ## Meta-2 / unknown machines: a family-accent crystal on a turret (keeps every id drawable).

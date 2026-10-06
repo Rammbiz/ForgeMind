@@ -37,6 +37,6 @@ void fragment() {
 	float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float rim = (1.0 - facing) * (1.0 - facing);
 	vec3 em = seam_color.rgb * seam * seam_line * 2.0;
-	em += tell_color.rgb * tell * (crack * 2.6 + wall * 2.2 + rim * 0.25);
+	em += tell_color.rgb * tell * (crack * 1.5 + wall * 1.4 + rim * 0.3);
 	EMISSION = em;
 }

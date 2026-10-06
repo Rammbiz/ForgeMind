@@ -28,11 +28,11 @@ const BEAM_SHADER := preload("res://shaders/rarity_beam.gdshader")
 const SHEEN_SHADER := preload("res://shaders/rarity_sheen.gdshader")
 ## Egg size per type (height, radius) and its looks.
 const TYPES := {
-	"stone": {"h": 0.95, "r": 0.4, "base": Color(0.46, 0.52, 0.64), "base2": Color(0.3, 0.34, 0.45), "gem": Color(0.26, 0.56, 1.0),
+	"stone": {"h": 1.04, "r": 0.37, "base": Color(0.46, 0.52, 0.64), "base2": Color(0.3, 0.34, 0.45), "gem": Color(0.26, 0.56, 1.0),
 		"seam": 0.0, "seam_color": Color(0.3, 0.6, 1.0), "rough": 0.55, "metal": 0.1, "rings": 1},
-	"world": {"h": 1.1, "r": 0.47, "base": Color(0.2, 0.19, 0.27), "base2": Color(0.1, 0.1, 0.15), "gem": Color(0.74, 0.42, 1.0),
+	"world": {"h": 1.2, "r": 0.43, "base": Color(0.2, 0.19, 0.27), "base2": Color(0.1, 0.1, 0.15), "gem": Color(0.74, 0.42, 1.0),
 		"seam": 0.9, "seam_color": Color(0.72, 0.38, 1.0), "rough": 0.4, "metal": 0.2, "rings": 2},
-	"royal": {"h": 1.2, "r": 0.5, "base": Color(0.08, 0.08, 0.12), "base2": Color(0.03, 0.03, 0.05), "gem": Color(1.0, 0.74, 0.25),
+	"royal": {"h": 1.28, "r": 0.46, "base": Color(0.08, 0.08, 0.12), "base2": Color(0.03, 0.03, 0.05), "gem": Color(1.0, 0.74, 0.25),
 		"seam": 1.0, "seam_color": Color(1.0, 0.72, 0.25), "rough": 0.2, "metal": 0.4, "rings": 3},
 	"xray": {"h": 1.0, "r": 0.44, "base": Color(0.9, 0.88, 0.97), "base2": Color(0.74, 0.8, 0.92), "gem": Color(0.8, 0.95, 1.0),
 		"seam": 0.5, "seam_color": Color(0.85, 0.75, 1.0), "rough": 0.15, "metal": 0.3, "rings": 1},
@@ -258,8 +258,12 @@ static func _chunk_mesh(h: float, r: float, band: int, phi0: float, phi1: float,
 			var eb := float(edge[i + 1][k])
 			var ec := float(edge[i + 1][k + 1])
 			var ed := float(edge[i][k + 1])
-			_tri(st, [a, b, c], [ea, eb, ec], (a + b + c) / 3.0 - centre, rest_c, 0.0)
-			_tri(st, [a, c, d], [ea, ec, ed], (a + c + d) / 3.0 - centre, rest_c, 0.0)
+			var na := _egg_normal(a, centre, r, h)
+			var nb := _egg_normal(b, centre, r, h)
+			var nc := _egg_normal(c, centre, r, h)
+			var nd := _egg_normal(d, centre, r, h)
+			_tri(st, [a, b, c], [ea, eb, ec], (a + b + c) / 3.0 - centre, rest_c, 0.0, [na, nb, nc])
+			_tri(st, [a, c, d], [ea, ec, ed], (a + c + d) / 3.0 - centre, rest_c, 0.0, [na, nc, nd])
 			var ai: Vector3 = inner[i][k]
 			var bi: Vector3 = inner[i + 1][k]
 			var ci: Vector3 = inner[i + 1][k + 1]
@@ -299,9 +303,18 @@ static func _chunk_mesh(h: float, r: float, band: int, phi0: float, phi1: float,
 	return {"mesh": mesh, "centroid": cen, "normal": (mid_o - centre).normalized(), "top": mid_o}
 
 
-## Adds a flat-shaded triangle facing `want` (re-wound if needed), positions relative to
-## `rest_c`, with the shell shader's UV data (edge distance, rest position) and wall flag.
-static func _tri(st: SurfaceTool, p: Array, e: Array, want: Vector3, rest_c: Vector3, wall: float) -> void:
+## Smooth outward normal of the egg at `p` (ellipsoid gradient; polished stone, not facets).
+static func _egg_normal(p: Vector3, centre: Vector3, r: float, h: float) -> Vector3:
+	var q := p - centre
+	var hy := h * 0.5
+	var n := Vector3(q.x / (r * r), q.y / (hy * hy), q.z / (r * r))
+	return n.normalized() if n.length_squared() > 1e-9 else Vector3.UP
+
+
+## Adds a triangle facing `want` (re-wound if needed), positions relative to `rest_c`, with the
+## shell shader's UV data (edge distance, rest position) and wall flag. Flat-shaded unless
+## per-vertex `normals` are given.
+static func _tri(st: SurfaceTool, p: Array, e: Array, want: Vector3, rest_c: Vector3, wall: float, normals: Array = []) -> void:
 	var a: Vector3 = p[0]
 	var b: Vector3 = p[1]
 	var c: Vector3 = p[2]
@@ -316,7 +329,7 @@ static func _tri(st: SurfaceTool, p: Array, e: Array, want: Vector3, rest_c: Vec
 	# Godot's front faces wind clockwise seen from the outside.
 	for idx: int in order:
 		var v: Vector3 = p[idx]
-		st.set_normal(n)
+		st.set_normal(n if normals.is_empty() else normals[idx])
 		st.set_color(Color(1, 1, 1, wall))
 		st.set_uv(Vector2(float(e[idx]), v.y))
 		st.set_uv2(Vector2(v.x, v.z))
@@ -710,7 +723,7 @@ static func altar_light(altar_node: Node3D, k: float, color: Color) -> void:
 		var c := ICE.lerp(color, clampf(k, 0.0, 1.0) * 0.8)
 		m2.albedo_color = c
 		m2.emission = c
-		m2.emission_energy_multiplier = 1.0 + 1.6 * k
+		m2.emission_energy_multiplier = 0.7 + 0.9 * k
 	var lamp: OmniLight3D = _nm(altar_node, "lamp")
 	if lamp:
 		lamp.light_color = color

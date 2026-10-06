@@ -38,7 +38,7 @@ void fragment() {
 		float dr = (r - R) / 0.16;
 		float halo = exp(-dr * dr) * 0.22;
 		float chev = 0.0;
-		float arm = 0.12 + 0.05 * R;
+		float arm = 0.16 + 0.07 * R;
 		float c0 = mix(R - 0.1, R * 0.35, clamp(progress, 0.0, 1.0));
 		for (int i = 0; i < 4; i++) {
 			float ai = float(i) * 1.5707963 + 0.7853982;
@@ -46,7 +46,7 @@ void fragment() {
 			float rr = dot(p, dir);
 			float vv = dot(p, vec2(-dir.y, dir.x));
 			float d = (rr - c0 - abs(vv) * 0.9) * 0.743;
-			float m = band(d, line_w * 0.55) * (1.0 - smoothstep(arm, arm + 0.02, abs(vv))) * step(c0 - 0.03, rr);
+			float m = band(d, line_w * 0.85) * (1.0 - smoothstep(arm, arm + 0.02, abs(vv))) * step(c0 - 0.03, rr);
 			chev = max(chev, m);
 		}
 		a = max(max(ring, chev), halo);

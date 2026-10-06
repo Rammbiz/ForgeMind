@@ -421,8 +421,15 @@ func _cache_stages() -> void:
 		c.position = _origin + Vector3((i % 2) * 2.0 - 1.0, 0, -(i / 2) * 2.4)
 		add_child(c)
 		CacheModels.set_tell(c, str(args.get("rarity", rar[i])))
-		CacheModels.set_crack(c, i)
+		CacheModels.set_crack(c, mini(i, 2))
 		_caches.append(c)
+		if i == 3:
+			# Burst shortly before the capture so the chunks are mid-flight.
+			var cc := c
+			_anim_extra.append(func() -> void:
+				if _once("burst", _shot_at - float(args.get("burst_age", "0.3"))):
+					CacheModels.set_crack(cc, 3)
+					fx.cache_burst(cc.global_position + Vector3(0, 0.55, 0), CacheModels.rarity_color("L"), 3))
 	_studio_cam(Vector3(0, 3.4, 4.6), Vector3(0, 0.6, -1.2), 46.0)
 
 
