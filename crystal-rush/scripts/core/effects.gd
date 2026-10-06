@@ -1,13 +1,21 @@
 class_name Effects
 extends Node3D
-## Visual effects for the run: projectiles, laser beams, muzzle flashes, shockwaves, sparks,
-## smoke, flashes, rings, lightning and coins.
+## Visual effects for the run: projectiles, beams, the gatling tracer stream, the railgun rail,
+## telegraphs, squad status rings, muzzle flashes, shockwaves, sparks, smoke, flashes, rings,
+## lightning and coins.
 ##
 ## The busy effects are pooled in four MultiMeshes (one draw call and one buffer upload per
-## frame each): additive streaks (projectile trails, volley lines, velocity-stretched sparks),
-## additive glow sprites (flashes, flares, projectile heads), alpha smoke puffs and lit rocket
-## bodies. Shockwave rings and beams are a few reused nodes. Everything else (burst(),
-## ring(), lightning(), crystal_spikes()...) is kept from the first version.
+## frame each): additive streaks (projectile trails, volley lines, tracer streams,
+## velocity-stretched sparks), additive glow sprites (flashes, flares, projectile heads),
+## alpha smoke puffs and lit rocket / shell bodies. Shockwave rings, beams, telegraphs and
+## status rings are a few reused nodes. Everything else (burst(), ring(), lightning(),
+## crystal_spikes()...) is kept from the first version.
+##
+## Colours follow the family accents (arsenal_design.md §2.1, WeaponModels.FAMILY_GLOW): the
+## Kinetic bolt is copper with a white tracer, Plasma orbs and beams rose, Tech rockets and
+## drone darts lime, Volt rails orchid. Enemy shots stay orange-red. Telegraph grammar (§2.8):
+## friendly = hollow dashed ring in the family accent with four inward chevrons (lines: two
+## dashed rails); enemy = filled red disc with a solid rim (lines: a solid red band).
 
 const NOISE_TEX := preload("res://assets/textures/cloud_noise.png")
 const STREAK_SHADER := preload("res://shaders/fx_streak.gdshader")
@@ -15,21 +23,41 @@ const GLOW_SHADER := preload("res://shaders/fx_glow.gdshader")
 const SMOKE_SHADER := preload("res://shaders/fx_smoke.gdshader")
 const BEAM_SHADER := preload("res://shaders/fx_beam.gdshader")
 const RING_SHADER := preload("res://shaders/fx_ring.gdshader")
+const TELEGRAPH_SHADER := preload("res://shaders/telegraph_ring.gdshader")
+const STATUS_SHADER := preload("res://shaders/status_ring.gdshader")
 const MAX_STREAKS := 1400
 const MAX_GLOWS := 320
 const MAX_SMOKE := 360
 const MAX_ROCKETS := 48
 const MAX_RINGS := 10
+## Friendly ground telegraphs alive at once (§2.8 budget; the oldest dims and is reused).
+const MAX_TELEGRAPHS := 4
+const MAX_ENEMY_TELEGRAPHS := 6
+const ENEMY_RED := Color(1.0, 0.16, 0.1)
+## Squad status colours (§2.1) and the int kind of status_ring.gdshader.
+const STATUS_LOOK := {
+	"stagger": {"color": Color(1.0, 0.8, 0.62), "kind": 0},
+	"jolt": {"color": Color(1.0, 0.52, 1.0), "kind": 1},
+	"chill": {"color": Color(0.78, 0.95, 1.0), "kind": 2},
+	"burn": {"color": Color(1.0, 0.36, 0.42), "kind": 3},
+	"mark": {"color": Color(0.45, 1.0, 0.18), "kind": 4},
+	"seal": {"color": Color(0.42, 0.48, 1.0), "kind": 5},
+}
 ## Projectile looks: colour of the trail, head glow size, trail length and width, arc height
-## per unit of distance, impact style.
+## per unit of distance, head colour. Machine vfx kinds (ArsenalData.MACHINES[id].vfx.kind)
+## map onto these through ALIAS.
 const KINDS := {
-	"bolt": {"color": Color(1.0, 0.78, 0.38), "glow": 0.9, "len": 2.3, "width": 0.24, "arc": 0.0, "head": Color(0.8, 0.95, 1.0)},
-	"plasma": {"color": Color(0.82, 0.42, 1.0), "glow": 1.7, "len": 1.5, "width": 0.55, "arc": 0.0, "head": Color(0.75, 0.92, 1.0)},
-	"rocket": {"color": Color(1.0, 0.62, 0.25), "glow": 0.95, "len": 1.2, "width": 0.24, "arc": 0.24, "head": Color(1.0, 0.75, 0.35)},
-	"drone": {"color": Color(0.35, 1.0, 0.75), "glow": 0.6, "len": 1.4, "width": 0.14, "arc": 0.0, "head": Color(0.6, 1.0, 0.85)},
+	"bolt": {"color": Color(1.0, 0.8, 0.64), "glow": 0.9, "len": 2.3, "width": 0.24, "arc": 0.0, "head": Color(1.0, 1.0, 1.0)},
+	"plasma": {"color": Color(1.0, 0.24, 0.6), "glow": 1.7, "len": 1.5, "width": 0.55, "arc": 0.0, "head": Color(1.0, 0.86, 0.95)},
+	"rocket": {"color": Color(0.5, 1.0, 0.28), "glow": 0.95, "len": 1.2, "width": 0.24, "arc": 0.24, "head": Color(0.85, 1.0, 0.7)},
+	"drone": {"color": Color(0.45, 1.0, 0.2), "glow": 0.6, "len": 0.8, "width": 0.1, "arc": 0.0, "head": Color(0.85, 1.0, 0.75)},
+	"shell": {"color": Color(1.0, 0.82, 0.66), "glow": 0.7, "len": 0.7, "width": 0.3, "arc": 0.32, "head": Color(1.0, 0.95, 0.85)},
+	"tracer": {"color": Color(1.0, 0.82, 0.62), "glow": 0.25, "len": 0.9, "width": 0.07, "arc": 0.0, "head": Color(1.0, 1.0, 0.9)},
 	"volley": {"color": Color(1.0, 0.9, 0.62), "glow": 0.0, "len": 1.25, "width": 0.11, "arc": 0.07, "head": Color(1.0, 1.0, 1.0)},
 	"turret": {"color": Color(1.0, 0.42, 0.15), "glow": 0.85, "len": 1.6, "width": 0.22, "arc": 0.0, "head": Color(1.0, 0.6, 0.3)},
 }
+## Machine vfx kinds (design §2.8 table) -> projectile looks above.
+const ALIAS := {"orb": "plasma", "missile_trail": "rocket", "tracer_dot": "drone", "shell_arc": "shell", "tracer_stream": "tracer"}
 
 var quality_high := true
 var _lightning: Array = []   # [{mesh: MeshInstance3D, t: float, life: float}]

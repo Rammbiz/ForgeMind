@@ -665,7 +665,7 @@ func run_profile(lvl: int) -> Dictionary:
 	var boss := ArsenalData.is_boss(lvl)
 	var m: Dictionary = account["meta"]
 	m["run_seq"] = int(m.get("run_seq", 0)) + 1
-	_open_run_id = int(m["run_seq"]) if not Save.readonly else 0
+	_open_run_id = int(m["run_seq"])
 	return {
 		"level": lvl, "world": ArsenalData.world_of(lvl), "boss": boss,
 		"profile": dev_profile if dev_profile != "" else "account", "run_id": _open_run_id,
