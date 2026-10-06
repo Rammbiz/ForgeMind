@@ -120,6 +120,34 @@ static func draw(ci: CanvasItem, name: String, r: Rect2, grey := false, pal_over
 		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -k * 1.2), c + Vector2(k, 0), c + Vector2(0, k * 1.2), c + Vector2(-k, 0)]), col)
 		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -k * 1.2), c + Vector2(k, 0), c + Vector2(0, 0)]), Color("FFE9A8") if not grey else GREY[0])
 		return
+	if name == "gear":
+		# A faceted cog: 8 teeth, each tooth face lit by its direction, a dark hub.
+		var gc := r.get_center()
+		var ro := minf(r.size.x, r.size.y) * 0.48
+		var ri := ro * 0.74
+		var gp: Array = pal_override if not pal_override.is_empty() else PALS["gear"]
+		var teeth := 8
+		for i in teeth * 2:
+			var a0 := TAU * float(i) / (teeth * 2) - PI / 16.0
+			var a1 := TAU * float(i + 1) / (teeth * 2) - PI / 16.0
+			var rad := ro if i % 2 == 0 else ri
+			var p0 := gc + Vector2(cos(a0), sin(a0)) * rad
+			var p1 := gc + Vector2(cos(a1), sin(a1)) * rad
+			var q0 := gc + Vector2(cos(a0), sin(a0)) * ri * 0.62
+			var q1 := gc + Vector2(cos(a1), sin(a1)) * ri * 0.62
+			var lit := Vector2(cos((a0 + a1) * 0.5), sin((a0 + a1) * 0.5)).dot(ForgeKit.LIGHT)
+			var col: Color = (gp[1] as Color).lerp(gp[0], lit) if lit > 0.0 else (gp[1] as Color).lerp(gp[2], -lit)
+			ci.draw_colored_polygon(PackedVector2Array([p0, p1, q1, q0]), col)
+			if i % 2 == 1:
+				var j0 := gc + Vector2(cos(a0), sin(a0)) * ri
+				var j1 := gc + Vector2(cos(a1), sin(a1)) * ri
+				ci.draw_colored_polygon(PackedVector2Array([j0, j1, p1, p0]), col)
+		var hub := PackedVector2Array()
+		for i in 6:
+			var a := TAU * float(i) / 6.0
+			hub.append(gc + Vector2(cos(a), sin(a)) * ri * 0.62)
+		ci.draw_colored_polygon(hub, gp[4])
+		return
 	if not SHAPES.has(name):
 		return
 	var pal: Array = pal_override if not pal_override.is_empty() else (GREY if grey else PALS.get(name, PALS["gem"]))

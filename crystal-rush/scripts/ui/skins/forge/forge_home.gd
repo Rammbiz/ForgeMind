@@ -93,7 +93,7 @@ func _build_ui() -> void:
 			PackedColorArray([Color(0.02, 0.02, 0.09, 0.0), Color(0.02, 0.02, 0.09, 0.0), Color(0.02, 0.02, 0.1, 0.92), Color(0.02, 0.02, 0.1, 0.92)])))
 	ForgeChrome.top_bar(_root, {"level": "14", "coins": "2 590", "gems": "40"})
 	# World title.
-	ForgeKit.label(_root, "СВІТ 1 · РІВЕНЬ 14 З 25", "label", 24, Color("8FEAFF"), Rect2(24, 100, 680, 32), HORIZONTAL_ALIGNMENT_LEFT, false)
+	ForgeKit.label(_root, "СВІТ 1 · РІВЕНЬ 14 / 25", "label", 24, Color("8FEAFF"), Rect2(24, 100, 680, 32), HORIZONTAL_ALIGNMENT_LEFT, false)
 	ForgeKit.headline(_root, "ОРБІТАЛЬНА ТРАСА", Vector2(22, 130), 52, {"max_w": 676, "font": "display_mid"})
 	# The path on the bridge: the levels ahead are gems laid on the bridge beyond the gate,
 	# the boss gem burns ember at the far end.
@@ -113,7 +113,7 @@ func _build_ui() -> void:
 		var labels := ["15", "16", "17"]
 		for i in PATH_Z.size():
 			var p: Vector2 = path_pts[i + 1]
-			var r := 25.0 - i * 4.0
+			var r: float = [30.0, 24.0, 22.0][i]
 			var boss := i == PATH_Z.size() - 1
 			var c := p + Vector2(0, -r * 0.95)
 			# A short light post from the bridge to the gem.
@@ -123,9 +123,12 @@ func _build_ui() -> void:
 				ForgeKit.draw_gem(ci, c, r, 6, [Color("FFD0B8"), Color("FF6A3D"), Color("8E1F12")], 0.0, 0.62)
 				ForgeKit.draw_text_c(ci, labels[i], "num", int(r * 0.85), c, Color.WHITE)
 				ForgeKit.draw_text_oc(ci, "БОС", "label", 22, c + Vector2(r + 34, 0), Color("FFB08A"), Color("1A0610"), 6)
+			elif i == 0:
+				ForgeKit.draw_glow(ci, ForgeKit.crystal_pts(c, r * 1.7, r * 1.9), Color("8FEAFF"), 0.9, 4, 4.0)
+				ForgeKit.draw_level_gem(ci, c, r, labels[i])
 			else:
-				ForgeKit.draw_gem(ci, c, r, 6, [Color("D6E6F8"), Color("6F8CC0"), Color("2A3A66")], 0.0, 0.62)
-				ForgeKit.draw_text_c(ci, labels[i], "num", int(r * 0.85), c, ForgeKit.INK))
+				ForgeKit.draw_gem(ci, c, r, 6, [Color("C4D2EA"), Color("5E78A8"), Color("26345C")], 0.0, 0.62)
+				ForgeKit.draw_text_c(ci, labels[i], "num", int(r * 0.8), c, Color.WHITE))
 	# Vault shard (right): two caches ready.
 	var vr := Rect2(488, 228, 216, 92)
 	ForgeKit.panel(_root, vr, 404, {"cuts": {0: Vector2(26, 12), 2: Vector2(14, 30)}, "tint_k": 0.8, "cleave": false, "facets": false})
@@ -133,7 +136,7 @@ func _build_ui() -> void:
 		ForgeIcons.draw(ci, "geode", Rect2(vr.position.x + 8, vr.position.y + 10, 70, 70))
 		ForgeKit.draw_text_l(ci, "Сховище", "bold", 26, Vector2(vr.position.x + 84, vr.position.y + 32), ForgeKit.TEXT)
 		ForgeKit.draw_text_l(ci, "2 готові", "bold", 26, Vector2(vr.position.x + 84, vr.position.y + 63), Color("C9A8FF"))
-		ForgeKit.draw_gem(ci, Vector2(vr.end.x - 8, vr.position.y + 2), 16.0, 4, [Color("FFC7A8"), Color("FF6A3D"), Color("9C2410")], PI / 4.0, 0.62)
+		ForgeKit.draw_gem(ci, Vector2(vr.end.x - 8, vr.position.y + 2), 16.0, 4, [Color("FFC7A8"), Color("FF6A3D"), Color("9C2410")], 0.0, 0.62)
 		ForgeKit.draw_text_c(ci, "2", "num", 20, Vector2(vr.end.x - 8, vr.position.y + 2), Color.WHITE))
 	# Hero tag: a small glass shard floating beside the hero, a hairline leader to the dais.
 	var anchor := _px(HERO_POS + Vector3(-0.3, 1.25, 0))
@@ -145,7 +148,7 @@ func _build_ui() -> void:
 		ci.draw_colored_polygon(PackedVector2Array([anchor + Vector2(0, -5), anchor + Vector2(4, 0), anchor + Vector2(0, 5), anchor + Vector2(-4, 0)]), Color("E9FBFF"))
 		ForgeIcons.draw(ci, "fox", Rect2(hr.position.x + 10, hr.position.y + 14, 64, 64))
 		ForgeKit.draw_text_l(ci, "Блискавка", "bold", 30, Vector2(hr.position.x + 84, hr.position.y + 32), ForgeKit.TEXT)
-		ForgeKit.draw_text_l(ci, "Рів. 5 · лис", "body", 26, Vector2(hr.position.x + 84, hr.position.y + 66), ForgeKit.DIM))
+		ForgeKit.draw_text_l(ci, "Герой · рів. 5", "body", 26, Vector2(hr.position.x + 84, hr.position.y + 66), ForgeKit.DIM))
 	ForgeKit.canvas(_root, func(ci: CanvasItem) -> void:
 		ForgeKit.draw_text_oc(ci, "КОЛОДА", "label", 22, Vector2(78, 924), ForgeKit.RIM, Color("05061A"), 6)
 		ForgeKit.draw_text_oc(ci, "3/3", "num", 26, Vector2(78, 954), ForgeKit.DIM, Color("05061A"), 6))

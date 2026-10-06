@@ -27,7 +27,7 @@ func _ready() -> void:
 
 func _build() -> void:
 	ForgeChrome.top_bar(_root, {"level": "14", "coins": "2 590", "gems": "40"})
-	ForgeKit.label(_root, "КУЗНЯ МАШИН · 8 З 9", "label", 22, Color("8FEAFF"), Rect2(24, 96, 420, 30), HORIZONTAL_ALIGNMENT_LEFT, false)
+	ForgeKit.label(_root, "КУЗНЯ МАШИН · 8 / 9", "label", 22, Color("8FEAFF"), Rect2(24, 96, 420, 30), HORIZONTAL_ALIGNMENT_LEFT, false)
 	ForgeKit.headline(_root, "АРСЕНАЛ", Vector2(20, 122), 58, {"max_w": 460})
 	# Deck switch (secondary prism).
 	var dr := Rect2(500, 112, 204, 60)
@@ -52,9 +52,11 @@ func _card(r: Rect2, d: Array, i: int) -> void:
 	var locked := state == "locked"
 	ForgeKit.canvas(_root, func(ci: CanvasItem) -> void:
 		if ready:
-			ForgeKit.draw_glow(ci, pts, Color("8FEAFF"), 1.5, 5, 4.0)
-		ForgeKit.draw_drop(ci, pts, 10.0, 0.4))
-	ForgeKit.add_glass(_root, pts, {"tint_k": 0.9 if not locked else 0.94, "tint_top": Color("1A2050") if not locked else Color("12152E")})
+			ForgeKit.draw_glow(ci, ForgeKit.moved(pts, Vector2(0, 4)), Color("8FEAFF"), 1.5, 5, 4.0)
+		ForgeKit.draw_drop(ci, ForgeKit.moved(pts, Vector2(0, 8)), 10.0, 0.4)
+		ForgeKit.draw_slab_sides(ci, pts, 8.0, Color("3A64C0") if ready else Color("2A4C9C")))
+	var species: Color = Color("1A2050").lerp(rar[2], 0.28) if not locked else Color("12152E")
+	ForgeKit.add_glass(_root, pts, {"tint_k": 0.9 if not locked else 0.94, "tint_top": species})
 	var thumb_c := Vector2(r.get_center().x + 8, r.position.y + 74)
 	ForgeKit.canvas(_root, func(ci: CanvasItem) -> void:
 		# Rarity light: a burst of flat facets behind the machine, clipped to the card.
@@ -109,7 +111,7 @@ func _card(r: Rect2, d: Array, i: int) -> void:
 		ci.draw_line(c0, c1, rar[0], 3.0, true)
 		var gc := c0.lerp(c1, 0.5) + nrm * 20.0
 		var sides := int(rar[4])
-		ForgeKit.draw_gem(ci, gc, 21.0, sides, [rar[0], rar[1], rar[2]], PI / 4.0 if sides == 4 else 0.0, 0.56)
+		ForgeKit.draw_gem(ci, gc, 21.0, sides, [rar[0], rar[1], rar[2]], 0.0, 0.56)
 		# Level gem.
 		if not locked:
 			ForgeKit.draw_level_gem(ci, r.position + Vector2(36, 38), 24.0, d[4])
@@ -132,10 +134,12 @@ func _card(r: Rect2, d: Array, i: int) -> void:
 			var top := ForgeKit.draw_prism(ci, bp, ForgeKit.PRISMS["primary"], 6.0, 0.0, 0.0)
 			var tb := ForgeKit.bounds(top)
 			var cy := tb.get_center().y
-			ForgeKit.draw_text_l(ci, "ПОКРАЩИТИ", "bold", 26, Vector2(tb.position.x + 20, cy), ForgeKit.INK)
 			var px := tb.end.x - 16.0
 			var pw := ForgeKit.draw_text_r(ci, "540", "num", 28, Vector2(px, cy), ForgeKit.INK)
 			ForgeIcons.draw(ci, "coin", Rect2(px - pw - 36, cy - 15, 30, 30))
+			var avail := tb.size.x - 20.0 - (pw + 36.0 + 16.0) - 12.0
+			var ls := ForgeKit.fit_size("ПОКРАЩИТИ", "bold", 26, avail, 20)
+			ForgeKit.draw_text_l(ci, "ПОКРАЩИТИ", "bold", ls, Vector2(tb.position.x + 18, cy), ForgeKit.INK)
 		else:
 			ForgeChrome.draw_bar(ci, Rect2(r.position.x + 18, r.end.y - 42, r.size.x - 36, 28), float(d[6]), d[5]))
 

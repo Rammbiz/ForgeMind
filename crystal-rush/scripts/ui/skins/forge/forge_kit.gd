@@ -403,6 +403,23 @@ static func draw_drop(ci: CanvasItem, pts: PackedVector2Array, d := 8.0, a := 0.
 	ci.draw_colored_polygon(moved(pts, Vector2(0, d)), Color(0.0, 0.0, 0.04, a))
 
 
+## The visible thickness of a glass slab: every downward-facing edge drops `depth` px of
+## deep crystal, lit edges a little brighter, with a thin ice line along the bottom lip.
+static func draw_slab_sides(ci: CanvasItem, pts: PackedVector2Array, depth := 8.0, lit := Color("2A4C9C"), shade := Color("0A1030")) -> void:
+	var n := pts.size()
+	var down := Vector2(0, depth)
+	for i in n:
+		var a := pts[i]
+		var b := pts[(i + 1) % n]
+		var nr := edge_normal(a, b)
+		if nr.y > 0.02:
+			var k := clampf(0.5 - nr.x * 0.6, 0.0, 1.0)
+			var top_c := shade.lerp(lit, k)
+			var bot_c := top_c.darkened(0.45)
+			ci.draw_polygon(PackedVector2Array([a, b, b + down, a + down]), PackedColorArray([top_c, top_c, bot_c, bot_c]))
+			ci.draw_line(a + down, b + down, Color(0.55, 0.85, 1.0, 0.18), 1.0, true)
+
+
 static func draw_glow(ci: CanvasItem, pts: PackedVector2Array, col: Color, k := 1.0, steps := 4, step_px := 4.0) -> void:
 	for i in range(steps, 0, -1):
 		var g := grown(pts, step_px * i)
@@ -583,8 +600,12 @@ static func panel(parent: Node, r: Rect2, seed: int, o := {}) -> PackedVector2Ar
 		o["min_cut"] = clampf(m * 0.14, 14.0, 44.0)
 		o["max_cut"] = clampf(m * 0.32, 26.0, 96.0)
 	var pts := shard(r, seed, o)
-	if bool(o.get("drop", true)):
-		canvas(parent, func(ci: CanvasItem) -> void: draw_drop(ci, pts, 10.0, 0.38))
+	var depth := float(o.get("depth", 7.0))
+	canvas(parent, func(ci: CanvasItem) -> void:
+		if bool(o.get("drop", true)):
+			draw_drop(ci, moved(pts, Vector2(0, depth)), 10.0, 0.38)
+		if depth > 0.0:
+			draw_slab_sides(ci, pts, depth))
 	add_glass(parent, pts, o)
 	var lit: Color = o.get("rim", RIM)
 	canvas(parent, func(ci: CanvasItem) -> void:

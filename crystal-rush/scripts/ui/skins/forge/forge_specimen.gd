@@ -10,8 +10,8 @@ func _ready() -> void:
 	root.size = Vector2(720, 1280)
 	add_child(root)
 	ForgeKit.backdrop(root, Vector2(0.3, 0.1))
-	ForgeKit.label(root, "НАБІР ЕЛЕМЕНТІВ · НАПРЯМ B", "label", 22, ForgeKit.DIM, Rect2(24, 14, 680, 30), HORIZONTAL_ALIGNMENT_LEFT, false)
-	ForgeKit.headline(root, "КРИШТАЛЕВА КУЗНЯ", Vector2(20, 46), 56, {"max_w": 680})
+	ForgeKit.label(root, "НАБІР ЕЛЕМЕНТІВ · СПЕЦИМЕН", "label", 22, ForgeKit.DIM, Rect2(24, 14, 680, 30), HORIZONTAL_ALIGNMENT_LEFT, false)
+	ForgeKit.headline(root, "КРИШТАЛЕВА КУЗНЯ", Vector2(20, 44), 56, {"max_w": 680, "font": "display_mid", "min": 24})
 
 	# --- type ramp
 	ForgeKit.panel(root, Rect2(16, 116, 688, 312), 11, {"cuts": {1: Vector2(64, 26), 3: Vector2(18, 44)}})
@@ -63,7 +63,7 @@ func _ready() -> void:
 			ci.draw_colored_polygon(cp, Color(0.03, 0.04, 0.14, 0.85))
 			ForgeKit.draw_rim(ci, cp, rr[1], Color("05061A"), 1.5, 0.0)
 			var sides := int(rr[4])
-			ForgeKit.draw_gem(ci, Vector2(x + 22, y), 13.0, sides, [rr[0], rr[1], rr[2]], PI / 4.0 if sides == 4 else 0.0, 0.55, false)
+			ForgeKit.draw_gem(ci, Vector2(x + 22, y), 13.0, sides, [rr[0], rr[1], rr[2]], 0.0, 0.55, false)
 			ForgeKit.draw_text_l(ci, nm, "bold", 26, Vector2(x + 42, y), rr[0])
 			x += w + 12.0
 		ForgeChrome.draw_bar(ci, Rect2(40, 1034, 300, 36), 0.62, "5/8")

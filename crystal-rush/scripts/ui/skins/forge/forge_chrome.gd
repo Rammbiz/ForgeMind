@@ -83,7 +83,7 @@ static func nav(parent: Node, active: String, badges := {}) -> void:
 			if badges.has(st[0]):
 				var bx: float = x + (40.0 if is_on else 30.0)
 				var by: float = 1112.0 if is_on else 1140.0 + [6.0, -5.0, 0.0, -7.0, 4.0][i]
-				ForgeKit.draw_gem(ci, Vector2(bx, by), 17.0, 4, [Color("FFC7A8"), Color("FF6A3D"), Color("9C2410")], PI / 4.0, 0.62)
+				ForgeKit.draw_gem(ci, Vector2(bx, by), 17.0, 4, [Color("FFC7A8"), Color("FF6A3D"), Color("9C2410")], 0.0, 0.62)
 				ForgeKit.draw_text_c(ci, str(badges[st[0]]), "num", 22, Vector2(bx, by), Color.WHITE))
 
 
