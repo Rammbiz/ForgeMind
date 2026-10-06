@@ -41,7 +41,7 @@ const STATUS_LOOK := {
 	"chill": {"color": Color(0.78, 0.95, 1.0), "kind": 2},
 	"burn": {"color": Color(1.0, 0.36, 0.42), "kind": 3},
 	"mark": {"color": Color(0.45, 1.0, 0.18), "kind": 4},
-	"seal": {"color": Color(0.42, 0.48, 1.0), "kind": 5},
+	"seal": {"color": Color(0.56, 0.6, 1.0), "kind": 5},
 }
 ## Projectile looks: colour of the trail, head glow size, trail length and width, arc height
 ## per unit of distance, head colour. Machine vfx kinds (ArsenalData.MACHINES[id].vfx.kind)
@@ -1069,7 +1069,8 @@ func _step_status(delta: float) -> void:
 		var pos: Vector3 = e["pos"]
 		var r := float(e["r"])
 		mi.position = Vector3(pos.x, pos.y + 0.06, pos.z)
-		mi.scale = Vector3.ONE * r * 2.6
+		# The ring sits just outside the squad's edge so the units never hide it.
+		mi.scale = Vector3.ONE * r * 2.6 * 1.14
 		var m: ShaderMaterial = e["mat"]
 		m.set_shader_parameter("alpha", k)
 		m.set_shader_parameter("stacks", float(e["stacks"]))

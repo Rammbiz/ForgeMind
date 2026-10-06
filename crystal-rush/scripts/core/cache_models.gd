@@ -444,7 +444,7 @@ static func _refresh(node: Node3D) -> void:
 	mat.set_shader_parameter("crack_w", [0.0, 0.03, 0.055, 0.06][stage])
 	var core: MeshInstance3D = node.get_meta("core")
 	var cm := core.material_override as StandardMaterial3D
-	cm.albedo_color = Color(0.08, 0.1, 0.2) if stage == 0 else col.lerp(Color.WHITE, 0.35) * (1.2 + 0.4 * stage)
+	cm.albedo_color = Color(0.08, 0.1, 0.2) if stage == 0 else col.lerp(Color.WHITE, 0.15) * (1.1 + 0.35 * stage)
 	var lamp: OmniLight3D = node.get_meta("lamp")
 	lamp.light_color = col
 	lamp.light_energy = [0.0, 1.6, 2.4, 4.0][stage]

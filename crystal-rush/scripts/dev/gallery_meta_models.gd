@@ -104,6 +104,8 @@ func _ready() -> void:
 			_crates()
 		"dock":
 			_dock()
+		"cards":
+			_cards()
 	if args.has("cam"):
 		cam.position = _origin + _v3(str(args["cam"]))
 	if args.has("look"):
@@ -522,6 +524,43 @@ func _crates() -> void:
 			WeaponModels.crate_bonus(c, 0.42)
 		_anim_extra.append(func() -> void: WeaponModels.animate(c, _t, 0.0))
 	_studio_cam(Vector3(0, 7.6, 5.6), Vector3(0, 0.6, -1.6), 56.0)
+
+
+## Card backs (top two rows) and frames over a dummy card (bottom rows) for every rarity.
+func _cards() -> void:
+	_studio_cam(Vector3(0, 6.0, 5.0), Vector3(0, 0.0, -1.0), 50.0)
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var shade := ColorRect.new()
+	shade.color = Color(0.02, 0.03, 0.08, 0.82)
+	shade.size = Vector2(720, 1280)
+	layer.add_child(shade)
+	var rs := ["C", "R", "E", "L", "M"]
+	for i in 5:
+		for mode in 2:
+			var cr := ColorRect.new()
+			var w := 200.0
+			var h := 270.0
+			cr.size = Vector2(w, h)
+			var col := i % 3 if mode == 0 else (i % 3)
+			var row := (i / 3) + mode * 2
+			cr.position = Vector2(30 + (i % 3) * 228, 40 + row * 300)
+			var m := ShaderMaterial.new()
+			m.shader = load("res://shaders/card_rarity.gdshader")
+			m.set_shader_parameter("mode", mode)
+			m.set_shader_parameter("tier", i)
+			m.set_shader_parameter("rarity_color", CacheModels.rarity_color(rs[i]))
+			m.set_shader_parameter("size", Vector2(w, h))
+			cr.material = m
+			cr.color = Color.WHITE
+			if mode == 1:
+				var bg := ColorRect.new()
+				bg.color = Color(0.86, 0.89, 0.96)
+				bg.size = Vector2(w - 12, h - 12)
+				bg.position = cr.position + Vector2(6, 6)
+				layer.add_child(bg)
+			layer.add_child(cr)
+			col = col
 
 
 func _dock() -> void:
