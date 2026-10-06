@@ -83,6 +83,10 @@ var _frame_glows: Array = []         # [pos, size, color, flare, rot, core] this
 var _projectiles: Array[Dictionary] = []
 var _beams := {}                     # id -> {node, mat, from, to, color, k, on, seen, spark}
 var _ring_pool: Array[Dictionary] = []   # {node, mat, t, life, active}
+var _streams := {}                   # id -> {from, to, color, on, seen, k, phase, hit}
+var _telegraphs: Array[Dictionary] = []  # {node, mat, t, life, enemy, mode}
+var _status := {}                    # id -> {node, mat, seen, k, kind}
+var _rail_id := -1000000
 var _time := 0.0
 
 
@@ -219,7 +223,10 @@ func _process(delta: float) -> void:
 	_frame_glows.clear()
 	_step_projectiles(delta)
 	_step_beams(delta)
+	_step_streams(delta)
 	_step_rings(delta)
+	_step_telegraphs(delta)
+	_step_status(delta)
 	_sparks.step(delta)
 	_glows.step(delta)
 	_smoke.step(delta)
@@ -336,13 +343,24 @@ static func _put_sprite(b: PackedFloat32Array, i: int, p: Vector3, s: float, c: 
 
 # ------------------------------------------------------------------ projectiles
 
+## Projectile kind for a machine id (its ArsenalData vfx kind; beams and rails are not
+## projectiles: "beam", "rail_beam", "refract_flash" come back as they are).
+static func shot_kind(machine_id: String) -> String:
+	var m: Dictionary = ArsenalData.MACHINES.get(machine_id, {})
+	return str((m.get("vfx", {}) as Dictionary).get("kind", "bolt"))
+
+
 ## Fires a projectile from `from` to `to` that arrives after `time` seconds, then plays its
-## impact and calls `on_hit` (may be an empty Callable). Kinds: "bolt" (ballista), "plasma",
-## "rocket" (arcs, smoke trail), "drone", "volley" (crossbow/blaster: a spread of thin
-## streaks), "turret" (enemy, orange).
+## impact and calls `on_hit` (may be an empty Callable). Kinds: "bolt" (ballista: copper with
+## a white tracer), "plasma" / "orb" (rose orb), "rocket" / "missile_trail" (lime motor, smoke
+## trail, arcs), "drone" / "tracer_dot" (lime dart), "shell" / "shell_arc" (mortar: a finned
+## shell on a high arc, use with telegraph_ring() at the landing point; impact =
+## shell_impact()), "tracer" (one gatling bullet; prefer stream()), "volley" (crossbow /
+## blaster: a spread of thin streaks), "turret" (enemy, orange).
 func projectile(from: Vector3, to: Vector3, kind: String, time: float, on_hit: Callable) -> void:
 	_ensure_pools()
 	time = maxf(time, 0.05)
+	kind = ALIAS.get(kind, kind)
 	if kind == "volley":
 		var n := 6 if quality_high else 4
 		for i in n:
@@ -391,6 +409,18 @@ func _step_projectiles(delta: float) -> void:
 				_frame_glows.append([pos, gs * 0.45, look["head"], 0.0, 0.0, 1.0])
 				if randf() < 0.6:
 					_sparks.add(pos, -dir * randf_range(1.0, 3.0) + _rand_dir() * 1.2, c, 0.25, 0.05, 0.01, 0.0, 2.0, 0.05)
+			"shell":
+				if rockets < MAX_ROCKETS:
+					_put_rocket(rockets, pos, dir, float(p["seed"]) * TAU + t * 9.0)
+					rockets += 1
+				_frame_glows.append([pos - dir * 0.18, gs, c, 0.3, fposmod(_time * 5.0, TAU), 0.7])
+				p["puff"] = float(p["puff"]) + delta
+				var every2 := 0.03 if quality_high else 0.06
+				while float(p["puff"]) > every2:
+					p["puff"] = float(p["puff"]) - every2
+					var sc2 := randf_range(0.12, 0.2)
+					_smoke.add(pos - dir * 0.2, _rand_dir() * 0.15 + Vector3(0, 0.1, 0), Color(0.86, 0.84, 0.9, 0.55),
+						randf_range(0.35, 0.55), sc2, sc2 * 2.2, 0.1, 1.5, randf())
 			"rocket":
 				if rockets < MAX_ROCKETS:
 					_put_rocket(rockets, pos, dir, float(p["seed"]) * TAU + t * 14.0)
@@ -399,7 +429,7 @@ func _step_projectiles(delta: float) -> void:
 				# The motor lights up once the rocket has cleared the army it flies over (a full
 				# glow at launch read as an explosion inside our own blob).
 				var lit := 0.35 + 0.65 * smoothstep(0.05, 0.3, u)
-				_frame_glows.append([tail, gs * lit * (0.75 + 0.25 * randf()), Color(1.0, 0.6, 0.22), 0.6, randf() * TAU, 1.0])
+				_frame_glows.append([tail, gs * lit * (0.75 + 0.25 * randf()), Color(0.7, 1.0, 0.45), 0.6, randf() * TAU, 1.0])
 				p["puff"] = float(p["puff"]) + delta
 				var every := 0.018 if quality_high else 0.035
 				while float(p["puff"]) > every:
@@ -408,9 +438,13 @@ func _step_projectiles(delta: float) -> void:
 					_smoke.add(tail + _rand_dir() * 0.04, -dir * 0.6 + Vector3(0, 0.25, 0) + _rand_dir() * 0.25, Color(0.78, 0.76, 0.86, 0.75 * lit),
 						randf_range(0.45, 0.7), sc, sc * 2.4, 0.3, 1.5, randf())
 				if randf() < 0.5:
-					_sparks.add(tail, -dir * randf_range(2.0, 4.0) + _rand_dir() * 1.5, Color(1.0, 0.7, 0.3), 0.18, 0.04, 0.01, 0.0, 3.0, 0.04)
-			"volley":
+					_sparks.add(tail, -dir * randf_range(2.0, 4.0) + _rand_dir() * 1.5, Color(0.75, 1.0, 0.45), 0.18, 0.04, 0.01, 0.0, 3.0, 0.04)
+			"volley", "tracer":
 				pass
+			"bolt":
+				# Kinetic: a white-hot tracer core rides the copper streak.
+				_frame_streaks.append([pos, dir, float(look["len"]) * 0.45 * grow, 0.07, Color(1.0, 1.0, 1.0, 0.9)])
+				_frame_glows.append([pos, gs, c, 0.25, fposmod(_time * 4.0, TAU), 0.8])
 			_:
 				if gs > 0.0:
 					_frame_glows.append([pos, gs, c, 0.25, fposmod(_time * 4.0, TAU), 0.8])
@@ -441,19 +475,26 @@ func _put_rocket(i: int, pos: Vector3, dir: Vector3, spin: float) -> void:
 ## The hit of a projectile of `kind` at `pos` (also usable on its own).
 func impact(pos: Vector3, kind: String) -> void:
 	_ensure_pools()
+	kind = ALIAS.get(kind, kind)
 	var look: Dictionary = KINDS.get(kind, KINDS["bolt"])
 	var c: Color = look["color"]
 	match kind:
 		"rocket":
-			explosion(pos, 1.3)
+			tech_blast(pos, 1.0)
+		"shell":
+			shell_impact(Vector3(pos.x, 0.0, pos.z), 1.6, c)
+		"tracer":
+			_glow(pos, 0.08, 0.3, c, 0.5, 0.08)
+			_sparks.add(pos, (_rand_dir() + Vector3.UP * 0.6) * randf_range(3.0, 6.0), Color(1.0, 0.85, 0.55), 0.22, 0.035, 0.01, -9.0, 1.5, 0.05)
 		"plasma":
 			_glow(pos, 0.5, 1.9, c, 0.3, 1.0)
-			_glow(pos, 0.3, 0.8, Color(0.8, 0.95, 1.0), 0.0, 0.25)
+			_glow(pos, 0.3, 0.8, Color(1.0, 0.85, 0.95), 0.0, 0.25)
 			shockwave(Vector3(pos.x, 0.0, pos.z), c, 1.2)
 			_spark_burst(pos, c, 16, 5.0, 0.06, 0.35)
 		"bolt":
 			_glow(pos, 0.3, 1.1, c, 0.8, 0.2)
-			_spark_burst(pos, Color(1.0, 0.85, 0.5), 12, 6.0, 0.05, 0.3)
+			_glow(pos, 0.15, 0.45, Color(1, 1, 1), 0.0, 0.1)
+			_spark_burst(pos, Color(1.0, 0.88, 0.72), 12, 6.0, 0.05, 0.3)
 		"drone":
 			_glow(pos, 0.15, 0.55, c, 0.4, 0.15)
 			_spark_burst(pos, c, 5, 4.0, 0.035, 0.22)
@@ -472,7 +513,8 @@ func impact(pos: Vector3, kind: String) -> void:
 
 ## A persistent laser beam identified by `id`: call every frame with fresh ends while it is
 ## on, and with `on` false to fade it out. A beam not refreshed for 0.25 s fades by itself.
-func beam(id: int, from: Vector3, to: Vector3, color: Color, on: bool) -> void:
+## `ramp` 0..1 (the Laser's damage ramp) thickens and brightens it; `width` is the base width.
+func beam(id: int, from: Vector3, to: Vector3, color: Color, on: bool, ramp := 0.0, width := 0.26) -> void:
 	_ensure_pools()
 	var b: Dictionary = _beams.get(id, {})
 	if b.is_empty():
@@ -495,17 +537,26 @@ func beam(id: int, from: Vector3, to: Vector3, color: Color, on: bool) -> void:
 	b["color"] = color
 	b["on"] = on
 	b["seen"] = _time
+	b["width"] = width * (1.0 + 0.6 * clampf(ramp, 0.0, 1.0))
+	b["boost"] = 1.0 + 0.5 * clampf(ramp, 0.0, 1.0)
+	b["life"] = 0.0
 
 
 func _step_beams(delta: float) -> void:
 	for id: int in _beams.keys():
 		var b: Dictionary = _beams[id]
-		var on: bool = b["on"] and _time - float(b["seen"]) < 0.25
-		var k := move_toward(float(b["k"]), 1.0 if on else 0.0, delta * (9.0 if on else 6.0))
+		var life := float(b.get("life", 0.0))
+		var on: bool = b["on"] and _time - float(b["seen"]) < (life if life > 0.0 else 0.25)
+		var k := move_toward(float(b["k"]), 1.0 if on else 0.0, delta * (9.0 if on else (1.0 / 0.12 if life > 0.0 else 6.0)))
+		if life > 0.0 and on:
+			k = 1.0
 		b["k"] = k
 		var mi: MeshInstance3D = b["node"]
 		mi.visible = k > 0.002
 		if not mi.visible:
+			if life > 0.0:
+				mi.queue_free()
+				_beams.erase(id)
 			continue
 		var from: Vector3 = b["from"]
 		var to: Vector3 = b["to"]
@@ -516,16 +567,19 @@ func _step_beams(delta: float) -> void:
 		var side := dir.cross(Vector3.UP)
 		if side.length_squared() < 1e-4:
 			side = dir.cross(Vector3.RIGHT)
-		var w := 0.26 * (0.6 + 0.4 * k)
+		var w := float(b.get("width", 0.26)) * (0.6 + 0.4 * k)
 		side = side.normalized() * w
 		mi.transform = Transform3D(Basis(side, dir.cross(side).normalized(), -v), (from + to) * 0.5)
 		var m: ShaderMaterial = b["mat"]
 		m.set_shader_parameter("color", c)
-		m.set_shader_parameter("intensity", k)
+		var boost := float(b.get("boost", 1.0))
+		m.set_shader_parameter("intensity", k * boost)
 		m.set_shader_parameter("beam_length", len)
 		var flick := 0.85 + 0.15 * sin(_time * 50.0)
-		_frame_glows.append([from, 0.5 * k * flick, c, 0.7, fposmod(_time * 3.0, TAU), 1.0])
-		_frame_glows.append([to, 0.85 * k * flick, c, 0.5, fposmod(-_time * 2.0, TAU), 1.0])
+		_frame_glows.append([from, 0.5 * k * flick * boost, c, 0.7, fposmod(_time * 3.0, TAU), 1.0])
+		_frame_glows.append([to, 0.85 * k * flick * boost, c, 0.5, fposmod(-_time * 2.0, TAU), 1.0])
+		if life > 0.0:
+			continue
 		b["spark"] = float(b["spark"]) + delta * k
 		var every := 0.025 if quality_high else 0.05
 		while float(b["spark"]) > every:
@@ -654,6 +708,385 @@ func loot_burst(pos: Vector3, color: Color) -> void:
 	shockwave(pos, color, 2.2)
 	_spark_burst(pos + Vector3(0, 0.6, 0), color.lerp(Color.WHITE, 0.3), 30, 7.0, 0.06, 0.7)
 	_spark_burst(pos + Vector3(0, 0.6, 0), Color(0.6, 0.9, 1.0), 16, 5.0, 0.08, 0.6)
+
+
+# ------------------------------------------------------------------ Meta-1 machine VFX
+
+## Gatling tracer stream (§2.8: ONE stream, not 6 bullets): call every frame while firing
+## with `on` true; `spin` 0..1 is the spin-up (rate and brightness). Tracers race from `from`
+## to `to`, the muzzle flickers and ricochet sparks fly off the target. Fades when not
+## refreshed for 0.2 s. Ascended Vulcan Drum: pass gold as `color`.
+func stream(id: int, from: Vector3, to: Vector3, color: Color, on: bool, spin := 1.0) -> void:
+	_ensure_pools()
+	var s: Dictionary = _streams.get(id, {})
+	if s.is_empty():
+		if not on:
+			return
+		s = {"k": 0.0, "phase": randf(), "hit": 0.0}
+		_streams[id] = s
+	s["from"] = from
+	s["to"] = to
+	s["color"] = color
+	s["on"] = on
+	s["seen"] = _time
+	s["spin"] = clampf(spin, 0.0, 1.0)
+
+
+func _step_streams(delta: float) -> void:
+	for id: int in _streams.keys():
+		var s: Dictionary = _streams[id]
+		var on: bool = s["on"] and _time - float(s["seen"]) < 0.2
+		var k := move_toward(float(s["k"]), (0.5 + 0.5 * float(s["spin"])) if on else 0.0, delta * (6.0 if on else 8.0))
+		s["k"] = k
+		if k <= 0.001:
+			_streams.erase(id)
+			continue
+		var from: Vector3 = s["from"]
+		var to: Vector3 = s["to"]
+		var c: Color = s["color"]
+		var v := to - from
+		var l := maxf(v.length(), 0.01)
+		var dir := v / l
+		var speed := 46.0
+		s["phase"] = fposmod(float(s["phase"]) + delta * speed / l, 1.0)
+		var n := int(clampf(l / 1.3, 3.0, 9.0))
+		for i in n:
+			var u := fposmod(float(s["phase"]) + float(i) / n, 1.0)
+			var head := from + v * u
+			var tl := minf(0.9, l * u)
+			_frame_streaks.append([head, dir, tl, 0.075, Color(c.r, c.g, c.b, k)])
+			_frame_streaks.append([head, dir, tl * 0.45, 0.03, Color(1, 1, 1, 0.8 * k)])
+		var flick := 0.6 + 0.4 * absf(sin(_time * 61.0))
+		_frame_glows.append([from, 0.32 * k * flick, c, 0.8, fposmod(_time * 17.0, TAU), 1.0])
+		_frame_glows.append([to, 0.3 * k, c, 0.4, fposmod(_time * 11.0, TAU), 0.6])
+		s["hit"] = float(s["hit"]) + delta * k
+		var every := 0.045 if quality_high else 0.09
+		while float(s["hit"]) > every:
+			s["hit"] = float(s["hit"]) - every
+			# Ricochet: a gold spark glancing off, sometimes a long one.
+			var out := (-dir + _rand_dir() * 1.4 + Vector3.UP * 0.8).normalized()
+			_sparks.add(to, out * randf_range(4.0, 8.0), Color(1.0, 0.86, 0.5), randf_range(0.15, 0.3), 0.04, 0.01, -10.0, 1.2, 0.06)
+
+
+## Railgun charge glow at the muzzle (call every frame while charging, `k` 0..1): a growing
+## orchid core with a crackle flare. The model's own rails glow via WeaponModels.set_charge().
+func rail_charge(pos: Vector3, color: Color, k: float) -> void:
+	_ensure_pools()
+	k = clampf(k, 0.0, 1.0)
+	var flick := 0.8 + 0.2 * sin(_time * 47.0)
+	_frame_glows.append([pos, (0.15 + 0.5 * k) * flick, color, 0.9 * k, fposmod(_time * 9.0, TAU), 0.6 + 0.4 * k])
+	if k > 0.5 and randf() < k * 0.6:
+		_sparks.add(pos + _rand_dir() * 0.35, -_rand_dir() * 2.0, color.lerp(Color.WHITE, 0.4), 0.12, 0.03, 0.01, 0.0, 4.0, 0.06)
+
+
+## The rail shot (§2.8 rail_beam: width 0.3, 0.25 s): an instant thick orchid beam with a
+## white core from `from` to `to`, a muzzle blast, pierce rings along the line and a spray of
+## sparks at the end. `hits` (optional) are the points it pierced (a ring at each).
+func rail_fire(from: Vector3, to: Vector3, color: Color, hits: Array[Vector3] = []) -> void:
+	_ensure_pools()
+	_rail_id -= 1
+	beam(_rail_id, from, to, color, true, 1.0, 0.34)
+	(_beams[_rail_id] as Dictionary)["life"] = 0.25
+	(_beams[_rail_id] as Dictionary)["boost"] = 2.2
+	var dir := (to - from).normalized()
+	_glow(from, 0.4, 1.4, color, 1.0, 0.22, randf() * TAU)
+	_glow(from, 0.3, 0.6, Color(1, 1, 1), 0.0, 0.12)
+	_spark_burst(from, color.lerp(Color.WHITE, 0.3), 14, 6.0, 0.05, 0.3)
+	var l := from.distance_to(to)
+	var pts := hits.duplicate()
+	if pts.is_empty():
+		var step := 3.5
+		var d := step
+		while d < l:
+			pts.append(from + dir * d)
+			d += step
+	for p: Vector3 in pts:
+		pierce_ring(p, dir, color)
+	for i in (18 if quality_high else 8):
+		_sparks.add(to, (dir + _rand_dir() * 0.9) * randf_range(4.0, 9.0), color.lerp(Color.WHITE, 0.4), randf_range(0.2, 0.4), 0.05, 0.01, -5.0, 1.5, 0.06)
+
+
+## A ring flashing across a rail / pierce line at `pos` (facing along `dir`).
+func pierce_ring(pos: Vector3, dir: Vector3, color: Color) -> void:
+	_ensure_pools()
+	var side := dir.cross(Vector3.UP).normalized()
+	if side.length_squared() < 0.01:
+		side = Vector3.RIGHT
+	var up := side.cross(dir).normalized()
+	for k in 10:
+		var a := TAU * k / 10.0
+		var o := (side * cos(a) + up * sin(a))
+		_sparks.add(pos + o * 0.12, o * randf_range(2.6, 3.4), color.lerp(Color.WHITE, 0.3), 0.2, 0.045, 0.015, 0.0, 3.0, 0.03)
+	_glow(pos, 0.2, 0.7, color, 0.6, 0.18, randf() * TAU)
+
+
+## Prism refraction flash (§2.8 refract_flash, 0.2 s): a white-rose flare at the prism and
+## `split` short rays fanning out along `dir` (a shot crossing the prism; amp +20%).
+func prism_flash(pos: Vector3, color: Color, dir := Vector3(0, 0, -1), split := 1) -> void:
+	_ensure_pools()
+	_glow(pos, 0.3, 1.1, color, 1.0, 0.2, randf() * TAU)
+	_glow(pos, 0.25, 0.55, Color(1, 1, 1), 0.0, 0.14)
+	var side := dir.cross(Vector3.UP).normalized()
+	for i in split:
+		var a := 0.0 if split <= 1 else lerpf(-0.35, 0.35, float(i) / (split - 1))
+		var d := (dir + side * a).normalized()
+		_sparks.add(pos + d * 0.3, d * 14.0, color.lerp(Color.WHITE, 0.25), 0.18, 0.08, 0.03, 0.0, 0.5, 0.06)
+	for i in 6:
+		var o := _rand_dir()
+		_sparks.add(pos + o * 0.2, o * 2.5, Color(1.0, 0.85, 0.95), 0.22, 0.03, 0.01, 0.0, 3.0, 0.04)
+
+
+## Mortar shell landing (§2.8 shell_arc impact): white flash, a copper dust shockwave of
+## `radius`, flying debris, a grey smoke column and a quick ring of Stagger chevron sparks.
+func shell_impact(pos: Vector3, radius: float, color := Color(1.0, 0.8, 0.62)) -> void:
+	_ensure_pools()
+	var p := Vector3(pos.x, 0.0, pos.z)
+	_glow(p + Vector3(0, 0.35, 0), radius * 0.3, radius * 1.3, color, 0.5, 0.3, randf() * TAU)
+	_glow(p + Vector3(0, 0.3, 0), radius * 0.25, radius * 0.7, Color(1, 1, 1), 0.0, 0.14)
+	shockwave(p, color, radius)
+	for i in (16 if quality_high else 8):
+		var a := randf() * TAU
+		var o := Vector3(cos(a), 0, sin(a))
+		_sparks.add(p + o * 0.2 + Vector3(0, 0.1, 0), (o * randf_range(1.5, 3.5) + Vector3.UP * randf_range(3.0, 6.5)), Color(0.62, 0.55, 0.62),
+			randf_range(0.5, 0.8), 0.08, 0.04, -16.0, 0.5, 0.02)
+	for i in (8 if quality_high else 4):
+		var sc := randf_range(0.3, 0.5) * radius * 0.6
+		_smoke.add(p + _rand_dir() * 0.3 * radius + Vector3(0, 0.25, 0), (_rand_dir() * 0.6 + Vector3.UP * 1.2) * radius * 0.6,
+			Color(0.8, 0.78, 0.86, 0.6), randf_range(0.6, 1.0), sc, sc * 2.6, 0.4, 2.0, randf())
+
+
+## Tech rocket blast: a compact lime-white burst instead of the enemy-orange fireball.
+func tech_blast(pos: Vector3, radius: float) -> void:
+	_ensure_pools()
+	var lime := Color(0.55, 1.0, 0.3)
+	_glow(pos + Vector3(0, 0.25, 0), radius * 0.4, radius * 1.6, lime, 0.5, 0.32, randf() * TAU)
+	_glow(pos + Vector3(0, 0.25, 0), radius * 0.3, radius * 0.8, Color(1.0, 1.0, 0.95), 0.0, 0.18)
+	shockwave(Vector3(pos.x, 0.0, pos.z), lime, radius * 1.1)
+	_spark_burst(pos + Vector3(0, 0.2, 0), Color(0.8, 1.0, 0.6), 20, 6.5 * sqrt(radius), 0.055, 0.5)
+	for i in (7 if quality_high else 3):
+		var sc := randf_range(0.28, 0.45) * radius
+		_smoke.add(pos + _rand_dir() * 0.25 * radius + Vector3(0, 0.3, 0), (_rand_dir() + Vector3.UP * 0.8) * randf_range(0.6, 1.4) * radius,
+			Color(0.76, 0.8, 0.86, 0.5), randf_range(0.5, 0.85), sc, sc * 2.4, 0.5, 2.2, randf())
+
+
+## Rank-up forge moment (§2.8, 0.5 s): gold sparks fountain, a clang ring and a flash. The
+## caller pops the model scale and plays the clang + haptic CLICK 0.7.
+func rank_up(pos: Vector3, color: Color) -> void:
+	_ensure_pools()
+	_glow(pos + Vector3(0, 0.6, 0), 0.4, 2.0, Color(1.0, 0.8, 0.35), 1.0, 0.4, randf() * TAU)
+	_glow(pos + Vector3(0, 0.6, 0), 0.3, 0.9, Color(1, 1, 1), 0.0, 0.2)
+	shockwave(pos, color, 1.4)
+	for i in (30 if quality_high else 14):
+		var a := randf() * TAU
+		var o := Vector3(cos(a), 0, sin(a))
+		_sparks.add(pos + o * 0.3 + Vector3(0, 0.3, 0), o * randf_range(1.0, 3.0) + Vector3.UP * randf_range(4.0, 7.0), Color(1.0, 0.82, 0.4),
+			randf_range(0.5, 0.8), 0.05, 0.015, -14.0, 0.6, 0.05)
+
+
+## Cache burst (§5.6 Burst beat): shockwave in the rarity colour, shards and sparks; particle
+## count by tier 0..4 (Common..Mythic: 40/70/120/200/250, halved on low quality).
+func cache_burst(pos: Vector3, color: Color, tier: int) -> void:
+	_ensure_pools()
+	var counts: Array[int] = [40, 70, 120, 200, 250]
+	var n: int = counts[clampi(tier, 0, 4)]
+	if not quality_high:
+		n /= 2
+	_glow(pos, 0.6, 2.6 + tier * 0.5, color, 1.0, 0.5, randf() * TAU)
+	_glow(pos, 0.5, 1.4, Color(1, 1, 1), 0.0, 0.25)
+	shockwave(Vector3(pos.x, pos.y - 0.6, pos.z), color, 2.2 + tier * 0.4)
+	for i in n:
+		var d := (_rand_dir() + Vector3.UP * 0.5).normalized()
+		var c := color.lerp(Color.WHITE, randf() * 0.5)
+		_sparks.add(pos + d * 0.2, d * randf_range(3.0, 9.0), c, randf_range(0.4, 0.9), 0.06, 0.015, -6.0, 1.6, 0.05)
+
+
+# ------------------------------------------------------------------ telegraphs
+
+## Friendly PLACE telegraph (§2.8): a hollow dashed ring of `radius` in the family accent with
+## four inward chevrons that close in as the `life` (s) runs out; then it fades. At most
+## MAX_TELEGRAPHS friendly ones live at once (the oldest is reused).
+func telegraph_ring(pos: Vector3, radius: float, color: Color, life := 0.8) -> void:
+	_telegraph(0, Vector3(pos.x, pos.y + 0.04, pos.z), Vector2(radius * 2.0, radius * 2.0), 0.0, color, life, false)
+
+
+## Friendly line telegraph (Railgun, §2.8): two dashed rails `width` apart from `from` along
+## `dir` for `length` (on the road), chevrons racing forward; fades after `life`.
+func telegraph_rails(from: Vector3, dir: Vector3, length: float, color: Color, life := 0.4, width := 0.9) -> void:
+	var d := Vector3(dir.x, 0.0, dir.z).normalized()
+	var c := Vector3(from.x, 0.05, from.z) + d * length * 0.5
+	_telegraph(1, c, Vector2(width, length), atan2(-d.x, -d.z), color, life, false)
+
+
+## Enemy telegraph (plan2 meteors, lava jets, boss markers): a filled red disc with a solid
+## rim; the fill grows to the rim over `life`.
+func telegraph_enemy(pos: Vector3, radius: float, life := 1.0) -> void:
+	_telegraph(2, Vector3(pos.x, pos.y + 0.045, pos.z), Vector2(radius * 2.0, radius * 2.0), 0.0, ENEMY_RED, life, true)
+
+
+## Enemy line telegraph: a solid red band.
+func telegraph_enemy_band(from: Vector3, dir: Vector3, length: float, width: float, life := 1.0) -> void:
+	var d := Vector3(dir.x, 0.0, dir.z).normalized()
+	_telegraph(3, Vector3(from.x, 0.05, from.z) + d * length * 0.5, Vector2(width, length), atan2(-d.x, -d.z), ENEMY_RED, life, true)
+
+
+## Kept for the railgun gallery: rail_telegraph(id, ...) = telegraph_rails with a 0.4 s life.
+func rail_telegraph(_id: int, from: Vector3, dir: Vector3, length: float, color: Color, on: bool) -> void:
+	if on:
+		telegraph_rails(from, dir, length, color, 0.4)
+
+
+func _telegraph(mode: int, pos: Vector3, size: Vector2, yaw: float, color: Color, life: float, enemy: bool) -> void:
+	_ensure_pools()
+	var cap := MAX_ENEMY_TELEGRAPHS if enemy else MAX_TELEGRAPHS
+	var mine: Array[Dictionary] = []
+	var tg: Dictionary = {}
+	for e: Dictionary in _telegraphs:
+		if bool(e["enemy"]) == enemy:
+			mine.append(e)
+			if tg.is_empty() and not bool(e["active"]):
+				tg = e
+	if tg.is_empty():
+		var live := 0
+		for e: Dictionary in mine:
+			if bool(e["active"]):
+				live += 1
+		if mine.size() < cap:
+			var mi := MeshInstance3D.new()
+			mi.name = "Telegraph"
+			mi.mesh = Mats.quad(Vector2(1, 1))
+			var m := ShaderMaterial.new()
+			m.shader = TELEGRAPH_SHADER
+			mi.material_override = m
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# Enemy telegraphs draw over friendly ones (threats win the priority ladder).
+			m.render_priority = 2 if enemy else 1
+			add_child(mi)
+			tg = {"node": mi, "mat": m, "t": 0.0, "life": 1.0, "enemy": enemy, "active": false, "born": 0.0}
+			_telegraphs.append(tg)
+		else:
+			# Budget: reuse the oldest one.
+			tg = mine[0]
+			for e: Dictionary in mine:
+				if float(e["born"]) < float(tg["born"]):
+					tg = e
+	var node: MeshInstance3D = tg["node"]
+	node.position = pos
+	node.rotation = Vector3(0, yaw, 0)
+	node.scale = Vector3(size.x, 1.0, size.y)
+	node.visible = true
+	var mat: ShaderMaterial = tg["mat"]
+	mat.set_shader_parameter("mode", mode)
+	mat.set_shader_parameter("color", color)
+	mat.set_shader_parameter("size", size)
+	mat.set_shader_parameter("progress", 0.0)
+	mat.set_shader_parameter("alpha", 1.0)
+	tg["t"] = 0.0
+	tg["life"] = maxf(life, 0.05)
+	tg["active"] = true
+	tg["born"] = _time
+
+
+func _step_telegraphs(delta: float) -> void:
+	var friendly_live := 0
+	for e: Dictionary in _telegraphs:
+		if bool(e["active"]) and not bool(e["enemy"]):
+			friendly_live += 1
+	for e: Dictionary in _telegraphs:
+		if not bool(e["active"]):
+			continue
+		e["t"] = float(e["t"]) + delta
+		var life := float(e["life"])
+		var p := float(e["t"]) / life
+		var mat: ShaderMaterial = e["mat"]
+		mat.set_shader_parameter("progress", clampf(p, 0.0, 1.0))
+		# Fade in 0.08 s, hold, fade out 0.15 s after the life ends.
+		var a := smoothstep(0.0, 0.08, float(e["t"])) * (1.0 - clampf((float(e["t"]) - life) / 0.15, 0.0, 1.0))
+		mat.set_shader_parameter("alpha", a)
+		if float(e["t"]) > life + 0.15:
+			e["active"] = false
+			(e["node"] as Node3D).visible = false
+
+
+# ------------------------------------------------------------------ squad statuses
+
+## A squad's status ring (§2.1, §2.8 priority 6): call every frame per squad `id` while the
+## status is on; fades when not refreshed for 0.2 s. `status` = stagger | jolt | chill | burn
+## | mark | seal; `stacks` lights the stack segments (Jolt and Chill 1..3; Chill at max =
+## frozen disc). Burn adds rising embers, Jolt a crackle. The overlay on the units themselves
+## is CrowdView.set_overlay (the colour is STATUS_LOOK[status].color).
+func status(id: int, center: Vector3, radius: float, st: String, stacks := 1, on := true) -> void:
+	_ensure_pools()
+	var key := "%d|%s" % [id, st]
+	var e: Dictionary = _status.get(key, {})
+	if e.is_empty():
+		if not on:
+			return
+		var mi := MeshInstance3D.new()
+		mi.name = "Status"
+		mi.mesh = Mats.quad(Vector2(1, 1))
+		var m := ShaderMaterial.new()
+		m.shader = STATUS_SHADER
+		m.set_shader_parameter("noise_tex", NOISE_TEX)
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+		var look: Dictionary = STATUS_LOOK.get(st, STATUS_LOOK["mark"])
+		m.set_shader_parameter("kind", int(look["kind"]))
+		m.set_shader_parameter("color", look["color"])
+		e = {"node": mi, "mat": m, "k": 0.0, "st": st, "ember": 0.0}
+		_status[key] = e
+	e["pos"] = center
+	e["r"] = radius
+	e["stacks"] = stacks
+	e["on"] = on
+	e["seen"] = _time
+
+
+func _step_status(delta: float) -> void:
+	for key: String in _status.keys():
+		var e: Dictionary = _status[key]
+		var on: bool = e["on"] and _time - float(e["seen"]) < 0.2
+		var k := move_toward(float(e["k"]), 1.0 if on else 0.0, delta * (8.0 if on else 5.0))
+		e["k"] = k
+		var mi: MeshInstance3D = e["node"]
+		if k <= 0.001 and not on:
+			mi.queue_free()
+			_status.erase(key)
+			continue
+		var pos: Vector3 = e["pos"]
+		var r := float(e["r"])
+		mi.position = Vector3(pos.x, pos.y + 0.06, pos.z)
+		mi.scale = Vector3.ONE * r * 2.6
+		var m: ShaderMaterial = e["mat"]
+		m.set_shader_parameter("alpha", k)
+		m.set_shader_parameter("stacks", float(e["stacks"]))
+		var st := str(e["st"])
+		var c: Color = (STATUS_LOOK.get(st, STATUS_LOOK["mark"]) as Dictionary)["color"]
+		e["ember"] = float(e["ember"]) + delta * k
+		var every := 0.06 if quality_high else 0.12
+		while float(e["ember"]) > every:
+			e["ember"] = float(e["ember"]) - every
+			var a := randf() * TAU
+			var o := Vector3(cos(a), 0, sin(a)) * r * randf_range(0.5, 1.1)
+			match st:
+				"burn":
+					_sparks.add(pos + o + Vector3(0, 0.15, 0), Vector3(0, randf_range(1.2, 2.4), 0) + _rand_dir() * 0.3, c.lerp(Color(1.0, 0.75, 0.4), randf() * 0.6), 0.45, 0.05, 0.01, 1.0, 0.5, 0.05)
+				"jolt":
+					if randf() < 0.35:
+						_sparks.add(pos + o + Vector3(0, 0.3, 0), _rand_dir() * 3.0, c.lerp(Color.WHITE, 0.4), 0.1, 0.03, 0.01, 0.0, 4.0, 0.08)
+				"chill":
+					if randf() < 0.3:
+						_sparks.add(pos + o + Vector3(0, 0.5, 0), Vector3(0, -0.4, 0) + _rand_dir() * 0.2, Color(0.9, 0.97, 1.0), 0.6, 0.035, 0.03, 0.0, 1.0, 0.01)
+				_:
+					pass
+
+
+## The moment a status lands on a squad (one shot): a flare and a burst in its colour.
+func status_pop(pos: Vector3, st: String) -> void:
+	_ensure_pools()
+	var c: Color = (STATUS_LOOK.get(st, STATUS_LOOK["mark"]) as Dictionary)["color"]
+	_glow(pos, 0.2, 0.9, c, 0.8, 0.25, randf() * TAU)
+	_spark_burst(pos, c.lerp(Color.WHITE, 0.3), 10, 3.5, 0.045, 0.3)
 
 
 # ------------------------------------------------------------------ meshes
