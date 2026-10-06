@@ -488,6 +488,7 @@ func _step_walkout() -> void:
 		_walk_pending = false
 		_walk_done = true
 		if _final:
+			step = 7                # "Далі" during the walkout: without this the next tap was a no-op
 			_show_final()
 		else:
 			_step_cache())

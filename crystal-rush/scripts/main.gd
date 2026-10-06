@@ -4,7 +4,7 @@ extends Node
 ## Caches, frontier - saved before anything animates), then the ResultFlow (win) or the
 ## LossScreen (loss) plays over the run's last frame. World Caches open on the CacheAltar
 ## (from the result flow or the hub's Vault via Hub.open_altar).
-## Dev flags (after `--`): --autotest, --levelcheck, --loop, --shot=path.png, --screen=menu|run,
+## Dev flags (after `--`): --autotest, --levelcheck, --loop, --campaign, --shot=path.png, --screen=menu|run,
 ## --level=N, --hero=bolt|titan
 ## The run scripts are loaded on demand, so the router (menu, level_check) still works while
 ## the run code is being rewritten.
@@ -32,7 +32,7 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		_args[kv[0]] = kv[1] if kv.size() > 1 else "1"
-	for tool: String in ["autotest", "levelcheck", "shot", "loop"]:
+	for tool: String in ["autotest", "levelcheck", "shot", "loop", "campaign"]:
 		if _args.has(tool):
 			_start_dev(tool)
 			return
@@ -45,6 +45,7 @@ func _start_dev(tool: String) -> void:
 		"levelcheck": "res://scripts/dev/level_check.gd",
 		"shot": "res://scripts/dev/screenshot.gd",
 		"loop": "res://scripts/dev/loop_check.gd",
+		"campaign": "res://scripts/dev/campaign_check.gd",
 	}[tool]
 	if not ResourceLoader.exists(path):
 		push_error("main: missing dev tool " + path)

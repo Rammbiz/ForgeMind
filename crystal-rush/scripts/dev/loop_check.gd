@@ -167,6 +167,7 @@ func _loss_part(hub: Hub) -> void:
 ## flow node.
 func _play_run(holder: Node, lose: bool) -> Node:
 	var run: Run = holder.get_meta("run")
+	_bot.reset()                          # a stale think clock would leave the bot idle in the 2nd run
 	Engine.time_scale = speed
 	Juice.base_time_scale = speed
 	Juice.hitstop_enabled = false
