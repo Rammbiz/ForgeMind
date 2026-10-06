@@ -175,6 +175,8 @@ func snapshot(run: Object, fog := true) -> Array:
 	s.weapons.clear()
 	s.d = d
 	s.t = t
+	var hz: Variant = run.get("hz_t")
+	s.hz_t = float(hz) if hz != null else t
 	s.hx = float(run.get("hx"))
 	s.ax = _army_x(run, s.hx)
 	s.coins = int(run.get("coins"))

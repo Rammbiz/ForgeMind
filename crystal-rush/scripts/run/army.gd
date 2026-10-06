@@ -440,3 +440,59 @@ func bounds() -> Array:
 		z0 = minf(z0, p.z)
 		z1 = maxf(z1, p.z)
 	return [x0, x1, z0, z1]
+
+
+# ------------------------------------------------------------------ Barracks (meta hooks, WS2b)
+# The account's army block (Meta.run_profile "army", §6.4): {recruit_bonus, reserves,
+# scrape_guard, drill, volley_mult, max_tier, glory_reserves}. Pure reads; the Run applies them
+# (recruits, the siege, hazard losses, clashes, volleys). LevelSim mirrors the same rules.
+
+## The army block (set by use_profile(); else read from the parent Run's profile).
+var meta_army: Dictionary = {}
+
+
+func use_profile(profile: Dictionary) -> void:
+	var a: Variant = profile.get("army", {})
+	meta_army = a if a is Dictionary else {}
+
+
+func _army_block() -> Dictionary:
+	if meta_army.is_empty():
+		var run := get_parent()
+		if run and run.get("profile") is Dictionary:
+			use_profile(run.get("profile"))
+	return meta_army
+
+
+## Barracks Volleys: army-tier volley damage multiplier (Run.volley_mult defers here).
+func volley_mult() -> float:
+	return maxf(float(_army_block().get("volley_mult", 1.0)), 0.0)
+
+
+## Barracks Recruits: extra soldiers each grey recruit group brings.
+func recruit_bonus() -> int:
+	return maxi(int(_army_block().get("recruit_bonus", 0)), 0)
+
+
+## Barracks Reserves (+ Glory reserves): soldiers who join at the siege.
+func reserves() -> int:
+	var b := _army_block()
+	return maxi(int(b.get("reserves", 0)) + int(b.get("glory_reserves", 0)), 0)
+
+
+## Barracks Scrape Guard: of `lost` soldiers a barricade / blade / spikes item `it` just took,
+## how many are saved (the first `scrape_guard` per hazard item; the item remembers the rest).
+func scrape_spare(it: Dictionary, lost: int) -> int:
+	var left := int(it.get("guard_left", maxi(int(_army_block().get("scrape_guard", 0)), 0)))
+	var spare := mini(left, maxi(lost, 0))
+	it["guard_left"] = left - spare
+	return spare
+
+
+## Barracks Drill: clash damage multiplier against squad `it` (the hero hit it within
+## Balance.DRILL_WINDOW s before `now`, run time).
+func drill_mult(it: Dictionary, now: float) -> float:
+	var hit_t := float(it.get("hero_hit_t", -100.0))
+	if now - hit_t > Balance.DRILL_WINDOW:
+		return 1.0
+	return 1.0 + maxf(float(_army_block().get("drill", 0.0)), 0.0)

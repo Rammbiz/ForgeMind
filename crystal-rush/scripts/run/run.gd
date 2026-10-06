@@ -147,6 +147,10 @@ var _ult_tick := 0.0
 var _quake_d := 0.0
 var _quake_wave := 99
 var _armor := 0.0
+## Hazard clock (WS2b): blades and sweepers move on it; the Seer's rift slows it (hazard_slow).
+var hz_t := 0.0
+var _rift: Node3D
+var _slow_acc := 0.0
 var _finale := 0.0
 var _end_t := 0.0
 var _loss_acc := 0.0
@@ -609,6 +613,7 @@ func _step(dt: float) -> void:
 	var active := state == State.RUNNING or state == State.CLASH or state == State.SIEGE
 	if active:
 		t += dt
+		hz_t += dt * hazard_slow()
 		_steer(dt)
 	elif state == State.READY:
 		_steer(dt)
@@ -625,7 +630,7 @@ func _step(dt: float) -> void:
 	_army_step(dt)
 	if active:
 		hazards.check_army(army_view, _armor > 0.0)
-		hazards.step_turrets(dt, army_view)
+		hazards.step_turrets(dt * hazard_slow(), army_view)
 		match state:
 			State.CLASH:
 				_clash(dt)
@@ -634,7 +639,7 @@ func _step(dt: float) -> void:
 		_armor = maxf(_armor - dt, 0.0)
 	else:
 		army_view.hold_slots(false)
-	hazards.step_squads(dt, d, _foe if state == State.CLASH else {}, -d - 0.75, hx)
+	hazards.step_squads(dt * hazard_slow(), d, _foe if state == State.CLASH else {}, -d - 0.75, hx)
 
 
 func _steer(dt: float) -> void:
@@ -771,7 +776,7 @@ func _take_coin(it: Dictionary) -> void:
 
 
 func _take_recruits(it: Dictionary) -> void:
-	var n := int(it.get("value", 3))
+	var n := int(it.get("value", 3)) + army_view.recruit_bonus()
 	var pts: PackedVector3Array = it.get("units", PackedVector3Array())
 	var before := army
 	army += n
@@ -802,7 +807,7 @@ func _gate_face(it: Dictionary) -> Array:
 
 
 func _update_live() -> void:
-	hazards.update_live(t)
+	hazards.update_live(hz_t)
 	var lo := maxi(_tk - 2, 0)
 	for i in range(lo, _targ.size()):
 		var it := _targ[i]
@@ -842,6 +847,15 @@ func _reveal() -> void:
 			break
 		if str(it["kind"]) == "gate" and not bool(it["revealed"]) and gd >= d:
 			_reveal_gate(it)
+
+
+## The Seer's foresight: a hit on a gate reveals every hidden gate of its row.
+func _reveal_row(g: Dictionary) -> void:
+	for o: Dictionary in _rows.get(int(g.get("row", -1)), [g]):
+		if o["alive"] and not bool(o["revealed"]):
+			_reveal_gate(o)
+			_style_gate(o)
+			effects.flash((o["node"] as Node3D).global_position + Vector3(0, 1.1, 0.1), Effects.ARCANE, 1.2, 0.3)
 
 
 func _reveal_gate(it: Dictionary) -> void:
@@ -1259,6 +1273,11 @@ func hazard_kills(it: Dictionary, idxs: PackedInt32Array, push: Vector3) -> void
 	var before := army
 	var lost := int(floor(_loss_acc + 0.0001))
 	_loss_acc -= lost
+	# Barracks Scrape Guard: the first soldiers this hazard takes are saved.
+	var spared := army_view.scrape_spare(it, lost)
+	if spared > 0:
+		lost -= spared
+		_side_popup("+%d" % spared, Vector3(float(it["x"]), 1.6, -float(it["d"])), GAIN, 0.7)
 	army = maxi(army - lost, 0)
 	army_view.fit(mini(army, _max_shown))
 	_army_changed(before)
@@ -1860,7 +1879,9 @@ func _hero_attack(dt: float) -> void:
 	_atk_cd -= dt
 	if _atk_cd > 0.0:
 		return
-	var shots := 1 + int(power["multi"])
+	# Base shots per cast (the Seer's twin orbs; Bolt's Forked Fox chain every 3rd cast) + power.
+	var base := int(def.get("targets", 1)) + int(power["multi"])
+	var shots := hero.cast_shots() + int(power["multi"])
 	var corridor := float(def.get("corridor", Balance.CORRIDOR))
 	var list := targets(hx, corridor, float(def["range"]), shots, true)
 	if list.is_empty():
@@ -1871,17 +1892,27 @@ func _hero_attack(dt: float) -> void:
 	hero.strike()
 	var dmg := _hero_damage()
 	for k in shots:
+		# A chained shot (beyond the base) only goes to another target.
+		if k >= base and k >= list.size():
+			continue
 		var it: Dictionary = list[mini(k, list.size() - 1)]
 		if not it["alive"]:
 			continue
 		var at := aim_point(it)
 		_shot_fx(at, k)
 		var kind := str(it["kind"])
+		if kind == "squad":
+			it["hero_hit_t"] = t
+		elif kind == "gate" and bool(def.get("reveal_row", false)):
+			_reveal_row(it)
 		# The hero paints what it hits: PAINT machines follow (§2.2).
 		if kind != "gate" and kind != "crate":
 			painted = it
 			_paint_t = ArsenalData.PAINT_S
 		var n := dmg
+		# The Seer fills charge gates faster (HEROES.charge_mult).
+		if kind == "gate" and str(_gate_face(it)[0]) == "charge":
+			n *= float(def.get("charge_mult", 1.0))
 		if kind == "squad":
 			n += float(def["splash"])
 		# Hero shots always cross the Prism (+amp, bucket 2) and land Mark's vs (bucket 3).
@@ -1898,7 +1929,14 @@ func _hero_attack(dt: float) -> void:
 
 func _shot_fx(at: Vector3, k: int) -> void:
 	var from := hero.muzzle() + Vector3(0.18 * k, 0, 0)
-	if hero_type == "bolt":
+	if hero_type == "seer":
+		# Twin violet orbs from her hands, curling onto their targets.
+		from = hero.muzzle() + Vector3(-0.22 if k % 2 == 0 else 0.22, 0.12, 0.0)
+		effects.projectile(from, at, "arcane", from.distance_to(at) / 20.0, Callable())
+		effects.muzzle(from, Effects.ARCANE)
+		if k == 0:
+			Audio.play("laser", -16.0, 0.3)
+	elif hero_type == "bolt":
 		effects.lightning([from, from.lerp(at, 0.5) + Vector3(randf_range(-0.3, 0.3), 0.3, 0), at], Color(0.55, 0.85, 1.0), 0.14, 0.06, false)
 		effects.hit_spark(at, Color(0.65, 0.9, 1.0))
 		effects.muzzle(from, Color(0.6, 0.9, 1.0))
@@ -1927,7 +1965,7 @@ func _vault_check() -> void:
 func _charge(points: float) -> void:
 	if _ult_left > 0.0 or _quake_wave < 99:
 		return
-	ult_points = minf(ult_points + maxf(points, 0.0), float(ult["charge"]))
+	ult_points = minf(ult_points + maxf(points, 0.0) * hero_mult("ult_rate_mult"), float(ult["charge"]))
 	_emit_ult()
 
 
@@ -1953,7 +1991,16 @@ func use_ult() -> bool:
 	_ult_uses += 1
 	juice.hitstop(0.07)
 	juice.haptic("ult")
-	if hero_type == "bolt":
+	if hero_type == "seer":
+		_ult_left = float(ult["duration"])
+		_ult_tick = 0.25
+		hero.cast_ult(_ult_left)
+		_rift = effects.rift_open(_rift_pos())
+		effects.flash(hero.muzzle(), Effects.ARCANE, 2.2, 0.4)
+		juice.add_trauma(0.45)
+		Audio.play("upgrade", -2.0)
+		Audio.play("tesla", -6.0)
+	elif hero_type == "bolt":
 		_ult_left = float(ult["duration"])
 		hero.cast_ult(_ult_left)
 		effects.flash(hero.muzzle(), Color(0.6, 0.9, 1.0), 2.4, 0.35)
@@ -1977,11 +2024,19 @@ func _ult_step(dt: float) -> void:
 	if _ult_left > 0.0:
 		_ult_left -= dt
 		_ult_tick -= dt
+		if _rift:
+			_rift.position = _rift_pos()
 		while _ult_tick <= 0.0 and _ult_left > -dt:
 			_ult_tick += float(ult["tick"])
-			_storm_tick()
+			if hero_type == "seer":
+				_rift_tick()
+			else:
+				_storm_tick()
 		if _ult_left <= 0.0:
 			_ult_left = 0.0
+			if _rift:
+				effects.rift_close(_rift)
+				_rift = null
 			_emit_ult()
 	elif _quake_wave < 99:
 		_ult_tick -= dt
@@ -2019,6 +2074,37 @@ func _storm_tick() -> void:
 	juice.add_trauma(0.12)
 
 
+## Seer ult "Star Rift": the arcane barrage (orbs falling out of the rift onto everything in
+## range; hits squads, turrets, crates, barricades and additive gates like the storm).
+func _rift_tick() -> void:
+	var reach := float(ult["range"])
+	var n := 5 if quality_high else 3
+	for it in _ult_targets(d - 0.5, d + reach):
+		if n <= 0:
+			break
+		if str(it["kind"]) == "gate":
+			continue
+		n -= 1
+		var at := aim_point(it)
+		var src := _rift_pos() + Vector3(randf_range(-2.4, 2.4), randf_range(2.6, 4.0), randf_range(-0.6, 0.6))
+		effects.projectile(src, at, "arcane", src.distance_to(at) / 24.0, Callable())
+	_ult_hit(d - 0.5, d + reach, true)
+	Audio.play("laser", -10.0, 0.3)
+	juice.add_trauma(0.07)
+
+
+## Where the Seer's rift hangs: `ahead` u in front of the hero, drifting with her lane.
+func _rift_pos() -> Vector3:
+	return Vector3(hx * 0.35, 0.0, -(d + float(ult.get("ahead", 7.0))))
+
+
+## Speed of enemies and hazards (1 normally; 1 - slow while the Seer's rift is open).
+func hazard_slow() -> float:
+	if hero_type == "seer" and _ult_left > 0.0:
+		return 1.0 - float(ult.get("slow", 0.0))
+	return 1.0
+
+
 func _ult_targets(a: float, b: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for i in range(maxi(_tk - 2, 0), _targ.size()):
@@ -2035,12 +2121,12 @@ func _ult_hit(a: float, b: float, gates: bool) -> void:
 	for it in _ult_targets(a, b):
 		match str(it["kind"]):
 			"squad":
-				hurt(it, float(ult["kills"]), "ult")
+				hurt(it, float(ult["kills"]) * hero.ult_power(), "ult")
 			"gate":
 				if gates and float(it["d"]) >= d:
 					_hit_gate(it, float(_hero_damage()))
 			_:
-				hurt(it, float(ult["breaks"]), "ult")
+				hurt(it, float(ult["breaks"]) * hero.ult_power(), "ult")
 
 
 func _quake_wave_fx(near: float, spacing: float) -> void:
@@ -2059,6 +2145,7 @@ func _quake_wave_fx(near: float, spacing: float) -> void:
 func _begin_clash(it: Dictionary) -> void:
 	state = State.CLASH
 	_foe = it
+	it["drill_k"] = army_view.drill_mult(it, t)
 	_tick = 0.0
 	army_view.mode = Army.Mode.CHARGE
 	army_view.charge_z = -d - 0.2
@@ -2086,9 +2173,16 @@ func _clash(dt: float) -> void:
 		var foes := float(_foe["hp"])
 		if army >= 1:
 			var hit := mini(_burst(mini(army, ceili(foes))), mini(army, ceili(foes)))
-			_change_army(-hit, Vector3.INF, Vector3.ZERO, "front")
-			stats["clash_losses"] = int(stats["clash_losses"]) + hit
-			hurt(_foe, float(hit), "clash")
+			# Slowed squads (Seer's rift) kill fewer of ours; Drill makes a hit squad lose more.
+			var lost := hit
+			var slow := hazard_slow()
+			if slow < 1.0:
+				_slow_acc += float(hit) * slow
+				lost = int(floor(_slow_acc + 0.0001))
+				_slow_acc -= float(lost)
+			_change_army(-lost, Vector3.INF, Vector3.ZERO, "front")
+			stats["clash_losses"] = int(stats["clash_losses"]) + lost
+			hurt(_foe, float(hit) * float(_foe.get("drill_k", 1.0)), "clash")
 			_clash_fx()
 		else:
 			var hit2 := int(minf(float(_burst(mini(hero_hp, ceili(foes)))), foes))
@@ -2119,6 +2213,12 @@ func _begin_siege(it: Dictionary) -> void:
 	_foe = it
 	_tick = 0.0
 	_finale = Balance.FINALE_TIME
+	# Barracks Reserves: fresh soldiers join for the siege.
+	var res := army_view.reserves()
+	if res > 0:
+		_change_army(res, Vector3(hx, 0.4, -d + 5.0), Vector3(1.2, 0.4, 0.8))
+		_side_popup("+%d" % res, Vector3(hx, 1.6, -d + 1.0), GAIN, 1.0)
+		juice.haptic("gate_good")
 	_army_at_fortress = army
 	army_view.mode = Army.Mode.CHARGE
 	army_view.charge_z = -float(it["d"]) + 0.85
@@ -2681,6 +2781,7 @@ func skip_to(dist: float) -> void:
 	start()
 	dist = minf(dist, length - Balance.CONTACT - 0.5)
 	t = dist / Balance.RUN_SPEED
+	hz_t = t
 	d = dist
 	while _pk < _pick.size() and float(_pick[_pk]["d"]) <= d:
 		var it := _pick[_pk]

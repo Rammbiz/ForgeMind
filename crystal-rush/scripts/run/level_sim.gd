@@ -52,6 +52,15 @@ class_name LevelSim
 ##   ult runs. Bolt storm: 12 ticks of `kills` per squad / `breaks` per structure within range,
 ##   gates in range get a hero-damage hit per tick. Titan quake: 4 bands of `spacing` from the cast
 ##   point, then `armor_time` s of hazard immunity. The script key ult_ready_at fills the ult.
+## - Heroes (Balance.HEROES, WS2b): `targets` shots per cast (the Seer's twin orbs; Bolt's
+##   Forked Fox adds a chained shot to a second target every 3rd cast); the Seer fills charge
+##   gates x`charge_mult` and reveals a gate's row when she hits it. Seer rift: `duration` s of
+##   ticks like the storm; meanwhile blades and sweepers run on a slowed hazard clock (hz_t),
+##   turrets and clashing squads kill (1 - slow) as fast. Ult kills/breaks x ult_pow (Ult Rank),
+##   ult points x ult_rate (hero level), hero damage x dmg_mult x (1 + Reinforcements dmg_add).
+## - Barracks (profile.army): recruit groups bring +recruit_bonus, reserves join at the siege
+##   (before army_at_fortress is taken), each hazard item spares its first scrape_guard
+##   soldiers, and a squad the hero hit within 2 s before the clash loses x(1 + drill).
 
 enum K { TILE, COIN, RECRUITS, GATE, BARRICADE, BLADE, TURRET, SQUAD, GEODE, CRATE, FORTRESS, STAIRS }
 enum Mode { RUN, CLASH, SIEGE, WON, LOST }
@@ -92,6 +101,7 @@ class Level extends RefCounted:
 class State extends RefCounted:
 	var d := 0.0
 	var t := 0.0
+	var hz_t := 0.0                     ## hazard clock (blades / sweepers; slowed by the Seer's rift)
 	var hx := 0.0
 	var ax := 0.0                       ## army centre x (follows hx with a lag, like the real blob)
 	var d_prev := 0.0                   ## hero distance before the last step (hazard bands)
@@ -116,7 +126,19 @@ class State extends RefCounted:
 	var deck: Array = []                ## profile deck (crate contents)
 	var levels := {}                    ## account level per machine (CratePicker)
 	var new_crate := ""                 ## the NEW crate machine of this level ("" = owned)
-	var hero_dmg := 1.0                 ## profile hero dmg_mult
+	var hero_dmg := 1.0                 ## profile hero dmg_mult (x Reinforcements dmg_add)
+	var ult_rate := 1.0                 ## profile hero ult_rate_mult
+	var ult_pow := 1.0                  ## Ult Rank effect multiplier
+	var aspect := ""
+	var casts := 0
+	var recruit_bonus := 0.0            ## Barracks (profile.army)
+	var reserves := 0.0
+	var scrape_guard := 0.0
+	var drill := 0.0
+	var drill_k := 1.0                  ## the current clash foe's Drill multiplier
+	var guard := PackedFloat32Array()   ## per item: Scrape Guard soldiers left (-1 = untouched)
+	var hit_t := PackedFloat32Array()   ## per item: last hero hit (run time)
+	var slow_acc := 0.0
 	var content := {}                   ## crate item index -> content id (resolved in the sim)
 	var arm := 0
 	var p_rate := 0.0
@@ -153,7 +175,7 @@ class State extends RefCounted:
 
 	func copy() -> State:
 		var s := State.new()
-		s.d = d; s.t = t; s.hx = hx; s.ax = ax; s.d_prev = d_prev; s.mode = mode; s.hero = hero; s.army = army; s.coins = coins
+		s.d = d; s.t = t; s.hz_t = hz_t; s.hx = hx; s.ax = ax; s.d_prev = d_prev; s.mode = mode; s.hero = hero; s.army = army; s.coins = coins
 		s.hero_hp = hero_hp; s.ult = ult; s.ult_left = ult_left; s.ult_tick = ult_tick
 		s.quake_d = quake_d; s.quake_wave = quake_wave; s.armor = armor; s.atk_cd = atk_cd
 		s.volley_cd = volley_cd; s.tick = tick; s.finale = finale; s.foe = foe
@@ -169,6 +191,9 @@ class State extends RefCounted:
 		s.hazard_deaths = hazard_deaths; s.clash_deaths = clash_deaths; s.kills = kills; s.peak = peak
 		s.army_at_fortress = army_at_fortress; s.survivors = survivors; s.stairs_mult = stairs_mult
 		s.total_coins = total_coins; s.reason = reason; s.auto_ult = auto_ult; s.gate_margin = gate_margin
+		s.ult_rate = ult_rate; s.ult_pow = ult_pow; s.aspect = aspect; s.casts = casts
+		s.recruit_bonus = recruit_bonus; s.reserves = reserves; s.scrape_guard = scrape_guard; s.drill = drill
+		s.drill_k = drill_k; s.guard = guard.duplicate(); s.hit_t = hit_t.duplicate(); s.slow_acc = slow_acc
 		return s
 
 
@@ -276,6 +301,10 @@ static func start_state(lv: Level, hero: String, army: int, opts := {}) -> State
 	s.op.resize(n)
 	s.op2.resize(n)
 	s.rev.resize(n)
+	s.guard.resize(n)
+	s.guard.fill(-1.0)
+	s.hit_t.resize(n)
+	s.hit_t.fill(-100.0)
 	for i in n:
 		var it := lv.items[i]
 		_init_item(lv, s, i)
@@ -356,6 +385,7 @@ static func result(lv: Level, s: State) -> Dictionary:
 
 static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> void:
 	s.t += dt
+	s.hz_t += dt * hazard_slow(s)
 	var def: Dictionary = Balance.HEROES[s.hero]
 	if s.auto_ult and s.ult >= float((def["ult"] as Dictionary)["charge"]) - 0.001 and ult_ready(s) and ult_worth(lv, s):
 		use_ult(lv, s)
@@ -401,6 +431,7 @@ static func _blocks(lv: Level, s: State, nd: float, hx: float) -> float:
 			s.mode = Mode.CLASH
 			s.foe = j
 			s.tick = 0.0
+			s.drill_k = _drill_k(s, j)
 			_log(s, "clash %d vs %d" % [int(s.army), int(s.hp[j])])
 			return s.d
 	while s.bk < lv.block.size():
@@ -416,6 +447,7 @@ static func _blocks(lv: Level, s: State, nd: float, hx: float) -> float:
 			s.foe = i
 			s.tick = 0.0
 			s.finale = Balance.FINALE_TIME
+			s.army += s.reserves
 			s.army_at_fortress = s.army
 			_log(s, "siege army %d hp %d" % [int(s.army), int(s.hp[i])])
 			return maxf(s.d, meet)
@@ -424,6 +456,7 @@ static func _blocks(lv: Level, s: State, nd: float, hx: float) -> float:
 			s.mode = Mode.CLASH
 			s.foe = i
 			s.tick = 0.0
+			s.drill_k = _drill_k(s, i)
 			_log(s, "clash %d vs %d" % [int(s.army), int(s.hp[i])])
 			return maxf(s.d, meet)
 		s.armed.append(i)
@@ -459,7 +492,7 @@ static func _picks(lv: Level, s: State, nd: float) -> void:
 			K.COIN:
 				s.coins += 1
 			K.RECRUITS:
-				_gain(s, s.val[i], s.val[i])
+				_gain(s, s.val[i] + s.recruit_bonus, s.val[i] + s.recruit_bonus)
 
 
 static func _gate_row(lv: Level, s: State, first: int) -> void:
@@ -593,7 +626,7 @@ static func _charge(s: State, points: float) -> void:
 	if s.ult_left > 0.0 or s.quake_wave < 99:
 		return
 	var cap := float((Balance.HEROES[s.hero]["ult"] as Dictionary)["charge"])
-	s.ult = minf(s.ult + maxf(points, 0.0), cap)
+	s.ult = minf(s.ult + maxf(points, 0.0) * s.ult_rate, cap)
 
 
 ## Adds a war machine (a crate / reward of `kind`): a fielded one ranks up (`steps` Ranks, past
@@ -701,21 +734,32 @@ static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> voi
 	if s.atk_cd > 0.0:
 		return
 	var corridor := float(def.get("corridor", Balance.CORRIDOR))
-	var shots := 1 + s.p_multi
+	var base := int(def.get("targets", 1)) + s.p_multi
+	var shots := base
+	if s.aspect == "forked_fox" and (s.casts + 1) % 3 == 0:
+		shots += 1
 	var targets := _targets(lv, s, s.hx, corridor, float(def["range"]), shots, true)
 	if targets.is_empty():
 		s.atk_cd = 0.0
 		return
 	s.atk_cd += 1.0 / hero_rate(s)
 	s.atk_cd = maxf(s.atk_cd, 0.02)
+	s.casts += 1
 	var dmg := hero_damage(s)
 	for k in shots:
+		if k >= base and k >= targets.size():
+			continue
 		var i: int = targets[mini(k, targets.size() - 1)]
 		if s.alive[i] == 0:
 			continue
 		if lv.kind[i] == K.GATE:
-			_hit_gate(lv, s, i, float(dmg))
+			if bool(def.get("reveal_row", false)):
+				for g in lv.rows.get(int(lv.items[i].get("row", i)), PackedInt32Array([i])):
+					s.rev[g] = 1
+			var gk := float(def.get("charge_mult", 1.0)) if str(gate_view(lv, s, i)[0]) == "charge" else 1.0
+			_hit_gate(lv, s, i, float(dmg) * gk)
 		elif lv.kind[i] == K.SQUAD:
+			s.hit_t[i] = s.t
 			_hurt(lv, s, i, dmg + float(def["splash"]))
 		else:
 			_hurt(lv, s, i, float(dmg))
@@ -1031,8 +1075,19 @@ static func apply_profile(s: State, prof: Dictionary) -> void:
 			s.levels[id] = int(((prof["machines"] as Dictionary)[id] as Dictionary).get("lvl", 1))
 	s.new_crate = str(prof.get("new_crate", ""))
 	var hero: Dictionary = prof.get("hero", {})
-	s.hero_dmg = float(hero.get("dmg_mult", 1.0))
+	var assist0: Dictionary = prof.get("assist", {})
+	s.hero_dmg = float(hero.get("dmg_mult", 1.0)) * (1.0 + float(assist0.get("dmg_add", 0.0)))
 	s.hero_hp *= float(hero.get("hp_mult", 1.0))
+	s.ult_rate = float(hero.get("ult_rate_mult", 1.0))
+	s.ult_pow = 1.0 + float(EconData.HERO.get("ult_rank_bonus", 0.2)) * float(clampi(int(hero.get("ult_rank", 1)), 1, 4) - 1)
+	s.aspect = str(hero.get("aspect", ""))
+	if s.aspect == "":
+		s.aspect = str((Balance.HEROES[s.hero] as Dictionary).get("aspect", ""))
+	var am: Dictionary = prof.get("army", {})
+	s.recruit_bonus = float(am.get("recruit_bonus", 0))
+	s.reserves = float(int(am.get("reserves", 0)) + int(am.get("glory_reserves", 0)))
+	s.scrape_guard = float(am.get("scrape_guard", 0))
+	s.drill = float(am.get("drill", 0.0))
 	var ld := str(prof.get("lead", ""))
 	if ld != "" and s.weapons.is_empty():
 		s.weapons.append([ld, 1, 0.0, 0])
@@ -1139,7 +1194,7 @@ static func ult_ready(s: State) -> bool:
 static func ult_worth(lv: Level, s: State) -> bool:
 	if s.mode == Mode.CLASH or s.mode == Mode.SIEGE:
 		return true
-	var reach := 16.0 if s.hero == "bolt" else 13.0
+	var reach := float(((Balance.HEROES[s.hero] as Dictionary)["ult"] as Dictionary).get("range", 13.0)) if s.hero != "titan" else 13.0
 	if s.hero == "titan" and s.army >= 25.0:
 		var c := army_center_d(s)
 		var lo_h := _first_at(lv.d, lv.haz, c)
@@ -1165,9 +1220,9 @@ static func use_ult(lv: Level, s: State) -> bool:
 		return false
 	var u: Dictionary = Balance.HEROES[s.hero]["ult"]
 	s.ult = 0.0
-	if s.hero == "bolt":
+	if u.has("duration"):
 		s.ult_left = float(u["duration"])
-		s.ult_tick = 0.0
+		s.ult_tick = 0.25 if s.hero == "seer" else 0.0
 	else:
 		s.quake_d = s.d
 		s.quake_wave = 0
@@ -1184,7 +1239,7 @@ static func _ult_step(lv: Level, s: State, def: Dictionary, dt: float) -> void:
 		s.ult_tick -= dt
 		while s.ult_tick <= 0.0 and s.ult_left > -dt:
 			s.ult_tick += float(u["tick"])
-			_ult_hit(lv, s, s.d - 0.5, s.d + float(u["range"]), float(u["kills"]), float(u["breaks"]), true)
+			_ult_hit(lv, s, s.d - 0.5, s.d + float(u["range"]), float(u["kills"]) * s.ult_pow, float(u["breaks"]) * s.ult_pow, true)
 		if s.ult_left <= 0.0:
 			s.ult_left = 0.0
 	elif s.quake_wave < 99:
@@ -1194,7 +1249,7 @@ static func _ult_step(lv: Level, s: State, def: Dictionary, dt: float) -> void:
 		while s.ult_tick <= 0.0 and s.quake_wave < waves:
 			s.ult_tick += float(u["gap"])
 			var near := s.quake_d + 1.0 + spacing * s.quake_wave
-			_ult_hit(lv, s, near - 0.5, near + spacing, float(u["kills"]), float(u["breaks"]), false)
+			_ult_hit(lv, s, near - 0.5, near + spacing, float(u["kills"]) * s.ult_pow, float(u["breaks"]) * s.ult_pow, false)
 			s.quake_wave += 1
 		if s.quake_wave >= waves:
 			s.quake_wave = 99
@@ -1276,6 +1331,15 @@ static func _hazards(lv: Level, s: State) -> void:
 				s.alive[i] = 0
 		else:
 			lost = mass * _blade_band(lv, s, i, half_w) * s.army
+		if lost > 0.0 and s.scrape_guard > 0.0:
+			# Barracks Scrape Guard: this hazard spares its first soldiers.
+			var left := s.guard[i] if s.guard[i] >= 0.0 else s.scrape_guard
+			var spare := minf(left, lost)
+			s.guard[i] = left - spare
+			lost -= spare
+			if lv.kind[i] == K.BARRICADE:
+				s.hp[i] += spare
+				s.alive[i] = 1 if s.hp[i] > 0.001 else 0
 		if lost > 0.0:
 			s.army = maxf(s.army - lost, 0.0)
 			s.hazard_deaths += lost
@@ -1316,7 +1380,7 @@ static func _blade_band(lv: Level, s: State, i: int, half_w: float) -> float:
 	var dead := 0.0
 	for k in SLICES:
 		var ux := clampf(s.ax + half_w * (-1.0 + (2.0 * k + 1.0) / SLICES), -wall, wall)
-		var hit := _rotor_hits(it, ux - bx, s.t) if rotor else _sweeper_hits(it, ux, s.t)
+		var hit := _rotor_hits(it, ux - bx, s.hz_t) if rotor else _sweeper_hits(it, ux, s.hz_t)
 		if hit:
 			dead += 1.0 / SLICES
 	return dead
@@ -1372,12 +1436,26 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 			continue
 		if Vector2(lv.x[i] - s.hx, dz).length() - r > reach:
 			continue
-		var lost := minf(float(it.get("rate", 2.0)) * dt, s.army)
+		var lost := minf(float(it.get("rate", 2.0)) * dt * hazard_slow(s), s.army)
 		s.army -= lost
 		s.hazard_deaths += lost
 
 
 # ------------------------------------------------------------------ fights
+
+## Speed of hazards and squads: 1, or 1 - slow while the Seer's rift is open.
+static func hazard_slow(s: State) -> float:
+	if s.ult_left > 0.0 and s.hero == "seer":
+		return 1.0 - float(((Balance.HEROES["seer"] as Dictionary)["ult"] as Dictionary).get("slow", 0.0))
+	return 1.0
+
+
+## Barracks Drill multiplier for a clash with squad `i` (hero hit within Balance.DRILL_WINDOW s).
+static func _drill_k(s: State, i: int) -> float:
+	if s.drill <= 0.0 or i < 0 or i >= s.hit_t.size() or s.t - s.hit_t[i] > Balance.DRILL_WINDOW:
+		return 1.0
+	return 1.0 + s.drill
+
 
 static func _burst(n: float) -> float:
 	return maxf(1.0, ceilf(n / 14.0))
@@ -1394,9 +1472,10 @@ static func _clash(lv: Level, s: State, dt: float) -> void:
 		s.tick += Balance.FIGHT_TICK
 		if s.army >= 0.5:
 			var hit := minf(_burst(minf(s.army, s.hp[f])), minf(s.army, s.hp[f]))
-			s.army -= hit
-			s.clash_deaths += hit
-			_hurt(lv, s, f, hit)
+			var lost := hit * hazard_slow(s)
+			s.army -= lost
+			s.clash_deaths += lost
+			_hurt(lv, s, f, hit * s.drill_k)
 		else:
 			s.army = 0.0
 			var hit2 := minf(_burst(minf(s.hero_hp, s.hp[f])), s.hp[f])
@@ -1488,7 +1567,7 @@ static func value(lv: Level, s: State) -> float:
 		var tier: Dictionary = Balance.ARM_TIERS[s.arm]
 		v += s.army * float(tier["volley"]) / float(tier["period"]) * left * 0.1
 	var def: Dictionary = Balance.HEROES[s.hero]
-	var hero_dps := hero_rate(s) * (hero_damage(s) + float(def["splash"])) * (1 + s.p_multi)
+	var hero_dps := hero_rate(s) * (hero_damage(s) + float(def["splash"])) * (int(def.get("targets", 1)) + s.p_multi)
 	# The hero's fire also pumps gates and opens crates, so it is worth more than its kills.
 	v += hero_dps * left * 0.3
 	v += s.coins * 0.15 + s.ult * 0.25
@@ -1652,7 +1731,11 @@ static func grow_state(lv: Level, s: State) -> void:
 	s.op.resize(n)
 	s.op2.resize(n)
 	s.rev.resize(n)
+	s.guard.resize(n)
+	s.hit_t.resize(n)
 	for i in range(old, n):
+		s.guard[i] = -1.0
+		s.hit_t[i] = -100.0
 		_init_item(lv, s, i)
 
 

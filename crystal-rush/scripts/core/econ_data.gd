@@ -37,10 +37,12 @@ const HERO := {
 	"overdrive_at": 10,                              # Meta-2 (plan2 §4)
 }
 ## Campaign level whose WIN unlocks each hero (0 = from the start; -1 = later phase).
-const HERO_UNLOCK := {"bolt": 0, "titan": 4, "seer": -1}
+## Seer: playable from L6 for now (design §4.1 target: the World 3 boss).
+const HERO_UNLOCK := {"bolt": 0, "titan": 4, "seer": 5}
 const HERO_ASPECTS := {
 	"bolt": ["forked_fox", "railshot", "storm_fox"],
 	"titan": ["bulwark", "seismic", "crystal_colossus"],
+	"seer": ["foresight", "starweave", "eclipse"],
 }
 const GLORY_AT_BOSS_WINS: Array[int] = [1, 3, 5, 7]   # Glory 2..5 (Meta-2)
 
@@ -221,6 +223,7 @@ const UNLOCKS := [
 	{"id": "arsenal", "kind": "tab", "after_win": 3, "line": "UNL_ARSENAL", "free": "ballista_lv2", "phase": 1},
 	{"id": "heroes", "kind": "tab", "after_win": 4, "line": "UNL_HEROES", "free": "hero_level", "gap_exempt": true, "phase": 1},
 	{"id": "titan", "kind": "hero", "after_win": 4, "line": "", "phase": 1},
+	{"id": "seer", "kind": "hero", "after_win": 5, "line": "", "phase": 1},
 	{"id": "pairs", "kind": "inrun", "from_level": 5, "line": "UNL_PAIRS", "phase": 1},
 	{"id": "stone_cache", "kind": "currency", "after_win": 6, "line": "UNL_STONE_CACHE", "free": "scripted_cache", "phase": 1},
 	{"id": "altar", "kind": "system", "after_win": 8, "line": "UNL_ALTAR", "free": "world_cache", "phase": 1},

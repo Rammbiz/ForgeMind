@@ -5,7 +5,7 @@ extends Control
 ## ranks at Lv5/15/25; Awakenings at 10/20/30 come in Meta-2) and the two-tap level-up.
 ## Locked heroes show when they join. Level-ups without a milestone are micro ceremonies.
 
-const HEROES: Array[String] = ["bolt", "titan"]
+const HEROES: Array[String] = Balance.HERO_ORDER
 
 var hub: Hub
 var _idx := 0

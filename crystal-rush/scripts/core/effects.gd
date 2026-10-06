@@ -55,7 +55,11 @@ const KINDS := {
 	"tracer": {"color": Color(1.0, 0.82, 0.62), "glow": 0.25, "len": 0.9, "width": 0.07, "arc": 0.0, "head": Color(1.0, 1.0, 0.9)},
 	"volley": {"color": Color(1.0, 0.9, 0.62), "glow": 0.0, "len": 1.25, "width": 0.11, "arc": 0.07, "head": Color(1.0, 1.0, 1.0)},
 	"turret": {"color": Color(1.0, 0.42, 0.15), "glow": 0.85, "len": 1.6, "width": 0.22, "arc": 0.0, "head": Color(1.0, 0.6, 0.3)},
+	"arcane": {"color": Color(0.62, 0.3, 1.0), "glow": 0.85, "len": 1.1, "width": 0.26, "arc": 0.12, "head": Color(0.9, 0.75, 1.0)},
 }
+## The Seer's violet (orbs, rift).
+const ARCANE := Color(0.66, 0.32, 1.0)
+const RIFT_SHADER := preload("res://shaders/fx_rift.gdshader")
 ## Machine vfx kinds (design §2.8 table) -> projectile looks above.
 const ALIAS := {"orb": "plasma", "missile_trail": "rocket", "tracer_dot": "drone", "shell_arc": "shell", "tracer_stream": "tracer"}
 
@@ -88,6 +92,7 @@ var _telegraphs: Array[Dictionary] = []  # {node, mat, t, life, enemy, mode}
 var _status := {}                    # id -> {node, mat, seen, k, kind}
 var _rail_id := -1000000
 var _time := 0.0
+var _rifts: Array[Dictionary] = []     # {node, mats, k, t, closing}
 
 
 ## A set of simple particles in packed arrays (removal swaps with the last one).
@@ -227,6 +232,7 @@ func _process(delta: float) -> void:
 	_step_rings(delta)
 	_step_telegraphs(delta)
 	_step_status(delta)
+	_step_rifts(delta)
 	_sparks.step(delta)
 	_glows.step(delta)
 	_smoke.step(delta)
@@ -390,6 +396,12 @@ func _step_projectiles(delta: float) -> void:
 		var arc := from.distance_to(to) * float(look["arc"]) + (0.5 if kind == "rocket" else 0.0)
 		var pos := from.lerp(to, u) + Vector3.UP * arc * 4.0 * u * (1.0 - u)
 		var vel := (to - from) + Vector3.UP * arc * 4.0 * (1.0 - 2.0 * u)
+		if kind == "arcane":
+			# Homing orb: swings out to one side and curls onto the target.
+			var side := (to - from).cross(Vector3.UP).normalized() * (1.0 if float(p["seed"]) > 0.5 else -1.0)
+			var bend := from.distance_to(to) * 0.16
+			pos += side * bend * sin(PI * u) * (1.0 - u * 0.35)
+			vel += side * bend * PI * cos(PI * u)
 		var dir := vel.normalized() if vel.length_squared() > 1e-6 else Vector3.FORWARD
 		if u >= 1.0:
 			impact(to, kind)
@@ -439,6 +451,13 @@ func _step_projectiles(delta: float) -> void:
 						randf_range(0.45, 0.7), sc, sc * 2.4, 0.3, 1.5, randf())
 				if randf() < 0.5:
 					_sparks.add(tail, -dir * randf_range(2.0, 4.0) + _rand_dir() * 1.5, Color(0.75, 1.0, 0.45), 0.18, 0.04, 0.01, 0.0, 3.0, 0.04)
+			"arcane":
+				var pulse2 := 1.0 + 0.15 * sin(fmod(_time, 100.0) * 30.0 + float(p["seed"]) * 9.0)
+				_frame_glows.append([pos, gs * pulse2, c, 0.5, fposmod(_time * 5.0, TAU), 1.0])
+				_frame_glows.append([pos, gs * 0.32, look["head"], 0.0, 0.0, 1.0])
+				if randf() < 0.7:
+					var tw := c.lerp(Color(1.0, 0.85, 0.5), randf() * 0.5)
+					_sparks.add(pos + _rand_dir() * 0.08, -dir * randf_range(0.4, 1.4) + _rand_dir() * 0.6, tw, 0.35, 0.04, 0.01, 0.6, 2.5, 0.04)
 			"volley", "tracer":
 				pass
 			"bolt":
@@ -504,6 +523,11 @@ func impact(pos: Vector3, kind: String) -> void:
 		"turret":
 			_glow(pos, 0.25, 0.8, c, 0.6, 0.16)
 			_spark_burst(pos, c, 8, 4.5, 0.045, 0.3)
+		"arcane":
+			_glow(pos, 0.3, 1.2, c * 0.8, 0.6, 0.28, randf() * TAU)
+			_glow(pos, 0.12, 0.4, c.lerp(Color.WHITE, 0.45), 0.0, 0.14)
+			_spark_burst(pos, c.lerp(Color.WHITE, 0.3), 10, 4.5, 0.05, 0.32)
+			_spark_burst(pos, Color(1.0, 0.82, 0.45), 4, 3.0, 0.035, 0.4)
 		_:
 			_glow(pos, 0.25, 0.8, c, 0.3, 0.16)
 			_spark_burst(pos, c, 6, 4.0, 0.04, 0.25)
@@ -1377,3 +1401,72 @@ func _lightning_mat() -> StandardMaterial3D:
 	_lmat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_lmat.albedo_color = Color(1.6, 1.6, 2.0)
 	return _lmat
+
+
+# ------------------------------------------------------------------ Seer rift (additive, WS2b)
+
+## Opens the Seer's Star Rift: a glowing tear across the road `width` wide with a slow-time
+## curtain over it, at `pos` (road level). Returns the node; move it with the run, then call
+## rift_close(). The tear opens over 0.35 s.
+func rift_open(pos: Vector3, width := 6.6) -> Node3D:
+	_ensure_pools()
+	var root := Node3D.new()
+	root.name = "Rift"
+	root.position = pos
+	add_child(root)
+	var mats: Array[ShaderMaterial] = []
+	for mode in 2:
+		var mi := MeshInstance3D.new()
+		mi.mesh = Mats.quad(Vector2(width, 2.6 if mode == 0 else 3.2), mode == 0)
+		var m := ShaderMaterial.new()
+		m.shader = RIFT_SHADER
+		m.set_shader_parameter("noise_tex", NOISE_TEX)
+		m.set_shader_parameter("mode", mode)
+		m.set_shader_parameter("k", 0.0)
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if mode == 0:
+			mi.position.y = 0.06
+		else:
+			mi.position.y = 1.6
+		root.add_child(mi)
+		mats.append(m)
+	_rifts.append({"node": root, "mats": mats, "k": 0.0, "t": 0.0, "closing": false, "w": width, "spark": 0.0})
+	shockwave(pos, ARCANE, 3.4)
+	flash(pos + Vector3(0, 0.6, 0), ARCANE, 2.6, 0.4)
+	return root
+
+
+## Fades the rift `node` out (0.4 s) and frees it.
+func rift_close(node: Node3D) -> void:
+	for r: Dictionary in _rifts:
+		if r["node"] == node:
+			r["closing"] = true
+
+
+func _step_rifts(delta: float) -> void:
+	var i := 0
+	while i < _rifts.size():
+		var r: Dictionary = _rifts[i]
+		var node: Node3D = r["node"]
+		if not is_instance_valid(node):
+			_rifts.remove_at(i)
+			continue
+		r["t"] = fmod(float(r["t"]) + delta, 1000.0)
+		r["k"] = move_toward(float(r["k"]), 0.0 if r["closing"] else 1.0, delta * (2.5 if r["closing"] else 3.0))
+		for m: ShaderMaterial in r["mats"]:
+			m.set_shader_parameter("k", float(r["k"]))
+			m.set_shader_parameter("t", float(r["t"]))
+		# Star dust drifting up out of the tear.
+		r["spark"] = float(r["spark"]) + delta * (40.0 if quality_high else 18.0) * float(r["k"])
+		var w := float(r["w"])
+		while float(r["spark"]) >= 1.0:
+			r["spark"] = float(r["spark"]) - 1.0
+			var p := node.global_position + Vector3(randf_range(-w * 0.45, w * 0.45), 0.1, randf_range(-0.3, 0.3))
+			var c := ARCANE.lerp(Color(1.0, 0.85, 0.5), randf() * randf())
+			_sparks.add(p, Vector3(randf_range(-0.2, 0.2), randf_range(1.2, 3.2), randf_range(-0.2, 0.2)), c, randf_range(0.5, 0.9), 0.045, 0.012, 0.4, 1.2, 0.05)
+		if r["closing"] and float(r["k"]) <= 0.0:
+			node.queue_free()
+			_rifts.remove_at(i)
+			continue
+		i += 1

@@ -445,6 +445,10 @@ const STRINGS := {
 	"PITY_SHORT": ["Легендарна ≤ %d", "Legendary ≤ %d"],
 	"COINS_SHORT": ["%s монет", "%s coins"],
 	"FREE": ["Безкоштовно", "Free"],
+	# Third hero (WS2b)
+	"HERO_SEER": ["Провидиця", "Seer"],
+	"HERO_SEER_DESC": ["Рись-містик: подвійні сфери й погляд крізь таємні брами", "Lynx mystic: twin orbs and sight through hidden gates"],
+	"ULT_RIFT": ["Зоряний розлом!", "Star Rift!"],
 }
 
 var lang := "uk"

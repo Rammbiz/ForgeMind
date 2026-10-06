@@ -35,6 +35,8 @@ const MACHINE_TARGETS: Array[String] = ["squad", "turret", "barricade", "geode",
 const GATE_HIT_GAIN := {"+": 1.0, "-": 1.0, "charge": 2.0, "rate": 2.0}
 
 const START_ARMY := 3
+## Barracks Drill: a squad the hero hit this many seconds before the clash counts as drilled.
+const DRILL_WINDOW := 2.0
 const MAX_UPGRADE := 10
 
 # ------------------------------------------------------------------ heroes
@@ -44,18 +46,34 @@ const MAX_UPGRADE := 10
 #   rate       attacks per second; range: how far ahead it hits (corridor: optional override)
 #   damage     per attack; splash: extra enemies killed around a squad target
 #   ult        points from soldiers gained and enemies killed charge the ultimate
+#   aspect     default Aspect (design §4.1) when the profile names none: Bolt "forked_fox" (every
+#              3rd cast chains to one more target), Titan "bulwark" (its splash), Seer "foresight"
 const HEROES := {
 	"bolt": {
 		"name": "HERO_BOLT", "desc": "HERO_BOLT_DESC", "color": Color(0.35, 0.65, 1.0),
-		"hp": 14, "rate": 3.6, "damage": 1, "splash": 0, "range": 15.0, "corridor": 0.8,
+		"hp": 14, "rate": 3.6, "damage": 1, "splash": 0, "range": 15.0, "corridor": 0.8, "aspect": "forked_fox",
 		"ult": {"name": "ULT_STORM", "icon": "storm", "charge": 35, "duration": 3.0, "range": 18.0, "tick": 0.25, "kills": 5, "breaks": 3},
 	},
 	"titan": {
 		"name": "HERO_TITAN", "desc": "HERO_TITAN_DESC", "color": Color(0.35, 0.9, 0.55),
-		"hp": 32, "rate": 1.2, "damage": 4, "splash": 3, "range": 12.0, "corridor": 1.0,
+		"hp": 32, "rate": 1.2, "damage": 4, "splash": 3, "range": 12.0, "corridor": 1.0, "aspect": "bulwark",
 		"ult": {"name": "ULT_QUAKE", "icon": "quake", "charge": 40, "waves": 4, "spacing": 3.5, "gap": 0.18, "kills": 12, "breaks": 12, "armor_time": 6.0},
 	},
+	# The lynx mystic (owner's model): two violet homing orbs per cast (`targets`), her hits
+	# reveal the whole hidden gate row (`reveal_row`) and fill charge gates x`charge_mult`.
+	# Ult "Star Rift": a tear `ahead` u in front of her for `duration` s; blades, sweepers,
+	# turrets and squads run at (1 - `slow`) speed (squads in a clash kill that much slower)
+	# while an arcane barrage hits everything within `range` every `tick` s.
+	"seer": {
+		"name": "HERO_SEER", "desc": "HERO_SEER_DESC", "color": Color(0.68, 0.4, 1.0),
+		"hp": 20, "rate": 1.8, "damage": 1, "splash": 0, "range": 16.0, "corridor": 1.0,
+		"targets": 2, "reveal_row": true, "charge_mult": 1.5, "aspect": "foresight",
+		"ult": {"name": "ULT_RIFT", "icon": "fam_rift", "charge": 38, "duration": 4.0, "slow": 0.6, "ahead": 7.0,
+				"range": 16.0, "tick": 0.5, "kills": 5, "breaks": 4},
+	},
 }
+## Hero ids in roster order (hub carousel, dev tools).
+const HERO_ORDER: Array[String] = ["bolt", "titan", "seer"]
 
 # ------------------------------------------------------------------ weapons
 
@@ -85,11 +103,14 @@ const ARM_TIERS := [
 const STAIRS_MULTS: Array[float] = [1.2, 1.4, 1.6, 1.8, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
 
 
+## Legacy (Etap 1 "army" upgrade): the run no longer reads it (Barracks and Reinforcements come
+## through Meta.run_profile); dev tools still use it for an `--army=N` head start.
 static func start_army(army_level: int) -> int:
 	return START_ARMY + 2 * army_level
 
 
-## Attack-speed multiplier from the power upgrade.
+## Legacy attack-speed multiplier of the retired "power" upgrade (refunded by the Save v2
+## migration; the run uses the hero level's dmg_mult instead). LevelSim keeps it at level 0.
 static func power_mult(power_level: int) -> float:
 	return 1.0 + 0.12 * power_level
 
