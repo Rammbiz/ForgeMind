@@ -205,15 +205,18 @@ func _test_pity_streams() -> void:
 	print("== pity streams (%d Stone Caches)" % n)
 	var s3 := _stream(n, POOL_W3)
 	print("  World 3: 1 Legendary per %.2f, Epic+ per %.2f, longest gaps L %d / E %d" % [s3["per_leg"], s3["per_epic"], s3["max_l"], s3["max_e"]])
-	_near(float(s3["per_leg"]), 11.8, 0.25 if not _quick else 0.6, "World 3: Caches per Legendary (design 11.8)")
-	_near(float(s3["per_epic"]), 2.63, 0.05 if not _quick else 0.1, "World 3: Caches per Epic+ (design 2.63)")
+	# Exact stationary rates of the pity Markov chain (since_epic x since_leg): 11.96 / 2.638 / 3.032.
+	# The design's printed 11.8 / 2.63 / 3.01 are one 200 000-cache seed of the sim; a 1 000 000-cache
+	# sim stream gives 11.95 / 2.642, the same as this port.
+	_near(float(s3["per_leg"]), 11.96, 0.25 if not _quick else 0.6, "World 3: Caches per Legendary (exact 11.96, design 11.8)")
+	_near(float(s3["per_epic"]), 2.638, 0.03 if not _quick else 0.08, "World 3: Caches per Epic+ (exact 2.638)")
 	_ok(int(s3["max_l"]) <= int(EconData.PITY["leg_hard"]), "Legendary gap <= hard pity 30 (got %d)" % s3["max_l"])
 	_ok(int(s3["max_e"]) <= int(EconData.PITY["epic"]), "Epic gap <= 8 (got %d)" % s3["max_e"])
 	if not _quick:
 		_ok(int(s3["max_l"]) == int(EconData.PITY["leg_hard"]), "longest Legendary gap is exactly 30 (design)")
 	var s2 := _stream(n, POOL_W2)
 	print("  World 2: Epic+ per %.2f, longest gap %d" % [s2["per_epic"], s2["max_e"]])
-	_near(float(s2["per_epic"]), 3.01, 0.05 if not _quick else 0.1, "World 2: Caches per Epic+ (design 3.01)")
+	_near(float(s2["per_epic"]), 3.032, 0.03 if not _quick else 0.08, "World 2: Caches per Epic+ (exact 3.032, design 3.01)")
 	_ok(int(s2["max_e"]) <= 8, "World 2 Epic gap <= 8")
 
 
@@ -597,7 +600,8 @@ func _test_save_io() -> void:
 	_ok(int(back["progress"]["crowns_best"].get(3, 0)) == 2 and (back["meta"]["booked"] as Array) == [5, 6], "round trip nested dicts + extra keys")
 	_ok(Array(back["arsenal"]["decks"][0]) == ["laser", "drone"], "round trip deck preset")
 	_ok(str(cfg.get_value("settings", "language", "")) == "en" and int(cfg.get_value("upgrades", "army", 0)) == 2 and not back["settings"].has("language"), "legacy keys written, kept out of the account")
-	# Corrupt the main file: the .bak takes over.
+	# Corrupt the main file: the .bak takes over (the engine prints one expected parse error).
+	print("  (expected: one ConfigFile parse error below)")
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string("[progress\nthis is not a config = = =\n")
 	f.close()
