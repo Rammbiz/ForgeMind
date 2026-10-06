@@ -1,7 +1,11 @@
 extends Node
-## Scene router: hub (Hub, the meta home screen) <-> run, with fade transitions.
-## Dev flags (after `--`): --autotest, --levelcheck, --shot=path.png, --screen=menu|run, --level=N,
-## --hero=bolt|titan
+## Scene router: hub (Hub, the meta home screen) <-> run <-> Cache Altar, with fade transitions.
+## A finished run is booked ONCE through Meta.finish_run(run.result) (coins, Crowns, drip,
+## Caches, frontier - saved before anything animates), then the ResultFlow (win) or the
+## LossScreen (loss) plays over the run's last frame. World Caches open on the CacheAltar
+## (from the result flow or the hub's Vault via Hub.open_altar).
+## Dev flags (after `--`): --autotest, --levelcheck, --loop, --shot=path.png, --screen=menu|run,
+## --level=N, --hero=bolt|titan
 ## The run scripts are loaded on demand, so the router (menu, level_check) still works while
 ## the run code is being rewritten.
 
@@ -28,7 +32,7 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		_args[kv[0]] = kv[1] if kv.size() > 1 else "1"
-	for tool: String in ["autotest", "levelcheck", "shot"]:
+	for tool: String in ["autotest", "levelcheck", "shot", "loop"]:
 		if _args.has(tool):
 			_start_dev(tool)
 			return
@@ -40,6 +44,7 @@ func _start_dev(tool: String) -> void:
 		"autotest": "res://scripts/dev/autoplay.gd",
 		"levelcheck": "res://scripts/dev/level_check.gd",
 		"shot": "res://scripts/dev/screenshot.gd",
+		"loop": "res://scripts/dev/loop_check.gd",
 	}[tool]
 	if not ResourceLoader.exists(path):
 		push_error("main: missing dev tool " + path)
@@ -56,11 +61,41 @@ func show_menu() -> void:
 
 
 ## The meta hub (Hub) opened on `tab` (play | arsenal | heroes | barracks | shop); the loss
-## screen's "Арсенал" button uses show_hub("arsenal").
-func show_hub(tab := "play") -> void:
+## screen's "Арсенал" button uses show_hub("arsenal"). `machine` opens that machine's detail
+## (the result flow's Best-upgrade row, the Altar's "Покращити <machine>").
+func show_hub(tab := "play", machine := "") -> Hub:
 	var h := Hub.new(tab)
 	h.play.connect(start_run)
+	h.open_altar.connect(open_altar)
+	if machine != "":
+		h.ready.connect(func():
+			if is_instance_valid(h):
+				h.open_machine(machine), CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 	_switch(h)
+	return h
+
+
+## Opens the Vault Cache `index` on the Altar. Meta.open_cache rolls, grants and SAVES first;
+## the ceremony only shows the result.
+func open_altar(index: int) -> void:
+	var rev := Meta.open_cache(index)
+	if rev.is_empty():
+		return
+	show_altar(rev)
+
+
+## The Cache opening ceremony for a reveal bundle (§6.6); "Готово" returns to the hub's Play
+## tab, "Покращити <machine>" to that machine in the Arsenal.
+func show_altar(rev: Dictionary) -> CacheAltar:
+	var a := CacheAltar.new()
+	a.setup(rev)
+	a.done.connect(func(action: String, id: String):
+		if action == "upgrade" and id != "":
+			show_hub("arsenal", id)
+		else:
+			show_hub("play"))
+	_switch(a)
+	return a
 
 
 func start_run() -> void:
@@ -77,10 +112,7 @@ func make_play(level: int, hero: String) -> Node:
 	var hud: CanvasLayer = (load(HUD_SCRIPT) as GDScript).new()
 	hud.call("setup", run)
 	holder.add_child(hud)
-	run.connect("finished", func(won: bool, coins: int, _reason: String):
-		Save.add_coins(coins)
-		if won:
-			Save.level_won())
+	run.connect("finished", func(won: bool, _coins: int, _reason: String): _on_run_finished(holder, won))
 	hud.connect("retry", start_run)
 	hud.connect("next", start_run)
 	hud.connect("menu", show_menu)
@@ -88,6 +120,41 @@ func make_play(level: int, hero: String) -> Node:
 	holder.set_meta("hud", hud)
 	Audio.play_music("meadow" if level % 2 == 1 else "canyon")
 	return holder
+
+
+## The run ended: book it exactly once (Meta.finish_run pays, saves and returns the bundle),
+## then the win ResultFlow or the LossScreen over the run (autotest books but shows nothing).
+func _on_run_finished(holder: Node, won: bool) -> void:
+	if not is_instance_valid(holder) or holder.has_meta("bundle"):
+		return
+	var run: Node = holder.get_meta("run")
+	var res: Dictionary = run.get("result") if run.get("result") is Dictionary else {}
+	if res.is_empty():
+		res = {"won": won}
+	var bundle := Meta.finish_run(res)
+	holder.set_meta("bundle", bundle)
+	if _args.has("autotest") or _args.has("levelcheck"):
+		return
+	var hud: CanvasLayer = holder.get_meta("hud")
+	var view: Variant = hud.get("view")
+	if view is Control:
+		var v := view as Control
+		v.create_tween().tween_property(v, "modulate:a", 0.0, 0.25)
+	if won:
+		var flow := ResultFlow.new()
+		flow.setup(bundle, res)
+		flow.next.connect(func(): show_hub("play"))
+		flow.altar.connect(func(index: int): open_altar(index))
+		flow.upgrade.connect(func(id: String): show_hub("arsenal", id))
+		holder.add_child(flow)
+		holder.set_meta("flow", flow)
+	else:
+		var loss := LossScreen.new()
+		loss.setup(bundle, res)
+		loss.retry.connect(start_run)
+		loss.arsenal.connect(func(): show_hub("arsenal"))
+		holder.add_child(loss)
+		holder.set_meta("flow", loss)
 
 
 func _switch(next: Node, instant := false) -> void:

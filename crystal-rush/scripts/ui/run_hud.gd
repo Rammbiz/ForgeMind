@@ -104,10 +104,11 @@ func _on_stairs_done(mult: float) -> void:
 		view.toast(Loc.t("STAIRS_MULT") % HudView._fmt_mult(mult), Color(1.0, 0.8, 0.3), 96)
 
 
-func _on_finished(won: bool, earned: int, reason: String) -> void:
+## The result panel moved to ResultFlow / LossScreen (WS5; main.gd shows them after
+## Meta.finish_run); the HUD only stops its in-run controls here.
+func _on_finished(_won: bool, _earned: int, _reason: String) -> void:
 	_finished = true
 	get_tree().paused = false
-	view.show_result(won, reason, run.result, earned)
 
 
 # ------------------------------------------------------------------ pause
