@@ -304,14 +304,14 @@ func _build_ui() -> void:
 	_ident.modulate.a = 0.0
 	_root_ui.add_child(_ident)
 	# A soft night shade under the beats so the world line and the name read over the arch.
-	var shade := TextureRect.new()
-	shade.texture = UIKit.glow_texture()
-	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.modulate = Color(0.0, 0.0, 0.05, 0.62)
-	shade.size = Vector2(vp.x * 1.25, 360)
-	shade.position = Vector2(-vp.x * 0.125, 10)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ident.add_child(shade)
+	var id_shade := TextureRect.new()
+	id_shade.texture = UIKit.glow_texture()
+	id_shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	id_shade.modulate = Color(0.0, 0.0, 0.05, 0.62)
+	id_shade.size = Vector2(vp.x * 1.25, 360)
+	id_shade.position = Vector2(-vp.x * 0.125, 10)
+	id_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ident.add_child(id_shade)
 	_ident_glyph = Icons.make("fam_kinetic", 104.0)
 	_ident_glyph.position = Vector2(vp.x * 0.5 - 52, 0)
 	_ident.add_child(_ident_glyph)
