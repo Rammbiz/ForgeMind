@@ -38,7 +38,7 @@ func build() -> void:
 	for i in CARDS.size():
 		var col := i % 2
 		var row := i / 2
-		_card(Rect2(16 + col * 352, 344 + row * 258, 336, 244), CARDS[i])
+		_card(Rect2(16 + col * 352, 342 + row * 254, 336, 240), CARDS[i])
 	C.nav(_root, "arsenal", {"arsenal": "2", "shop": "1"})
 
 
@@ -51,9 +51,9 @@ func _card(r: Rect2, d: Array) -> void:
 	K.plate(_root, r, {"mat": "disabled" if locked else "enamel", "ch": 22.0, "trim": 4.0, "rivet": 4.6, "shadow": 0.6,
 		"glow": Color(0.56, 0.92, 1.0, 0.8) if ready else Color(0, 0, 0, 0), "glow_r": 12.0})
 	# Window: sunk navy, rimmed in the rarity colour.
-	var wr := Rect2(r.position.x + 14.0, r.position.y + 14.0, r.size.x - 28.0, 120.0)
+	var wr := Rect2(r.position.x + 14.0, r.position.y + 14.0, r.size.x - 28.0, 104.0)
 	var rim: Array = [Color(rar[2]).darkened(0.2), rar[1], rar[0]] if not locked else [Color("4A4A52"), Color("77757A"), Color("A8A6A8")]
-	K.plate(_root, wr, {"mat": "window", "recess": true, "ch": 16.0, "rad": 5.0, "trim": 3.0, "inset": 1.0, "trim_cols": rim, "shadow": 0.0, "outline_w": 0.0, "pad": 6.0})
+	K.plate(_root, wr, {"mat": "window", "recess": true, "ch": 16.0, "rad": 5.0, "trim": 4.0, "inset": 1.0, "trim_cols": rim, "shadow": 0.0, "outline_w": 0.0, "pad": 6.0})
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		var wc := wr.get_center() + Vector2(0, 4)
 		if not locked:
@@ -67,7 +67,7 @@ func _card(r: Rect2, d: Array) -> void:
 		var tex := MachineThumbs.get_thumb(_root, id, false)
 		if tex:
 			var ts := 150.0
-			ci.draw_texture_rect(tex, Rect2(wc.x - ts * 0.5, wr.position.y - 18.0, ts, ts), false, Color(0.05, 0.06, 0.12, 0.92) if locked else Color.WHITE)
+			ci.draw_texture_rect(tex, Rect2(wc.x - ts * 0.5, wr.position.y - 26.0, ts, ts), false, Color(0.05, 0.06, 0.12, 0.92) if locked else Color.WHITE)
 		if locked:
 			I.draw(ci, "lock", Rect2(wc - Vector2(20, 26), Vector2(40, 46)), Color("C9C5BD"), Color("1A1E3A"), "plain")
 		else:
@@ -85,28 +85,32 @@ func _card(r: Rect2, d: Array) -> void:
 		var x := r.position.x + 20.0
 		var nm: String = d[1]
 		var s := K.fit_size(nm, "display", 28, r.size.x - 40.0, 24)
-		K.text_l(ci, nm, "display", s, Vector2(x, r.position.y + 158.0), ink)
+		K.text_l(ci, nm, "display", s, Vector2(x, r.position.y + 142.0), ink)
 		if locked:
-			K.text_l(ci, "Відкриється на рівні 18", "bold", 26, Vector2(x, r.position.y + 196.0), Color("6E6A64"))
+			K.text_l(ci, "Відкриється на рівні 18", "bold", 26, Vector2(x, r.position.y + 180.0), Color("6E6A64"))
 			return
-		var rw := K.text_l(ci, rar[3], "bold", 26, Vector2(x, r.position.y + 190.0), rar[4])
-		K.text_l(ci, " · " + str(d[3]), "bold", 26, Vector2(x + rw, r.position.y + 190.0), K.INK_DIM))
+		var rw := K.text_l(ci, rar[3], "bold", 26, Vector2(x, r.position.y + 175.0), rar[4])
+		K.text_l(ci, " · " + str(d[3]), "bold", 26, Vector2(x + rw, r.position.y + 175.0), K.INK_DIM))
 	if locked:
 		return
 	if ready:
-		var kr := Rect2(r.position.x + 14.0, r.end.y - 56.0, r.size.x - 28.0, 48.0)
+		var kr := Rect2(r.position.x + 14.0, r.end.y - 52.0, r.size.x - 28.0, 46.0)
 		K.key(_root, kr, "", {"mat": "ice", "depth": 7.0, "ch": 10.0, "rad": 4.0, "shadow": 0.45, "pad": 14.0, "bevel_w": 5.0,
 			"icon": func(ci: CanvasItem, fr: Rect2) -> float:
 				var cy := fr.get_center().y
-				K.text_l(ci, "Покращити", "display", 26, Vector2(fr.position.x + 16.0, cy), K.WHITE, "raised")
-				I.draw(ci, "coin", Rect2(fr.end.x - 116.0, cy - 15.0, 30, 30))
-				K.text_l(ci, "540", "num", 26, Vector2(fr.end.x - 80.0, cy), K.WHITE, "raised")
+				var pw := K.text_w("540", "num", 26)
+				var px := fr.end.x - 14.0 - pw
+				K.text_l(ci, "540", "num", 26, Vector2(px, cy), K.WHITE, "raised")
+				I.draw(ci, "coin", Rect2(px - 36.0, cy - 15.0, 30, 30))
+				var lw := px - 46.0 - (fr.position.x + 14.0)
+				var ls := K.fit_size("Покращити", "display", 26, lw, 22)
+				K.text_l(ci, "Покращити", "display", ls, Vector2(fr.position.x + 14.0, cy), K.WHITE, "raised")
 				return fr.end.x})
 		return
 	# Blueprint channel: a sunk slot with one enamel pip per blueprint.
 	var have: int = d[5]
 	var need: int = d[6]
-	var cr := Rect2(r.position.x + 16.0, r.end.y - 50.0, r.size.x - 108.0, 34.0)
+	var cr := Rect2(r.position.x + 16.0, r.end.y - 48.0, r.size.x - 150.0, 32.0)
 	K.plate(_root, cr, {"mat": "tray", "recess": true, "ch": 8.0, "rad": 4.0, "trim": 0.0, "shadow": 0.0, "outline_w": 0.0, "pad": 4.0, "bevel_w": 4.0})
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		var n := need
@@ -119,7 +123,7 @@ func _card(r: Rect2, d: Array) -> void:
 				K.vgrad(ci, pr, [K.ICE_WHITE, K.ICE, K.ICE_DEEP])
 			else:
 				ci.draw_rect(pr, Color(0.1, 0.1, 0.2, 0.08))
-		I.draw(ci, "blueprint", Rect2(cr.end.x + 8.0, cr.position.y + 1.0, 26, 32), K.INK, Color("F1EDE4"))
+		I.draw(ci, "blueprint", Rect2(cr.end.x + 10.0, cr.position.y + 2.0, 24, 28), K.INK_DIM, Color("F1EDE4"))
 		K.text_r(ci, "%d/%d" % [have, need], "num", 26, Vector2(r.end.x - 16.0, cr.get_center().y + 1.0), K.INK))
 
 

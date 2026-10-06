@@ -182,6 +182,9 @@ static func backdrop(parent: Node, glow_at := Vector2(0.7, 0.25), dim := 0.0) ->
 ##   glow_r, shadow (0..1), spec, bevel, outline_w.
 static func plate(parent: Node, r: Rect2, o := {}) -> ColorRect:
 	var pad := float(o.get("pad", 22.0))
+	var gl: Color = o.get("glow", Color(0, 0, 0, 0))
+	if gl.a > 0.0:
+		pad = maxf(pad, float(o.get("glow_r", 14.0)) * 4.0)
 	var cr := ColorRect.new()
 	cr.position = r.position - Vector2(pad, pad)
 	cr.size = r.size + Vector2(pad, pad) * 2.0

@@ -55,8 +55,8 @@ func _ready() -> void:
 	_cam.fov = 38.0
 	add_child(_cam)
 	_cam.make_current()
-	_cam.position = Vector3(0.0, 2.3, -2.4)
-	_cam.look_at(Vector3(0.0, -0.54, -9.0))
+	_cam.position = Vector3(0.0, 2.5, -1.7)
+	_cam.look_at(Vector3(0.0, -0.75, -9.0))
 	_ui = CanvasLayer.new()
 	add_child(_ui)
 	_root = Control.new()
@@ -247,7 +247,7 @@ func _track(r: Rect2) -> void:
 				I.draw(ci, "check", Rect2(cc - Vector2(8, 8), Vector2(16, 16)), K.WHITE, K.WHITE, "plain"))
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		K.text_c(ci, "БОС", "caps", 22, Vector2(xs[5], cy - 64.0), Color("FFB4A8"), "shadow")
-		K.text_c(ci, "нова машина", "bold", 22, Vector2(xs[4], cy - 58.0), K.ICE, "shadow"))
+		pass)
 
 
 ## The launch key: ice enamel with a deep skirt, set inside a riveted gold guard frame.
