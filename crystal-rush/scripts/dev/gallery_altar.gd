@@ -158,6 +158,23 @@ func _run_shot(s: String) -> void:
 			await _until_state(a, "burst")
 			await _wait_clock(a, 0.1)
 			await _snap("altar_burst_" + r)
+		"stages":
+			for r in ["C", "R", "E", "L"]:
+				await _clear()
+				var a := _altar(world_rev(r))
+				await _wait_clock(a, 0.6)
+				a.call("_do_strike")
+				await _until_state(a, "tell")
+				a.hold_clock = true
+				await _wait(0.35)
+				await _snap("stage_%s_1_tell" % r)
+				CacheModels.set_crack(a.cache, 2)
+				await _wait(0.3)
+				await _snap("stage_%s_2_crack" % r)
+				a.hold_clock = false
+				await _until_state(a, "burst")
+				await _wait_clock(a, 0.1)
+				await _snap("stage_%s_3_burst" % r)
 		"tell_L":
 			var a := _altar(world_rev("L"))
 			await _wait(0.6)

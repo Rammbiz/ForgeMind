@@ -66,9 +66,26 @@ func _ready() -> void:
 	add_child(svc)
 	_vp = SubViewport.new()
 	_vp.own_world_3d = true
-	_vp.transparent_bg = true
 	_vp.msaa_3d = Viewport.MSAA_2X
 	svc.add_child(_vp)
+	# The stage's backdrop is its own canvas (Environment.BG_CANVAS): deep navy and slow rays
+	# in the rarity colour behind the machine, so the additive beam never cuts a hole.
+	var back := CanvasLayer.new()
+	back.layer = -1
+	_vp.add_child(back)
+	var bg := ColorRect.new()
+	bg.color = Color(0.012, 0.016, 0.05)
+	bg.size = Vector2(4000, 4000)
+	back.add_child(bg)
+	var rays := UIKit.Rays.new()
+	rays.color = Color(rc.r, rc.g, rc.b, 0.0)
+	rays.count = 16
+	rays.inner = 0.1
+	rays.size = Vector2(1300, 1300)
+	var vps := get_viewport_rect().size
+	rays.position = Vector2(vps.x * 0.5, vps.y * 0.44) - rays.size * 0.5
+	back.add_child(rays)
+	rays.create_tween().tween_property(rays, "color:a", 0.24, 0.8).set_delay(0.7)
 	_root = Node3D.new()
 	_vp.add_child(_root)
 	_build_stage(acc, rc)
@@ -110,11 +127,16 @@ func _layout() -> void:
 
 func _build_stage(acc: Color, rc: Color) -> void:
 	var env := Environment.new()
-	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.background_mode = Environment.BG_CANVAS
+	env.background_canvas_max_layer = -1
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.5, 0.56, 0.9)
 	env.ambient_light_energy = 0.0
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.glow_enabled = true
+	env.glow_intensity = 0.6
+	env.glow_bloom = 0.05
+	env.glow_hdr_threshold = 1.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_root.add_child(we)
@@ -140,12 +162,12 @@ func _build_stage(acc: Color, rc: Color) -> void:
 	_halo = Sprite3D.new()
 	_halo.texture = UIKit.glow_texture()
 	_halo.pixel_size = 0.012
-	_halo.modulate = Color(acc.r, acc.g, acc.b, 0.7)
+	_halo.modulate = Color(acc.r, acc.g, acc.b, 0.5)
 	_halo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_halo.shaded = false
 	_halo.no_depth_test = false
 	_halo.position = Vector3(0, 0.8, -1.6)
-	_halo.scale = Vector3.ONE * 0.95
+	_halo.scale = Vector3.ONE * 1.5
 	_root.add_child(_halo)
 	var d := HubShowcase.owner_dais(2.0)
 	if not d.is_empty():
@@ -181,9 +203,10 @@ func _build_stage(acc: Color, rc: Color) -> void:
 	_root.add_child(_fx)
 	_cam = Camera3D.new()
 	_cam.keep_aspect = Camera3D.KEEP_WIDTH
-	_cam.fov = 40.0
+	_cam.fov = 38.0
 	_root.add_child(_cam)
-	_cam.look_at_from_position(Vector3(0, 1.5, 5.4), Vector3(0, 0.5, 0))
+	_cam.look_at_from_position(Vector3(0, 1.35, 4.3), Vector3(0, 0.45, 0))
+	_cam.v_offset = -0.35
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -219,8 +242,8 @@ func _process(delta: float) -> void:
 	var rc := UITokens.rarity(ArsenalData.rarity_of(id))
 	# Slow push-in and turntable.
 	var k := clampf(_t / TOTAL, 0.0, 1.0)
-	_cam.position = Vector3(0, 1.5 - 0.2 * k, 5.4 - 0.9 * k)
-	_cam.look_at(Vector3(0, 0.5, 0))
+	_cam.position = Vector3(0, 1.35 - 0.15 * k, 4.3 - 0.6 * k)
+	_cam.look_at(Vector3(0, 0.45, 0))
 	_machine.rotation.y = PI - 0.55 + sin(_t * 0.6) * 0.3
 	_fire = maxf(0.0, _fire - delta * 3.0)
 	WeaponModels.animate(_machine, _t, _fire, 0.0)

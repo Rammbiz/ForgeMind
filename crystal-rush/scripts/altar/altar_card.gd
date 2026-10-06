@@ -293,14 +293,14 @@ func _draw_face(body: Rect2, rc: Color, _r: String) -> void:
 		var l1 := nm.substr(0, cut)
 		var l2 := nm.substr(cut + 1)
 		var f2 := mini(UIKit.fit_size(l1, inner.size.x - 14, 20, 14), UIKit.fit_size(l2, inner.size.x - 14, 20, 14))
-		_text_c(f, l1, Vector2(inner.get_center().x, ny - 12), f2, Color(1, 1, 1), 5)
-		_text_c(f, l2, Vector2(inner.get_center().x, ny + 7), f2, Color(1, 1, 1), 5)
-		ny += 12
+		_text_c(f, l1, Vector2(inner.get_center().x, ny - 15), f2, Color(1, 1, 1), 5)
+		_text_c(f, l2, Vector2(inner.get_center().x, ny + 4), f2, Color(1, 1, 1), 5)
+		ny += 13
 	else:
 		_text_c(f, nm, Vector2(inner.get_center().x, ny), fs, Color(1, 1, 1), 5)
 	# Count.
 	var cnt := "×%d" % int(data.get("count", 1))
-	_text_c(f, cnt, Vector2(inner.get_center().x, ny + 30), 28 if ny > art.end.y + 30 else 30, rc.lightened(0.45), 6)
+	_text_c(f, cnt, Vector2(inner.get_center().x, ny + 30), 25 if ny > art.end.y + 30 else 30, rc.lightened(0.45), 6)
 	# Blueprint bar.
 	if not wild:
 		var br := _bar_rect()

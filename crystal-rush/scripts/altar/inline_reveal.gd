@@ -61,6 +61,7 @@ func _ready() -> void:
 	_rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_rays)
 	_egg = EggView.new(str(rev.get("type", "stone")))
+	_egg.frame_k = 1.45
 	add_child(_egg)
 	_hint = UIKit.heading(Loc.t("TAP_TO_CRACK"), 26, UIKit.GOLD_LIGHT, 6)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -102,12 +103,12 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var w := size.x
-	_egg.size = Vector2(EGG, EGG)
-	_egg.position = Vector2((w - EGG) * 0.5, 0)
+	_egg.size = Vector2(EGG * 2.0, EGG * 1.45)
+	_egg.position = Vector2(w * 0.5 - EGG, EGG * 0.5 - EGG * 0.725)
 	_rays.size = Vector2(EGG * 2.2, EGG * 2.2)
-	_rays.position = _egg.position + Vector2(EGG, EGG) * 0.5 - _rays.size * 0.5
+	_rays.position = Vector2(w * 0.5, EGG * 0.5) - _rays.size * 0.5
 	_hint.size = Vector2(w, 34)
-	_hint.position = Vector2(0, EGG - 8)
+	_hint.position = Vector2(0, EGG + 40)
 	for i in _cards.size():
 		_cards[i].position = slot(i)
 	_coins_row.size = Vector2(w, 44)

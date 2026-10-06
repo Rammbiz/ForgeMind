@@ -41,6 +41,8 @@ var hero_id := "bolt"
 var speed := 1.0
 var quick := false
 var state := "present"
+## Dev hook (galleries): freezes the beat timeline (visuals keep animating).
+var hold_clock := false
 
 var track: Track
 var altar: Node3D
@@ -662,7 +664,7 @@ func _walkout(c: AltarCard) -> void:
 	if not is_inside_tree():
 		return
 	# Back to the fan: the card shows its face (NEW ribbon), the machine stays on the altar.
-	_set_cam(CAM_FAN, 0.4 * speed)
+	_set_cam(CAM_SUMMARY if _summary_shown else CAM_FAN, 0.4 * speed)
 	_ident.create_tween().tween_property(_ident, "modulate:a", 0.0, 0.2)
 	_title.visible = true
 	_pity.visible = true
@@ -937,7 +939,8 @@ func _process(delta: float) -> void:
 		_freeze -= delta
 		adt = 0.0
 	_anim_t += adt
-	_clock += adt
+	if not hold_clock:
+		_clock += adt
 	while not _events.is_empty() and float(_events[0][0]) <= _clock:
 		var ev: Array = _events.pop_front()
 		(ev[1] as Callable).call()
@@ -951,6 +954,10 @@ func _process(delta: float) -> void:
 			_drop = -1.0
 			cache.position.y = 0.02
 	CacheModels.animate(cache, _anim_t)
+	if int(cache.get_meta("stage", 0)) == 3:
+		# Keep the burst's core flash a quick pop, not a white egg-sized blob.
+		var core: Node3D = cache.get_meta("core")
+		core.scale = Vector3.ONE * minf(core.scale.x, 1.15)
 	CacheModels.animate(altar, _anim_t)
 	# Hero: guard stance, the strike swing.
 	var atk := 0.0

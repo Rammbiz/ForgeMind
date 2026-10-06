@@ -11,6 +11,9 @@ extends SubViewportContainer
 var type := "stone"
 var cache: Node3D
 var best := "C"
+## Frame size relative to the egg's square: > 1 leaves room round the egg for the burst
+## chunks (the egg keeps its pixel size; set before adding to the tree).
+var frame_k := 1.0
 
 var _vp: SubViewport
 var _root: Node3D
@@ -81,9 +84,15 @@ func _init(p_type := "stone") -> void:
 	_root.add_child(cache)
 	var h := float(cache.get_meta("height", 1.0))
 	_cam = Camera3D.new()
-	_cam.fov = 30.0
+	_cam.fov = 20.6
 	_root.add_child(_cam)
-	_cam.look_at_from_position(Vector3(0, h * 0.9, h * 2.45), Vector3(0, h * 0.4, 0))
+	_cam.look_at_from_position(Vector3(0, h * 1.05, h * 3.6), Vector3(0, h * 0.42, 0))
+	_root.set_meta("h", h)
+
+
+func _ready() -> void:
+	if frame_k != 1.0:
+		_cam.fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(20.6 * 0.5)) * frame_k))
 
 
 ## The egg falls onto the dais (ease-out-back) with a thud.
@@ -98,6 +107,7 @@ func tell(rarity: String) -> void:
 	best = rarity
 	CacheModels.set_tell(cache, rarity)
 	CacheModels.set_crack(cache, 1)
+	_no_pillars()
 	var c := CacheModels.rarity_color(rarity)
 	_lamp.light_color = c
 	_lamp.light_energy = 1.5
@@ -108,7 +118,15 @@ func tell(rarity: String) -> void:
 
 func heavy() -> void:
 	CacheModels.set_crack(cache, 2)
+	_no_pillars()
 	_lamp.light_energy = 2.4
+
+
+## The Legendary+ light pillars are additive columns meant for the Altar's opaque scene; on
+## this transparent stage they would punch dark bars, so the UI rays carry the tell instead.
+func _no_pillars() -> void:
+	for p: Node3D in cache.get_meta("pillars", []):
+		p.visible = false
 
 
 ## The shell flies apart (pre-fractured chunks with gravity).
