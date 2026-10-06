@@ -51,7 +51,7 @@ uniform float hop_scale = 0.0;
 uniform float unit_scale = 1.0;
 uniform float sway_scale = 0.35;
 uniform float ao_height = 0.38;
-uniform float ao_strength = 0.5;
+uniform float ao_strength = 0.35;
 uniform float roughness_value = 0.75;
 uniform float rim_value = 0.3;
 uniform float material_split : hint_range(0.0, 1.0) = 1.0;
@@ -71,7 +71,7 @@ uniform float glow_strength = 4.0;
 uniform float glow_pulse = 0.25;
 uniform float self_shadow : hint_range(0.0, 1.0) = 0.35;
 uniform float light_wrap : hint_range(0.0, 1.0) = 0.12;
-uniform float edge_shade : hint_range(0.0, 1.0) = 0.45;
+uniform float edge_shade : hint_range(0.0, 1.0) = 0.22;
 uniform float albedo_bias = -0.6;
 uniform float spec_strength = 1.0;
 
