@@ -36,12 +36,19 @@ uniform vec4 trim_light : source_color = vec4(1.0, 0.906, 0.639, 1.0);
 uniform float rivet_r = 0.0;                 // 0 = no rivets
 uniform float rivet_every = 0.0;             // extra rivets along top / bottom trim (0 = none)
 uniform float spec_k = 0.55;
+uniform vec4 reflect_col : source_color = vec4(0.62, 0.86, 1.0, 1.0);  // the bridge's light, caught low on the glaze
+uniform float reflect_k = 0.07;
 uniform float bevel_w = 7.0;
 uniform float bevel_k = 0.22;
 uniform float noise_k = 0.025;
 uniform float shadow_k = 0.45;
 uniform vec2 shadow_off = vec2(0.0, 7.0);
 uniform float shadow_blur = 10.0;
+// CLOISONNE: gold wires (cloisons) divide the face into faceted enamel cells - the craft the
+// direction is named after, and the crystal's facets at once. 0 = off.
+uniform float cloison = 0.0;
+uniform float cloison_cell = 84.0;
+uniform float cloison_seed = 3.0;
 uniform vec4 glow : source_color = vec4(0.56, 0.92, 1.0, 0.0);
 uniform float glow_r = 14.0;
 
@@ -53,6 +60,37 @@ void vertex() {
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+vec2 hash2(vec2 p) {
+	return vec2(hash(p + cloison_seed), hash(p + cloison_seed + 17.31));
+}
+
+// Voronoi (iq): x = distance to the nearest cell edge (px), yz = cell id.
+vec3 voronoi(vec2 x) {
+	vec2 n = floor(x);
+	vec2 f = fract(x);
+	vec2 mg;
+	vec2 mr;
+	float md = 8.0;
+	for (int j = -1; j <= 1; j++)
+	for (int i = -1; i <= 1; i++) {
+		vec2 g = vec2(float(i), float(j));
+		vec2 o = hash2(n + g) * 0.8 + 0.1;
+		vec2 r = g + o - f;
+		float d = dot(r, r);
+		if (d < md) { md = d; mr = r; mg = g; }
+	}
+	md = 8.0;
+	for (int j = -2; j <= 2; j++)
+	for (int i = -2; i <= 2; i++) {
+		vec2 g = mg + vec2(float(i), float(j));
+		vec2 o = hash2(n + g) * 0.8 + 0.1;
+		vec2 r = g + o - f;
+		if (dot(mr - r, mr - r) > 0.00001)
+			md = min(md, dot(0.5 * (mr + r), normalize(r - mr)));
+	}
+	return vec3(md, n + mg);
 }
 
 // Plate SDF: q relative to the centre, b half size.
@@ -174,8 +212,27 @@ void fragment() {
 			vec2 so = (q - vec2(-fb.x * 0.18, -fb.y * 0.42)) / vec2(fb.x * 0.78, max(fb.y * 0.42, 8.0));
 			float spec = 1.0 - smoothstep(0.35, 1.0, length(so));
 			fcol = mix(fcol, vec3(1.0), spec * spec_k * 0.55);
+			fcol = mix(fcol, fcol * reflect_col.rgb, smoothstep(0.55, 1.0, v) * reflect_k * 4.0);
+		}
+		vec4 wire = vec4(0.0);
+		if (cloison > 0.0) {
+			vec2 cq = (q + fb) / cloison_cell;
+			vec3 vr = voronoi(cq);
+			float tone = hash(vr.yz + 0.37);
+			vec2 site = vr.yz + hash2(vr.yz) * 0.8 + 0.1;
+			vec2 tilt = normalize(hash2(vr.yz + 5.1) - 0.5);
+			float facet = dot(cq - site, tilt);
+			fcol *= 0.86 + 0.2 * tone - 0.16 * facet;
+			// each cell is a little facet: lit on its top-left
+			float ew = vr.x * cloison_cell;                   // px to the cell edge
+			float inside = step(trim_inset + trim_w + 3.0, -d_face);
+			fcol *= 1.0 - 0.18 * (1.0 - smoothstep(1.2, 3.6, ew)) * inside * cloison;
+			float a_w = clamp(1.7 - ew, 0.0, 1.0) * inside;
+			vec3 wc = gold_ramp(0.62 + 0.3 * (tone - 0.5) + 0.3 * smoothstep(1.0, 0.0, ew));
+			wire = vec4(wc, a_w * cloison);
 		}
 		fcol += (hash(floor(p * 0.75)) - 0.5) * noise_k;
+		fcol = mix(fcol, wire.rgb, wire.a);
 		// Hairline light lip just inside the top-left edge.
 		float lip = smoothstep(-2.6, -1.2, d_face) * (1.0 - smoothstep(-1.2, 0.0, d_face));
 		fcol = mix(fcol, recess > 0.5 ? fcol * 0.7 : vec3(1.0), lip * clamp(lam, 0.0, 1.0) * 0.8);

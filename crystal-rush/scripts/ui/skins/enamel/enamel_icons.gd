@@ -13,6 +13,7 @@ static func draw(ci: CanvasItem, name: String, r: Rect2, ink := Color("1B2147"),
 		"coin": _coin(ci, r)
 		"crystal": _crystal(ci, r)
 		"crest": _crest(ci, r)
+		"geode_obj": _geode(ci, r)
 		_:
 			var shapes := _picto(name, r)
 			if shapes.is_empty():
@@ -113,6 +114,53 @@ static func _crest(ci: CanvasItem, r: Rect2) -> void:
 	K.draw_inlay(ci, P.call(0.5, 0.56), Vector2(w * 0.2, h * 0.32), [K.ICE_WHITE, K.ICE, K.ICE_DEEP], false)
 	for u in [0.04, 0.5, 0.96]:
 		ci.draw_circle(P.call(u, 0.32 if u != 0.5 else 0.06), w * 0.06, K.GOLD_LIGHT, true, -1.0, true)
+
+
+static func _geode(ci: CanvasItem, r: Rect2) -> void:
+	# The world cache: a basalt egg cracked open at the top, amethyst inside, a gold band.
+	var c := r.get_center() + Vector2(0, r.size.y * 0.06)
+	var rx := r.size.x * 0.4
+	var ry := r.size.y * 0.44
+	var egg := PackedVector2Array()
+	for i in 32:
+		var a := TAU * i / 32.0
+		var k := 1.0 if sin(a) > 0.0 else 1.12
+		egg.append(c + Vector2(cos(a) * rx, sin(a) * ry * k))
+	var sh := PackedVector2Array()
+	for p in egg:
+		sh.append(p + Vector2(1.5, 3.0))
+	K.poly(ci, sh, Color(0, 0, 0.05, 0.45))
+	K.poly(ci, egg, Color("23253A"))
+	var lit := PackedVector2Array()
+	for i in 32:
+		var a := TAU * i / 32.0
+		var k := 1.0 if sin(a) > 0.0 else 1.12
+		lit.append(c + Vector2(-rx * 0.12, -ry * 0.1) + Vector2(cos(a) * rx * 0.72, sin(a) * ry * 0.72 * k))
+	K.poly(ci, lit, Color("3A3E5C"))
+	# gold band
+	var band := PackedVector2Array()
+	for i in 17:
+		var a := PI * i / 16.0
+		band.append(c + Vector2(-cos(a) * rx * 0.99, ry * 0.28 + sin(a) * ry * 0.12))
+	for i in 17:
+		var a := PI - PI * i / 16.0
+		band.append(c + Vector2(-cos(a) * rx * 0.99, ry * 0.12 + sin(a) * ry * 0.12))
+	K.poly(ci, band, K.GOLD)
+	# the crack and the crystals
+	var top := c + Vector2(0, -ry * 0.98)
+	var crys := [[Vector2(-0.3, -0.55), 0.5, -0.35], [Vector2(0.02, -0.72), 0.7, 0.05], [Vector2(0.3, -0.5), 0.45, 0.4]]
+	K.poly(ci, PackedVector2Array([c + Vector2(-rx * 0.62, -ry * 0.42), c + Vector2(-rx * 0.3, -ry * 0.62), c + Vector2(0, -ry * 0.5),
+		c + Vector2(rx * 0.3, -ry * 0.64), c + Vector2(rx * 0.62, -ry * 0.4), c + Vector2(0, -ry * 0.18)]), Color("150A2E"))
+	for cr: Array in crys:
+		var base: Vector2 = c + Vector2(rx, ry) * (cr[0] as Vector2) + Vector2(0, ry * 0.25)
+		var h: float = ry * float(cr[1])
+		var tilt: float = cr[2]
+		var dir := Vector2(sin(tilt), -cos(tilt))
+		var side := Vector2(-dir.y, dir.x) * rx * 0.16
+		var tip := base + dir * h
+		K.poly(ci, PackedVector2Array([base - side, tip - dir * h * 0.25 - side, tip, base]), Color("C9A8FF"))
+		K.poly(ci, PackedVector2Array([base, tip, tip - dir * h * 0.25 + side, base + side]), Color("7A3FD0"))
+	K.star(ci, top + Vector2(rx * 0.1, ry * 0.15), ry * 0.22, Color(1, 1, 1, 0.9))
 
 
 # ------------------------------------------------------------------ pictograms

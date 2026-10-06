@@ -27,7 +27,7 @@ static func currency(parent: Node, x: float, y: float, icon: String, value: Stri
 	var h := float(o.get("h", 60.0))
 	var w: float = 12.0 + ic + 10.0 + odo_w + 16.0 + (40.0 if plus else 0.0)
 	var r := Rect2(x, y, w, h)
-	K.plate(parent, r, {"ch": 10.0, "trim": 3.0, "inset": 3.0, "shadow": 0.5, "spec": 0.4})
+	K.plate(parent, r, {"ch": 14.0, "trim": 3.0, "inset": 3.0, "shadow": 0.5, "spec": 0.4})
 	K.canvas(parent, func(ci: CanvasItem) -> void:
 		var cy := r.get_center().y
 		I.draw(ci, icon, Rect2(r.position.x + 11.0, cy - ic * 0.5, ic, ic))
@@ -101,7 +101,7 @@ static func _cur_w(value: String, plus: bool) -> float:
 ## The kit tray: navy enamel tray (gold trim, rivets) with five slotted white plate-keys.
 static func nav(parent: Node, active: String, badges := {}) -> void:
 	var tr := Rect2(6, 1124, 708, 150)
-	K.plate(parent, tr, {"mat": "navy", "ch": 22.0, "rad": 8.0, "trim": 4.0, "inset": 4.0, "rivet": 4.5, "rivet_every": 140.0, "shadow": 0.6, "shadow_off": Vector2(0, -4), "spec": 0.25})
+	K.plate(parent, tr, {"mat": "navy", "ch": 22.0, "rad": 8.0, "trim": 4.0, "inset": 4.0, "rivet": 4.5, "rivet_every": 140.0, "shadow": 0.6, "shadow_off": Vector2(0, -4), "spec": 0.25, "edge": 0.0})
 	var n := NAV.size()
 	var gap := 8.0
 	var x0 := 24.0

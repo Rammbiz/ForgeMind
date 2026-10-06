@@ -85,11 +85,11 @@ func _stand(at: Vector3) -> Node3D:
 	ice.albedo_color = Color("8FEAFF")
 	ice.emission_enabled = true
 	ice.emission = Color("8FEAFF")
-	ice.emission_energy_multiplier = 2.2
+	ice.emission_energy_multiplier = 0.9
 	var plinth := MeshInstance3D.new()
 	var pm := CylinderMesh.new()
-	pm.top_radius = 1.22
-	pm.bottom_radius = 1.3
+	pm.top_radius = 0.98
+	pm.bottom_radius = 1.04
 	pm.height = 0.16
 	pm.radial_segments = 64
 	plinth.mesh = pm
@@ -98,8 +98,8 @@ func _stand(at: Vector3) -> Node3D:
 	root.add_child(plinth)
 	var band := MeshInstance3D.new()
 	var bm := TorusMesh.new()
-	bm.inner_radius = 1.2
-	bm.outer_radius = 1.29
+	bm.inner_radius = 0.96
+	bm.outer_radius = 1.03
 	bm.rings = 64
 	band.mesh = bm
 	band.material_override = gold
@@ -107,8 +107,8 @@ func _stand(at: Vector3) -> Node3D:
 	root.add_child(band)
 	var disc := MeshInstance3D.new()
 	var dm := CylinderMesh.new()
-	dm.top_radius = 1.02
-	dm.bottom_radius = 1.08
+	dm.top_radius = 0.8
+	dm.bottom_radius = 0.85
 	dm.height = 0.26
 	dm.radial_segments = 64
 	disc.mesh = dm
@@ -117,22 +117,32 @@ func _stand(at: Vector3) -> Node3D:
 	root.add_child(disc)
 	var lip := MeshInstance3D.new()
 	var lm := TorusMesh.new()
-	lm.inner_radius = 0.98
-	lm.outer_radius = 1.05
+	lm.inner_radius = 0.77
+	lm.outer_radius = 0.83
 	lm.rings = 64
 	lip.mesh = lm
 	lip.material_override = gold
 	lip.position.y = STAND_H
 	root.add_child(lip)
+	var cap := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.77
+	cm.bottom_radius = 0.77
+	cm.height = 0.012
+	cm.radial_segments = 64
+	cap.mesh = cm
+	cap.material_override = navy
+	cap.position.y = STAND_H
+	root.add_child(cap)
 	var ring := MeshInstance3D.new()
 	var rm := TorusMesh.new()
-	rm.inner_radius = 0.7
-	rm.outer_radius = 0.76
+	rm.inner_radius = 0.6
+	rm.outer_radius = 0.66
 	rm.rings = 64
 	ring.mesh = rm
 	ring.material_override = ice
-	ring.position.y = STAND_H - 0.012
-	ring.scale = Vector3(1, 0.35, 1)
+	ring.position.y = STAND_H + 0.008
+	ring.scale = Vector3(1, 0.3, 1)
 	root.add_child(ring)
 	for i in 12:
 		var a := TAU * i / 12.0
@@ -142,7 +152,7 @@ func _stand(at: Vector3) -> Node3D:
 		sm.height = 0.09
 		rv.mesh = sm
 		rv.material_override = gold
-		rv.position = Vector3(cos(a) * 1.06, 0.29, sin(a) * 1.06)
+		rv.position = Vector3(cos(a) * 0.835, 0.29, sin(a) * 0.835)
 		root.add_child(rv)
 	return root
 
@@ -175,7 +185,7 @@ func _build_ui() -> void:
 	var vr := Rect2(480, 262, 224, 76)
 	K.plate(_root, vr, {"ch": 12.0, "trim": 3.0, "shadow": 0.55, "rivet": 3.4})
 	K.canvas(_root, func(ci: CanvasItem) -> void:
-		I.draw(ci, "geode", Rect2(vr.position.x + 14.0, vr.position.y + 13.0, 50, 50), K.INK, Color("F1EDE4"))
+		I.draw(ci, "geode_obj", Rect2(vr.position.x + 12.0, vr.position.y + 8.0, 54, 60))
 		K.text_l(ci, "Сховище", "display", 26, Vector2(vr.position.x + 74.0, vr.position.y + 26.0), K.INK)
 		K.text_l(ci, "2 готові", "bold", 26, Vector2(vr.position.x + 74.0, vr.position.y + 54.0), Color("6A2FC8"))
 		K.stud(ci, Vector2(vr.end.x - 4.0, vr.position.y + 2.0), "2", 16.0))
@@ -225,7 +235,7 @@ func _track(r: Rect2) -> void:
 		var mat := "ice" if cur else ("red" if boss else ("enamel" if not done else "enamel"))
 		K.plate(_root, tr, {"mat": mat, "depth": depth, "ch": 14.0 if sz > 70.0 else 10.0, "rad": 5.0, "trim": 3.0 if (cur or boss) else 0.0,
 			"shadow": 0.6, "pad": 18.0, "glow": Color(0.56, 0.92, 1.0, 0.45) if cur else Color(0, 0, 0, 0), "glow_r": 9.0,
-			"rivet": 3.2 if cur else 0.0, "spec": 0.5})
+			"rivet": 3.2 if cur else 0.0, "spec": 0.5, "cloison": 1.0 if cur else 0.0, "cloison_cell": 58.0, "cloison_seed": 11.0})
 		var fr := K.face_of(tr, depth)
 		var lbl: String = labels[i]
 		K.canvas(_root, func(ci: CanvasItem) -> void:
@@ -260,7 +270,8 @@ func _launch_key(r: Rect2) -> void:
 	K.plate(_root, wr, {"mat": "window", "recess": true, "ch": 24.0, "rad": 8.0, "trim": 0.0, "shadow": 0.0, "outline_w": 0.0, "pad": 4.0})
 	var depth := 16.0
 	var kr := Rect2(r.position.x + 6.0, r.position.y + 4.0, r.size.x - 12.0, r.size.y - 8.0)
-	K.plate(_root, kr, {"mat": "ice", "depth": depth, "ch": 22.0, "rad": 7.0, "trim": 0.0, "shadow": 0.5, "spec": 0.75, "bevel_w": 9.0, "bevel": 0.28})
+	K.plate(_root, kr, {"mat": "ice", "depth": depth, "ch": 22.0, "rad": 7.0, "trim": 0.0, "shadow": 0.5, "spec": 0.75, "bevel_w": 9.0, "bevel": 0.28,
+		"cloison": 1.0, "cloison_cell": 104.0, "cloison_seed": 5.0})
 	var fr := K.face_of(kr, depth)
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		var cy := fr.get_center().y

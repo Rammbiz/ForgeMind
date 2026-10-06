@@ -66,8 +66,9 @@ func _card(r: Rect2, d: Array) -> void:
 			ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		var tex := MachineThumbs.get_thumb(_root, id, false)
 		if tex:
-			var ts := 150.0
-			ci.draw_texture_rect(tex, Rect2(wc.x - ts * 0.5, wr.position.y - 26.0, ts, ts), false, Color(0.05, 0.06, 0.12, 0.92) if locked else Color.WHITE)
+			# The render breaks out of its window: wheels inside, the top over the rim.
+			var ts := 196.0
+			ci.draw_texture_rect(tex, Rect2(wc.x - ts * 0.5, wr.end.y - ts * 0.86, ts, ts), false, Color(0.05, 0.06, 0.12, 0.92) if locked else Color.WHITE)
 		if locked:
 			I.draw(ci, "lock", Rect2(wc - Vector2(20, 26), Vector2(40, 46)), Color("C9C5BD"), Color("1A1E3A"), "plain")
 		else:
@@ -110,7 +111,7 @@ func _card(r: Rect2, d: Array) -> void:
 	# Blueprint channel: a sunk slot with one enamel pip per blueprint.
 	var have: int = d[5]
 	var need: int = d[6]
-	var cr := Rect2(r.position.x + 16.0, r.end.y - 48.0, r.size.x - 150.0, 32.0)
+	var cr := Rect2(r.position.x + 48.0, r.end.y - 48.0, r.size.x - 152.0, 32.0)
 	K.plate(_root, cr, {"mat": "tray", "recess": true, "ch": 8.0, "rad": 4.0, "trim": 0.0, "shadow": 0.0, "outline_w": 0.0, "pad": 4.0, "bevel_w": 4.0})
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		var n := need
@@ -123,7 +124,7 @@ func _card(r: Rect2, d: Array) -> void:
 				K.vgrad(ci, pr, [K.ICE_WHITE, K.ICE, K.ICE_DEEP])
 			else:
 				ci.draw_rect(pr, Color(0.1, 0.1, 0.2, 0.08))
-		I.draw(ci, "blueprint", Rect2(cr.end.x + 10.0, cr.position.y + 2.0, 24, 28), K.INK_DIM, Color("F1EDE4"))
+		I.draw(ci, "blueprint", Rect2(r.position.x + 18.0, cr.position.y + 2.0, 24, 28), K.INK_DIM, Color("F1EDE4"))
 		K.text_r(ci, "%d/%d" % [have, need], "num", 26, Vector2(r.end.x - 16.0, cr.get_center().y + 1.0), K.INK))
 
 

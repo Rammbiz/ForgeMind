@@ -181,6 +181,14 @@ static func backdrop(parent: Node, glow_at := Vector2(0.7, 0.25), dim := 0.0) ->
 ##   recess (bool), trim (px, 0 = none), inset, rivet (radius), rivet_every, glow (Color),
 ##   glow_r, shadow (0..1), spec, bevel, outline_w.
 static func plate(parent: Node, r: Rect2, o := {}) -> ColorRect:
+	# Plates (not keys, not sunk trays) are die-cast parts: a thin enamel EDGE shows below the
+	# face rect `r` (the face keeps exactly `r`, so content placement is unaffected).
+	if not o.has("depth") and not o.get("recess", false):
+		var edge := float(o.get("edge", 5.0))
+		if edge > 0.0:
+			o = o.duplicate()
+			o["depth"] = edge
+			r = Rect2(r.position, r.size + Vector2(0, edge))
 	var pad := float(o.get("pad", 22.0))
 	var gl: Color = o.get("glow", Color(0, 0, 0, 0))
 	if gl.a > 0.0:
@@ -233,6 +241,9 @@ static func plate(parent: Node, r: Rect2, o := {}) -> ColorRect:
 	m.set_shader_parameter("bevel_w", float(o.get("bevel_w", 7.0)))
 	m.set_shader_parameter("shadow_k", float(o.get("shadow", 0.45)))
 	m.set_shader_parameter("shadow_off", o.get("shadow_off", Vector2(0, 7)))
+	m.set_shader_parameter("cloison", float(o.get("cloison", 0.0)))
+	m.set_shader_parameter("cloison_cell", float(o.get("cloison_cell", 84.0)))
+	m.set_shader_parameter("cloison_seed", float(o.get("cloison_seed", 3.0)))
 	var g: Color = o.get("glow", Color(0, 0, 0, 0))
 	m.set_shader_parameter("glow", g)
 	m.set_shader_parameter("glow_r", float(o.get("glow_r", 14.0)))
@@ -256,6 +267,10 @@ static func key(parent: Node, r: Rect2, label: String, o := {}) -> Rect2:
 	var depth := float(o.get("depth", 10.0))
 	po["depth"] = depth
 	po["trim"] = float(o.get("trim", 0.0))
+	# The call to action is always ice CLOISONNE: gold wires between faceted ice-enamel cells.
+	if po.get("mat", "enamel") == "ice" and not o.has("cloison") and state != "disabled":
+		po["cloison"] = 1.0
+		po["cloison_cell"] = 100.0
 	if state == "pressed":
 		po["press"] = 1.0
 	if state == "disabled":
