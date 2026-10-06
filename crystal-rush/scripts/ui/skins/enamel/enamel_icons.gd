@@ -5,7 +5,7 @@ class_name EnamelIcons
 ##  - chunky DEBOSSED pictograms (nav, settings, lock...): single navy ink stamped into the
 ##    enamel with a white lip below. `bg` fills holes (the enamel under the icon).
 
-const K := EnamelKit
+const K := preload("res://scripts/ui/skins/enamel/enamel_kit.gd")
 
 
 static func draw(ci: CanvasItem, name: String, r: Rect2, ink := Color("1B2147"), bg := Color("F1EDE4"), style := "deboss") -> void:
@@ -228,6 +228,13 @@ static func _picto(name: String, r: Rect2) -> Array:
 			out.append([PackedVector2Array([P.call(0.12, 0.06), P.call(0.7, 0.06), P.call(0.88, 0.24), P.call(0.88, 0.94), P.call(0.12, 0.94)]), false])
 			out.append([PackedVector2Array([P.call(0.24, 0.42), P.call(0.76, 0.42), P.call(0.76, 0.5), P.call(0.24, 0.5)]), true])
 			out.append([PackedVector2Array([P.call(0.24, 0.62), P.call(0.66, 0.62), P.call(0.66, 0.7), P.call(0.24, 0.7)]), true])
+		"rush":
+			# The run: a double chevron charging forward over a bridge plank.
+			for k in 2:
+				var dx := 0.3 * k
+				out.append([PackedVector2Array([P.call(0.06 + dx, 0.1), P.call(0.28 + dx, 0.1), P.call(0.6 + dx, 0.44), P.call(0.28 + dx, 0.78),
+					P.call(0.06 + dx, 0.78), P.call(0.38 + dx, 0.44)]), false])
+			out.append([PackedVector2Array([P.call(0.04, 0.86), P.call(0.96, 0.86), P.call(0.96, 0.96), P.call(0.04, 0.96)]), false])
 		"play":
 			out.append([PackedVector2Array([P.call(0.22, 0.08), P.call(0.9, 0.5), P.call(0.22, 0.92)]), false])
 		"ad":

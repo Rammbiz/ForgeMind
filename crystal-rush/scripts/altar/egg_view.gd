@@ -83,7 +83,7 @@ func _init(p_type := "stone") -> void:
 	_cam = Camera3D.new()
 	_cam.fov = 30.0
 	_root.add_child(_cam)
-	_cam.look_at_from_position(Vector3(0, h * 0.95, h * 3.3), Vector3(0, h * 0.42, 0))
+	_cam.look_at_from_position(Vector3(0, h * 0.9, h * 2.45), Vector3(0, h * 0.4, 0))
 
 
 ## The egg falls onto the dais (ease-out-back) with a thud.

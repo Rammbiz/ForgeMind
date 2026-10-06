@@ -99,6 +99,13 @@ vec4 rivet(vec2 p, vec2 c, float r) {
 		float spec = pow(max(dot(reflect(-L, n), vec3(0.0, 0.0, 1.0)), 0.0), 18.0);
 		vec3 col = gold_ramp(0.38 + 0.55 * lam) + vec3(spec * 0.9);
 		col *= mix(0.55, 1.0, smoothstep(1.0, 0.72, l));
+		// Screw slot across the head (a toy kit is screwed together).
+		vec2 sd = normalize(vec2(1.0, -0.55));
+		float across = abs(dot(v, vec2(-sd.y, sd.x)));
+		float slot = (1.0 - smoothstep(0.1, 0.2, across)) * (1.0 - smoothstep(0.62, 0.72, l));
+		col = mix(col, trim_dark.rgb * 0.45, slot * 0.85);
+		float slot_lit = (1.0 - smoothstep(0.0, 0.08, abs(dot(v, vec2(-sd.y, sd.x)) - 0.2))) * (1.0 - smoothstep(0.6, 0.7, l)) * step(0.0, dot(v, vec2(-sd.y, sd.x)));
+		col += vec3(0.35) * slot_lit;
 		o = over(o, vec4(col, a));
 	}
 	return o;

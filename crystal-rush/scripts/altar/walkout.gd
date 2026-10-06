@@ -98,14 +98,14 @@ func _ready() -> void:
 func _layout() -> void:
 	var vp := size
 	_title.size = Vector2(vp.x, 56)
-	_title.position = Vector2(0, vp.y * 0.12)
+	_title.position = Vector2(0, vp.y * 0.13)
 	_name.size = Vector2(vp.x, 96)
-	_name.position = Vector2(0, vp.y * 0.66)
+	_name.position = Vector2(0, vp.y * 0.69)
 	_name.pivot_offset = _name.size * 0.5
 	_sub.size = Vector2(vp.x, 40)
-	_sub.position = Vector2(0, vp.y * 0.66 + 98)
+	_sub.position = Vector2(0, vp.y * 0.69 + 96)
 	_tap.size = Vector2(vp.x, 34)
-	_tap.position = Vector2(0, vp.y * 0.88)
+	_tap.position = Vector2(0, vp.y * 0.9)
 
 
 func _build_stage(acc: Color, rc: Color) -> void:
@@ -140,12 +140,12 @@ func _build_stage(acc: Color, rc: Color) -> void:
 	_halo = Sprite3D.new()
 	_halo.texture = UIKit.glow_texture()
 	_halo.pixel_size = 0.012
-	_halo.modulate = Color(acc.r, acc.g, acc.b, 0.85)
+	_halo.modulate = Color(acc.r, acc.g, acc.b, 0.7)
 	_halo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_halo.shaded = false
 	_halo.no_depth_test = false
-	_halo.position = Vector3(0, 0.75, -1.4)
-	_halo.scale = Vector3.ONE * 2.2
+	_halo.position = Vector3(0, 0.8, -1.6)
+	_halo.scale = Vector3.ONE * 0.95
 	_root.add_child(_halo)
 	var d := HubShowcase.owner_dais(2.0)
 	if not d.is_empty():
@@ -156,7 +156,7 @@ func _build_stage(acc: Color, rc: Color) -> void:
 	_machine = WeaponModels.machine(id, {"rank": 1})
 	HubShowcase.hide_rank_marks(_machine)
 	_root.add_child(_machine)
-	_machine.rotation.y = deg_to_rad(-28)
+	_machine.rotation.y = PI - 0.55
 	# Light beam that drops onto the machine at the "light" beat.
 	_beam = MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
@@ -180,10 +180,10 @@ func _build_stage(acc: Color, rc: Color) -> void:
 	_fx = Effects.new()
 	_root.add_child(_fx)
 	_cam = Camera3D.new()
-	_cam.fov = 34.0
+	_cam.keep_aspect = Camera3D.KEEP_WIDTH
+	_cam.fov = 40.0
 	_root.add_child(_cam)
-	_cam.look_at_from_position(Vector3(0, 1.7, 5.6), Vector3(0, 0.45, 0))
-	_cam.v_offset = -0.25
+	_cam.look_at_from_position(Vector3(0, 1.5, 5.4), Vector3(0, 0.5, 0))
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -219,9 +219,9 @@ func _process(delta: float) -> void:
 	var rc := UITokens.rarity(ArsenalData.rarity_of(id))
 	# Slow push-in and turntable.
 	var k := clampf(_t / TOTAL, 0.0, 1.0)
-	_cam.position = Vector3(0, 1.7 - 0.25 * k, 5.6 - 1.0 * k)
-	_cam.look_at(Vector3(0, 0.45, 0))
-	_machine.rotation.y = deg_to_rad(-28) + sin(_t * 0.6) * 0.35
+	_cam.position = Vector3(0, 1.5 - 0.2 * k, 5.4 - 0.9 * k)
+	_cam.look_at(Vector3(0, 0.5, 0))
+	_machine.rotation.y = PI - 0.55 + sin(_t * 0.6) * 0.3
 	_fire = maxf(0.0, _fire - delta * 3.0)
 	WeaponModels.animate(_machine, _t, _fire, 0.0)
 	if _beat("light", 0.7):
@@ -262,9 +262,10 @@ func _volley() -> void:
 	var mz: Node3D = _machine.get_meta("muzzle") if _machine.has_meta("muzzle") else null
 	var from := mz.global_position if mz else _machine.global_position + Vector3(0, 0.6, 0)
 	var col := WeaponModels.glow_color(id)
-	_fx.muzzle(from, col, Vector3(0, 0, 1))
+	var fwd := -_machine.global_transform.basis.z.normalized()
+	_fx.muzzle(from, col, fwd)
 	var kind := Effects.shot_kind(id)
-	var to := Vector3(0.0, 0.3, 6.0)
+	var to := from + Vector3(fwd.x, 0.0, fwd.z * 0.35).normalized() * 5.5 + Vector3(0, 0.3, 0)
 	if kind == "beam" or not Effects.KINDS.has(Effects.ALIAS.get(kind, kind)):
 		_fx.rail_fire(from, to, col)
 	else:

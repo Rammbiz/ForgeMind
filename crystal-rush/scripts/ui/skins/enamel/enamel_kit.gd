@@ -192,7 +192,7 @@ static func plate(parent: Node, r: Rect2, o := {}) -> ColorRect:
 	m.set_shader_parameter("size", cr.size)
 	m.set_shader_parameter("pad", pad)
 	var h := r.size.y - float(o.get("depth", 0.0))
-	var ch := float(o.get("ch", 16.0 if h > 90.0 else (10.0 if h > 44.0 else 6.0)))
+	var ch := float(o.get("ch", 24.0 if h > 90.0 else (16.0 if h > 44.0 else 9.0)))
 	var rad := float(o.get("rad", 6.0 if h > 44.0 else 4.0))
 	var cmap := {
 		"tlbr": [Vector4(ch, 0, ch, 0), Vector4(0, rad, 0, rad)],
@@ -252,6 +252,7 @@ static func key(parent: Node, r: Rect2, label: String, o := {}) -> Rect2:
 	var po := o.duplicate()
 	var depth := float(o.get("depth", 10.0))
 	po["depth"] = depth
+	po["trim"] = float(o.get("trim", 0.0))
 	if state == "pressed":
 		po["press"] = 1.0
 	if state == "disabled":
@@ -277,17 +278,21 @@ static func key(parent: Node, r: Rect2, label: String, o := {}) -> Rect2:
 			x0 = cb.call(ci, fr)
 		var fkey: String = o.get("font", "display")
 		var size := int(o.get("size", 34))
-		var cy := fr.get_center().y
 		var sub: String = o.get("sub", "")
-		if sub != "":
-			cy -= float(o.get("sub_size", 26)) * 0.52
+		var ss := int(o.get("sub_size", 26))
 		var w := x1 - x0 - 24.0
 		var s := fit_size(label, fkey, size, w, mini(size, 26))
-		text_c(ci, label, fkey, s, Vector2((x0 + x1) * 0.5, cy), ink, style)
+		var cap := font(fkey).get_ascent(s) * 0.70
+		var cy := fr.get_center().y
 		if sub != "":
-			var ss := int(o.get("sub_size", 26))
-			var scol: Color = o.get("sub_ink", Color(ink, 0.82))
-			text_c(ci, sub, "bold", fit_size(sub, "bold", ss, w, 22), Vector2((x0 + x1) * 0.5, cy + ss * 1.12), scol, style))
+			var scap := font("bold").get_ascent(ss) * 0.66
+			var gap := 12.0
+			var block := cap + gap + scap
+			var top := fr.get_center().y - block * 0.5
+			cy = top + cap * 0.5
+			var scol: Color = o.get("sub_ink", Color(ink, 0.85))
+			text_c(ci, sub, "bold", fit_size(sub, "bold", ss, w, 22), Vector2((x0 + x1) * 0.5, top + cap + gap + scap * 0.5), scol, style)
+		text_c(ci, label, fkey, s, Vector2((x0 + x1) * 0.5, cy), ink, style))
 	return fr
 
 
@@ -327,7 +332,7 @@ static func plate_pts(r: Rect2, ch: float, rad := 3.0, corners := "tlbr") -> Pac
 			pts.append(p + c[3] * ch)
 		else:
 			# small radius arc
-			var ctr := p + (c[2] + c[3]) * rad
+			var ctr: Vector2 = p + (c[2] + c[3]) * rad
 			for k in 4:
 				var a := deg_to_rad(float(c[4]) + 90.0 * k / 3.0)
 				pts.append(ctr + Vector2(cos(a), sin(a)) * rad)

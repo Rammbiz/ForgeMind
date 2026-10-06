@@ -117,63 +117,74 @@ func _run_shot(s: String) -> void:
 	match s:
 		"altar":
 			var a := _altar(world_rev("E"))
-			await _wait(0.75)
+			await _wait_clock(a, 0.75)
 			await _snap("altar_1_present")
 			a.call("_do_strike")
-			await _wait(0.22)
+			await _wait_clock(a, 0.2)
 			await _snap("altar_2_strike")
-			await _wait(0.12)
+			await _until_state(a, "tell")
+			await _wait_clock(a, 0.14)
 			await _snap("altar_3_tell")
-			await _wait(0.16)
+			await _until_state(a, "burst")
+			await _wait_clock(a, 0.12)
 			await _snap("altar_4_burst")
-			await _wait(1.3)
+			await _until_state(a, "flips")
+			await _wait_clock(a, 0.2)
 			await _snap("altar_5_fan")
-			a.call("_flip_next")
-			await _wait(0.5)
-			a.call("_flip_next")
-			await _wait(0.15)
+			for i in 2:
+				a.call("_flip_next")
+				await _until_idle(a)
 			await _snap("altar_6_flip")
+			a.call("_flip_next")
+			await _until_idle(a)
+			a.call("_flip_next")
+			await _wait(0.25)
+			await _snap("altar_6b_flip_rare")
+			await _until_idle(a)
+			a.call("_flip_next")
+			await _wait(0.45)
+			await _snap("altar_7_flip_epic")
+			await _until_idle(a)
 			await _wait(0.6)
-			a.call("_flip_next")
-			await _wait(0.5)
-			a.call("_flip_next")
-			await _wait(0.5)
-			a.call("_flip_next")
-			await _wait(0.3)
-			await _snap("altar_6b_flip_epic")
-			await _wait(0.8)
-			await _snap("altar_7_flipped")
-			await _wait(1.4)
+			await _snap("altar_7b_flipped")
+			await _until_state(a, "summary")
+			await _wait(1.6)
 			await _snap("altar_8_summary")
 		"burst_C", "burst_R", "burst_E", "burst_L":
 			var r := s.substr(6)
 			var a := _altar(world_rev(r))
 			await _wait(0.6)
 			a.call("_do_strike")
-			await _wait(0.5)
+			await _until_state(a, "burst")
+			await _wait_clock(a, 0.1)
 			await _snap("altar_burst_" + r)
 		"tell_L":
 			var a := _altar(world_rev("L"))
 			await _wait(0.6)
 			a.call("_do_strike")
-			await _wait(0.33)
+			await _until_state(a, "tell")
+			await _wait_clock(a, 0.2)
 			await _snap("altar_tell_L")
 		"walkout_altar":
 			var rev := fake_rev("world", [["C", "drone", 3, false, 4, 7, 10, false], ["R", "cannon", 2, false, 1, 3, 6, false],
 					["R", "mortar", 1, false, 2, 3, 6, false], ["E", "railgun", 1, true, 0, 0, 3, false], ["E", "laser", 1, false, 1, 2, 3, false]], 232)
 			var a := _altar(rev)
-			await _wait(0.6)
+			await _wait_clock(a, 0.6)
 			a.call("_do_strike")
-			await _wait(1.9)
-			a.call("_on_open_all")
-			await _wait(2.0)
+			await _until_state(a, "flips")
+			for i in 3:
+				a.call("_flip_next")
+				await _until_idle(a)
+			a.call("_flip_next")
+			await _wait(0.55)
 			await _snap("altar_walk_1")
-			await _wait(0.75)
+			await _wait(0.55)
 			await _snap("altar_walk_2_name")
 			await _wait(0.6)
 			await _snap("altar_walk_3_volley")
-			await _wait(3.0)
-			await _snap("altar_walk_4_summary")
+			await _until_idle(a)
+			await _wait(0.3)
+			await _snap("altar_walk_4_card")
 		"inline":
 			var bg := _backdrop()
 			var rev := fake_rev("stone", [["C", "ballista", 3, false, 4, 7, 10, false], ["C", "drone", 2, false, 8, 10, 10, true],
@@ -234,6 +245,27 @@ func _run_shot(s: String) -> void:
 			printerr("GA w waited")
 		"win", "loss":
 			pass
+
+
+func _until_idle(a: CacheAltar) -> void:
+	var t0 := Time.get_ticks_msec()
+	await get_tree().process_frame
+	while bool(a.get("_busy")) and Time.get_ticks_msec() - t0 < 20000:
+		await get_tree().process_frame
+
+
+func _until_state(a: CacheAltar, st: String) -> void:
+	var t0 := Time.get_ticks_msec()
+	while a.state != st and Time.get_ticks_msec() - t0 < 20000:
+		await get_tree().process_frame
+
+
+## Waits until the node's own `_clock` advanced `sec` (xvfb renders slowly).
+func _wait_clock(n: Node, sec: float) -> void:
+	var c0 := float(n.get("_clock"))
+	var t0 := Time.get_ticks_msec()
+	while float(n.get("_clock")) < c0 + sec and Time.get_ticks_msec() - t0 < 20000:
+		await get_tree().process_frame
 
 
 ## A dark stage backdrop on a CanvasLayer for the 2D-only shots.

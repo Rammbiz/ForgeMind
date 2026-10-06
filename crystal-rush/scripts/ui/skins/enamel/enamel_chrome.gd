@@ -4,13 +4,13 @@ class_name EnamelChrome
 ## (a navy enamel tray holding five white plate-keys; the active one is pressed in and its ice
 ## inlay lights) and the TOGGLE-KEY tab row.
 
-const K := EnamelKit
-const I := EnamelIcons
+const K := preload("res://scripts/ui/skins/enamel/enamel_kit.gd")
+const I := preload("res://scripts/ui/skins/enamel/enamel_icons.gd")
 
 const NAV := [
 	["shop", "chest", "Магазин"],
 	["arsenal", "cannon", "Арсенал"],
-	["play", "gate", "Гра"],
+	["play", "rush", "Гра"],
 	["heroes", "fox", "Герої"],
 	["barracks", "helm", "Казарми"],
 ]
@@ -19,22 +19,20 @@ const NAV := [
 ## A stamped currency plate: kit object + odometer. Returns the plate rect.
 static func currency(parent: Node, x: float, y: float, icon: String, value: String, plus := false, o := {}) -> Rect2:
 	var size := int(o.get("size", 26))
-	var cw := round(size * 0.86)
+	var cw: float = round(size * 0.86)
 	var digits := value.replace(" ", "").length()
 	var spaces := value.length() - digits
-	var odo_w := digits * (cw + 2.0) - 2.0 + spaces * 5.0
+	var odo_w: float = digits * (cw + 2.0) - 2.0 + spaces * 5.0
 	var ic := float(o.get("icon", 46.0))
 	var h := float(o.get("h", 60.0))
-	var w := 12.0 + ic + 10.0 + odo_w + 16.0 + (40.0 if plus else 0.0)
+	var w: float = 12.0 + ic + 10.0 + odo_w + 16.0 + (40.0 if plus else 0.0)
 	var r := Rect2(x, y, w, h)
 	K.plate(parent, r, {"ch": 10.0, "trim": 3.0, "inset": 3.0, "shadow": 0.5, "spec": 0.4})
 	K.canvas(parent, func(ci: CanvasItem) -> void:
 		var cy := r.get_center().y
 		I.draw(ci, icon, Rect2(r.position.x + 11.0, cy - ic * 0.5, ic, ic))
 		K.odometer(ci, value, size, Vector2(r.position.x + 12.0 + ic + 10.0, cy))
-		if plus:
-			var pr := Rect2(r.end.x - 46.0, r.position.y + 10.0, 36.0, h - 18.0)
-			_mini_key(ci, pr))
+		)
 	if plus:
 		var pr := Rect2(r.end.x - 46.0, r.position.y + 9.0, 36.0, h - 17.0)
 		K.plate(parent, pr, {"mat": "ice", "depth": 5.0, "ch": 6.0, "rad": 3.0, "trim": 0.0, "shadow": 0.3, "pad": 10.0, "bevel_w": 4.0})
@@ -42,10 +40,6 @@ static func currency(parent: Node, x: float, y: float, icon: String, value: Stri
 			var fr := K.face_of(pr, 5.0)
 			I.draw(ci, "plus", Rect2(fr.get_center() - Vector2(10, 10), Vector2(20, 20)), K.WHITE, K.CTA, "raised"))
 	return r
-
-
-static func _mini_key(_ci: CanvasItem, _r: Rect2) -> void:
-	pass
 
 
 ## Profile badge (enamel plate with the hero's stamped head) + navy rank ribbon.
@@ -98,7 +92,7 @@ static func top_bar(parent: Node, o := {}) -> void:
 
 
 static func _cur_w(value: String, plus: bool) -> float:
-	var cw := round(26 * 0.86)
+	var cw: float = round(26 * 0.86)
 	var digits := value.replace(" ", "").length()
 	var spaces := value.length() - digits
 	return 12.0 + 46.0 + 10.0 + digits * (cw + 2.0) - 2.0 + spaces * 5.0 + 16.0 + (40.0 if plus else 0.0)

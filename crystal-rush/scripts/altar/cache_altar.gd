@@ -32,7 +32,7 @@ const BASE := Vector3(0, 0, -10)
 ## Camera framings relative to the altar: [position, look target, v_offset].
 const CAM_WIDE := [Vector3(0.6, 2.7, 5.6), Vector3(0, 1.1, 0), 0.0]
 const CAM_FAN := [Vector3(0.0, 2.5, 5.9), Vector3(0, 0.95, 0), -0.95]
-const CAM_WALK := [Vector3(0.25, 1.55, 3.7), Vector3(0, 0.95, 0), -0.55]
+const CAM_WALK := [Vector3(-0.35, 2.25, 3.9), Vector3(0, 0.8, 0), -0.45]
 const CAM_SUMMARY := [Vector3(0.0, 2.9, 7.4), Vector3(0, 0.95, 0), -1.75]
 
 var rev: Dictionary = {}
@@ -378,7 +378,7 @@ func _arc_slot(i: int) -> Vector2:
 	var vp := get_viewport().get_visible_rect().size
 	var n := _cards.size()
 	var cs := _card_size()
-	var step := minf(cs.x - 18.0 + (40.0 if n <= 3 else 0.0), (vp.x - 40.0 - cs.x) / maxf(n - 1, 1))
+	var step := minf(cs.x - 24.0 + (40.0 if n <= 3 else 0.0), (vp.x - 64.0 - cs.x) / maxf(n - 1, 1))
 	var u := i - (n - 1) * 0.5
 	var x := vp.x * 0.5 + u * step - cs.x * 0.5
 	var y := vp.y * 0.6 + u * u * 9.0
@@ -387,7 +387,7 @@ func _arc_slot(i: int) -> Vector2:
 
 func _arc_rot(i: int) -> float:
 	var u := i - (_cards.size() - 1) * 0.5
-	return deg_to_rad(u * 5.0)
+	return deg_to_rad(u * 3.5)
 
 
 ## Summary grid slot (rows of 3, best rarity first).
@@ -402,7 +402,7 @@ func _grid_slot(rank: int) -> Vector2:
 	var gap := 18.0
 	var w := in_row * cs.x + (in_row - 1) * gap
 	var rows := int(ceil(float(n) / per))
-	var top := vp.y * 0.78 - rows * (cs.y + gap) + 10.0
+	var top := vp.y * 0.74 - rows * (cs.y + gap) + 10.0
 	return Vector2((vp.x - w) * 0.5 + col * (cs.x + gap), top + row * (cs.y + gap))
 
 
@@ -617,10 +617,10 @@ func _walkout(c: AltarCard) -> void:
 	_machine = WeaponModels.machine(id, {"rank": 1})
 	HubShowcase.hide_rank_marks(_machine)
 	add_child(_machine)
-	_machine.scale = Vector3.ONE * 0.85
+	_machine.scale = Vector3.ONE * 1.0
 	_machine_from = _socket() + Vector3(1.1, 0.0, 0.35)
 	_machine.global_position = _machine_from
-	_machine.rotation.y = deg_to_rad(-100)
+	_machine.rotation.y = deg_to_rad(90)
 	_machine_t = 0.0
 	fx.flash(_socket() + Vector3(0, 0.6, 0), rc, 1.0, 0.3)
 	fx.shockwave(_socket(), rc, 1.6)
@@ -684,9 +684,9 @@ func _machine_volley(id: String) -> void:
 	var mz: Node3D = _machine.get_meta("muzzle") if _machine.has_meta("muzzle") else null
 	var from := mz.global_position if mz else _machine.global_position + Vector3(0, 0.6, 0)
 	var col := WeaponModels.glow_color(id)
-	var dir := Vector3(sin(_machine.rotation.y), 0, cos(_machine.rotation.y))
+	var dir := -_machine.global_transform.basis.z.normalized()
 	fx.muzzle(from, col, dir)
-	var to := from + dir * 9.0 + Vector3(0, -0.4, 0)
+	var to := from + Vector3(dir.x, 0.0, dir.z * 0.35).normalized() * 7.0 + Vector3(0, 0.4, 0)
 	var kind := Effects.shot_kind(id)
 	if kind == "beam" or not Effects.KINDS.has(Effects.ALIAS.get(kind, kind)):
 		fx.rail_fire(from, to, col)
@@ -731,7 +731,7 @@ func _summary() -> void:
 	_rays.position = Vector2(vp.x * 0.5, _grid_slot(0).y + _card_size().y) - _rays.size * 0.5
 	var coins := int(rev.get("coins", 0))
 	if coins > 0:
-		_coins_row.position.y = _grid_slot(order.size() - 1).y + _card_size().y + 14
+		_coins_row.position.y = _grid_slot(order.size() - 1).y + _card_size().y + 8
 		_coins_row.modulate.a = 1.0
 		UIJuice.pop(_coins_row, 0.2)
 		_after(0.55, func():
@@ -972,7 +972,7 @@ func _process(delta: float) -> void:
 		var e := 1.0 - (1.0 - rk) * (1.0 - rk)
 		_machine.global_position = _machine_from.lerp(_socket(), e)
 		var tk := clampf((_machine_t - 0.45 * speed) / (0.35 * speed), 0.0, 1.0)
-		_machine.rotation.y = lerp_angle(deg_to_rad(-100), deg_to_rad(18), tk * tk * (3.0 - 2.0 * tk))
+		_machine.rotation.y = lerp_angle(deg_to_rad(90), PI - 0.5, tk * tk * (3.0 - 2.0 * tk))
 		_machine_fire = maxf(0.0, _machine_fire - adt * 3.0)
 		WeaponModels.animate(_machine, _anim_t, _machine_fire, e * 1.2)
 	# Beam.
