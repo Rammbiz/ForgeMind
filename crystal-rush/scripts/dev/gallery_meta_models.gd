@@ -50,6 +50,16 @@ func _ready() -> void:
 	if view == "fit":
 		for k in WeaponModels.KINDS:
 			print("FIT ", k, " ", WeaponModels.measure(k))
+			for r in [1, 2, 3]:
+				var m := WeaponModels.machine(k, {"rank": r})
+				print("  rank ", r, " meshes=", _count_meshes(m), " crew=", m.has_meta("crew"))
+				m.free()
+		var c := CacheModels.cache("stone")
+		print("cache stone meshes=", _count_meshes(c))
+		c.free()
+		var a := CacheModels.altar()
+		print("altar meshes=", _count_meshes(a))
+		a.free()
 		get_tree().quit(0)
 		return
 	var studio := view in ["lineup", "machine", "ranks", "caches", "rarity", "altar", "crates", "dock"]
@@ -62,7 +72,7 @@ func _ready() -> void:
 	fx = Effects.new()
 	add_child(fx)
 	cam = Camera3D.new()
-	cam.keep_aspect = Camera3D.KEEP_HEIGHT
+	cam.keep_aspect = Camera3D.KEEP_WIDTH if studio else Camera3D.KEEP_HEIGHT
 	cam.far = 400.0
 	cam.fov = 40.0
 	add_child(cam)
@@ -96,6 +106,17 @@ func _ready() -> void:
 		cam.position = _v3(str(args["cam"]))
 	if args.has("look"):
 		cam.look_at(_v3(str(args["look"])))
+
+
+func _count_meshes(n: Node) -> int:
+	var c := 0
+	for ch in n.get_children():
+		if ch is Node3D and not (ch as Node3D).visible:
+			continue
+		if ch is GeometryInstance3D:
+			c += 1
+		c += _count_meshes(ch)
+	return c
 
 
 func _v3(s: String) -> Vector3:
