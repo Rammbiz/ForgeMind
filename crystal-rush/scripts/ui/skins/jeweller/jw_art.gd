@@ -2,26 +2,51 @@ class_name JwArt
 ## «Ювелірна майстерня» icons as jewellery: struck coin with the fox profile, a tiara,
 ## a cameo, a geode egg, an engraved compass star. Drawn with Jw primitives.
 
-## Bolt the fox in profile (facing right), unit box centred at 0.
+## Bolt the fox in profile (facing right), unit box centred at 0: [point, sharp].
 const FOX := [
-	Vector2(-0.30, 0.56), Vector2(-0.35, 0.30), Vector2(-0.31, 0.05), Vector2(-0.25, -0.12),
-	Vector2(-0.27, -0.30), Vector2(-0.17, -0.72), Vector2(0.0, -0.30), Vector2(0.1, -0.24),
-	Vector2(0.2, -0.16), Vector2(0.4, -0.05), Vector2(0.57, 0.01), Vector2(0.55, 0.08),
-	Vector2(0.4, 0.1), Vector2(0.28, 0.12), Vector2(0.3, 0.18), Vector2(0.18, 0.24),
-	Vector2(0.17, 0.31), Vector2(0.06, 0.3), Vector2(0.11, 0.41), Vector2(-0.01, 0.4),
-	Vector2(0.03, 0.52), Vector2(-0.08, 0.5), Vector2(-0.1, 0.6),
+	[Vector2(-0.30, 0.58), true], [Vector2(-0.36, 0.28), false], [Vector2(-0.30, 0.0), false],
+	[Vector2(-0.28, -0.22), false], [Vector2(-0.12, -0.70), true], [Vector2(0.02, -0.28), true],
+	[Vector2(0.12, -0.22), false], [Vector2(0.22, -0.14), false], [Vector2(0.42, -0.04), false],
+	[Vector2(0.58, 0.02), true], [Vector2(0.54, 0.08), false], [Vector2(0.34, 0.12), true],
+	[Vector2(0.30, 0.17), false], [Vector2(0.14, 0.24), false], [Vector2(0.2, 0.34), true],
+	[Vector2(0.04, 0.33), false], [Vector2(0.1, 0.47), true], [Vector2(-0.04, 0.45), false],
+	[Vector2(-0.06, 0.60), true],
 ]
+const FOX_EAR2 := [Vector2(-0.02, -0.26), Vector2(0.1, -0.64), Vector2(0.16, -0.24)]
 
 
+## Closed Catmull-Rom through the fox points (sharp points are kept as corners).
 static func fox_pts(c: Vector2, s: float) -> PackedVector2Array:
-	var p := PackedVector2Array()
-	for v in FOX:
-		p.append(c + (v as Vector2) * s)
-	return p
+	var pts: Array[Vector2] = []
+	var sharp: Array[bool] = []
+	for e in FOX:
+		pts.append(c + (e[0] as Vector2) * s)
+		sharp.append(e[1])
+	var n := pts.size()
+	var out := PackedVector2Array()
+	for i in n:
+		var p0 := pts[(i - 1 + n) % n]
+		var p1 := pts[i]
+		var p2 := pts[(i + 1) % n]
+		var p3 := pts[(i + 2) % n]
+		if sharp[i]:
+			p0 = p1
+		if sharp[(i + 1) % n]:
+			p3 = p2
+		for k in 6:
+			var t := k / 6.0
+			var t2 := t * t
+			var t3 := t2 * t
+			out.append(0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3))
+	return out
 
 
 ## Fox profile in relief: dark offset shadow, body, a lit rim along the upper-left edges.
 static func fox_relief(ci: CanvasItem, c: Vector2, s: float, body: Color, light: Color, shadow: Color) -> void:
+	var ear2 := PackedVector2Array()
+	for v in FOX_EAR2:
+		ear2.append(c + (v as Vector2) * s)
+	Jw.fill(ci, ear2, body.lerp(shadow, 0.35))
 	Jw.fill(ci, fox_pts(c + Vector2(s * 0.03, s * 0.05), s), shadow)
 	var p := fox_pts(c, s)
 	Jw.fill_ramp(ci, p, Jw.ramp_tex("relief_%s" % body.to_html(), [[0.0, light], [0.45, body], [1.0, body.lerp(shadow, 0.35)]]), Vector2(0.5, 1).normalized())
@@ -34,7 +59,7 @@ static func fox_relief(ci: CanvasItem, c: Vector2, s: float, body: Color, light:
 		if l > 0.1:
 			ci.draw_line(a - en * 1.0, b - en * 1.0, Color(light, clampf(l, 0.0, 1.0)), maxf(s * 0.035, 1.2), true)
 	# inner ear and eye cut
-	Jw.fill(ci, PackedVector2Array([c + Vector2(-0.19, -0.27) * s, c + Vector2(-0.16, -0.56) * s, c + Vector2(-0.05, -0.28) * s]), shadow.lerp(body, 0.45))
+	Jw.fill(ci, PackedVector2Array([c + Vector2(-0.19, -0.28) * s, c + Vector2(-0.12, -0.56) * s, c + Vector2(-0.04, -0.3) * s]), shadow.lerp(body, 0.45))
 	var eye := PackedVector2Array([c + Vector2(0.1, -0.09) * s, c + Vector2(0.17, -0.13) * s, c + Vector2(0.24, -0.08) * s, c + Vector2(0.16, -0.06) * s])
 	Jw.fill(ci, eye, shadow)
 

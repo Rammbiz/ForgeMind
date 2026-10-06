@@ -50,6 +50,20 @@ class Tiara extends Control:
 			draw_polyline(sh, Color(0, 0, 0.03, 0.1), 6.0, true)
 		Jw.milgrain(self, _edge(-13.0, 150, size.x - 90), 7.0, 1.2, false)
 		Jw.gold_rule(self, _edge(-3.0), 9.0)
+		# festoons: swags of tiny pearls hanging between the pendants
+		var knots := [124.0, 262.0, 402.0, 590.0, 712.0]
+		for k in knots.size() - 1:
+			var xa: float = knots[k]
+			var xb: float = knots[k + 1]
+			var sw := PackedVector2Array()
+			for q in 25:
+				var t := q / 24.0
+				var x := lerpf(xa, xb, t)
+				sw.append(Vector2(x, edge_y(x) + 6.0 + 15.0 * 4.0 * t * (1.0 - t)))
+			for v in Jw.resample(sw, 5.5, false):
+				draw_circle(v + Vector2(0, 0.8), 1.7, Color(0, 0, 0.05, 0.5), true, -1.0, true)
+				draw_circle(v, 1.6, Color("e8e2f0"), true, -1.0, true)
+				draw_circle(v + Vector2(-0.4, -0.5), 0.6, Color(1, 1, 1), true, -1.0, true)
 		# pendants: little marquise drops hanging off the band between settings
 		for x in [262.0, 402.0, 590.0]:
 			var y := edge_y(x) + 2.0
@@ -118,12 +132,11 @@ class Constellation extends Control:
 			var p: Vector2 = s[0]
 			var st: String = s[2]
 			if st == "current":
-				for k in 3:
-					draw_arc(p, 24.0 + k * 7.0, 0, TAU, 48, Color(0.6, 0.9, 1.0, 0.35 - k * 0.1), 1.5, true)
-				Jw.gold_moulding(self, Jw.regular(p, 21, 32), Jw.regular(p, 16, 32), 0.45)
-				draw_circle(p, 16, Color("0b1236"), true, -1.0, true)
-				Jw.glint(self, p, 34, Color(0.8, 0.95, 1.0))
-				Jw.brilliant(self, p, 12, "ice")
+				for k in 4:
+					draw_circle(p, 44.0 - k * 8.0, Color(0.45, 0.8, 1.0, 0.05 + k * 0.03), true, -1.0, true)
+				draw_arc(p, 30.0, 0, TAU, 64, Color(0.7, 0.95, 1.0, 0.45), 1.4, true)
+				Jw.collet(self, p, 15, "ice", 4)
+				Jw.glint(self, p + Vector2(-7, -8), 26, Color(0.85, 0.97, 1.0))
 				var lc := p + Vector2(0, 46)
 				Jw.text_c(self, f, str(s[1]), lc + Vector2(0, 2), 32, Color(0, 0, 0, 0.8))
 				Jw.text_c(self, f, str(s[1]), lc, 32, Jw.GOLD_LIGHT)

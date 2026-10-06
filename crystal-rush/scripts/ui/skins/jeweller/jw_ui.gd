@@ -123,6 +123,13 @@ class GemButton extends Control:
 		if press:
 			gr.position.y += 2.0
 		var table := Jw.emerald_cut(self, gr, chamfer - 1.0, k, press)
+		if press:
+			# sunk into the bezel: a shadow falls over the top facets, the whole stone dims
+			Jw.fill(self, Jw.chamfer(gr, chamfer - 1.0), Color(0.0, 0.02, 0.1, 0.28))
+			var top := Jw.chamfer(Rect2(gr.position, Vector2(gr.size.x, gr.size.y * 0.3)), minf(chamfer - 1.0, gr.size.y * 0.3))
+			var clip := Geometry2D.intersect_polygons(top, Jw.chamfer(gr, chamfer - 1.0))
+			for poly in clip:
+				Jw.fill(self, poly, Color(0.0, 0.02, 0.1, 0.25))
 		var ink := Jw.NAVY_INK if k != "smoke" else Color("8a8da3")
 		if k == "citrine":
 			ink = Color("3a1a02")

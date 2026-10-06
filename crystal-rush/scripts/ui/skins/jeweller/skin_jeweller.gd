@@ -155,25 +155,49 @@ func _home(modal: bool) -> void:
 		var lr := Rect2(62, 2, 40, 30)
 		Jw.gold_moulding(ci, Jw.lozenge(lr, 12), Jw.lozenge(lr.grow(-3), 10.5), 0.45)
 		Jw.fill(ci, Jw.lozenge(lr.grow(-3), 10.5), Color("8c0f2a"))
-		Jw.text_c(ci, Jw.num(), "2", lr.get_center() + Vector2(0, 1), 24, Jw.IVORY)
+		Jw.text_c(ci, Jw.num(), "2", lr.get_center() + Vector2(0, 1), 26, Jw.IVORY)
 		Jw.text_c(ci, Jw.label(), "Сховище", Vector2(48, 116), 26, Color(0, 0, 0, 0.8))
 		Jw.text_c(ci, Jw.label(), "Сховище", Vector2(48, 114), 26, Jw.GOLD_LIGHT)
 	)
 	_place(vault, Vector2(580, 600), Vector2(130, 140))
+	# hero nameplate on the bridge, with marquise arrows to switch heroes
+	var plate := JwUi.Layer.new(func(ci: CanvasItem) -> void:
+		var c := Vector2(W * 0.5, 40)
+		var f := Jw.display()
+		Jw.text_c(ci, f, "Болт", c + Vector2(0, 3), 50, Color(0, 0, 0.04, 0.85))
+		Jw.text_c(ci, Jw.label(), "ГРОМОВИЙ ЛИС · СИЛА 1 240", c + Vector2(0, 50), 26, Color(0, 0, 0.04, 0.9))
+		Jw.text_c(ci, Jw.label(), "ГРОМОВИЙ ЛИС · СИЛА 1 240", c + Vector2(0, 48), 26, Color("dfe6ff"))
+		for sx in [-1.0, 1.0]:
+			var q := c + Vector2(sx * 200, 4)
+			ci.draw_line(c + Vector2(sx * 74, 4), q - Vector2(sx * 26, 0), Color(Jw.GOLD_INK, 0.8), 3.0, true)
+			ci.draw_line(c + Vector2(sx * 74, 4), q - Vector2(sx * 26, 0), Jw.gold(0.75), 1.4, true)
+			Jw.marquise(ci, q, 40, 18, 0.0, "ice")
+			Jw.fill(ci, PackedVector2Array([q + Vector2(sx * 22, -9), q + Vector2(sx * 34, 0), q + Vector2(sx * 22, 9)]), Jw.gold(0.8))
+	)
+	_place(plate, Vector2(0, 836), Vector2(W, 110))
+	var hero_name := JwUi.GoldLabel.new("Болт", 50)
+	_place(hero_name, Vector2(0, 841), Vector2(W, 70))
 	var tiara := JwHub.Tiara.new()
 	_place(tiara, Vector2.ZERO, Vector2(W, 170))
+	_dial(2)
+	if modal:
+		_modal()
+	await get_tree().process_frame
+
+
+## The astrolabe navigation with the ГРАТИ gem at its hub; `active` = destination index.
+func _dial(active: int) -> void:
 	var dial := JwHub.Astrolabe.new()
+	dial.active = active
+	dial.badges = {1: "emerald"} if active != 1 else {}
 	_place(dial, Vector2.ZERO, Vector2(W, H))
 	var play := JwUi.GemButton.new("ГРАТИ")
 	play.text_size = 66
 	play.chamfer = 26
 	play.glints = [[Vector2(0.12, 0.16), 22.0], [Vector2(0.86, 0.78), 12.0]]
-	_place(play, Vector2(172, 1104), Vector2(376, 138))
+	_place(play, Vector2(176, 1112), Vector2(368, 134))
 	var sub := JwUi.label("Рівень 4 · Орбітальна траса", 26, Color("c9d6ff"), Jw.label())
-	_place(sub, Vector2(0, 1238), Vector2(W, 36))
-	if modal:
-		_modal()
-	await get_tree().process_frame
+	_place(sub, Vector2(0, 1240), Vector2(W, 36))
 
 
 # --- screen 3: modal (level reward) ---------------------------------------------------------
@@ -302,17 +326,7 @@ func _arsenal() -> void:
 		var row := i / 3
 		_place(card, Vector2(12 + col * (cw + 16), 298 + row * (ch + 16)), Vector2(cw, ch))
 		card.setup()
-	var dial := JwHub.Astrolabe.new()
-	dial.active = 1
-	dial.badges = {}
-	_place(dial, Vector2.ZERO, Vector2(W, H))
-	var play := JwUi.GemButton.new("ГРАТИ")
-	play.text_size = 66
-	play.chamfer = 26
-	play.glints = [[Vector2(0.12, 0.16), 22.0]]
-	_place(play, Vector2(172, 1104), Vector2(376, 138))
-	var sub := JwUi.label("Рівень 4 · Орбітальна траса", 26, Color("c9d6ff"), Jw.label())
-	_place(sub, Vector2(0, 1238), Vector2(W, 36))
+	_dial(1)
 
 
 # --- screen 4: specimen ------------------------------------------------------------------
@@ -342,15 +356,15 @@ func _specimen() -> void:
 	_place(cap, Vector2(0, y), Vector2(W, 30))
 	y += 36
 	var b1 := JwUi.GemButton.new("ГРАТИ")
-	b1.text_size = 48
+	b1.text_size = 42
 	b1.glints = [[Vector2(0.18, 0.2), 16.0]]
 	_place(b1, Vector2(16, y), Vector2(236, 104))
 	var b2 := JwUi.GemButton.new("ГРАТИ")
-	b2.text_size = 48
+	b2.text_size = 42
 	b2.state = "pressed"
 	_place(b2, Vector2(250, y), Vector2(236, 104))
 	var b3 := JwUi.GemButton.new("ГРАТИ")
-	b3.text_size = 48
+	b3.text_size = 42
 	b3.state = "disabled"
 	_place(b3, Vector2(484, y), Vector2(220, 104))
 	y += 116
@@ -429,3 +443,21 @@ func _specimen() -> void:
 	tabs.selected = 0
 	tabs.badges = {1: "emerald"}
 	_place(tabs, Vector2(10, y), Vector2(W - 20, 76))
+	y += 92
+	var row := JwUi.Layer.new(func(ci: CanvasItem) -> void:
+		# section header with engraved rules
+		var f := Jw.label()
+		Jw.text_engraved(ci, f, "НАГОРОДА", Vector2(W * 0.5, 18), 30, Jw.GOLD_LIGHT)
+		for sx in [-1.0, 1.0]:
+			var a := Vector2(W * 0.5 + sx * 92, 18)
+			var b := Vector2(W * 0.5 + sx * 300, 18)
+			ci.draw_line(a, b, Color(Jw.GOLD_INK, 0.8), 3.0, true)
+			ci.draw_line(a, b, Jw.gold(0.7), 1.4, true)
+			Jw.fill(ci, Jw.regular(b + Vector2(sx * 7, 0), 5.5, 4), Jw.gold(0.85))
+			Jw.octagem(ci, b + Vector2(sx * 7, 0), 2.5, "ice")
+		# big counter
+		JwArt.coin(ci, Vector2(W * 0.5 - 118, 84), 30)
+		Jw.text_c(ci, Jw.num(), "12 480", Vector2(W * 0.5 + 30, 86) + Vector2(0, 3), 60, Color(0, 0, 0.04, 0.8))
+		Jw.text_c(ci, Jw.num(), "12 480", Vector2(W * 0.5 + 30, 86), 60, Jw.ICE_WHITE)
+	)
+	_place(row, Vector2(0, y), Vector2(W, 130))
