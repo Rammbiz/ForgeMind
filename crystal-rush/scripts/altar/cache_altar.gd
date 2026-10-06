@@ -31,9 +31,9 @@ const HOLD_SKIP := 0.3
 const BASE := Vector3(0, 0, -10)
 ## Camera framings relative to the altar: [position, look target, v_offset].
 const CAM_WIDE := [Vector3(0.6, 2.7, 5.6), Vector3(0, 1.1, 0), 0.0]
-const CAM_FAN := [Vector3(0.0, 3.4, 7.6), Vector3(0, 0.9, 0), -1.55]
+const CAM_FAN := [Vector3(0.0, 2.5, 5.9), Vector3(0, 0.95, 0), -0.95]
 const CAM_WALK := [Vector3(0.25, 1.55, 3.7), Vector3(0, 0.95, 0), -0.55]
-const CAM_SUMMARY := [Vector3(0.0, 3.0, 8.4), Vector3(0, 0.9, 0), -2.2]
+const CAM_SUMMARY := [Vector3(0.0, 2.9, 7.4), Vector3(0, 0.95, 0), -1.75]
 
 var rev: Dictionary = {}
 var hero_id := "bolt"
@@ -205,7 +205,7 @@ func _strike_cam() -> Array:
 	d.y = 0.0
 	d = d.normalized()
 	var right := Vector3(-d.z, 0, d.x)
-	var p := hero.position - d * 2.3 - right * 0.75 + Vector3(0, 1.75, 0) - BASE
+	var p := hero.position - d * 3.1 - right * 1.0 + Vector3(0, 2.15, 0) - BASE
 	return [p, Vector3(0.1, 0.95, 0), 0.0]
 
 
@@ -323,6 +323,7 @@ func _build_ui() -> void:
 	# Cards.
 	for cd: Dictionary in rev.get("cards", []):
 		var c := AltarCard.new(cd)
+		c.custom_minimum_size = _card_size()
 		c.size = _card_size()
 		c.visible = false
 		_root_ui.add_child(c)
@@ -493,8 +494,8 @@ func _burst() -> void:
 	_trauma = float(EconData.REVEAL["trauma_leg"] if tier >= 3 else EconData.REVEAL["trauma"])
 	_beam.visible = true
 	_beam.position = _socket() + Vector3(0, 13.0, 0)
-	_beam_mat.set_shader_parameter("color", rc.lerp(Color.WHITE, 0.2))
-	_beam_k = 1.6 + 0.3 * tier
+	_beam_mat.set_shader_parameter("color", rc)
+	_beam_k = 1.0 + 0.25 * tier
 	_flash.color = Color(rc.r, rc.g, rc.b, 0.0).lerp(Color(1, 1, 1, 0.7), 0.6)
 	_rays.color = Color(rc.r, rc.g, rc.b, 0.0)
 	_rays.create_tween().tween_property(_rays, "color:a", 0.34, 0.4)

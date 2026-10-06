@@ -284,9 +284,20 @@ func _draw_face(body: Rect2, rc: Color, _r: String) -> void:
 		Icons.draw_icon(self, id, art.grow(-aw * 0.14))
 	# Name.
 	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
-	var fs := UIKit.fit_size(nm, inner.size.x - 14, 22, 15)
+	var fs := UIKit.fit_size(nm, inner.size.x - 14, 22, 17)
 	var ny := art.end.y + 26
-	_text_c(f, nm, Vector2(inner.get_center().x, ny), fs, Color(1, 1, 1), 5)
+	if f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > inner.size.x - 14 and nm.contains(" "):
+		# Two lines (Плазмова / гармата) rather than a clipped name.
+		var cut := nm.find(" ", nm.length() / 2 - 2)
+		cut = cut if cut > 0 else nm.find(" ")
+		var l1 := nm.substr(0, cut)
+		var l2 := nm.substr(cut + 1)
+		var f2 := mini(UIKit.fit_size(l1, inner.size.x - 14, 20, 14), UIKit.fit_size(l2, inner.size.x - 14, 20, 14))
+		_text_c(f, l1, Vector2(inner.get_center().x, ny - 11), f2, Color(1, 1, 1), 5)
+		_text_c(f, l2, Vector2(inner.get_center().x, ny + 9), f2, Color(1, 1, 1), 5)
+		ny += 8
+	else:
+		_text_c(f, nm, Vector2(inner.get_center().x, ny), fs, Color(1, 1, 1), 5)
 	# Count.
 	var cnt := "×%d" % int(data.get("count", 1))
 	_text_c(f, cnt, Vector2(inner.get_center().x, ny + 32), 30, rc.lightened(0.45), 6)

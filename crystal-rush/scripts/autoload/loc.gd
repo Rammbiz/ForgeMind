@@ -449,6 +449,12 @@ const STRINGS := {
 	"HERO_SEER": ["Провидиця", "Seer"],
 	"HERO_SEER_DESC": ["Рись-містик: подвійні сфери й погляд крізь таємні брами", "Lynx mystic: twin orbs and sight through hidden gates"],
 	"ULT_RIFT": ["Зоряний розлом!", "Star Rift!"],
+	# Altar and result flow (WS5)
+	"TAP_TO_OPEN": ["Торкнись, щоб відкрити", "Tap to open"],
+	"TAP_CONTINUE": ["Торкнись, щоб продовжити", "Tap to continue"],
+	"RF_TO_VAULT": ["У сховище", "To the Vault"],
+	"RF_IN_VAULT": ["Чекає у сховищі", "Waiting in the Vault"],
+	"RF_EARNED": ["Здобуто", "Earned"],
 }
 
 var lang := "uk"

@@ -58,6 +58,7 @@ func _ready() -> void:
 	add_child(_hint)
 	for cd: Dictionary in rev.get("cards", []):
 		var c := AltarCard.new(cd)
+		c.custom_minimum_size = CARD
 		c.size = CARD
 		c.visible = false
 		add_child(c)

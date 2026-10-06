@@ -59,6 +59,11 @@ func _wait(sec: float) -> void:
 
 
 func _snap(name: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		await get_tree().process_frame
+		print("SHOT ", name, " (headless)")
+		_n += 1
+		return
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	var p := "%s/%s.png" % [out_dir, name]
@@ -124,21 +129,21 @@ func _run_shot(s: String) -> void:
 			await _wait(1.3)
 			await _snap("altar_5_fan")
 			a.call("_flip_next")
-			await _wait(0.4)
+			await _wait(0.5)
 			a.call("_flip_next")
-			await _wait(0.12)
+			await _wait(0.15)
 			await _snap("altar_6_flip")
 			await _wait(0.6)
 			a.call("_flip_next")
-			await _wait(0.2)
+			await _wait(0.5)
+			a.call("_flip_next")
+			await _wait(0.5)
 			a.call("_flip_next")
 			await _wait(0.3)
 			await _snap("altar_6b_flip_epic")
-			await _wait(0.6)
-			a.call("_flip_next")
-			await _wait(1.2)
+			await _wait(0.8)
 			await _snap("altar_7_flipped")
-			await _wait(1.6)
+			await _wait(1.4)
 			await _snap("altar_8_summary")
 		"burst_C", "burst_R", "burst_E", "burst_L":
 			var r := s.substr(6)
@@ -199,6 +204,34 @@ func _run_shot(s: String) -> void:
 			await _snap("walkout_3_name")
 			await _wait(0.75)
 			await _snap("walkout_4_volley")
+		"probe":
+			var t0 := Time.get_ticks_msec()
+			HubShowcase.owner_dais(1.5)
+			printerr("GA dais ms ", Time.get_ticks_msec() - t0)
+			t0 = Time.get_ticks_msec()
+			var e := EggView.new("stone")
+			printerr("GA egg ms ", Time.get_ticks_msec() - t0)
+			t0 = Time.get_ticks_msec()
+			add_child(e)
+			printerr("GA egg add ms ", Time.get_ticks_msec() - t0)
+			await get_tree().process_frame
+			printerr("GA frame")
+			await _wait(0.3)
+			printerr("GA waited 0.3")
+		"probe2":
+			var bg := _backdrop()
+			printerr("GA bg")
+			await _wait(0.3)
+			printerr("GA bg waited")
+			var w := Walkout.new()
+			w.setup("railgun", true)
+			printerr("GA w new")
+			bg.add_child(w)
+			printerr("GA w added")
+			await get_tree().process_frame
+			printerr("GA w frame")
+			await _wait(0.3)
+			printerr("GA w waited")
 		"win", "loss":
 			pass
 
