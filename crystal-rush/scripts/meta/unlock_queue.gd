@@ -5,6 +5,8 @@ class_name UnlockQueue
 ## the previous one unless "gap_exempt". Each unlock shows one tutorial line (the hub calls
 ## ack() after showing it) and grants its first step free.
 ##
+## In-run unlocks (drag, pairs, rank gates) and hero unlocks open by level alone and never take a
+## session slot (the run shows its own line).
 ## A system is OPEN when its level condition holds and it is either in-run / line-less,
 ## already acknowledged, part of a migrated player's catch-up below the migration level, or
 ## presentable right now (inside this session's window). The 3rd unlock of a session therefore

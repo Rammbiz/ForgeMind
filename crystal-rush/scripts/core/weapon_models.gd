@@ -372,7 +372,7 @@ static func set_rank(node: Node3D, rank: int) -> void:
 	rank = clampi(rank, 1, 3)
 	node.set_meta("rank", rank)
 	node.set_meta("level", rank)
-	var rig: Node3D = node.get_meta("rig", null)
+	var rig: Node3D = _nm(node, "rig")
 	if rig:
 		rig.scale = Vector3.ONE * ArsenalData.RANK_SCALE[rank - 1]
 	_apply_groups(node)
@@ -412,7 +412,7 @@ static func set_ascended(node: Node3D, on: bool, branch := "a") -> void:
 	node.set_meta("ascended", on)
 	node.set_meta("branch", branch)
 	_apply_groups(node)
-	var rig: Node3D = node.get_meta("rig", null)
+	var rig: Node3D = _nm(node, "rig")
 	if rig == null:
 		return
 	var mat: ShaderMaterial = null
@@ -437,8 +437,8 @@ static func _overlay(n: Node, mat: Material) -> void:
 ## the turret rising from the hull and swinging forward, the crew hopping on last.
 static func dock(node: Node3D, u: float) -> void:
 	u = clampf(u, 0.0, 1.0)
-	var rig: Node3D = node.get_meta("rig", null)
-	var yaw: Node3D = node.get_meta("yaw", null)
+	var rig: Node3D = _nm(node, "rig")
+	var yaw: Node3D = _nm(node, "yaw")
 	var rs: float = ArsenalData.RANK_SCALE[int(node.get_meta("rank", 1)) - 1]
 	var v := u - 1.0
 	var back := 1.0 + 2.70158 * v * v * v + 1.70158 * v * v  # ease-out-back
@@ -451,11 +451,11 @@ static func dock(node: Node3D, u: float) -> void:
 		var tu := smoothstep(0.25, 0.85, u)
 		yaw.position.y = y0 - (1.0 - tu) * 0.22
 		yaw.rotation.x = (1.0 - tu) * 0.9
-	var crew: Node3D = node.get_meta("crew", null)
+	var crew: Node3D = _nm(node, "crew")
 	if crew:
 		var cu := smoothstep(0.6, 0.95, u)
 		crew.scale = Vector3.ONE * maxf(cu, 0.001)
-	var chev: Node3D = node.get_meta("stars", null)
+	var chev: Node3D = _nm(node, "stars")
 	if chev:
 		chev.visible = u >= 0.98
 
@@ -480,7 +480,7 @@ static func set_pitch(node: Node3D, deg: float) -> void:
 ## Turns the machine's yaw node so the muzzle faces `target` (world space). `weight` < 1
 ## eases towards it (call every frame with e.g. 1 - exp(-12 * delta)).
 static func aim(node: Node3D, target: Vector3, weight := 1.0) -> void:
-	var yaw: Node3D = node.get_meta("yaw", null)
+	var yaw: Node3D = _nm(node, "yaw")
 	if yaw == null or not node.is_inside_tree():
 		return
 	var parent := yaw.get_parent() as Node3D
@@ -508,7 +508,7 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 	var dist := roll if roll >= 0.0 else t * Balance.RUN_SPEED
 	for w: Node3D in node.get_meta("wheels", []):
 		w.rotation.x = -dist / float(w.get_meta("r", WHEEL_R))
-	var body: Node3D = node.get_meta("float_body", null)
+	var body: Node3D = _nm(node, "float_body")
 	if body:
 		body.position.y = sin(t * 2.4) * 0.018
 		body.rotation.z = sin(t * 1.3) * 0.02
@@ -517,10 +517,10 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 		var spd := lerpf(float(sp["speed"]), float(sp["firing"]), fire)
 		pn.rotate_object_local(sp["axis"] as Vector3, spd * dt)
 	_animate_crew(node, t, kick)
-	var halo: Node3D = node.get_meta("halo", null)
+	var halo: Node3D = _nm(node, "halo")
 	if halo and halo.visible:
 		halo.rotation.y = fposmod(t * 0.8, TAU)
-	var recoil: Node3D = node.get_meta("recoil", null)
+	var recoil: Node3D = _nm(node, "recoil")
 	if recoil == null:
 		return
 	match kind:
@@ -532,15 +532,15 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 				arm.rotation.y = float(arm.get_meta("side")) * (0.32 * kick - 0.05)
 		"cannon":
 			recoil.position.z = kick * 0.16
-			var core: Node3D = node.get_meta("core", null)
+			var core: Node3D = _nm(node, "core")
 			if core:
 				core.scale = Vector3.ONE * (1.0 + 0.5 * kick + 0.08 * sin(t * 9.0))
 		"laser":
-			var gem: Node3D = node.get_meta("gem", null)
+			var gem: Node3D = _nm(node, "gem")
 			if gem:
 				gem.rotation.z = fposmod(t * (1.5 + fire * 10.0), TAU)
 				gem.scale = Vector3.ONE * (1.0 + fire * 0.18 + 0.04 * sin(t * 6.0))
-			var lens: Node3D = node.get_meta("lens", null)
+			var lens: Node3D = _nm(node, "lens")
 			if lens:
 				var a := float(node.get_meta("lens_a", 0.0)) + dt * lerpf(2.0, 12.0, fire)
 				node.set_meta("lens_a", fposmod(a, TAU))
@@ -551,27 +551,27 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 			for tips: Node3D in node.get_meta("tips", []):
 				tips.scale = Vector3.ONE * maxf(clampf(1.0 - fire * 1.4, 0.0, 1.0), 0.001)
 		"drone":
-			var hover: Node3D = node.get_meta("hover", null)
+			var hover: Node3D = _nm(node, "hover")
 			if hover:
 				hover.position.y = DRONE_Y + sin(t * 2.6) * 0.05
 				hover.rotation.z = sin(t * 1.7) * 0.06
 				hover.rotation.x = sin(t * 2.1) * 0.04 + kick * 0.12
 			for r: Node3D in node.get_meta("rotors", []):
 				r.rotation.y = fposmod(t * 38.0 * (1.0 if r.get_meta("cw") else -1.0), TAU)
-			var wing: Node3D = node.get_meta("wingman", null)
+			var wing: Node3D = _nm(node, "wingman")
 			if wing and wing.visible:
 				var a2 := fposmod(t * 1.4, TAU)
 				wing.position = Vector3(cos(a2) * 0.62, 0.12 + sin(t * 3.1) * 0.05, sin(a2) * 0.62)
 				wing.rotation.y = -a2
 			recoil.position.z = kick * 0.05
 		"mortar":
-			var tube: Node3D = node.get_meta("tube", null)
+			var tube: Node3D = _nm(node, "tube")
 			if tube:
 				var pitch := float(node.get_meta("pitch", 50.0))
 				tube.rotation.x = deg_to_rad(pitch - kick * 6.0)
 			recoil.position.z = kick * 0.14
 		"gatling":
-			var drum: Node3D = node.get_meta("drum", null)
+			var drum: Node3D = _nm(node, "drum")
 			if drum:
 				var a3 := float(node.get_meta("drum_a", 0.0)) + dt * lerpf(0.6, 30.0, fire)
 				node.set_meta("drum_a", fposmod(a3, TAU))
@@ -583,18 +583,18 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 			var glow := maxf(ch, kick)
 			for m: StandardMaterial3D in node.get_meta("charge_mats", []):
 				m.emission_energy_multiplier = 0.35 + glow * 4.2 + 0.25 * ch * sin(t * 30.0)
-			var slug: Node3D = node.get_meta("slug", null)
+			var slug: Node3D = _nm(node, "slug")
 			if slug:
 				slug.scale = Vector3.ONE * maxf(ch * (1.0 + 0.1 * sin(t * 40.0)), 0.001)
 				slug.visible = ch > 0.02
 			recoil.position.z = kick * 0.22
 		"prism":
-			var hover2: Node3D = node.get_meta("hover", null)
+			var hover2: Node3D = _nm(node, "hover")
 			if hover2:
 				hover2.position.y = PRISM_Y + sin(t * 1.8) * 0.06
-			var gyro_a: Node3D = node.get_meta("gyro_a", null)
-			var gyro_b: Node3D = node.get_meta("gyro_b", null)
-			var gyro_c: Node3D = node.get_meta("gyro_c", null)
+			var gyro_a: Node3D = _nm(node, "gyro_a")
+			var gyro_b: Node3D = _nm(node, "gyro_b")
+			var gyro_c: Node3D = _nm(node, "gyro_c")
 			var sp := 1.5 + fire * 6.0
 			if gyro_a:
 				gyro_a.rotation.x = fposmod(t * sp * 0.7, TAU)
@@ -602,11 +602,11 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 				gyro_b.rotation.y = fposmod(t * sp, TAU)
 			if gyro_c and gyro_c.visible:
 				gyro_c.rotation.z = fposmod(-t * sp * 0.8, TAU)
-			var body2: Node3D = node.get_meta("prism_body", null)
+			var body2: Node3D = _nm(node, "prism_body")
 			if body2:
 				body2.rotation.y = fposmod(t * 0.9, TAU)
 				body2.scale = Vector3.ONE * (1.0 + kick * 0.16)
-			var crown: Node3D = node.get_meta("crown", null)
+			var crown: Node3D = _nm(node, "crown")
 			if crown and crown.visible:
 				crown.rotation.y = fposmod(-t * 1.2, TAU)
 		_:
@@ -614,7 +614,7 @@ static func animate(node: Node3D, t: float, fire: float, roll := -1.0) -> void:
 
 
 static func _animate_crew(node: Node3D, t: float, kick: float) -> void:
-	var crew: Node3D = node.get_meta("crew", null)
+	var crew: Node3D = _nm(node, "crew")
 	if crew == null or not crew.visible:
 		return
 	var torso: Node3D = crew.get_meta("torso")
@@ -1736,7 +1736,7 @@ static func _bonus_ring(root: Node3D) -> void:
 ## Cracks spread over the crate glass as `ratio` (0 intact .. 1 broken) grows; `flash` 0..1
 ## whitens it briefly (set 1 on a hit and let animate() fade it).
 static func crate_damage(node: Node3D, ratio: float, flash := 1.0) -> void:
-	var glass: MeshInstance3D = node.get_meta("glass", null)
+	var glass: MeshInstance3D = _nm(node, "glass")
 	if glass == null:
 		return
 	var m := glass.material_override as ShaderMaterial
@@ -1746,15 +1746,15 @@ static func crate_damage(node: Node3D, ratio: float, flash := 1.0) -> void:
 
 
 static func _animate_crate(node: Node3D, t: float, fire: float) -> void:
-	var content: Node3D = node.get_meta("content", null)
+	var content: Node3D = _nm(node, "content")
 	if content:
 		content.rotation.y = fposmod(t * 1.1, TAU)
 		content.position.y = 0.58 + sin(t * 2.2) * 0.025
-	var mini: Node3D = node.get_meta("mini", null)
+	var mini: Node3D = _nm(node, "mini")
 	if mini and is_instance_valid(mini):
 		animate(mini, t, 0.0, 0.0)
 	var flash := maxf(float(node.get_meta("flash", 0.0)), fire)
-	var glass: MeshInstance3D = node.get_meta("glass", null)
+	var glass: MeshInstance3D = _nm(node, "glass")
 	if glass:
 		(glass.material_override as ShaderMaterial).set_shader_parameter("flash", flash)
 	node.set_meta("flash", maxf(float(node.get_meta("flash", 0.0)) - 0.12, 0.0))
@@ -1764,11 +1764,11 @@ static func _animate_crate(node: Node3D, t: float, fire: float) -> void:
 		node.set_meta("shake", maxf(shake - 0.1, 0.0))
 	else:
 		node.rotation.z = 0.0
-	var beacon: MeshInstance3D = node.get_meta("beacon", null)
+	var beacon: MeshInstance3D = _nm(node, "beacon")
 	if beacon:
 		var s := 1.0 + 0.06 * sin(t * 3.0)
 		beacon.scale = Vector3(s, 1.0, s)
-	var ring: Node3D = node.get_meta("bonus_ring", null)
+	var ring: Node3D = _nm(node, "bonus_ring")
 	if ring:
 		ring.rotation.y = fposmod(t * 0.6, TAU)
 
@@ -1994,3 +1994,8 @@ static func _merge_into(g: Dictionary, n: Node, xf: Transform3D) -> void:
 			var mat := mi.material_override as StandardMaterial3D
 			Mats._append_mesh(g, mi.mesh, t, mat.albedo_color if mat else Color.WHITE)
 		_merge_into(g, ch, t)
+
+
+## A node meta or null when it is missing (get_meta(key, null) prints an error in Godot 4).
+static func _nm(n: Object, key: String) -> Variant:
+	return n.get_meta(key) if n.has_meta(key) else null
