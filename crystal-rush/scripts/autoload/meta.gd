@@ -138,14 +138,17 @@ static func synthetic_account(level: int, kind := "fresh") -> Dictionary:
 	match kind:
 		"expected":
 			var exp := _expected_row(level)
+			var per: Dictionary = exp["machines"]
 			for id: String in ms:
 				var st: Dictionary = ms[id]
-				st["lvl"] = clampi(int(round(float(exp["machine_lvl"]))), int(st["lvl"]), ArsenalData.MAX_LEVEL)
+				var lv := int(per.get(id, round(float(exp["machine_lvl"]))))
+				st["lvl"] = clampi(lv, int(st["lvl"]), ArsenalData.MAX_LEVEL)
 				_auto_talents(id, st)
 			for h: String in heroes:
 				(heroes[h] as Dictionary)["lvl"] = clampi(int(exp["hero_lvl"]), 1, EconData.hero_cap(w))
+			var bar: Dictionary = exp["barracks"]
 			for t in EconData.BARRACKS_ORDER:
-				(acc["barracks"] as Dictionary)[t] = mini(EconData.barracks_cap(w), int(exp["barracks"]))
+				(acc["barracks"] as Dictionary)[t] = mini(EconData.barracks_cap(w), int(bar.get(t, 0)))
 		"max":
 			for id: String in ms:
 				var st2: Dictionary = ms[id]
@@ -160,20 +163,32 @@ static func synthetic_account(level: int, kind := "fresh") -> Dictionary:
 	return acc
 
 
+static var _expected_cache: Dictionary = {}
+
+
 ## EXPECTED profile row for `level`: build/expected_profile.json (economy_sim --export-expected)
 ## when it exists, else the design §6.4 curve fit (deck Lv ~8 at L30, ~11.6 at L60; hero ~15.8
 ## at L60; Barracks from L12).
 static func _expected_row(level: int) -> Dictionary:
-	for p in ["res://build/expected_profile.json", "res://../build/expected_profile.json"]:
-		if FileAccess.file_exists(p):
-			var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(p))
-			if data is Dictionary and (data as Dictionary).has(str(level)):
-				var row: Dictionary = data[str(level)]
-				return {"machine_lvl": float(row.get("machine_lvl", 1.0)), "hero_lvl": int(row.get("hero_lvl", 1)),
-						"barracks": int(row.get("barracks", 0))}
+	if _expected_cache.is_empty():
+		_expected_cache["levels"] = {}
+		for p in ["res://build/expected_profile.json"]:
+			if FileAccess.file_exists(p):
+				var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(p))
+				if data is Dictionary and (data as Dictionary).get("levels") is Dictionary:
+					_expected_cache["levels"] = data["levels"]
+	var rows: Dictionary = _expected_cache["levels"]
+	if rows.has(str(level)):
+		var row: Dictionary = rows[str(level)]
+		return {"machine_lvl": float(row.get("machine_lvl", 1.0)), "hero_lvl": int(row.get("hero_lvl", 1)),
+				"barracks": row.get("barracks", {}) if row.get("barracks") is Dictionary else {},
+				"machines": row.get("machines", {}) if row.get("machines") is Dictionary else {}}
 	var lv := 1.0 + 7.0 * clampf(float(level - 3) / 27.0, 0.0, 1.0) + 3.6 * clampf(float(level - 30) / 30.0, 0.0, 1.0)
-	return {"machine_lvl": lv, "hero_lvl": int(round(1.0 + 14.8 * float(level) / 60.0)),
-			"barracks": 0 if level <= 12 else (level - 12) / 4 + 1}
+	var b := 0 if level <= 12 else (level - 12) / 8 + 1
+	var bar := {}
+	for t in EconData.BARRACKS_ORDER:
+		bar[t] = b
+	return {"machine_lvl": lv, "hero_lvl": int(round(1.0 + 14.8 * float(level) / 60.0)), "barracks": bar, "machines": {}}
 
 
 static func _auto_talents(id: String, st: Dictionary) -> void:
