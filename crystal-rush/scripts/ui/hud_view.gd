@@ -1,8 +1,10 @@
 class_name HudView
 extends Control
 ## The in-run overlay's visuals, independent of Run so it can be previewed with mock data:
-## top bar (level, coins, pause), weapon slots, the ultimate button (bottom-right), the drag
-## hint, tutorial hint banners, toasts, the weapon card, and the pause and result panels.
+## top bar (level, coins, pause), the machine column (bottom-left, 3 x 88 px, mirroring the ult
+## button; Rank chevrons, rarity frame, family glow; the army-arms chip above it, design §3.7),
+## the ultimate button (bottom-right), the drag hint, tutorial hint banners, toasts, the machine
+## card, and the pause and result panels.
 ## RunHud owns one and feeds it from Run's signals.
 
 signal pause_pressed
@@ -23,9 +25,10 @@ const HINT_ICONS := {
 const POWER_ICONS := {"rate": "rate", "dmg": "dmg", "multi": "multi"}
 const ARM_ICONS: Array[String] = ["spear", "crossbow", "blaster"]
 const ARM_NAMES: Array[String] = ["ARM_SPEAR", "ARM_CROSSBOW", "ARM_BLASTER"]
-const WEAPON_NAMES := {
-	"ballista": "W_BALLISTA", "cannon": "W_CANNON", "laser": "W_LASER", "rockets": "W_ROCKETS", "drone": "W_DRONE",
-}
+## Machine column (§3.7): slot size, gap, distance above the bottom safe edge.
+const SLOT_PX := 88.0
+const SLOT_GAP := 10.0
+const COLUMN_BOTTOM := 56.0
 
 var level := 1
 var ult_icon := "storm"
@@ -40,6 +43,7 @@ var _coins_shown := 0
 var _coins_tw: Tween
 var _slots: Array[WeaponSlot] = []
 var _arm_slot: WeaponSlot
+var _column: VBoxContainer
 var _pause_btn: RoundButton
 var ult_btn: RoundButton
 var _ult_ready := false
@@ -89,6 +93,9 @@ func _ready() -> void:
 func _layout() -> void:
 	var vp := get_viewport_rect().size
 	ult_btn.position = Vector2(vp.x - ult_btn.size.x - 26.0 - insets.z, vp.y - ult_btn.size.y - 56.0 - insets.w)
+	if _column:
+		_column.reset_size()
+		_column.position = Vector2(20.0 + insets.x, vp.y - _column.size.y - COLUMN_BOTTOM - insets.w)
 	if _drag:
 		_drag.reset_size()
 		_drag.position = Vector2((vp.x - _drag.size.x) * 0.5, vp.y * 0.6)
@@ -137,18 +144,20 @@ func _build_top() -> void:
 	_coins_lbl.custom_minimum_size.x = 44
 	crow.add_child(_coins_lbl)
 	row.add_child(cp)
-	# Weapon slots under the level pill: army arms chip (hidden until upgraded) + 3 machines.
-	var slots := HBoxContainer.new()
-	slots.add_theme_constant_override("separation", 8)
-	slots.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	left.add_child(slots)
+	# Machine column, bottom-left (display only): the army-arms chip on top, then 3 slots.
+	_column = VBoxContainer.new()
+	_column.add_theme_constant_override("separation", SLOT_GAP)
+	_column.alignment = BoxContainer.ALIGNMENT_END
+	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_column)
 	_arm_slot = WeaponSlot.new()
 	_arm_slot.circle = true
 	_arm_slot.visible = false
-	slots.add_child(_arm_slot)
+	_arm_slot.custom_minimum_size = Vector2(SLOT_PX, 70)
+	_column.add_child(_arm_slot)
 	for i in 3:
 		var s := WeaponSlot.new()
-		slots.add_child(s)
+		_column.add_child(s)
 		_slots.append(s)
 	_top.add_child(UIKit.spacer())
 	_pause_btn = RoundButton.new(30.0)
@@ -428,23 +437,35 @@ func set_arm(tier: int) -> void:
 
 # ------------------------------------------------------------------ weapons
 
-## Fills the slots from Run.weapons ([{kind, level}]).
+## Fills the column from Run.weapons ([{kind, level, id, rank, over}]).
 func set_weapons(list: Array) -> void:
 	for i in _slots.size():
 		if i < list.size():
 			var wd: Dictionary = list[i]
-			_slots[i].set_weapon(str(wd.get("kind", "")), int(wd.get("level", 1)), _weapon_color(str(wd.get("kind", ""))))
+			var id := str(wd.get("id", wd.get("kind", "")))
+			_slots[i].set_machine(id, int(wd.get("rank", wd.get("level", 1))), int(wd.get("over", 0)))
 		else:
-			_slots[i].set_weapon("", 0, Color.WHITE)
+			_slots[i].set_machine("", 0, 0)
 
 
-## A weapon was acquired or levelled up: centred reward card, then it flies into its slot.
+## A machine's Rank changed (crate, BONUS, RANK gate, overflow): its slot punches and flashes.
+func machine_ranked(id: String, list: Array) -> void:
+	set_weapons(list)
+	for s in _slots:
+		if s.kind == id:
+			UIKit.punch(s, 1.3, 0.35)
+			s.flash()
+
+
+## A machine was fielded or ranked up from a crate: a centred machine card, then it flies into
+## its slot in the column.
 func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 	var slot_i := -1
-	# The Run's list is authoritative (several weapons can arrive in one frame, before any
+	# The Run's list is authoritative (several machines can arrive in one frame, before any
 	# card has landed in its slot).
 	for i in mini(list.size(), _slots.size()):
-		if str((list[i] as Dictionary).get("kind", "")) == kind:
+		var wd: Dictionary = list[i]
+		if str(wd.get("id", wd.get("kind", ""))) == kind:
 			slot_i = i
 			break
 	if slot_i == -1:
@@ -475,18 +496,18 @@ func weapon_added(kind: String, lvl: int, list: Array = []) -> void:
 	tw.tween_property(card, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(card, "modulate:a", 1.0, 0.18)
 	tw.chain().tween_callback(func(): UIKit.sparkles(self, card.position + card.size * 0.5, _weapon_color(kind).lightened(0.4), 30, 320.0))
-	tw.chain().tween_interval(1.25)
+	tw.chain().tween_interval(1.1)
 	# Fly into the slot.
 	tw.chain().tween_callback(func(): card.pivot_offset = Vector2.ZERO)
 	var dest := target_slot.global_position - global_position
 	tw.chain().tween_property(card, "position", dest, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.parallel().tween_property(card, "scale", Vector2(0.18, 0.18), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(card, "scale", Vector2(0.2, 0.2), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(card, "modulate:a", 0.2, 0.4)
 	tw.chain().tween_callback(func():
 		if not list.is_empty():
 			set_weapons(list)
 		if list.is_empty() and target_slot.kind != kind:
-			target_slot.set_weapon(kind, lvl, _weapon_color(kind))
+			target_slot.set_machine(kind, lvl, 0)
 		UIKit.punch(target_slot, 1.45, 0.4)
 		target_slot.flash()
 		if _card == card:
@@ -498,15 +519,34 @@ static func _vivid(c: Color) -> Color:
 	return Color.from_hsv(c.h, maxf(c.s, 0.7), 1.0)
 
 
+## A machine's family accent, made vivid for the UI (glow rims, card rays).
 static func _weapon_color(kind: String) -> Color:
 	if kind == "":
 		return Color.WHITE
+	if ArsenalData.MACHINES.has(kind):
+		return _vivid(WeaponModels.glow_color(kind)).lerp(Color.WHITE, 0.1)
 	return WeaponModels.icon_color(kind)
 
 
-## The reward card shown when a weapon is acquired (also used by previews).
+## Rarity frame colour of a machine (§2.1: rarity lives in the frame, the family in the glow).
+static func _rarity_color(kind: String) -> Color:
+	if not ArsenalData.MACHINES.has(kind):
+		return Color(1.0, 0.85, 0.45)
+	return (ArsenalData.RARITIES[ArsenalData.rarity_of(kind)] as Dictionary)["ui_color"]
+
+
+## Localised machine name.
+static func machine_name(kind: String) -> String:
+	if ArsenalData.MACHINES.has(kind):
+		return Loc.t(str((ArsenalData.MACHINES[kind] as Dictionary)["name"]))
+	return kind
+
+
+## The card shown when a machine joins (or ranks up from a crate); also used by previews.
+## `lvl` = its Rank after the crate.
 static func build_weapon_card(kind: String, lvl: int) -> Control:
 	var col := _weapon_color(kind)
+	var rar := _rarity_color(kind)
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.custom_minimum_size = Vector2(420, 430)
@@ -537,7 +577,8 @@ static func build_weapon_card(kind: String, lvl: int) -> Control:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(v)
-	var head := UIKit.heading(Loc.t("NEW_WEAPON").to_upper() if lvl <= 1 else "★".repeat(clampi(lvl, 1, 3)), 22, UIKit.GOLD, 5)
+	var head_text := Loc.t("NEW_MACHINE") if lvl <= 1 else Loc.t("RANK_UP") % ["I", "II", "III"][clampi(lvl, 1, 3) - 1]
+	var head := UIKit.heading(head_text.to_upper(), 22, UIKit.GOLD, 5)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(head)
 	var art := IconBadge.new()
@@ -548,21 +589,21 @@ static func build_weapon_card(kind: String, lvl: int) -> Control:
 	art.custom_minimum_size = Vector2(190, 190)
 	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(art)
-	var name_key: String = WEAPON_NAMES.get(kind, kind)
-	var title := Loc.t("WEAPON_GOT") % Loc.t(name_key) if lvl <= 1 else Loc.t("WEAPON_UP") % [Loc.t(name_key), lvl]
-	var t := UIKit.gradient_heading(title, 44 if title.length() < 16 else 38, Color(1, 1, 0.92), col.lightened(0.45), col.darkened(0.1), 10)
+	var title := machine_name(kind)
+	var t := UIKit.gradient_heading(title, 44 if title.length() < 16 else 36, Color(1, 1, 0.92), col.lightened(0.45), col.darkened(0.1), 10)
 	t.add_theme_color_override("font_outline_color", col.darkened(0.8))
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var stars := HBoxContainer.new()
-	stars.alignment = BoxContainer.ALIGNMENT_CENTER
-	stars.add_theme_constant_override("separation", 4)
-	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for i in 3:
-		var st := Icons.make("star", 38.0)
-		st.filled = i < lvl
-		stars.add_child(st)
-	v.add_child(stars)
+	if ArsenalData.MACHINES.has(kind):
+		var fam := UIKit.heading(Loc.t(str((ArsenalData.RARITIES[ArsenalData.rarity_of(kind)] as Dictionary)["name"])) + "  ·  " +
+				Loc.t(str((ArsenalData.FAMILIES[ArsenalData.family_of(kind)] as Dictionary)["name"])), 22, rar.lerp(Color.WHITE, 0.25), 5)
+		fam.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(fam)
+	var chev := RankPips.new()
+	chev.rank = clampi(lvl, 1, 3)
+	chev.custom_minimum_size = Vector2(150, 40)
+	chev.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(chev)
 	UIKit.add_shine(card, 26.0, 0.35, 1.4, 0.6)
 	card.resized.connect(func():
 		# Long titles widen the card past 360: keep it centred on the root (and its rays).
@@ -879,22 +920,36 @@ func _coin_row(text: String, value: String, value_color := UIKit.TEXT, coin := t
 
 # ------------------------------------------------------------------ drawn widgets
 
-## Weapon slot: glass tile with the weapon icon, a coloured glow rim and level stars.
+## Machine slot of the column (§3.7): a glass tile with the machine icon, the family glow, a
+## rarity-coloured frame, Rank chevrons (I-III, drawn: Rubik has no ▲) and the overflow "+N%".
+## The circle variant is the army-arms chip.
 class WeaponSlot extends Control:
 	var kind := ""
 	var lvl := 0
+	var over := 0
 	var color := Color.WHITE
+	var frame := Color(1, 0.85, 0.45)
 	var circle := false
 	var _flash := 0.0
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(66, 76)
+		custom_minimum_size = Vector2(SLOT_PX, SLOT_PX)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	## Etap-1 setter (the arms chip): icon kind, level 0 = no chevrons, glow colour.
 	func set_weapon(k: String, level: int, c: Color) -> void:
 		kind = k
 		lvl = level
 		color = c
+		frame = c.lerp(Color(1, 0.85, 0.45), 0.35)
+		queue_redraw()
+
+	func set_machine(id: String, rank: int, p_over: int) -> void:
+		kind = id
+		lvl = rank
+		over = p_over
+		color = HudView._weapon_color(id)
+		frame = HudView._rarity_color(id)
 		queue_redraw()
 
 	func flash() -> void:
@@ -906,28 +961,72 @@ class WeaponSlot extends Control:
 			queue_redraw()
 
 	func _draw() -> void:
-		var r := Rect2(Vector2(1, 1), Vector2(64, 64))
-		var rad := 32 if circle else 16
+		var side := minf(size.x, size.y if not circle else size.x)
+		var r := Rect2(Vector2(2, 2), Vector2(side - 4, side - 4)) if not circle else Rect2(Vector2((size.x - 64) * 0.5, 2), Vector2(64, 64))
+		var rad := int(r.size.x * 0.5) if circle else 20
 		if kind == "":
-			draw_style_box(UIKit.box(Color(0.03, 0.04, 0.1, 0.42), Color(1, 1, 1, 0.16), rad, 2, 0, Vector2.ZERO), r)
+			draw_style_box(UIKit.box(Color(0.03, 0.04, 0.1, 0.32), Color(1, 1, 1, 0.12), rad, 2, 0, Vector2.ZERO), r)
 			var c := r.get_center()
-			draw_line(c - Vector2(9, 0), c + Vector2(9, 0), Color(1, 1, 1, 0.22), 3.0)
-			draw_line(c - Vector2(0, 9), c + Vector2(0, 9), Color(1, 1, 1, 0.22), 3.0)
+			draw_line(c - Vector2(9, 0), c + Vector2(9, 0), Color(1, 1, 1, 0.18), 3.0)
+			draw_line(c - Vector2(0, 9), c + Vector2(0, 9), Color(1, 1, 1, 0.18), 3.0)
 			return
-		draw_texture_rect(UIKit.glow_texture(), r.grow(16), false, Color(color.r, color.g, color.b, 0.35 + _flash * 0.6))
-		draw_style_box(UIKit.box(Color(0.0, 0.0, 0.03, 0.4), Color(0, 0, 0, 0), rad + 2, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(0, 4), r.size))
-		draw_style_box(UIKit.box(Color(0.08, 0.1, 0.22, 0.95), color.lerp(Color(1, 0.85, 0.45), 0.35), rad, 3, 0, Vector2.ZERO), r)
-		draw_style_box(UIKit.box(Color(1, 1, 1, 0.08), Color(0, 0, 0, 0), rad - 3, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(4, 4), Vector2(r.size.x - 8, r.size.y * 0.42)))
-		Icons.draw_icon(self, kind, Rect2(r.position + Vector2(5, 3), r.size - Vector2(10, 10)), Color.WHITE)
+		draw_texture_rect(UIKit.glow_texture(), r.grow(18), false, Color(color.r, color.g, color.b, 0.32 + _flash * 0.6))
+		draw_style_box(UIKit.box(Color(0.0, 0.0, 0.03, 0.45), Color(0, 0, 0, 0), rad + 2, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(0, 5), r.size))
+		draw_style_box(UIKit.box(Color(0.07, 0.09, 0.2, 0.96), frame, rad, 3, 0, Vector2.ZERO), r)
+		draw_style_box(UIKit.box(Color(0, 0, 0, 0), color.lerp(Color.WHITE, 0.2) * Color(1, 1, 1, 0.45), rad - 4, 1, 0, Vector2.ZERO), r.grow(-4))
+		draw_style_box(UIKit.box(Color(1, 1, 1, 0.07), Color(0, 0, 0, 0), rad - 4, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(5, 5), Vector2(r.size.x - 10, r.size.y * 0.4)))
+		var ir := Rect2(r.position + Vector2(9, 5), r.size - Vector2(18, 22))
+		Icons.draw_icon(self, kind, Rect2(ir.position + Vector2(0, 3), ir.size), Color(0, 0, 0.05, 0.35))
+		Icons.draw_icon(self, kind, ir, Color.WHITE)
 		if _flash > 0.0:
 			draw_style_box(UIKit.box(Color(1, 1, 1, _flash * 0.6), Color(0, 0, 0, 0), rad, 0, 0, Vector2.ZERO), r)
-		if lvl > 0:
-			var sw := 22.0
-			var x0 := r.get_center().x - sw * 1.5 + 2.0
-			draw_style_box(UIKit.box(Color(0.02, 0.03, 0.08, 0.9), Color(1, 0.85, 0.45, 0.5), 9, 1, 0, Vector2.ZERO), Rect2(Vector2(x0 - 4.0, r.end.y - 11.0), Vector2(sw * 3.0 + 4.0, 20.0)))
-			for i in 3:
-				var sr := Rect2(Vector2(x0 + i * (sw - 2.0), r.end.y - 12.0), Vector2(sw, sw))
-				Icons.draw_icon(self, "star", sr, Color.WHITE if i < lvl else Color(0.5, 0.52, 0.6, 0.9), i < lvl)
+		if lvl > 0 and not circle:
+			# Rank chevrons on a dark pill across the bottom edge.
+			var pw := 64.0
+			var pr := Rect2(Vector2(r.get_center().x - pw * 0.5, r.end.y - 14.0), Vector2(pw, 22.0))
+			draw_style_box(UIKit.box(Color(0.02, 0.03, 0.08, 0.94), Color(1, 0.85, 0.45, 0.55), 11, 1, 0, Vector2.ZERO), pr)
+			RankPips.draw_chevrons(self, pr.get_center() + Vector2(0, 1), lvl, 16.0)
+		if over > 0 and not circle:
+			var f := UIKit.font(true)
+			var txt := "+%d%%" % int(round(_over_pct(over) * 100.0))
+			var tp := Vector2(r.end.x - 4.0, r.position.y + 18.0)
+			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
+			draw_style_box(UIKit.box(Color(0.25, 0.12, 0.0, 0.92), Color(1, 0.8, 0.35), 8, 1, 0, Vector2.ZERO), Rect2(tp + Vector2(-w - 8.0, -16.0), Vector2(w + 12.0, 21.0)))
+			draw_string(f, tp + Vector2(-w - 2.0, 0.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.55))
+
+	static func _over_pct(n: int) -> float:
+		var t := 0.0
+		for k in n:
+			t += ArsenalData.overflow_bonus(k + 1)
+		return t
+
+
+## Rank chevrons I-III (gold, filled for the Ranks reached; dim for the rest).
+class RankPips extends Control:
+	var rank := 1
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		draw_chevrons(self, size * 0.5, rank, minf(size.y * 0.8, 32.0))
+
+	static func draw_chevrons(ci: CanvasItem, c: Vector2, n: int, s: float) -> void:
+		var gap := s * 0.95
+		for i in 3:
+			var x := c.x + (i - 1) * gap
+			var on := i < n
+			var tip := Vector2(x, c.y - s * 0.38)
+			var pts := PackedVector2Array([tip, Vector2(x + s * 0.46, c.y + s * 0.3), Vector2(x + s * 0.2, c.y + s * 0.3),
+					Vector2(x, c.y + s * 0.02), Vector2(x - s * 0.2, c.y + s * 0.3), Vector2(x - s * 0.46, c.y + s * 0.3)])
+			var sh := PackedVector2Array()
+			for p in pts:
+				sh.append(p + Vector2(0, 2))
+			ci.draw_colored_polygon(sh, Color(0, 0, 0.05, 0.6))
+			ci.draw_colored_polygon(pts, Color(1.0, 0.8, 0.3) if on else Color(0.38, 0.4, 0.5, 0.85))
+			if on:
+				var hi := PackedVector2Array([tip, Vector2(x + s * 0.23, c.y - s * 0.04), Vector2(x - s * 0.23, c.y - s * 0.04)])
+				ci.draw_colored_polygon(hi, Color(1.0, 0.95, 0.75))
 
 
 ## Round gold-rimmed medallion behind an icon (hint banner, weapon card).

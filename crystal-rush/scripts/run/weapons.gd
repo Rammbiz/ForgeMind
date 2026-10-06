@@ -236,9 +236,10 @@ func slot_pos(m: Dictionary) -> Vector3:
 		1:
 			p.x = c.x + (r + gap)
 		_:
+			# C: behind the blob on the roomier side (clear of A / B, never under the counter).
 			var side := -1.0 if c.x > 0.0 else 1.0
-			p.x = c.x + side * (r + gap)
-			p.z += float(cv["c_back"])
+			p.x = c.x + side * maxf(r * 0.55, 0.6)
+			p.z = c.z + r * Balance.BLOB_STRETCH + float(cv["c_back"]) * 0.75
 	p.x = clampf(p.x, -lim, lim)
 	return p
 

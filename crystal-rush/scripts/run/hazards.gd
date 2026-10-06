@@ -583,8 +583,11 @@ func style_crate(it: Dictionary, text: String) -> void:
 		c.add_child(b)
 		c.set_meta("badge", b)
 	if bool(it.get("new", false)):
-		b.modulate = Color(0.92, 0.97, 1.0)
-		b.outline_modulate = Color(0.05, 0.1, 0.25)
+		# Platinum text with a deep navy outline: readable against the NEW crate's white beam.
+		b.modulate = Color(0.8, 0.93, 1.0)
+		b.outline_modulate = Color(0.01, 0.03, 0.16)
+		b.outline_size = 26
+		b.font_size = 72
 	b.text = text
 	var cl := it.get("label") as Label3D
 	if cl:

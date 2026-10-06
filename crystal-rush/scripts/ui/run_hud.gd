@@ -46,6 +46,7 @@ func _ready() -> void:
 	run.ult_changed.connect(_on_ult_changed)
 	run.hint.connect(_on_hint)
 	run.weapon_added.connect(func(kind: String, level: int): view.weapon_added(kind, level, run.weapons))
+	run.rank_changed.connect(func(id: String, _rank: int): view.machine_ranked(id, run.weapons))
 	run.power_changed.connect(view.power_toast)
 	run.stairs_done.connect(_on_stairs_done)
 	run.finished.connect(_on_finished)
