@@ -1639,7 +1639,7 @@ func crate_forecast(it: Dictionary) -> Array:
 	var name := Loc.t(str((ArsenalData.MACHINES.get(id, {}) as Dictionary).get("name", id)))
 	var text := ""
 	if bool(it.get("new", false)):
-		text = "%s · %s" % [Loc.t("CRATE_NEW"), name]
+		text = "%s\n%s" % [Loc.t("CRATE_NEW"), name]
 	else:
 		match str(fc["kind"]):
 			"overflow":

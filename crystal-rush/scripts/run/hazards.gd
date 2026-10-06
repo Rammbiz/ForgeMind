@@ -535,6 +535,12 @@ func _crate_node(it: Dictionary) -> Node3D:
 	var c := WeaponModels.crate(id if id != "" else "deck", open_hp, opts)
 	if is_new:
 		c.scale = Vector3.ONE * 1.12
+	# The hp count reads over the crate's light pillar (drawn after it, outlined).
+	var l := c.get_meta("label") as Label3D
+	if l:
+		l.no_depth_test = true
+		l.render_priority = 5
+		l.outline_size = 22
 	return c
 
 
@@ -572,11 +578,11 @@ func style_crate(it: Dictionary, text: String) -> void:
 		b.name = "Badge"
 		b.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		b.font = UIKit.font(true)
-		b.font_size = 60
+		b.font_size = 54
 		b.pixel_size = 0.0068
 		# Two crates of a pair stand 2.2 u apart: long names wrap instead of running together.
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.width = 270.0
+		b.width = 300.0
 		b.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 		b.outline_size = 18
 		b.outline_modulate = Color(0.12, 0.06, 0.0)
@@ -590,8 +596,8 @@ func style_crate(it: Dictionary, text: String) -> void:
 		# Platinum text with a deep navy outline: readable against the NEW crate's white beam.
 		b.modulate = Color(0.8, 0.93, 1.0)
 		b.outline_modulate = Color(0.01, 0.03, 0.16)
-		b.outline_size = 26
-		b.font_size = 72
+		b.outline_size = 24
+		b.font_size = 54
 	b.text = text
 	var cl := it.get("label") as Label3D
 	if cl:
