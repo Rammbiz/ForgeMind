@@ -187,6 +187,7 @@ static func grant_card(acc: Dictionary, r: String, pl: Array[String], rng: Rando
 	var is_new := false
 	if not MetaAcc.owned(acc, mid):
 		Arsenal.unlock(acc, mid, "cache")
+		((acc["arsenal"] as Dictionary)["seen"] as Dictionary)[mid] = true     # the Altar walkout shows it
 		is_new = true
 		n -= 1
 	var st: Dictionary = MetaAcc.machines(acc)[mid]

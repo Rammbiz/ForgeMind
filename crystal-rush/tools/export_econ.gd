@@ -3,12 +3,23 @@ extends SceneTree
 ## JSON, so tools/economy_sim.py always simulates the numbers the game ships (arsenal_design.md
 ## §9.1). Also prints the disclosed odds tables (§5.4) for every pool state.
 ##
-##   godot --headless --path . --script res://tools/export_econ.gd [-- --out=res://build/econ.json]
+##   godot --headless --path . --script res://tools/export_econ.gd [-- --out=res://build/econ.json] [--check]
+##   --check: exit 1 when the disclosed odds drift > 0.01 pp from the design §5.4 table.
 ##
 ## Colors become "#rrggbb" strings, Vector3 / AABB become arrays, int dictionary keys become
 ## strings (JSON). build/ holds a .gdignore so Godot never imports the export.
 
 const DEFAULT_OUT := "res://build/econ.json"
+## Design §5.4 (percent): pool -> type -> {rarity: best-card %}.
+const DESIGN_BEST := {
+	"W2": {"stone": {"R": 68.65, "E": 31.35}},
+	"W3": {"stone": {"R": 63.81, "E": 29.14, "L": 7.05}, "world": {"E": 77.76, "L": 22.24}},
+}
+const POOLS := {
+	"W1": ["drone", "ballista", "cannon", "rockets", "mortar"],
+	"W2": ["drone", "ballista", "cannon", "rockets", "mortar", "gatling", "laser", "railgun"],
+	"W3": ["drone", "ballista", "cannon", "rockets", "mortar", "gatling", "laser", "railgun", "prism"],
+}
 
 
 func _init() -> void:
@@ -33,7 +44,28 @@ func _init() -> void:
 	print("export_econ: wrote %s (%d EconData keys, %d machines)" % [ProjectSettings.globalize_path(out),
 			(data["econ"] as Dictionary).size(), (data["machines"] as Dictionary).size()])
 	_print_odds()
-	quit(0)
+	var bad := 0
+	if "--check" in OS.get_cmdline_user_args():
+		bad = check_odds()
+		print("export_econ --check: %s" % ("OK" if bad == 0 else "%d rows drifted" % bad))
+	quit(1 if bad > 0 else 0)
+
+
+## Rows of the design odds table that drift more than 0.01 pp (printed design values are rounded
+## to 0.01 pp, so the tolerance is half a unit of the last printed digit + 0.01 pp).
+static func check_odds() -> int:
+	var bad := 0
+	for pk in DESIGN_BEST:
+		var pool: Array[String] = []
+		pool.assign(POOLS[pk])
+		for type in DESIGN_BEST[pk]:
+			var o := CacheRoller.odds(type, CacheRoller.present(pool, type))
+			for r in DESIGN_BEST[pk][type]:
+				var got := 100.0 * float(o["best"].get(r, 0.0))
+				if absf(got - float(DESIGN_BEST[pk][type][r])) > 0.015:
+					bad += 1
+					print("  DRIFT %s %s %s: %.3f%% vs %.2f%%" % [pk, type, r, got, DESIGN_BEST[pk][type][r]])
+	return bad
 
 
 ## Everything the sim reads, as JSON-safe data.

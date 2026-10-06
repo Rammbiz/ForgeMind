@@ -150,7 +150,7 @@ static func unlock(acc: Dictionary, id: String, _source := "") -> bool:
 	if not ArsenalData.is_live(id) or MetaAcc.owned(acc, id):
 		return false
 	MetaAcc.machines(acc)[id] = EconData.new_machine_state(id, sync_level(acc, id))
-	MetaAcc.count(acc, "machines_owned", 1)
+	(acc["counters"] as Dictionary)["machines_owned"] = MetaAcc.machines(acc).size()
 	return true
 
 
