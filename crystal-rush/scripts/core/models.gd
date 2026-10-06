@@ -51,6 +51,8 @@ const GATE_H := 2.2
 const GATE_ASSET_SHADER := preload("res://shaders/gate_asset.gdshader")
 const CRYSTAL_ASSET_SHADER := preload("res://shaders/crystal_asset.gdshader")
 const EMBER_ASSET_SHADER := preload("res://shaders/ember_asset.gdshader")
+## How far the fortress model reaches past each railing.
+const FORTRESS_OVERHANG := 0.75
 ## The owner's turret GLB: the dome and barrel (above 59.5% of its height) turn on the base;
 ## its barrel points along -X in the model, so the moving part is turned to face +Z.
 const TURRET_SPLIT := 0.595
@@ -1594,13 +1596,22 @@ static func fortress(width: float, hp: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Fortress"
 	var tower_x := w * 0.5 + 1.15
-	var over := asset("fortress", AABB(Vector3(-tower_x - 1.3, 0, -3.5), Vector3((tower_x + 1.3) * 2.0, 10.0, 4.7)))
+	# The owner's model spans the bridge with its towers just past the railings, so the whole
+	# fortress fits the siege camera.
+	var fit_w := w + FORTRESS_OVERHANG * 2.0
+	var over := asset("fortress", AABB(Vector3(-fit_w * 0.5, 0, -3.0), Vector3(fit_w, 10.0, 3.6)))
 	var points: Array[Vector3] = []
+	var label_y := 4.45
+	var label_z := 1.6
 	if over:
 		_recolor_asset(over, EMBER_ASSET_SHADER, Color.WHITE)
 		root.add_child(over)
+		var box := _mesh_aabb(over)
+		root.set_meta("visual_width", box.size.x)
+		label_y = box.size.y * 0.66
+		label_z = box.end.z + 0.25
 		for i in 8:
-			points.append(Vector3(randf_range(-w * 0.5, w * 0.5), randf_range(1.0, 4.0), 1.2))
+			points.append(Vector3(randf_range(-w * 0.45, w * 0.45), randf_range(0.6, box.size.y * 0.75), box.end.z - 0.1))
 	else:
 		var body := Node3D.new()
 		body.name = "Body"
@@ -1760,7 +1771,7 @@ static func fortress(width: float, hp: int) -> Node3D:
 	var l := label(str(hp), 300, Color(1.0, 0.94, 0.86))
 	l.outline_modulate = Color(0.28, 0.02, 0.02)
 	l.outline_size = 52
-	l.position = Vector3(0, 4.45, 1.6)
+	l.position = Vector3(0, label_y, label_z)
 	l.rotation_degrees = Vector3(-8, 0, 0)
 	# Always on top: the gate's front plates hid the hp counter from the high siege camera.
 	l.no_depth_test = true

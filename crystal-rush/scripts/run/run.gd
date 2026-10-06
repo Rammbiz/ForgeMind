@@ -2093,9 +2093,19 @@ func _camera_goal() -> Array:
 			look += Vector3(0.0, 0.0, -1.4)
 		State.SIEGE:
 			var fz := -float(_fortress.get("d", d))
-			# Closer and lower: the fortress towers over the army ramming its gate.
-			pos = Vector3(0.0, 9.0, fz + 11.8)
+			# Closer and lower: the fortress towers over the army ramming its gate. The distance
+			# grows until the whole fortress (towers included) fits the screen's width.
 			look = Vector3(0.0, 2.4, fz - 1.0)
+			var dir := Vector3(0.0, 6.6, 12.8).normalized()
+			var fw := 12.0
+			var fnode := _fortress.get("node") as Node3D
+			if fnode:
+				fw = float(fnode.get_meta("visual_width", fnode.get_meta("width", 7.0)))
+			var vp := get_viewport().get_visible_rect().size
+			var aspect := vp.x / maxf(vp.y, 1.0)
+			var half_h := atan(tan(deg_to_rad(fov) * 0.5) * aspect)
+			var dist := maxf(14.4, (fw * 0.5 + 0.7) / tan(half_h))
+			pos = look + dir * dist
 		State.STAIRS, State.WON:
 			var sz := -float(_stairs.get("d", d))
 			if _stair_phase <= 1 and state == State.STAIRS:
