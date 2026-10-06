@@ -322,7 +322,7 @@ const STRINGS := {
 	"OPEN_ON_ALTAR": ["Відкрити на вівтарі", "Open on the Altar"],
 	"LATER": ["Пізніше", "Later"],
 	"DONE": ["Готово", "Done"],
-	"UPGRADE_MACHINE": ["Покращити %s", "Upgrade %s"],
+	"UPGRADE_MACHINE": ["Покращити: %s", "Upgrade %s"],
 	"VAULT": ["Сховище", "Vault"],
 	"TO_VAULT": ["→ Сховище", "→ Vault"],
 	"VAULT_EMPTY": ["Схованок немає. Перемоги приносять кам'яні схованки.", "No caches. Wins bring Stone Caches."],
