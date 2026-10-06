@@ -90,12 +90,13 @@ func _build_stage() -> void:
 	_build_dais()
 	match mode:
 		"hero":
-			_cam.look_at_from_position(Vector3(0, 1.25, 4.9), Vector3(0, 0.78, 0))
+			_cam.look_at_from_position(Vector3(0, 1.25, 4.9), Vector3(0, 0.6, 0))
 		"army":
-			_cam.look_at_from_position(Vector3(0, 2.6, 5.6), Vector3(0, 0.35, 0))
+			_cam.look_at_from_position(Vector3(0, 2.6, 5.6), Vector3(0, 0.3, 0))
 			_build_army()
 		_:
-			_cam.look_at_from_position(Vector3(0, 1.55, 4.6), Vector3(0, 0.5, 0))
+			_cam.look_at_from_position(Vector3(0, 1.55, 4.6), Vector3(0, 0.45, 0))
+	resized.connect(_frame)
 
 
 func _build_dais() -> void:
@@ -218,6 +219,20 @@ func _build_dais() -> void:
 	_motes.color_ramp = grad
 	_motes.color = accent.lightened(0.3)
 	_root.add_child(_motes)
+
+
+## Fits the camera's vertical FOV so the subject region (width x height, world units, around
+## the look target) fills the strip at any aspect without cutting the dais.
+func _frame() -> void:
+	if size.y < 4.0 or _cam == null:
+		return
+	var region: Vector2 = {"hero": Vector2(3.2, 2.9), "army": Vector2(5.2, 3.0)}.get(mode, Vector2(3.3, 2.5))
+	var d := _cam.position.length()
+	var aspect := size.x / size.y
+	var v_need := 2.0 * atan(region.y * 0.5 / d)
+	var h_need := 2.0 * atan(region.x * 0.5 / d)
+	var v_from_h := 2.0 * atan(tan(h_need * 0.5) / aspect)
+	_cam.fov = clampf(rad_to_deg(maxf(v_need, v_from_h)), 14.0, 70.0)
 
 
 static var _radial: Texture2D

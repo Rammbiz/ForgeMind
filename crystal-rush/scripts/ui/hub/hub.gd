@@ -144,6 +144,7 @@ func select_tab(id: String, animate := true) -> void:
 	top_bar.set_tab(id)
 	backdrop.set_tab(id, animate)
 	stage.active = id == "play"
+	_set_3d(id == "play", animate)
 	if animate:
 		UIJuice.haptic("TICK", 0.4)
 		Audio.play("click", -10.0)
@@ -167,6 +168,25 @@ func select_tab(id: String, animate := true) -> void:
 		UIJuice.slide_in(page, Vector2(90.0 * dir, 0))
 	else:
 		page.modulate.a = 1.0
+
+
+## The road behind the Play tab is the only 3D of the root viewport: other tabs cover it with an
+## opaque backdrop, so 3D rendering is switched off there (after the backdrop has faded in).
+func _set_3d(on: bool, animate: bool) -> void:
+	var vp := get_viewport()
+	if on:
+		vp.disable_3d = false
+		return
+	if not animate:
+		vp.disable_3d = true
+		return
+	get_tree().create_timer(UITokens.STD + 0.05).timeout.connect(func():
+		if is_instance_valid(self) and current != "play":
+			vp.disable_3d = true)
+
+
+func _exit_tree() -> void:
+	get_viewport().disable_3d = false
 
 
 func _page(id: String) -> Control:

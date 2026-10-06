@@ -169,7 +169,7 @@ func _draw() -> void:
 		draw_colored_polygon(dm, Color(0, 0, 0.04, 0.7))
 		var dm2 := PackedVector2Array([pc + Vector2(0, -5.5), pc + Vector2(4.5, 0), pc + Vector2(0, 5.5), pc + Vector2(-4.5, 0)])
 		draw_colored_polygon(dm2, rc if locked == "" else rc.darkened(0.5))
-	var gc := inner.position + Vector2(inner.size.x - 22, 22)
+	var gc := Vector2(inner.end.x - 22, zone.end.y - 22)
 	draw_circle(gc, 17, Color(0.02, 0.03, 0.08, 0.8))
 	Icons.draw_icon(self, "fam_" + fam, Rect2(gc - Vector2(13, 13), Vector2(26, 26)), Color.WHITE if locked == "" else Color(0.5, 0.5, 0.6))
 	if bool(card.get("in_deck", false)) and locked == "":

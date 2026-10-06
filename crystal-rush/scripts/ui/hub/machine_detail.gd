@@ -326,12 +326,45 @@ func _do_upgrade() -> void:
 	await get_tree().process_frame
 	_count_stats(stats_before)
 	if beat != "":
-		hub.toast(Loc.t("BEAT_" + beat.to_upper()) + "!", str(BEAT_ICONS.get(beat, "star")))
+		_beat_banner(beat)
 		if beat in ["talent1", "talent2"] and is_instance_valid(_talent_box):
 			await get_tree().create_timer(0.4).timeout
 			if is_instance_valid(_talent_box):
 				_scroll.ensure_control_visible(_talent_box)
 				UIJuice.punch(_talent_box, 1.04, 0.35)
+
+
+## Full ceremony (a beat level): light rays and the beat's name slam over the showcase.
+func _beat_banner(beat: String) -> void:
+	var host := Control.new()
+	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var r := _show.get_global_rect()
+	host.position = r.position - global_position
+	host.size = r.size
+	add_child(host)
+	var rays := UIKit.Rays.new()
+	rays.color = Color(1.0, 0.82, 0.4, 0.45)
+	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rays.position = Vector2(r.size.x * 0.5 - 380, r.size.y * 0.5 - 380)
+	rays.size = Vector2(760, 760)
+	host.add_child(rays)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(Icons.make(str(BEAT_ICONS.get(beat, "star")), 72.0))
+	row.add_child(UIKit.gradient_heading(Loc.t("BEAT_" + beat.to_upper()) + "!", 64))
+	row.size = Vector2(r.size.x, 90)
+	row.position = Vector2(0, r.size.y * 0.5 - 45)
+	host.add_child(row)
+	UIJuice.pop(row, 0.0, UITokens.SLOW, 2.2)
+	UIJuice.fade_in(rays, 0.0, UITokens.FAST)
+	UIJuice.haptic_pattern("upgrade")
+	Audio.play("weapon_get", -2.0)
+	var tw := host.create_tween()
+	tw.tween_interval(UITokens.ceremony("full") * 0.55)
+	tw.tween_property(host, "modulate:a", 0.0, UITokens.SLOW)
+	tw.tween_callback(host.queue_free)
 
 
 ## Stat values count up from the previous level after an upgrade (70 ms stagger).

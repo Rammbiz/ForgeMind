@@ -132,6 +132,38 @@ func _shot_step(s: String) -> void:
 			hub.open_settings()
 			await _wait(1.0)
 			await _shot("hub_settings")
+		"fly":
+			_close_modals()
+			hub.select_tab("play", false)
+			await _wait(0.5)
+			Meta.add_currency("coins", 250, "gallery")
+			hub.fly_reward("coins", 250, hub.ui.size * Vector2(0.5, 0.55))
+			await _wait(0.42)
+			await _shot("hub_fly")
+			await _wait(1.2)
+		"beat":
+			_close_modals()
+			hub.select_tab("arsenal", false)
+			var bid := ""
+			for mid in Meta.owned_ids():
+				if Meta.can_upgrade(mid) and Meta.beat_at(Meta.machine_level(mid) + 1) != "":
+					bid = mid
+			if bid == "":
+				for mid2 in Meta.owned_ids():
+					var st: Dictionary = (Meta.account["arsenal"] as Dictionary)["machines"][mid2]
+					st["lvl"] = 4
+					st["bp"] = 99
+					bid = mid2
+					break
+			hub.open_machine(bid)
+			await _wait(1.0)
+			var d := _top_modal()
+			d.call("press_upgrade")
+			await _wait(0.2)
+			d.call("press_upgrade")
+			await _wait(0.9)
+			await _shot("hub_beat")
+			await _wait(2.5)
 		"unlock":
 			_close_modals()
 			hub.call("_show_pending_unlocks")
