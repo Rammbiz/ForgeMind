@@ -18,6 +18,14 @@ func _ready() -> void:
 
 
 func _go() -> void:
+	if args.has("probe"):
+		# Prints the hero / army / assist blocks the run would read (WS2b hooks) per level.
+		for lvl in range(1, int(args.get("to", "20")) + 1):
+			Meta.account = Meta.synthetic_account(lvl, str(args.get("profile", "expected")))
+			var p := Meta.run_profile(lvl)
+			print("PROBE L%d hero=%s army=%s assist=%s" % [lvl, str(p.get("hero")), str(p.get("army")), str(p.get("assist"))])
+		get_tree().quit(0)
+		return
 	var type := str(args.get("hero", "seer"))
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()

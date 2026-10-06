@@ -77,9 +77,10 @@ func ult_power() -> float:
 	return 1.0 + float(EconData.HERO.get("ult_rank_bonus", 0.2)) * float(ult_rank() - 1)
 
 
-## The hero's Aspect (the profile's, else the hero's default).
+## The hero's Aspect: the profile's when its hero block is this hero (dev runs may field another
+## hero than the account's), else the hero's default (Balance.HEROES.aspect).
 func aspect() -> String:
-	var a := str(meta_hero.get("aspect", ""))
+	var a := str(meta_hero.get("aspect", "")) if str(meta_hero.get("id", type)) == type else ""
 	return a if a != "" else str(def.get("aspect", ""))
 
 

@@ -1086,7 +1086,7 @@ static func apply_profile(s: State, prof: Dictionary) -> void:
 	s.hero_hp *= float(hero.get("hp_mult", 1.0))
 	s.ult_rate = float(hero.get("ult_rate_mult", 1.0))
 	s.ult_pow = 1.0 + float(EconData.HERO.get("ult_rank_bonus", 0.2)) * float(clampi(int(hero.get("ult_rank", 1)), 1, 4) - 1)
-	s.aspect = str(hero.get("aspect", ""))
+	s.aspect = str(hero.get("aspect", "")) if str(hero.get("id", s.hero)) == s.hero else ""
 	if s.aspect == "":
 		s.aspect = str((Balance.HEROES[s.hero] as Dictionary).get("aspect", ""))
 	var am: Dictionary = prof.get("army", {})

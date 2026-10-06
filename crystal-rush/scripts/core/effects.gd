@@ -453,7 +453,7 @@ func _step_projectiles(delta: float) -> void:
 					_sparks.add(tail, -dir * randf_range(2.0, 4.0) + _rand_dir() * 1.5, Color(0.75, 1.0, 0.45), 0.18, 0.04, 0.01, 0.0, 3.0, 0.04)
 			"arcane":
 				var pulse2 := 1.0 + 0.15 * sin(fmod(_time, 100.0) * 30.0 + float(p["seed"]) * 9.0)
-				_frame_glows.append([pos, gs * pulse2, c, 0.5, fposmod(_time * 5.0, TAU), 1.0])
+				_frame_glows.append([pos, gs * pulse2, c, 0.5, fposmod(_time * 5.0, TAU), 0.45])
 				_frame_glows.append([pos, gs * 0.32, look["head"], 0.0, 0.0, 1.0])
 				if randf() < 0.7:
 					var tw := c.lerp(Color(1.0, 0.85, 0.5), randf() * 0.5)
