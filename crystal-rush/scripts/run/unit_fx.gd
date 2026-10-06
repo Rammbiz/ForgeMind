@@ -170,7 +170,7 @@ func die(pos: Vector3, team: int, push: Vector3) -> void:
 		d.age = _rng.randf_range(0.0, 0.04)
 		list.append(d)
 		var hit := pos + Vector3(0, 0.42, 0)
-		_puff(hit, PUFF_COLORS[1], shove * 0.5)
+		_hit_puff(hit, shove)
 		_burst_sparks(hit, SPARK_COLORS[1], shove)
 		for i in (1 if _rng.randf() < 0.6 else 2):
 			_spawn_shard(hit, DEBRIS_COLORS[1][_rng.randi() % DEBRIS_COLORS[1].size()], shove * 0.5)
@@ -337,6 +337,34 @@ func _tick_enemy_vat(list: Array, mm: MultiMesh, delta: float) -> void:
 		i += 1
 	mm.buffer = buf
 	mm.visible_instance_count = i
+
+
+## VAT enemies: a hot white-orange blink and a small ember-tinted puff, so the falling body
+## stays readable behind it (the tumbling pool's full puff hides its unit on purpose).
+func _hit_puff(pos: Vector3, push: Vector3) -> void:
+	var core := Mote.new()
+	core.pos = pos
+	core.life = 0.12
+	core.size0 = 0.45
+	core.size1 = 0.75
+	core.color = Color(1.0, 0.85, 0.6, 0.65)
+	core.seed = Vector2(_rng.randf(), _rng.randf())
+	_add_mote(_puffs, PUFF_POOL, core)
+	for i in 3:
+		var m := Mote.new()
+		var a := _rng.randf() * TAU
+		var dir := Vector3(cos(a), _rng.randf_range(0.2, 0.8), sin(a))
+		m.pos = pos + dir * 0.06
+		m.vel = dir * _rng.randf_range(0.9, 1.6) + push * 0.3 + Vector3(0, 0.3, 0)
+		m.life = _rng.randf_range(0.32, 0.45)
+		m.size0 = _rng.randf_range(0.16, 0.22)
+		m.size1 = _rng.randf_range(0.34, 0.46)
+		m.drag = 4.5
+		m.grav = -0.6
+		m.color = Color(1.0, 0.42, 0.16).lerp(Color(0.35, 0.12, 0.1), _rng.randf_range(0.0, 0.5))
+		m.color.a = 0.6
+		m.seed = Vector2(_rng.randf(), _rng.randf())
+		_add_mote(_puffs, PUFF_POOL, m)
 
 
 ## A low dust puff where a falling body hits the road.

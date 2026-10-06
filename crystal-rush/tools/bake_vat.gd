@@ -40,6 +40,9 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/bake_vat.gd -- \
 ##       --in=res://assets/units/emberhorn/emberhorn_src.glb --out=res://assets/units/emberhorn/
 ## (the profile follows from the output name). Clips: run (its own Running), attack, idle, death.
+## Its source is the owner's 10 357-triangle Meshy GLB cut to 1 800 triangles, re-unwrapped and
+## re-textured by assets/units/emberhorn/prep/ (Meshy's many UV charts block plain simplification);
+## the eye glow mask comes from there too.
 
 ## name: clip id. src: "anim:<Animation name>" or "proc:<function>". frames: baked frames.
 ## start/length: seconds of the source to sample ("auto" length = the loop period; Meshy/Mixamo

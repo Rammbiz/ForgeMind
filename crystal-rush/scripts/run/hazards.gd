@@ -45,6 +45,8 @@ class Squad extends RefCounted:
 	var anim: VatClip
 	## Units still running to their place in the charge (CLASH).
 	var moving := false
+	## Seconds every unit has stood in place (the run clip ends after a short settle).
+	var still := 0.0
 
 
 var run: Run
@@ -348,8 +350,10 @@ func _size_squad(sq: Squad) -> void:
 func _animate_squad(sq: Squad, dt: float, fighting: bool, line_z: float) -> void:
 	if sq.anim == null:
 		return
+	sq.still = 0.0 if sq.moving else sq.still + dt
+	var running := sq.still < 0.2
 	if fighting:
-		sq.anim.play("run" if sq.moving else "idle", 0.15, false, EMBER_RUN_RATE if sq.moving else 1.0)
+		sq.anim.play("run" if running else "idle", 0.15, false, EMBER_RUN_RATE if running else 1.0)
 		sq.anim.set_zone("attack", line_z - 0.1, 0.12, EMBER_ATTACK_RATE)
 	else:
 		sq.anim.play("idle", 0.25, false, 1.0)
