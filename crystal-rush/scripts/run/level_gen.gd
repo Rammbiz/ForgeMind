@@ -53,7 +53,7 @@ const UNLOCK := {
 	"rotor": 4, "moving": 4, "arm": 4,
 	"turret": 5, "geode": 5, "power": 5,
 	"blink": 6, "hidden": 6, "sweeper": 6,
-	"multi": 7, "blaster": 9,
+	"multi": 7, "blaster": 9, "rank": 11,
 }
 
 ## First hint for an element on the level it unlocks.
@@ -63,8 +63,14 @@ const FIRST_HINT := {
 	"blaster": "HINT_ARM",
 }
 
-## Weapon crate of each tutorial / unlock level.
-const CRATE_AT := {2: "cannon", 4: "ballista", 6: "rockets", 8: "laser", 10: "drone"}
+## Arsenal (Meta-1, arsenal_design.md §3.2-3.4): crate events per level come from
+## ArsenalData.crate_events (the level's NEW crate - ArsenalData.new_crate_at - is always its
+## first crate, `new: true`; the others hold `weapon: "deck"`, resolved in the run by
+## CratePicker), pairs from L5 (`pair: n`, PAIR_GAP apart), RANK gates per ArsenalData.rank_gates
+## (`op: "rank"`, `fallback: {op: "+", value}`). Crates carry `bonus` (the gold BONUS segment,
+## CRATE_BONUS_HP x value). Crate events are spread over the level at these shares.
+const CRATE_SHARES := {1: [0.34], 2: [0.28, 0.62], 3: [0.24, 0.48, 0.72], 4: [0.2, 0.4, 0.6, 0.78], 5: [0.18, 0.34, 0.5, 0.64, 0.78]}
+const RANK_AT := 0.45
 
 
 ## Generator state while a level is being laid out.
@@ -85,6 +91,11 @@ class Gen extends RefCounted:
 	var goal := 80.0
 	var length := 160.0
 	var crate_weapon := ""
+	var crate_new := false
+	var crates_left := 0
+	var crate_shares: Array = []
+	var rank_left := 0
+	var pair_id := 0
 	var etrace: Array = []          ## [[d, e, chunk], ...] (level_check --trace)
 	var ref_lv: LevelSim.Level      ## the level so far, as the reference players see it
 	var refs: Array = []            ## LevelSim.State per reference hero
@@ -111,6 +122,9 @@ static func _build(level: int, base_army: int) -> Dictionary:
 	g.start = maxf(float(base_army), 1.0)
 	g.goal = goal_army(g.level)
 	g.length = target_length(g.level)
+	g.crates_left = ArsenalData.crate_events(g.level, ArsenalData.is_boss(g.level))
+	g.crate_shares = (CRATE_SHARES.get(g.crates_left, CRATE_SHARES[5]) as Array).duplicate()
+	g.rank_left = ArsenalData.rank_gates(g.level)
 	match g.level:
 		1:
 			_tutorial_1(g)
@@ -203,7 +217,7 @@ static func _tutorial_2(g: Gen) -> void:
 	_tile_line(g, -2.9, -2.9, 58.0, 5, 1.2)
 	_coin_line(g, 0.6, 66.0, 6)
 	_hint(g, 72.0, "HINT_CRATE")
-	_crate(g, -2.0, 86.0, 5, "cannon")
+	_crate(g, -2.0, 86.0, 5, _new_or_deck(g))
 	_row(g, 96.0, [_gate("+", 12), _gate("+", 6), _gate("x", 2)])
 	g.e *= 2.0
 	_tile_line(g, 2.2, -2.2, 106.0, 9, 1.2)
@@ -211,6 +225,8 @@ static func _tutorial_2(g: Gen) -> void:
 	g.e += 6.0
 	_row(g, 128.0, [_gate("-", 10), _gate("x", 2), _gate("+", 20)])
 	g.e = maxf(g.e * 2.0, g.e + 20.0) * 0.95
+	# The second crate event: a deck crate (the Drone at first) off the squad's side.
+	_crate(g, 1.6, 140.0, 5, _new_or_deck(g))
 	_squad(g, -1.7, 146.0, 3.0, int(g.e * 0.3))
 	_recruits(g, 2.4, 150.0, 6)
 	_coin_line(g, -1.7, 152.0, 6)
@@ -239,6 +255,7 @@ static func _tutorial_3(g: Gen) -> void:
 	g.e *= 1.85
 	_tile_line(g, 2.4, -2.4, 88.0, 8, 1.2)
 	_coin_line(g, 0.0, 92.0, 5)
+	_crate(g, 2.0, 98.0, 5, _new_or_deck(g))
 	g.e += 5.0
 	_row(g, 108.0, [_gate("-", 8), _gate("+", int(g.e * 0.4)), _gate("x", 2)])
 	g.e *= 1.9
@@ -250,7 +267,7 @@ static func _tutorial_3(g: Gen) -> void:
 	_coin_line(g, 0.0, 148.0, 6)
 	_recruits(g, -2.3, 156.0, 6)
 	_recruits(g, 2.3, 160.0, 6)
-	_crate(g, -2.0, 172.0, 5, "cannon")
+	_crate(g, -2.0, 172.0, 5, _new_or_deck(g))
 	_row(g, 184.0, [_gate("+", int(g.e * 0.4)), _gate("+", int(g.e * 0.15)), _gate("+", int(g.e * 0.25))])
 	g.e *= 1.3
 	g.d = 192.0
@@ -265,7 +282,7 @@ const CHUNKS := {
 	"crate": [1.6, "crate"], "barricade": [2.2, "barricade"], "charge": [1.6, "charge"],
 	"rotor": [1.8, "rotor"], "moving": [1.5, "moving"], "arm": [1.4, "arm"], "turret": [1.8, "turret"],
 	"geode": [1.5, "geode"], "power": [1.4, "power"], "blink": [1.4, "blink"], "hidden": [1.3, "hidden"],
-	"sweeper": [1.6, "sweeper"], "blaster": [0.5, "blaster"],
+	"sweeper": [1.6, "sweeper"], "blaster": [0.5, "blaster"], "rank": [0.0, "rank"],
 }
 const THREATS := ["squad_wall", "squad_fork", "barricade", "rotor", "turret", "sweeper"]
 
@@ -279,7 +296,6 @@ static func _procedural(g: Gen) -> void:
 		var key: String = CHUNKS[chunk][1]
 		if int(UNLOCK[key]) == g.level:
 			intro.append(chunk)
-	var crate_kind := str(CRATE_AT.get(g.level, ""))
 	_chunk(g, "tiles")
 	var last := "tiles"
 	var since_threat := 0
@@ -289,8 +305,14 @@ static func _procedural(g: Gen) -> void:
 		var pick := ""
 		if not intro.is_empty() and n >= 1:
 			pick = intro.pop_front()
-		elif crate_kind != "" and g.d > length * 0.3:
+			if pick == "crate" or pick == "rank":
+				continue
+		elif not g.crate_shares.is_empty() and g.d > length * float(g.crate_shares[0]):
+			g.crate_shares.pop_front()
 			pick = "crate"
+		elif g.rank_left > 0 and g.d > length * RANK_AT:
+			g.rank_left -= 1
+			pick = "rank"
 		elif since_threat >= 2:
 			# Prefer a kind of threat this level has not shown yet.
 			var fresh: Array = []
@@ -302,9 +324,6 @@ static func _procedural(g: Gen) -> void:
 			pick = _weighted(g, ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm", "blaster"], last)
 		else:
 			pick = _weighted(g, CHUNKS.keys(), last)
-		if pick == "crate":
-			g.crate_weapon = crate_kind if crate_kind != "" else _late_weapon(g)
-			crate_kind = ""
 		_chunk(g, pick)
 		since_threat = 0 if pick in THREATS else since_threat + 1
 		since_gate = 0 if pick in ["gates", "red_row", "charge", "moving", "power", "blink", "hidden", "arm", "blaster", "squad_fork", "barricade"] else since_gate + 1
@@ -320,7 +339,7 @@ static func _weighted(g: Gen, pool: Array, last: String) -> String:
 	var ws: Array[float] = []
 	for c: String in pool:
 		var key: String = CHUNKS[c][1]
-		if int(UNLOCK[key]) > g.level or c == last:
+		if int(UNLOCK[key]) > g.level or c == last or c == "crate" or c == "rank":
 			continue
 		if (c == "arm" or c == "blaster") and g.arm >= (2 if g.level >= int(UNLOCK["blaster"]) else 1):
 			continue
@@ -339,13 +358,18 @@ static func _weighted(g: Gen, pool: Array, last: String) -> String:
 	return ok[ok.size() - 1] if not ok.is_empty() else "tiles"
 
 
-static func _late_weapon(g: Gen) -> String:
-	var pool: Array[String] = ["cannon", "ballista", "rockets"]
-	if g.level >= 8:
-		pool.append("laser")
-	if g.level >= 10:
-		pool.append("drone")
-	return pool[g.rng.randi() % pool.size()]
+## Charge-gate machine rewards hold a deck machine (CratePicker in the run).
+static func _late_weapon(_g: Gen) -> String:
+	return "deck"
+
+
+## The next crate event's machine: the level's NEW machine first (once), then "deck".
+static func _new_or_deck(g: Gen) -> String:
+	var nc := ArsenalData.new_crate_at(g.level)
+	if nc != "" and not g.crate_new and bool(ArsenalData.FEATURES["new_crates"]):
+		g.crate_new = true
+		return nc
+	return "deck"
 
 
 static func _chunk(g: Gen, name: String) -> void:
@@ -377,8 +401,9 @@ static func _chunk_body(g: Gen, name: String) -> void:
 		"squad_fork":
 			_c_squad_fork(g)
 		"crate":
-			_crate_chunk(g, g.crate_weapon)
-			g.crate_weapon = ""
+			_crate_chunk(g, _new_or_deck(g))
+		"rank":
+			_c_rank(g)
 		"barricade":
 			_c_barricade(g)
 		"charge":
@@ -580,7 +605,7 @@ static func _c_charge(g: Gen) -> void:
 	if g.level >= 6:
 		var o := -signf(float(cg["x"]))
 		if g.rng.randf() < 0.3:
-			_crate(g, 2.2 * o, g.d + 6.0, crate_hp(g.level), _late_weapon(g))
+			_geode(g, 2.2 * o, g.d + 6.0, 5 + g.level / 4, "coins", 12 + g.level * 2)
 		else:
 			_squad(g, 1.7 * o, g.d + 8.0, 2.4, int(a * 0.15) + g.level)
 	g.e = a + maxf(gain, r * 0.6) * 0.95
@@ -594,7 +619,14 @@ static func _crate_chunk(g: Gen, weapon: String) -> void:
 	var s := _side(g)
 	var a := g.e
 	var r := want(g, g.d + 24.0)
-	_crate(g, 2.1 * s, g.d + 8.0, crate_hp(g.level), weapon)
+	if ArsenalData.pairs_on(g.level):
+		# A pair (§3.3): two crates side by side, the first one opened claims its reward.
+		g.pair_id += 1
+		var cx := 1.75 * s
+		_crate(g, cx - ArsenalData.PAIR_GAP * 0.5, g.d + 8.0, crate_hp(g.level), weapon, g.pair_id)
+		_crate(g, cx + ArsenalData.PAIR_GAP * 0.5, g.d + 8.0, crate_hp(g.level), "deck", g.pair_id)
+	else:
+		_crate(g, 2.1 * s, g.d + 8.0, crate_hp(g.level), weapon)
 	var good := _gate("+", int(round(r)))
 	var meh := _gate("+", _meh(r, g))
 	# The better gate is on the far side from the crate.
@@ -603,6 +635,21 @@ static func _crate_chunk(g: Gen, weapon: String) -> void:
 	g.weapons += 1
 	g.e = a + r * 0.9
 	g.d += 24.0
+
+
+## RANK gate (§3.4): quality vs quantity - +1 Rank to a fielded machine, or soldiers now. With
+## nothing fielded the RANK gate turns into its fallback +N.
+static func _c_rank(g: Gen) -> void:
+	var s := _side(g)
+	var a := g.e
+	var r := want(g, g.d + 20.0)
+	var rank := _gate("rank", 1)
+	rank["fallback"] = {"op": "+", "value": int(round(r * 0.55)) + 2}
+	var plus := _gate("+", int(round(r * 0.9)) + 2)
+	_row(g, g.d + 14.0, [rank, plus] if s > 0 else [plus, rank])
+	_tile_line(g, 1.65 * s, 1.65 * s, g.d + 3.0, 5, 1.1)
+	g.e = a + r * 0.8
+	g.d += 20.0
 
 
 ## Rotor blade guarding a big recruit group; the free side has a few tiles.
@@ -1011,5 +1058,10 @@ static func _geode(g: Gen, x: float, d: float, hp: int, reward: String, amount: 
 	g.items.append({"kind": "geode", "x": x, "d": d, "value": hp, "reward": reward, "amount": amount})
 
 
-static func _crate(g: Gen, x: float, d: float, hp: int, weapon: String) -> void:
-	g.items.append({"kind": "crate", "x": x, "d": d, "value": hp, "weapon": weapon})
+static func _crate(g: Gen, x: float, d: float, hp: int, weapon: String, pair := 0) -> void:
+	var it := {"kind": "crate", "x": clampf(x, -3.0, 3.0), "d": d, "value": hp, "weapon": weapon,
+			"new": weapon != "deck" and weapon == ArsenalData.new_crate_at(g.level),
+			"bonus": int(round(hp * ArsenalData.CRATE_BONUS_HP)) if bool(ArsenalData.FEATURES["crate_bonus"]) else 0}
+	if pair > 0:
+		it["pair"] = pair
+	g.items.append(it)

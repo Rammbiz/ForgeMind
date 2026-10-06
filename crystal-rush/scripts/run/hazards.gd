@@ -124,9 +124,11 @@ func add(it: Dictionary) -> void:
 			(it["label"] as Label3D).text = str(int(it["value"]))
 			geodes.append(it)
 		"crate":
-			it["hp"] = float(it["value"])
-			it["hp0"] = float(it["value"])
-			var c := WeaponModels.crate(str(it.get("weapon", "ballista")), int(it["value"]))
+			# OPEN segment = value, then the gold BONUS segment (Run._prepare_crate sets "bonus").
+			var bonus := int(it.get("bonus", 0))
+			it["hp"] = float(it["value"]) + bonus
+			it["hp0"] = float(it["value"]) + bonus
+			var c := _crate_node(it)
 			c.position = at
 			add_child(c)
 			it["node"] = c
@@ -458,8 +460,9 @@ func on_hit(it: Dictionary, at: Vector3) -> void:
 	match kind:
 		"crate":
 			WeaponModels.crate_damage(node, ratio, 1.0)
+			_crate_label(it)
 			Audio.play("crate_hit", -9.0, 0.12)
-			run.effects.hit_spark(at, WeaponModels.icon_color(str(it.get("weapon", ""))))
+			run.effects.hit_spark(at, WeaponModels.icon_color(_crate_id(it)))
 		"geode":
 			_shake(node, 0.08)
 			run.effects.burst(at, Models.REWARD_COLORS.get(str(it.get("reward", "army")), Color.WHITE), 6, 2.6, 0.06, 0.35, -6.0)
@@ -498,7 +501,7 @@ func on_destroy(it: Dictionary) -> void:
 			Audio.play("geode_break", -3.0)
 			_pop(node)
 		"crate":
-			var wc := WeaponModels.icon_color(str(it.get("weapon", "")))
+			var wc := WeaponModels.glow_color(_crate_id(it)) if _crate_id(it) != "" else Color(0.85, 0.95, 1.0)
 			run.effects.loot_burst(at + Vector3(0, 0.4, 0), wc)
 			for k in 4:
 				run.fx.debris(at, [Color(0.93, 0.94, 0.98), Color(1.0, 0.76, 0.3), wc][k % 3], 2)
@@ -508,6 +511,160 @@ func on_destroy(it: Dictionary) -> void:
 			_free_squad(it)
 	if it.has("label") and is_instance_valid(it["label"]) and kind != "squad":
 		(it["label"] as Label3D).visible = false
+
+
+# ------------------------------------------------------------------ crates (arsenal §3.3)
+
+## The machine a crate holds ("" while unresolved).
+static func _crate_id(it: Dictionary) -> String:
+	var c := str(it.get("content", ""))
+	if c == "":
+		return ""
+	return str(CratePicker.parse(c)[0])
+
+
+## Crate model for its current state: a "?" steel crate until resolved, then the machine's
+## rarity shell and miniature; the platinum NEW crate from the start.
+func _crate_node(it: Dictionary) -> Node3D:
+	var id := _crate_id(it)
+	var is_new := bool(it.get("new", false))
+	var opts := {"new": is_new, "bonus": int(it.get("bonus", 0))}
+	if id != "" and ArsenalData.MACHINES.has(id):
+		opts["rarity"] = ArsenalData.rarity_of(id)
+	var open_hp := maxi(ceili(float(it.get("hp", it["value"])) - float(it.get("bonus", 0))), 0)
+	var c := WeaponModels.crate(id if id != "" else "deck", open_hp, opts)
+	if is_new:
+		c.scale = Vector3.ONE * 1.12
+	return c
+
+
+## Contents locked at CRATE_RESOLVE_D: the "?" crate turns into its machine's crate with a
+## flash (the NEW crate keeps its model).
+func resolve_crate(it: Dictionary) -> void:
+	if bool(it.get("new", false)):
+		return
+	var old := it.get("node") as Node3D
+	var c := _crate_node(it)
+	add_child(c)
+	if old:
+		c.position = old.position
+		old.queue_free()
+	else:
+		c.position = Vector3(float(it["x"]), 0.0, -float(it["d"]))
+	it["node"] = c
+	it["label"] = c.get_meta("label")
+	var col := WeaponModels.glow_color(_crate_id(it))
+	run.effects.flash(c.position + Vector3(0, 0.9, 0), col, 1.8, 0.3)
+	run.effects.burst(c.position + Vector3(0, 0.9, 0), col.lerp(Color.WHITE, 0.3), 16, 3.0, 0.06, 0.45, -3.0)
+	c.scale = Vector3.ONE * 0.7
+	var tw := c.create_tween()
+	tw.tween_property(c, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## The forecast badge above a resolved crate (live: "НОВА · Railgun", "Ballista II", "+10% ...").
+func style_crate(it: Dictionary, text: String) -> void:
+	var c := it.get("node") as Node3D
+	if c == null or not is_instance_valid(c):
+		return
+	var b: Label3D = c.get_meta("badge") if c.has_meta("badge") else null
+	if b == null:
+		b = Label3D.new()
+		b.name = "Badge"
+		b.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		b.font = UIKit.font(true)
+		b.font_size = 64
+		b.pixel_size = 0.0068
+		b.outline_size = 18
+		b.outline_modulate = Color(0.12, 0.06, 0.0)
+		b.modulate = Color(1.0, 0.86, 0.4)
+		b.no_depth_test = true
+		b.render_priority = 5
+		b.position = Vector3(0, 2.46, 0)
+		c.add_child(b)
+		c.set_meta("badge", b)
+	if bool(it.get("new", false)):
+		b.modulate = Color(0.92, 0.97, 1.0)
+		b.outline_modulate = Color(0.05, 0.1, 0.25)
+	b.text = text
+	var cl := it.get("label") as Label3D
+	if cl:
+		cl.position.y = 1.98
+
+
+## The OPEN segment emptied: the hp turns into the gold BONUS count and the ring glints.
+func crate_opened(it: Dictionary) -> void:
+	_crate_label(it)
+	var c := it.get("node") as Node3D
+	if c:
+		run.effects.flash(c.position + Vector3(0, 1.0, 0), Color(1.0, 0.82, 0.35), 1.4, 0.25)
+		_punch(it["label"] as Label3D)
+
+
+## Crate hp text: OPEN hp in white, then the BONUS hp in gold with the ring filling.
+func _crate_label(it: Dictionary) -> void:
+	var l := it.get("label") as Label3D
+	if l == null or not is_instance_valid(l):
+		return
+	var b := float(it.get("bonus", 0))
+	var hp := maxf(float(it.get("hp", 0.0)), 0.0)
+	var c := it.get("node") as Node3D
+	if hp > b + 0.001 or b <= 0.0:
+		l.text = str(ceili(hp - b))
+		l.modulate = Color(1.0, 0.96, 0.86)
+	else:
+		l.text = "%s %d" % [Loc.t("CRATE_BONUS"), ceili(hp)]
+		l.modulate = Color(1.0, 0.8, 0.3)
+		if c:
+			WeaponModels.crate_bonus(c, 1.0 - hp / maxf(b, 0.001))
+
+
+## The other crate of a pair after one was opened: folds, dims and sinks (0.2 s, gate grammar).
+func fold_crate(it: Dictionary) -> void:
+	var c := it.get("node") as Node3D
+	if c == null or not is_instance_valid(c):
+		return
+	if it.has("label") and is_instance_valid(it["label"]):
+		(it["label"] as Label3D).visible = false
+	if c.has_meta("badge"):
+		(c.get_meta("badge") as Label3D).visible = false
+	run.effects.burst(c.position + Vector3(0, 0.6, 0), Color(0.6, 0.62, 0.7), 10, 2.0, 0.06, 0.35, -5.0)
+	var tw := c.create_tween().set_parallel(true)
+	tw.tween_property(c, "scale", Vector3(0.75, 0.2, 0.75), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.tween_property(c, "position:y", -0.6, 0.35).set_delay(0.15)
+	tw.chain().tween_callback(c.queue_free)
+
+
+## A Staggered squad's formation recoils by `dz` (the units spring back to their places).
+func push_squad(it: Dictionary, dz: float) -> void:
+	if not it.has("sq"):
+		return
+	var sq: Squad = it["sq"]
+	for k in sq.shown:
+		var p := sq.pos[k]
+		p.z -= dz * (1.0 if k < sq.per_row * 2 else 0.5)
+		sq.pos[k] = p
+
+
+## RANK gate emblem: the machine's miniature in the gate's icon slot ("" restores the star).
+func gate_machine_icon(gate: Node3D, id: String) -> void:
+	if not gate.has_meta("icon"):
+		return
+	var icon_root := gate.get_meta("icon") as Node3D
+	var cur := str(gate.get_meta("rank_icon", ""))
+	if cur == id:
+		return
+	gate.set_meta("rank_icon", id)
+	if id == "":
+		return
+	for ch in icon_root.get_children():
+		ch.queue_free()
+	var mini := WeaponModels.machine(id, {"mini": true, "crew": false})
+	mini.scale = Vector3.ONE * (0.55 if id != "prism" else 0.35)
+	mini.position = Vector3(0, -0.28 if id != "prism" else -0.45, 0)
+	mini.rotation.y = PI * 0.15
+	icon_root.add_child(mini)
+	# gate_style() swaps the emblem only when its icon kind changes: keep "star" as its kind.
+	icon_root.set_meta("kind", "star")
 
 
 func _punch(l: Label3D) -> void:

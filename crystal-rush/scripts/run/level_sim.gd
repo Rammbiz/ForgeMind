@@ -38,8 +38,14 @@ class_name LevelSim
 ## - Fortress: the same ticks against its hp; with no army the hero has FINALE_TIME seconds.
 ##   Survivors then climb the stairs, paying each step's cost; coins = (victory_coins + collected)
 ##   x the multiplier of the last step reached.
-## - War machines target the nearest hostile ahead within their range and WEAPON_LATERAL of the
-##   hero x. Vs squads one shot kills damage * pierce + splash; vs structures it deals damage.
+## - War machines (Meta-1 arsenal) use the profile's machine abstractions (LevelSim.sim_row: kills
+##   per second vs squads, damage per second vs structures, range, verb): LANE machines (and the
+##   mortar's landing ring) work in the hero corridor, PAINT machines within WEAPON_LATERAL of the
+##   hero x; machines never hit crates or gates. The Prism adds its amp to the hero and to LANE
+##   machines. Crates (hero / ult only) hold the NEW machine, the run's resolved content, or a
+##   CratePicker draw from the profile deck (seeded per crate); OPEN hp then BONUS hp (+1 Rank),
+##   an open crate is taken at army contact; the first opened crate of a pair folds the other.
+##   RANK gates rank up the lowest fielded machine below III, else apply their fallback.
 ## - Army volleys (crossbows/blasters) hit the nearest squad ahead within range (blasters also
 ##   turrets, barricades and the fortress) for volley * army every period.
 ## - Ult points: soldiers gained (gate gains capped at 15 per gate) + enemies killed, not while the
@@ -73,6 +79,8 @@ class Level extends RefCounted:
 	var haz := PackedInt32Array()       ## barricades and blades (army crossing)
 	var tur := PackedInt32Array()
 	var block := PackedInt32Array()     ## squads and the fortress
+	var crates := PackedInt32Array()    ## crates (army contact opens an open crate)
+	var pairs := {}                     ## pair id -> PackedInt32Array of crate indices
 	var rows := {}                      ## row id -> PackedInt32Array of gate indices
 	var length := 100.0
 	var fortress := -1
@@ -103,7 +111,13 @@ class State extends RefCounted:
 	var tick := 0.0
 	var finale := 0.0
 	var foe := -1
-	var weapons: Array = []             ## [kind: String, level: int, cd: float]
+	var weapons: Array = []             ## [id: String, rank: int, timer: float, overflow copies: int]
+	var prof := {}                      ## id -> [sim row R1, R2, R3] (sim_row), shared
+	var deck: Array = []                ## profile deck (crate contents)
+	var levels := {}                    ## account level per machine (CratePicker)
+	var new_crate := ""                 ## the NEW crate machine of this level ("" = owned)
+	var hero_dmg := 1.0                 ## profile hero dmg_mult
+	var content := {}                   ## crate item index -> content id (resolved in the sim)
 	var arm := 0
 	var p_rate := 0.0
 	var p_dmg := 0
@@ -146,6 +160,8 @@ class State extends RefCounted:
 		s.weapons = []
 		for w: Array in weapons:
 			s.weapons.append(w.duplicate())
+		s.prof = prof; s.deck = deck; s.levels = levels; s.new_crate = new_crate; s.hero_dmg = hero_dmg
+		s.content = content.duplicate()
 		s.arm = arm; s.p_rate = p_rate; s.p_dmg = p_dmg; s.p_multi = p_multi; s.upgrade = upgrade
 		s.script_done = script_done; s.pk = pk; s.bk = bk; s.armed = armed.duplicate(); s.hz = hz
 		s.alive = alive.duplicate(); s.hp = hp.duplicate(); s.val = val.duplicate()
@@ -219,8 +235,15 @@ static func _index(lv: Level) -> void:
 			K.SQUAD:
 				lv.block.append(i)
 				lv.targ.append(i)
-			K.GEODE, K.CRATE:
+			K.GEODE:
 				lv.targ.append(i)
+			K.CRATE:
+				lv.targ.append(i)
+				lv.crates.append(i)
+				if it.has("pair"):
+					var pp: PackedInt32Array = lv.pairs.get(int(it["pair"]), PackedInt32Array())
+					pp.append(i)
+					lv.pairs[int(it["pair"])] = pp
 			K.FORTRESS:
 				lv.block.append(i)
 				lv.targ.append(i)
@@ -238,6 +261,10 @@ static func start_state(lv: Level, hero: String, army: int, opts := {}) -> State
 	var def: Dictionary = Balance.HEROES[hero]
 	s.hero_hp = float(def["hp"])
 	s.upgrade = int(opts.get("power", 0))
+	var prof: Dictionary = opts.get("profile", {})
+	if prof.is_empty():
+		prof = reference_profile(lv.level)
+	apply_profile(s, prof)
 	s.tracing = bool(opts.get("trace", false))
 	s.auto_ult = bool(opts.get("ult", true))
 	s.sample_every = float(opts.get("sample", 0.0))
@@ -251,16 +278,25 @@ static func start_state(lv: Level, hero: String, army: int, opts := {}) -> State
 	s.rev.resize(n)
 	for i in n:
 		var it := lv.items[i]
-		s.alive[i] = 1
-		s.hp[i] = float(it.get("value", 0))
-		s.val[i] = float(it.get("value", 0))
-		s.op[i] = str(it.get("op", ""))
-		s.rev[i] = 0 if it.get("hidden", false) else 1
-		if it.has("blink"):
-			var b: Dictionary = it["blink"]
-			s.op2[i] = str(b.get("op", "+"))
-			s.val2[i] = float(b.get("value", 0))
+		_init_item(lv, s, i)
 	return s
+
+
+## Fresh per-item state of item `i`.
+static func _init_item(lv: Level, s: State, i: int) -> void:
+	var it := lv.items[i]
+	s.alive[i] = 1
+	s.hp[i] = float(it.get("value", 0))
+	s.val[i] = float(it.get("value", 0))
+	s.op[i] = str(it.get("op", ""))
+	s.rev[i] = 0 if it.get("hidden", false) else 1
+	if lv.kind[i] == K.CRATE:
+		s.hp[i] += float(crate_bonus(it))
+		s.val[i] = 0.0
+	if it.has("blink"):
+		var b: Dictionary = it["blink"]
+		s.op2[i] = str(b.get("op", "+"))
+		s.val2[i] = float(b.get("value", 0))
 
 
 # ------------------------------------------------------------------ paths
@@ -305,7 +341,7 @@ static func advance(lv: Level, s: State, path: PackedFloat32Array, d_end: float,
 static func result(lv: Level, s: State) -> Dictionary:
 	var ws: Array = []
 	for w: Array in s.weapons:
-		ws.append({"kind": w[0], "level": w[1]})
+		ws.append({"kind": w[0], "level": w[1], "over": int(w[3]) if w.size() > 3 else 0})
 	return {
 		"won": s.mode == Mode.WON, "reason": s.reason, "army_at_fortress": int(round(maxf(s.army_at_fortress, 0.0))),
 		"survivors": s.survivors, "stairs_mult": s.stairs_mult, "coins": s.total_coins if s.mode == Mode.WON else s.coins,
@@ -331,6 +367,7 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 		s.hx = path_x(path, nd)
 		_picks(lv, s, nd)
 		s.d = nd
+		_crate_contact(lv, s)
 	s.ax += (s.hx - s.ax) * (1.0 - exp(-ARMY_FOLLOW * dt))
 	if lv.ult_ready_at >= 0.0 and not s.script_done and s.d >= lv.ult_ready_at:
 		s.script_done = true
@@ -528,7 +565,20 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 				_apply(lv, s, g, str(rw.get("op", "+")), float(rw.get("value", 0)))
 		"weapon":
 			var rw2: Dictionary = lv.items[g].get("reward", {})
-			add_weapon(s, str(rw2.get("weapon", lv.items[g].get("weapon", "ballista"))))
+			var wk := str(rw2.get("weapon", lv.items[g].get("weapon", "deck")))
+			if not ArsenalData.is_live(wk):
+				wk = CratePicker.parse(_pick(lv, s, g, ""))[0]
+			add_weapon(s, wk)
+		"rank":
+			var low := -1
+			for k in s.weapons.size():
+				if int(s.weapons[k][1]) < 3 and (low < 0 or int(s.weapons[k][1]) < int(s.weapons[low][1])):
+					low = k
+			if low < 0:
+				var fb: Dictionary = lv.items[g].get("fallback", {"op": "+", "value": 10})
+				_apply(lv, s, g, str(fb.get("op", "+")), float(fb.get("value", 10)))
+			else:
+				s.weapons[low][1] = int(s.weapons[low][1]) + 1
 		"ult":
 			s.ult = float((Balance.HEROES[s.hero]["ult"] as Dictionary)["charge"])
 
@@ -545,21 +595,93 @@ static func _charge(s: State, points: float) -> void:
 	s.ult = minf(s.ult + maxf(points, 0.0), cap)
 
 
-## Adds a war machine: a duplicate levels its kind up; a new kind with every slot taken levels
-## up the lowest machine instead.
-static func add_weapon(s: State, kind: String) -> void:
+## Adds a war machine (a crate / reward of `kind`): a fielded one ranks up (`steps` Ranks, past
+## III it becomes overflow), a new one is fielded at Rank `steps`; with every slot taken the
+## lowest machine ranks up instead (Weapons.grant).
+static func add_weapon(s: State, kind: String, steps := 1) -> void:
 	for w: Array in s.weapons:
 		if str(w[0]) == kind:
-			w[1] = mini(int(w[1]) + 1, Balance.WEAPON_LEVEL_MULT.size())
+			var r := int(w[1]) + steps
+			if r > 3:
+				w[3] = int(w[3]) + r - 3
+			w[1] = mini(r, 3)
 			return
-	if s.weapons.size() < Balance.MAX_WEAPONS:
-		s.weapons.append([kind, 1, 0.0])
+	if s.weapons.size() < ArsenalData.MAX_FIELDED:
+		s.weapons.append([kind, mini(steps, 3), 0.0, 0])
 		return
 	var low: Array = s.weapons[0]
 	for w2: Array in s.weapons:
 		if int(w2[1]) < int(low[1]):
 			low = w2
-	low[1] = mini(int(low[1]) + 1, Balance.WEAPON_LEVEL_MULT.size())
+	low[1] = mini(int(low[1]) + 1, 3)
+
+
+## BONUS hp of a crate item (0.6 x its OPEN value).
+static func crate_bonus(it: Dictionary) -> int:
+	if not bool(ArsenalData.FEATURES["crate_bonus"]):
+		return 0
+	if it.has("bonus"):
+		return int(it["bonus"])
+	return int(round(float(it.get("value", 0)) * ArsenalData.CRATE_BONUS_HP))
+
+
+## The content of crate `i`: the run's resolved content, the NEW machine, or a seeded
+## CratePicker draw from the profile deck (pairs exclude the partner's content).
+static func _pick(lv: Level, s: State, i: int, exclude: String) -> String:
+	if s.content.has(i):
+		return str(s.content[i])
+	var it := lv.items[i]
+	var c := str(it.get("content", ""))
+	if c == "" and bool(it.get("new", false)) and str(it.get("weapon", "")) == s.new_crate and s.new_crate != "":
+		c = s.new_crate
+	if c == "":
+		var fl := {}
+		for w: Array in s.weapons:
+			fl[str(w[0])] = int(w[1])
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 7919 * lv.level + 104729 + int(lv.d[i] * 10.0) * 31 + int((lv.x[i] + 4.0) * 10.0)
+		var deck: Array = s.deck if not s.deck.is_empty() else ["drone"]
+		c = CratePicker.pick(deck, fl, s.levels, rng, exclude)
+	s.content[i] = c
+	return c
+
+
+## Opens crate `i` (bonus: through the BONUS segment, +1 Rank).
+static func _open_crate(lv: Level, s: State, i: int, bonus: bool) -> void:
+	s.alive[i] = 0
+	var ex := ""
+	var it := lv.items[i]
+	if it.has("pair"):
+		for j in lv.pairs.get(int(it["pair"]), PackedInt32Array()):
+			if j != i and s.content.has(j):
+				ex = str(s.content[j])
+	var p := CratePicker.parse(_pick(lv, s, i, ex))
+	if bool(p[1]):
+		for w: Array in s.weapons:
+			if str(w[0]) == str(p[0]):
+				w[3] = int(w[3]) + 1
+	else:
+		add_weapon(s, str(p[0]), 2 if bonus else 1)
+	_fold_pair(lv, s, i)
+	_log(s, "crate -> %s%s" % [str(p[0]), " +bonus" if bonus else ""])
+
+
+static func _fold_pair(lv: Level, s: State, i: int) -> void:
+	var it := lv.items[i]
+	if not it.has("pair"):
+		return
+	for j in lv.pairs.get(int(it["pair"]), PackedInt32Array()):
+		if j != i:
+			s.alive[j] = 0
+
+
+## Open crates (OPEN segment emptied) are taken when the hero reaches them.
+static func _crate_contact(lv: Level, s: State) -> void:
+	for i in lv.crates:
+		if lv.d[i] > s.d + 0.5:
+			break
+		if s.alive[i] == 1 and s.val[i] < 0.0 and s.d >= lv.d[i] - 0.3:
+			_open_crate(lv, s, i, false)
 
 
 # ------------------------------------------------------------------ shooting
@@ -569,8 +691,8 @@ static func hero_rate(s: State) -> float:
 	return float(def["rate"]) * Balance.power_mult(s.upgrade) * (1.0 + s.p_rate)
 
 
-static func hero_damage(s: State) -> int:
-	return int(Balance.HEROES[s.hero]["damage"]) + s.p_dmg
+static func hero_damage(s: State) -> float:
+	return float(int(Balance.HEROES[s.hero]["damage"]) + s.p_dmg) * s.hero_dmg * (1.0 + prism_amp(s))
 
 
 static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> void:
@@ -593,13 +715,13 @@ static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> voi
 		if lv.kind[i] == K.GATE:
 			_hit_gate(lv, s, i, float(dmg))
 		elif lv.kind[i] == K.SQUAD:
-			_hurt(lv, s, i, float(dmg + int(def["splash"])))
+			_hurt(lv, s, i, dmg + float(def["splash"]))
 		else:
 			_hurt(lv, s, i, float(dmg))
 
 
 ## Up to `count` live targets ahead, nearest first, whose span is within `lateral` of x.
-static func _targets(lv: Level, s: State, x: float, lateral: float, reach: float, count: int, gates: bool) -> Array[int]:
+static func _targets(lv: Level, s: State, x: float, lateral: float, reach: float, count: int, gates: bool, crates := true) -> Array[int]:
 	var out: Array[int] = []
 	var near := s.d - 0.5
 	var far := s.d + reach
@@ -621,6 +743,8 @@ static func _targets(lv: Level, s: State, x: float, lateral: float, reach: float
 				continue
 			if absf(gate_x(lv, i, s.t) - x) > lateral + lv.hw[i]:
 				continue
+		elif k == K.CRATE and not crates:
+			continue
 		elif absf(lv.x[i] - x) > lateral + lv.hw[i]:
 			continue
 		out.append(i)
@@ -682,6 +806,10 @@ static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
 	if k == K.SQUAD:
 		s.kills += dealt
 		_charge(s, dealt)
+	elif k == K.CRATE and s.val[i] >= 0.0 and s.hp[i] <= float(crate_bonus(lv.items[i])) + 0.001:
+		# OPEN emptied: the crate is open (its pair partner folds), the BONUS ring fills.
+		s.val[i] = -1.0
+		_fold_pair(lv, s, i)
 	if s.hp[i] > 0.001:
 		return
 	s.hp[i] = 0.0
@@ -689,8 +817,8 @@ static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
 	var it := lv.items[i]
 	match k:
 		K.CRATE:
-			add_weapon(s, str(it.get("weapon", "ballista")))
-			_log(s, "crate -> %s" % str(it.get("weapon", "")))
+			s.alive[i] = 1
+			_open_crate(lv, s, i, crate_bonus(it) > 0)
 		K.GEODE:
 			var amount := float(it.get("amount", 0))
 			match str(it.get("reward", "army")):
@@ -705,39 +833,263 @@ static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
 			_win(lv, s)
 
 
-static func weapon_dps(kind: String, level: int, crowd: bool) -> float:
-	var w: Dictionary = Balance.WEAPONS[kind]
-	var mult: float = Balance.WEAPON_LEVEL_MULT[clampi(level - 1, 0, Balance.WEAPON_LEVEL_MULT.size() - 1)]
-	match kind:
-		"laser":
-			return float(w["dps_crowd" if crowd else "dps"]) * mult
-		"rockets":
-			return float(w["damage"]) * float(w["volley"]) / float(w["period"]) * mult
-	var per := float(w["damage"])
-	if crowd:
-		per = per * float(w.get("pierce", 1)) + float(w.get("splash", 0))
-	return per * float(w["rate"]) * mult
+## Sim row of fielded machine `w` ([id, rank, timer, overflow]).
+static func machine_row(s: State, w: Array) -> Dictionary:
+	var id := str(w[0])
+	var rows: Array = s.prof.get(id, [])
+	if rows.is_empty():
+		rows = _rows_for(entry(id, int(EconData.START_LEVEL[ArsenalData.rarity_of(id)])))
+		s.prof[id] = rows
+	return rows[clampi(int(w[1]), 1, 3) - 1]
+
+
+## Kills per second of a fielded machine vs a crowd (planning worth; etap1 name kept).
+static func weapon_dps(s: State, w: Array) -> float:
+	var row := machine_row(s, w)
+	var over := 0.0
+	for k in int(w[3]) if w.size() > 3 else 0:
+		over += ArsenalData.overflow_bonus(k + 1)
+	return float(row["crowd"]) * (1.0 + over)
+
+
+## The Prism's amp while it is fielded (hero shots and LANE machines).
+static func prism_amp(s: State) -> float:
+	for w: Array in s.weapons:
+		if str(w[0]) == "prism":
+			return float(machine_row(s, w)["amp"])
+	return 0.0
+
+
+const MACHINE_TICK := 0.25
 
 
 static func _machines(lv: Level, s: State, dt: float) -> void:
+	var amp := prism_amp(s)
 	for w: Array in s.weapons:
-		var kind := str(w[0])
-		var spec: Dictionary = Balance.WEAPONS[kind]
-		w[2] = float(w[2]) - dt
-		if kind != "laser" and float(w[2]) > 0.0:
+		w[2] = float(w[2]) + dt
+		if float(w[2]) < MACHINE_TICK:
 			continue
-		var tg := _targets(lv, s, s.hx, Balance.WEAPON_LATERAL, float(spec["range"]), 1, false)
+		var row := machine_row(s, w)
+		var lane := bool(row["lane"])
+		var lateral := Balance.CORRIDOR if lane else Balance.WEAPON_LATERAL
+		if float(row["place"]) > 0.0:
+			lateral = float(row["radius"])
+		var tg := _targets(lv, s, s.hx, lateral, float(row["range"]) + float(row["radius"]), 1, false, false)
 		if tg.is_empty():
-			w[2] = maxf(float(w[2]), 0.0)
+			w[2] = MACHINE_TICK
 			continue
+		var tick := float(w[2])
+		w[2] = 0.0
 		var i: int = tg[0]
-		var crowd := lv.kind[i] == K.SQUAD
-		if kind == "laser":
-			_hurt(lv, s, i, weapon_dps(kind, int(w[1]), crowd) * dt)
+		if float(row["place"]) > 0.0 and lv.d[i] < s.d + float(row["place"]) * 0.5:
 			continue
-		var period := float(spec["period"]) if kind == "rockets" else 1.0 / float(spec["rate"])
-		w[2] = float(w[2]) + period
-		_hurt(lv, s, i, weapon_dps(kind, int(w[1]), crowd) * period)
+		var over := 0.0
+		for k in int(w[3]) if w.size() > 3 else 0:
+			over += ArsenalData.overflow_bonus(k + 1)
+		var mult := (1.0 + over) * (1.0 + (amp if lane and str(w[0]) != "prism" else 0.0))
+		if lv.kind[i] == K.SQUAD:
+			_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
+		else:
+			_hurt(lv, s, i, float(row["struct"]) * tick * mult)
+
+
+# ------------------------------------------------------------------ machine profiles (pure)
+
+## A run-profile machine entry for `id` at account level `lvl` (the shape of
+## Meta.run_profile().machines[id]: machine_stats + by_rank + lead + live).
+static func entry(id: String, lvl: int, talents: Array = [], branch := "") -> Dictionary:
+	var e := ArsenalData.machine_stats(id, lvl, 1, talents, branch)
+	var by_rank: Array = []
+	for r in 3:
+		by_rank.append(ArsenalData.machine_stats(id, lvl, r + 1, talents, branch)["stats"])
+	e["by_rank"] = by_rank
+	e["finish"] = 0
+	e["lead"] = false
+	e["live"] = ArsenalData.is_live(id)
+	return e
+
+
+## A run profile (Meta.run_profile shape, the parts the run arsenal and LevelSim read) built from
+## an account dictionary without the Meta autoload: deck, lead, machines, owned, new_crate,
+## inrun, hero, army, assist. level_check / LevelGen / the bot use it with synthetic accounts.
+static func profile_from_account(acc: Dictionary, level: int, kind := "account") -> Dictionary:
+	var d := Arsenal.deck(acc)
+	var machines := {}
+	var ld := Arsenal.lead(acc)
+	for id in d:
+		var st: Dictionary = MetaAcc.machines(acc).get(id, {})
+		var e := entry(id, int(st.get("lvl", EconData.START_LEVEL[ArsenalData.rarity_of(id)])), st.get("talents", []), str(st.get("branch", "")))
+		e["lead"] = id == ld
+		machines[id] = e
+	var owned := Arsenal.owned_ids(acc)
+	var nc := ArsenalData.new_crate_at(level)
+	var boss := ArsenalData.is_boss(level)
+	var hero_id := str((acc.get("progress", {}) as Dictionary).get("hero", "bolt"))
+	return {
+		"level": level, "world": ArsenalData.world_of(level), "boss": boss, "profile": kind, "run_id": 0,
+		"deck": d, "lead": ld, "machines": machines, "owned": owned,
+		"new_crate": nc if nc != "" and not owned.has(nc) else "",
+		"inrun": {"crates": ArsenalData.crate_events(level, boss), "rank_gates": ArsenalData.rank_gates(level),
+				"pairs": ArsenalData.pairs_on(level), "crate_bonus": bool(ArsenalData.FEATURES["crate_bonus"])},
+		"hero": HeroesMeta.profile(acc, hero_id),
+		"army": Barracks.profile(acc),
+		"assist": EconData.assist(0),
+		"tactics": {"crate_bonus_mult": 1.0}, "features": ArsenalData.FEATURES,
+		"levels": levels_of(acc),
+	}
+
+
+## Account level of every owned machine {id: lvl} (CratePicker LEVEL_W).
+static func levels_of(acc: Dictionary) -> Dictionary:
+	var out := {}
+	var ms: Dictionary = MetaAcc.machines(acc)
+	for id: String in ms:
+		out[id] = int((ms[id] as Dictionary).get("lvl", 1))
+	return out
+
+
+const SIM_LASER_RAMP := 1.6         ## mean laser ramp on a crowd
+const SIM_GATLING_SPIN := 0.85      ## mean gatling spin
+
+
+## LevelSim abstraction of one machine at one Rank: kills per second vs squads (`crowd`),
+## damage per second vs structures (`struct`), `range`, verb flags (`lane`: fires down the hero
+## corridor; `place`: lands `place` u ahead within `radius`), `amp` (Prism) and `burn` (units/s
+## while the source keeps a squad burning). Matches the Run behaviours above on average.
+static func sim_row(id: String, s: Dictionary, add: float, mods: Dictionary = {}) -> Dictionary:
+	var b2 := 1.0 + add
+	var dmg := float(s.get("damage", 0.0))
+	var row := {"id": id, "crowd": 0.0, "struct": 0.0, "range": float(s.get("range", 10.0)), "lane": false,
+			"place": 0.0, "radius": 0.0, "amp": 0.0}
+	match id:
+		"drone":
+			var n := float(s.get("drones", 1)) * float(s.get("rate", 2.0))
+			row["crowd"] = dmg * float(s.get("pierce", 1)) * n
+			row["struct"] = dmg * n
+		"ballista":
+			var n2 := float(s.get("rate", 0.9)) * float(s.get("bolts", 1))
+			row["crowd"] = dmg * float(s.get("pierce", 2)) * n2
+			row["struct"] = dmg * n2
+			row["lane"] = true
+		"cannon":
+			var rate := float(s.get("rate", 0.6))
+			row["crowd"] = (dmg + float(s.get("splash", 0)) + float(s.get("radius", 1.2)) * 0.5 + float(s.get("split", 0)) * dmg * 0.5) * rate
+			row["struct"] = dmg * rate
+			row["burn"] = 1.0 + float(mods.get("burn_units_add", 0.0))
+		"rockets":
+			var per := float(s.get("volley", 4)) / maxf(float(s.get("period", 2.5)), 0.1)
+			row["crowd"] = (dmg + float(s.get("bomblets", 0)) * float(s.get("bomblet_damage", 0.0))) * per
+			row["struct"] = dmg * float(s.get("structures", 1.0)) * per
+		"mortar":
+			var per2 := 1.0 / maxf(float(s.get("period", 2.2)), 0.1)
+			row["crowd"] = (dmg + float(s.get("radius", 1.6)) * 2.0 + float(s.get("bomblets", 0)) * float(s.get("bomblet_damage", 0.0))) * per2
+			row["struct"] = dmg * per2
+			row["place"] = 12.0
+			row["radius"] = float(s.get("radius", 1.6))
+		"gatling":
+			var r2 := float(s.get("rate", 6.0)) * SIM_GATLING_SPIN
+			row["crowd"] = dmg * (1.0 + 0.5 * float(s.get("ricochet", 1))) * r2
+			row["struct"] = dmg * r2
+		"laser":
+			row["crowd"] = float(s.get("dps_crowd", 3.0)) * SIM_LASER_RAMP * (1.0 if int(s.get("pierce", 1)) <= 1 else 1.4)
+			row["struct"] = float(s.get("dps", 6.0)) * minf(SIM_LASER_RAMP + 0.4, float(s.get("ramp_cap", 2.5)))
+			row["lane"] = true
+		"railgun":
+			var cyc := 1.0 / (float(s.get("charge", 3.0)) + float(s.get("telegraph", 0.4)))
+			row["crowd"] = dmg * cyc
+			row["struct"] = dmg * float(s.get("structures", 2.0)) * cyc
+			row["lane"] = true
+		"prism":
+			row["crowd"] = float(s.get("ray_damage", 1.0)) * float(s.get("ray_rate", 1.0))
+			row["struct"] = row["crowd"]
+			row["lane"] = true
+			row["amp"] = float(s.get("amp", 0.2))
+		_:
+			var sim: Dictionary = (ArsenalData.MACHINES.get(id, {}) as Dictionary).get("sim", {})
+			row["crowd"] = float(sim.get("dps", 0.0))
+			row["struct"] = float(sim.get("dps", 0.0)) * float(sim.get("structure_mult", 1.0))
+	row["crowd"] = float(row["crowd"]) * b2
+	row["struct"] = float(row["struct"]) * b2
+	return row
+
+
+# ------------------------------------------------------------------ profiles
+
+## Applies a run profile (Meta.run_profile / profile_from_account shape) to a state:
+## machine rows, deck, levels, the NEW crate, hero multipliers, the Lead fielded at Rank I and
+## Reinforcements soldiers.
+static func apply_profile(s: State, prof: Dictionary) -> void:
+	s.prof = sim_profile(prof)
+	s.deck = prof.get("deck", [])
+	s.levels = prof.get("levels", {})
+	if s.levels.is_empty():
+		for id: String in prof.get("machines", {}):
+			s.levels[id] = int(((prof["machines"] as Dictionary)[id] as Dictionary).get("lvl", 1))
+	s.new_crate = str(prof.get("new_crate", ""))
+	var hero: Dictionary = prof.get("hero", {})
+	s.hero_dmg = float(hero.get("dmg_mult", 1.0))
+	s.hero_hp *= float(hero.get("hp_mult", 1.0))
+	var ld := str(prof.get("lead", ""))
+	if ld != "" and s.weapons.is_empty():
+		s.weapons.append([ld, 1, 0.0, 0])
+	var assist: Dictionary = prof.get("assist", {})
+	s.army += float(assist.get("soldiers", 0))
+	s.peak = s.army
+
+
+## id -> [row R1, R2, R3] for every machine of a profile.
+static func sim_profile(prof: Dictionary) -> Dictionary:
+	var out := {}
+	var ms: Dictionary = prof.get("machines", {})
+	for id: String in ms:
+		out[id] = _rows_for(ms[id])
+	return out
+
+
+static func _rows_for(e: Dictionary) -> Array:
+	var rows: Array = []
+	var by: Array = e.get("by_rank", [])
+	for r in 3:
+		var st: Dictionary = by[r] if r < by.size() else e.get("stats", {})
+		rows.append(sim_row(str(e["id"]), st, float(e.get("add", 0.0)), e.get("mods", {})))
+	return rows
+
+
+static var _ref_cache := {}
+
+
+## The reference (FRESH) profile of campaign level `level`, built from ArsenalData alone: the
+## machines the NEW crates before `level` gave at their rarity start levels, the automatic deck
+## (strongest first; 5 before the Deck unlock at L11, then 3), no Lead, hero Lv1. LevelGen's
+## reference players use it, so levels never depend on an account.
+static func reference_profile(level: int) -> Dictionary:
+	if _ref_cache.has(level):
+		return _ref_cache[level]
+	var owned: Array[String] = []
+	for id in ArsenalData.live_ids():
+		var at := ArsenalData.new_crate_level(id)
+		if id in ArsenalData.START_OWNED or (at > 0 and at < level):
+			owned.append(id)
+	owned.sort_custom(func(a: String, b: String) -> bool:
+		var ra := ArsenalData.rarity_index(ArsenalData.rarity_of(a))
+		var rb := ArsenalData.rarity_index(ArsenalData.rarity_of(b))
+		if ra != rb:
+			return ra > rb
+		return ArsenalData.ORDER.find(a) < ArsenalData.ORDER.find(b))
+	var deck := owned.slice(0, 5 if level <= 10 else ArsenalData.FEATURES["deck_slots_max"])
+	var machines := {}
+	var levels := {}
+	for id2 in owned:
+		var lv := int(EconData.START_LEVEL[ArsenalData.rarity_of(id2)])
+		levels[id2] = lv
+		if deck.has(id2):
+			machines[id2] = entry(id2, lv)
+	var nc := ArsenalData.new_crate_at(level)
+	var prof := {"level": level, "profile": "reference", "deck": deck, "lead": "", "machines": machines,
+			"levels": levels, "owned": owned, "new_crate": nc if nc != "" and not owned.has(nc) else "",
+			"hero": {"dmg_mult": 1.0, "hp_mult": 1.0}, "assist": {"soldiers": 0, "dmg_add": 0.0}}
+	_ref_cache[level] = prof
+	return prof
 
 
 static func _volleys(lv: Level, s: State, dt: float) -> void:
@@ -1127,12 +1479,12 @@ static func value(lv: Level, s: State) -> float:
 	var left := maxf(lv.length - s.d, 0.0) / Balance.RUN_SPEED
 	var v := s.army
 	for w: Array in s.weapons:
-		v += weapon_dps(str(w[0]), int(w[1]), true) * left * 0.22
+		v += weapon_dps(s, w) * left * 0.22
 	if s.arm > 0:
 		var tier: Dictionary = Balance.ARM_TIERS[s.arm]
 		v += s.army * float(tier["volley"]) / float(tier["period"]) * left * 0.1
 	var def: Dictionary = Balance.HEROES[s.hero]
-	var hero_dps := hero_rate(s) * float(hero_damage(s) + int(def["splash"])) * (1 + s.p_multi)
+	var hero_dps := hero_rate(s) * (hero_damage(s) + float(def["splash"])) * (1 + s.p_multi)
 	# The hero's fire also pumps gates and opens crates, so it is worth more than its kills.
 	v += hero_dps * left * 0.3
 	v += s.coins * 0.15 + s.ult * 0.25
@@ -1278,6 +1630,8 @@ static func reindex(lv: Level) -> void:
 	lv.haz = PackedInt32Array()
 	lv.tur = PackedInt32Array()
 	lv.block = PackedInt32Array()
+	lv.crates = PackedInt32Array()
+	lv.pairs = {}
 	lv.rows = {}
 	lv.fortress = -1
 	_index(lv)
@@ -1295,16 +1649,7 @@ static func grow_state(lv: Level, s: State) -> void:
 	s.op2.resize(n)
 	s.rev.resize(n)
 	for i in range(old, n):
-		var it := lv.items[i]
-		s.alive[i] = 1
-		s.hp[i] = float(it.get("value", 0))
-		s.val[i] = float(it.get("value", 0))
-		s.op[i] = str(it.get("op", ""))
-		s.rev[i] = 0 if it.get("hidden", false) else 1
-		if it.has("blink"):
-			var b: Dictionary = it["blink"]
-			s.op2[i] = str(b.get("op", "+"))
-			s.val2[i] = float(b.get("value", 0))
+		_init_item(lv, s, i)
 
 
 ## Builds a Level from item dictionaries that are already in d order (e.g. a window of a live

@@ -168,7 +168,11 @@ func snapshot(run: Object, fog := true) -> Array:
 	var length := float(run.get("length")) if run.get("length") != null else d + 200.0
 	var lv := LevelSim.level_from_items(view, int(run.get("level")), length)
 	var hero := str(run.get("hero_type"))
-	var s := LevelSim.start_state(lv, hero, int(run.get("army")), {"power": power_level})
+	var prof: Variant = run.get("profile")
+	var s := LevelSim.start_state(lv, hero, int(run.get("army")), {"power": power_level, "profile": prof if prof is Dictionary else {}})
+	# The live army / machines replace what the profile would start with.
+	s.army = float(int(run.get("army")))
+	s.weapons.clear()
 	s.d = d
 	s.t = t
 	s.hx = float(run.get("hx"))
@@ -181,7 +185,7 @@ func snapshot(run: Object, fog := true) -> Array:
 	s.p_dmg = int(pw.get("dmg", 0))
 	s.p_multi = int(pw.get("multi", 0))
 	for w: Dictionary in run.get("weapons"):
-		s.weapons.append([str(w["kind"]), int(w["level"]), 0.0])
+		s.weapons.append([str(w.get("id", w["kind"])), int(w.get("rank", w["level"])), 0.0, int(w.get("over", 0))])
 	var up: Variant = run.get("ult_points")
 	if up != null:
 		s.ult = float(up)
@@ -192,6 +196,10 @@ func snapshot(run: Object, fog := true) -> Array:
 		s.alive[i] = 1 if bool(it.get("alive", true)) else 0
 		if it.has("hp"):
 			s.hp[i] = float(it["hp"])
+		if str(it["kind"]) == "crate" and str(it.get("content", "")) != "":
+			s.content[i] = str(it["content"])
+			if bool(it.get("opened", false)):
+				s.val[i] = -1.0
 		if str(it["kind"]) == "gate":
 			var hidden := bool(it.get("hidden", false)) and not bool(it.get("revealed", false))
 			s.rev[i] = 0 if hidden else 1

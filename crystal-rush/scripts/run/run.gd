@@ -22,6 +22,8 @@ signal hint(key: String)                                 ## tutorial banner; "" 
 signal weapon_added(kind: String, level: int)
 signal power_changed(stat: String, total: float)         ## "rate" | "dmg" | "multi" | "arm"
 signal stairs_done(mult: float)
+signal crate_resolved(item: Dictionary)                  ## a crate / RANK gate locked its contents (30 u ahead)
+signal rank_changed(id: String, rank: int)               ## a fielded machine changed Rank (or overflow)
 
 enum State { READY, RUNNING, CLASH, SIEGE, STAIRS, WON, LOST }
 
@@ -88,6 +90,14 @@ var power := {"rate": 0.0, "dmg": 0, "multi": 0}
 var stairs_mult := 1.0
 var result := {}
 var world: Dictionary
+## The account as the run reads it (Meta.run_profile, built once in setup(); §6.4).
+var profile: Dictionary = {}
+## The hero's painted target (PAINT machines lock onto it; refreshed by every hero hit).
+var painted: Dictionary = {}
+## A NEW crate opened this run ("" = none): the machine unlocks even on a loss.
+var new_unlock := ""
+## Run statistics with the fixed keys of EconData.STATS_KEYS (design §9.4).
+var stats: Dictionary = {}
 
 # Extra state the bot / autotest / HUD read.
 var t := 0.0                    ## seconds since start() (clash time included)
@@ -178,6 +188,14 @@ var _look_vel := Vector3.ZERO
 var _fov := 60.0
 var _fov_base := 60.0
 var _cam_ready := false
+var _paint_t := 0.0
+var _resolve: Array[Dictionary] = []     # crates and RANK gates, by d: contents lock at CRATE_RESOLVE_D
+var _rk := 0
+var _crates: Array[Dictionary] = []
+var _pairs := {}                         # pair id -> [crate items]
+var _pick_rng := RandomNumberGenerator.new()
+var _siege_t := 0.0
+var _ult_uses := 0
 
 
 func setup(p_level: int, p_hero: String) -> void:
@@ -185,9 +203,64 @@ func setup(p_level: int, p_hero: String) -> void:
 	hero_type = p_hero
 	def = Balance.HEROES[hero_type]
 	ult = def["ult"]
-	army = Balance.start_army(int(Save.upgrades["army"]))
-	hero_hp = int(def["hp"])
 	world = Worlds.for_level(level)
+	profile = _load_profile(level)
+	_pick_rng.seed = 7919 * level + 31 * int(profile.get("run_id", 0)) + 17
+	# Levels and the start army ignore account power (§6.4); Reinforcements add soldiers.
+	army = Balance.START_ARMY + int((profile.get("assist", {}) as Dictionary).get("soldiers", 0))
+	hero_hp = int(round(float(def["hp"]) * hero_mult("hp_mult")))
+	stats = _fresh_stats()
+
+
+## Meta.run_profile(level) (the account), or a synthetic fresh profile when Meta is missing.
+func _load_profile(lvl: int) -> Dictionary:
+	var meta := _meta()
+	if meta and meta.has_method("run_profile"):
+		return meta.call("run_profile", lvl)
+	return LevelSim.reference_profile(lvl)
+
+
+## The account dictionary behind the profile (Arsenal Sync levels), {} without Meta.
+func account() -> Dictionary:
+	var meta := _meta()
+	if meta:
+		var acc: Variant = meta.get("account")
+		if acc is Dictionary:
+			return acc
+	return {}
+
+
+## The Meta autoload (setup() runs before the run enters the tree).
+static func _meta() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	return tree.root.get_node_or_null("Meta") if tree else null
+
+
+## A hero multiplier of the profile (dmg_mult, hp_mult, ult_rate_mult): RunHero.mult(key) when
+## the hero implements it (WS2b), else the profile's hero block.
+func hero_mult(key: String) -> float:
+	if hero and hero.has_method("mult"):
+		return float(hero.call("mult", key))
+	return float((profile.get("hero", {}) as Dictionary).get(key, 1.0))
+
+
+## Army volley multiplier (Barracks "volleys"): Army.volley_mult() when present, else the profile.
+func volley_mult() -> float:
+	if army_view and army_view.has_method("volley_mult"):
+		return float(army_view.call("volley_mult"))
+	return float((profile.get("army", {}) as Dictionary).get("volley_mult", 1.0))
+
+
+static func _fresh_stats() -> Dictionary:
+	var st := {}
+	for k: String in EconData.STATS_KEYS:
+		st[k] = 0
+	for k2 in ["kills_by_machine", "kills_by_family", "gates_by_op", "statuses", "reactions", "wins_with_lead"]:
+		st[k2] = {}
+	st["evolutions_ids"] = []
+	st["fusions_ids"] = []
+	st["stairs_mult"] = 0.0
+	return st
 
 
 func _ready() -> void:
@@ -235,6 +308,12 @@ func _ready() -> void:
 	arsenal = Weapons.new()
 	add_child(arsenal)
 	arsenal.setup(self)
+	arsenal.ranked.connect(_on_ranked)
+	# The Lead (deck slot 1, Lv5+) rolls with the army from the start at Rank I (§3.1).
+	var lead := str(profile.get("lead", ""))
+	if lead != "" and ArsenalData.is_live(lead) and bool(ArsenalData.FEATURES["lead"]):
+		arsenal.field(lead, 1, Vector3.INF, true)
+		weapons = arsenal.summary()
 	_army_label = Models.label(str(army), 110, ARMY_LABEL_COLOR, true)
 	_army_label.outline_modulate = Color(0.04, 0.14, 0.42)
 	_army_label.outline_size = 26
@@ -304,6 +383,8 @@ func _spawn_items(list: Array) -> void:
 			"gate":
 				_build_gate(it)
 			"barricade", "blade", "turret", "geode", "crate", "squad":
+				if kind == "crate":
+					_prepare_crate(it)
 				hazards.add(it)
 				if kind == "squad":
 					_block.append(it)
@@ -332,6 +413,7 @@ func _spawn_items(list: Array) -> void:
 				it["node"] = s
 				_stairs = it
 		items.append(it)
+	_resolve.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
 	_build_tiles()
 	_build_coins()
 	_recruit_view = CrowdView.new()
@@ -367,6 +449,9 @@ func _build_gate(it: Dictionary) -> void:
 	it["node"] = node
 	it["label"] = node.get_meta("label")
 	_gates.append(it)
+	if str(it["op"]) == "rank":
+		it["rank_id"] = ""
+		_resolve.append(it)
 	var row := int(it.get("row", items.size()))
 	if not _rows.has(row):
 		_rows[row] = []
@@ -575,8 +660,13 @@ func _after_move(dt: float) -> void:
 		ult_points = float(ult["charge"])
 		_emit_ult()
 	_reveal()
+	_resolve_ahead()
+	_paint_t -= dt
+	if _paint_t <= 0.0 or (not painted.is_empty() and not painted.get("alive", false)):
+		painted = {}
 	_hero_attack(dt)
 	arsenal.step(dt)
+	_crate_contact()
 	_ult_step(dt)
 	_vault_check()
 
@@ -660,6 +750,7 @@ func _emit_hints() -> void:
 func _take_tile(it: Dictionary) -> void:
 	_tiles.multimesh.set_instance_transform(int(it["idx"]), Transform3D(Basis.from_scale(Vector3.ONE * 0.001), Vector3(0, -10, 0)))
 	var at := Vector3(float(it["x"]), 0.15, -float(it["d"]))
+	stats["tiles"] = int(stats["tiles"]) + 1
 	_change_army(1, at, Vector3(0.1, 0.0, 0.1))
 	_charge(1.0)
 	var now := Time.get_ticks_msec()
@@ -684,6 +775,7 @@ func _take_recruits(it: Dictionary) -> void:
 	var pts: PackedVector3Array = it.get("units", PackedVector3Array())
 	var before := army
 	army += n
+	stats["recruits"] = int(stats["recruits"]) + n
 	var room := mini(army, _max_shown) - army_view.shown
 	if room > 0:
 		var src := PackedVector3Array()
@@ -783,6 +875,8 @@ func _gate_text(op: String, v: float) -> String:
 			return "−%d" % ceili(-v)
 		"ult":
 			return Loc.t("ULT")
+		"rank":
+			return Loc.t("GATE_RANK")
 	return "?"
 
 
@@ -840,11 +934,24 @@ func _style_gate(it: Dictionary) -> void:
 		"weapon":
 			kind = "power"
 			var wk := _reward_weapon(it)
-			text = Loc.t(str((Balance.WEAPONS[wk] as Dictionary)["name"])) if Balance.WEAPONS.has(wk) else "?"
-			icon = wk
+			text = Loc.t(str((ArsenalData.MACHINES[wk] as Dictionary)["name"])) if ArsenalData.is_live(wk) else Loc.t("DECK")
+			icon = wk if ArsenalData.is_live(wk) else "star"
 		"ult":
 			kind = "power"
 			icon = "star"
+		"rank":
+			# A RANK gate: the machine it powers up and its next Rank numeral (§3.4).
+			kind = "power"
+			var rid := str(it.get("rank_id", ""))
+			var m: Dictionary = arsenal.find(rid) if arsenal and rid != "" else {}
+			if m.is_empty():
+				text = "?"
+				sub = Loc.t("GATE_RANK")
+				icon = "star"
+			else:
+				text = roman(mini(int(m["rank"]) + 1, 3)) if int(m["rank"]) < 3 else "+%d%%" % int(round(ArsenalData.overflow_bonus(int(m["over"]) + 1) * 100.0))
+				sub = Loc.t(str((ArsenalData.MACHINES[rid] as Dictionary)["name"]))
+				icon = "rank:" + rid
 	if not bool(it["revealed"]):
 		kind = "hidden"
 		text = ""
@@ -857,7 +964,8 @@ func _style_gate(it: Dictionary) -> void:
 	if str(it.get("_style", "")) == key:
 		return
 	it["_style"] = key
-	Models.gate_style(node, text, sub, kind, icon)
+	Models.gate_style(node, text, sub, kind, "star" if icon.begins_with("rank:") else icon)
+	hazards.gate_machine_icon(node, icon.trim_prefix("rank:") if icon.begins_with("rank:") else "")
 	if kind == "charge":
 		Models.gate_charge(node, 1.0 - v / minf(float(it["value0"]), -0.001))
 
@@ -873,7 +981,7 @@ func _reward_text(it: Dictionary) -> String:
 	match op:
 		"weapon":
 			var wk := _reward_weapon(it)
-			return Loc.t(str((Balance.WEAPONS[wk] as Dictionary)["name"])) if Balance.WEAPONS.has(wk) else "?"
+			return Loc.t(str((ArsenalData.MACHINES[wk] as Dictionary)["name"])) if ArsenalData.is_live(wk) else Loc.t("DECK")
 		"ult":
 			return Loc.t("ULT")
 	return _gate_text(op, float(rw.get("value", 0)))
@@ -903,6 +1011,10 @@ func _gate_row(first: Dictionary) -> void:
 
 func _pass_gate(it: Dictionary, op: String, v: float) -> void:
 	var node := it["node"] as Node3D
+	var gbo: Dictionary = stats["gates_by_op"]
+	var gk := {"+": "good", "-": "bad", "/": "bad", "x": "x", "arm": "arm", "rate": "power", "dmg": "power", "multi": "power", "rank": "rank"}
+	if gk.has(op) and not (op == "rank" and str(it.get("rank_id", "")) == ""):
+		gbo[gk[op]] = int(gbo.get(gk[op], 0)) + 1
 	var gx := float(it["x"])
 	var at := Vector3(gx, 1.1, -float(it["d"]))
 	var from := Vector3(gx, 0.4, -float(it["d"]) - 0.1)
@@ -966,6 +1078,16 @@ func _pass_gate(it: Dictionary, op: String, v: float) -> void:
 			popup = ""
 		"weapon":
 			_give_weapon(_reward_weapon(it), at)
+			popup = ""
+		"rank":
+			var rid := str(it.get("rank_id", ""))
+			if rid == "" or arsenal.find(rid).is_empty():
+				var fb: Dictionary = it.get("fallback", {"op": "+", "value": 10})
+				_pass_gate(it, str(fb.get("op", "+")), float(fb.get("value", 10)))
+				return
+			arsenal.rank_up(rid)
+			stats["rank_gates"] = int(stats["rank_gates"]) + 1
+			juice.popup(Loc.t("RANK_UP") % roman(int(arsenal.find(rid)["rank"])), at + Vector3(0, 1.6, -0.3), GOLD, 1.25)
 			popup = ""
 		"ult":
 			ult_points = float(ult["charge"])
@@ -1042,6 +1164,8 @@ func _hit_gate(it: Dictionary, dmg: float) -> void:
 				v = float(rw.get("value", 0))
 				if op == "weapon" or op == "ult":
 					v = 1.0
+				var gbo2: Dictionary = stats["gates_by_op"]
+				gbo2["charge_flipped"] = int(gbo2.get("charge_flipped", 0)) + 1
 				effects.shockwave(Vector3(float(it["x"]), 0.0, -float(it["d"])), Color(0.75, 0.45, 1.0), 2.2)
 				effects.flash(top, Color(0.85, 0.6, 1.0), 2.6, 0.35)
 				juice.popup(_gate_text(op, v) if op != "weapon" else Loc.t("NEW_WEAPON"), top + Vector3(0, 0.6, 0), GOLD, 1.2)
@@ -1326,7 +1450,7 @@ func aim_point(it: Dictionary) -> Vector3:
 
 
 ## Damages `it` by `n` (squads: enemies killed; gates: a hero hit). Returns the damage dealt.
-func hurt(it: Dictionary, n: float, _source := "") -> float:
+func hurt(it: Dictionary, n: float, source := "") -> float:
 	if it.is_empty() or not it["alive"] or n <= 0.0:
 		return 0.0
 	var kind := str(it["kind"])
@@ -1337,6 +1461,11 @@ func hurt(it: Dictionary, n: float, _source := "") -> float:
 	it["hp"] = float(it["hp"]) - dealt
 	if kind == "squad":
 		_charge(dealt)
+		_count_kills(source, dealt)
+		if arsenal and arsenal.statuses:
+			arsenal.statuses.on_hit(it, dealt, source)
+	elif kind == "crate":
+		_crate_hit(it)
 	var at := aim_point(it)
 	if float(it["hp"]) <= 0.001:
 		it["hp"] = 0.0
@@ -1376,7 +1505,15 @@ func _destroy(it: Dictionary) -> void:
 		"crate":
 			juice.hitstop(0.05)
 			juice.add_trauma(0.3)
-			_give_weapon(str(it.get("weapon", "ballista")), at)
+			# Emptied through the BONUS segment: +1 Rank.
+			_open_crate(it, bool(ArsenalData.FEATURES["crate_bonus"]) and int(it.get("bonus", 0)) > 0)
+	match kind:
+		"barricade":
+			stats["barricades_broken"] = int(stats["barricades_broken"]) + 1
+		"turret":
+			stats["turrets_destroyed"] = int(stats["turrets_destroyed"]) + 1
+		"geode":
+			stats["geodes_broken"] = int(stats["geodes_broken"]) + 1
 	hazards.on_destroy(it)
 
 
@@ -1401,25 +1538,312 @@ func _geode_reward(it: Dictionary, at: Vector3) -> void:
 			effects.flash(hero.muzzle(), Color(0.75, 0.5, 1.0), 1.6, 0.3)
 
 
-## A weapon from a crate or a charge gate: a new machine, or a level up.
+## A machine from a charge gate's reward (or a dev helper): `kind` "deck" asks the CratePicker.
 func _give_weapon(kind: String, at: Vector3) -> void:
-	if not Balance.WEAPONS.has(kind):
-		kind = "ballista"
-	var res := arsenal.add(kind, Vector3(at.x, 0.0, at.z))
+	if not ArsenalData.is_live(kind):
+		kind = CratePicker.parse(_pick_content({}))[0]
+	var res := arsenal.grant(kind, Vector3(at.x, 0.0, at.z))
+	_after_grant(res, false)
+
+
+# ------------------------------------------------------------------ crates and RANK gates (§3.3, §3.4)
+
+## Crate fields before its model is built: a NEW crate whose machine is already owned becomes a
+## deck crate; the BONUS segment (0.6 x OPEN) joins the hit points.
+func _prepare_crate(it: Dictionary) -> void:
+	var w := str(it.get("weapon", "deck"))
+	var nc := str(profile.get("new_crate", ""))
+	if bool(it.get("new", false)) and (w != nc or nc == "" or not bool(ArsenalData.FEATURES["new_crates"])):
+		it["new"] = false
+		w = "deck"
+	if not bool(it.get("new", false)) and w != "deck" and not ArsenalData.is_live(w):
+		w = "deck"
+	# Etap-1 fixed-weapon crates follow the deck too (only NEW crates name their machine).
+	if not bool(it.get("new", false)):
+		w = "deck"
+	it["weapon"] = w
+	it["content"] = w if bool(it.get("new", false)) else ""
+	it["bonus"] = int(round(float(it["value"]) * ArsenalData.CRATE_BONUS_HP)) if bool(ArsenalData.FEATURES["crate_bonus"]) else 0
+	it["opened"] = false
+	_crates.append(it)
+	_resolve.append(it)
+	if it.has("pair"):
+		var pid := int(it["pair"])
+		if not _pairs.has(pid):
+			_pairs[pid] = []
+		(_pairs[pid] as Array).append(it)
+
+
+## Locks crate contents and RANK gate machines that came within CRATE_RESOLVE_D (pairs jointly,
+## with two different contents).
+func _resolve_ahead() -> void:
+	while _rk < _resolve.size() and float(_resolve[_rk]["d"]) <= d + ArsenalData.CRATE_RESOLVE_D:
+		var it := _resolve[_rk]
+		_rk += 1
+		if bool(it.get("resolved", false)) or not it.get("alive", false):
+			continue
+		if str(it["kind"]) == "gate":
+			_resolve_rank_gate(it)
+			continue
+		var group: Array = [it]
+		if it.has("pair"):
+			group = _pairs.get(int(it["pair"]), [it])
+		var taken := ""
+		for c: Dictionary in group:
+			if bool(c.get("resolved", false)):
+				taken = str(c.get("content", ""))
+		for c: Dictionary in group:
+			if bool(c.get("resolved", false)):
+				continue
+			c["resolved"] = true
+			if str(c.get("content", "")) == "":
+				c["content"] = _pick_content(c, taken)
+			taken = str(c["content"])
+			hazards.resolve_crate(c)
+			crate_resolved.emit(c)
+	_restyle_crates()
+
+
+## CratePicker on the deck, counting crates already resolved but not yet opened as fielded.
+func _pick_content(it: Dictionary, exclude := "") -> String:
+	var fl := arsenal.fielded()
+	for c in _crates:
+		if c == it or not c.get("alive", false) or not bool(c.get("resolved", false)):
+			continue
+		var p := CratePicker.parse(str(c.get("content", "")))
+		var id := str(p[0])
+		if id != "" and not bool(p[1]):
+			fl[id] = mini(int(fl.get(id, 0)) + 1, 3)
+	var deck: Array = profile.get("deck", [])
+	if deck.is_empty():
+		deck = ["drone"]
+	return CratePicker.pick(deck, fl, profile.get("levels", _deck_levels()), _pick_rng, exclude)
+
+
+func _deck_levels() -> Dictionary:
+	var out := {}
+	var ms: Dictionary = profile.get("machines", {})
+	for id: String in ms:
+		out[id] = int((ms[id] as Dictionary).get("lvl", 1))
+	return out
+
+
+## The forecast of a crate now: [badge text, machine id, after-rank].
+func crate_forecast(it: Dictionary) -> Array:
+	var c := str(it.get("content", ""))
+	if c == "":
+		return ["", "", 0]
+	var p := CratePicker.parse(c)
+	var id := str(p[0])
+	var fc := arsenal.forecast(id, false)
+	var name := Loc.t(str((ArsenalData.MACHINES.get(id, {}) as Dictionary).get("name", id)))
+	var text := ""
+	if bool(it.get("new", false)):
+		text = "%s · %s" % [Loc.t("CRATE_NEW"), name]
+	else:
+		match str(fc["kind"]):
+			"overflow":
+				text = Loc.t("CRATE_OVERFLOW") % [int(fc.get("pct", 10)), name]
+			"swap":
+				var sid := str(fc["id"])
+				text = "%s %s" % [Loc.t(str((ArsenalData.MACHINES[sid] as Dictionary)["name"])), roman(int(fc["rank"]))]
+				id = sid
+			"new":
+				text = name if int(fc["rank"]) <= 1 else "%s %s" % [name, roman(int(fc["rank"]))]
+			_:
+				text = "%s %s" % [name, roman(int(fc["rank"]))]
+	return [text, id, int(fc.get("rank", 1))]
+
+
+static func roman(r: int) -> String:
+	return ["I", "II", "III"][clampi(r, 1, 3) - 1]
+
+
+func _restyle_crates() -> void:
+	for c in _crates:
+		if c.get("alive", false) and bool(c.get("resolved", false)):
+			hazards.style_crate(c, crate_forecast(c)[0])
+	for g in _resolve:
+		if str(g["kind"]) == "gate" and g.get("alive", false) and bool(g.get("resolved", false)):
+			_style_gate(g)
+
+
+## A hero hit on a crate: once the OPEN segment is empty the crate is open (its pair partner
+## folds) and the gold BONUS ring starts to fill.
+func _crate_hit(it: Dictionary) -> void:
+	var b := float(it.get("bonus", 0))
+	if not bool(it.get("opened", false)) and float(it["hp"]) <= b + 0.001:
+		it["opened"] = true
+		hazards.crate_opened(it)
+		if it.has("pair"):
+			for c: Dictionary in _pairs.get(int(it["pair"]), []):
+				if c != it and c.get("alive", false):
+					c["alive"] = false
+					hazards.fold_crate(c)
+		if b <= 0.0:
+			return
+		Audio.play("upgrade", -8.0, 0.05)
+
+
+## Open crates are taken when the army reaches them (without the BONUS step).
+func _crate_contact() -> void:
+	for c in _crates:
+		if c.get("alive", false) and bool(c.get("opened", false)) and d >= float(c["d"]) - 0.3:
+			c["alive"] = false
+			_open_crate(c, false)
+			hazards.on_destroy(c)
+
+
+## Grants a crate's contents (+1 Rank with the BONUS). A NEW crate unlocks its machine.
+func _open_crate(it: Dictionary, bonus: bool) -> void:
+	if bool(it.get("granted", false)):
+		return
+	it["granted"] = true
+	if not bool(it.get("resolved", false)):
+		it["resolved"] = true
+		if str(it.get("content", "")) == "":
+			it["content"] = _pick_content(it)
+	var p := CratePicker.parse(str(it["content"]))
+	var id := str(p[0])
+	var at := Vector3(float(it["x"]), 0.0, -float(it["d"]))
+	var res: Dictionary
+	if bool(p[1]):
+		arsenal.add_overflow(id)
+		res = {"kind": "overflow", "id": id, "rank": 3}
+	else:
+		res = arsenal.grant(id, at, bonus)
+	if bool(it.get("new", false)):
+		new_unlock = id
+	stats["crates_opened"] = int(stats["crates_opened"]) + 1
+	if bonus:
+		stats["crate_bonus"] = int(stats["crate_bonus"]) + 1
+		juice.popup(Loc.t("CRATE_BONUS"), at + Vector3(0, 2.6, 0), GOLD, 1.2)
+	if it.has("pair"):
+		for c: Dictionary in _pairs.get(int(it["pair"]), []):
+			if c != it and c.get("alive", false):
+				c["alive"] = false
+				hazards.fold_crate(c)
+	_after_grant(res, bool(it.get("new", false)))
+
+
+func _after_grant(res: Dictionary, is_new: bool) -> void:
 	weapons = arsenal.summary()
-	weapon_added.emit(str(res[0]), int(res[1]))
+	var id := str(res.get("id", ""))
+	var m := arsenal.find(id)
+	weapon_added.emit(id, int(m.get("rank", 1)) if not m.is_empty() else 1)
 	juice.haptic("weapon")
 	Audio.play("weapon_get", -3.0)
+	if is_new:
+		juice.hitstop(0.06)
+	_restyle_crates()
+
+
+func _on_ranked(id: String, rank: int) -> void:
+	weapons = arsenal.summary()
+	if rank >= 3:
+		stats["rank3_reached"] = maxi(int(stats["rank3_reached"]), 1)
+	rank_changed.emit(id, rank)
+	_restyle_crates()
+
+
+## A RANK gate locks its machine 30 u ahead: the fielded machine with the lowest Rank below III
+## (Meta-1 has no recipes); with none it becomes its fallback "+N" gate.
+func _resolve_rank_gate(it: Dictionary) -> void:
+	it["resolved"] = true
+	var best: Dictionary = {}
+	for m in arsenal.machines:
+		if int(m["rank"]) < 3 and (best.is_empty() or int(m["rank"]) < int(best["rank"])):
+			best = m
+	if best.is_empty():
+		var fb: Dictionary = it.get("fallback", {"op": "+", "value": 10})
+		it["faces"] = [[str(fb.get("op", "+")), float(fb.get("value", 10))]]
+		it["face"] = 0
+		_sync_face(it)
+		it["value0"] = float(it["value"])
+		_style_gate(it)
+		return
+	it["rank_id"] = str(best["id"])
+	_style_gate(it)
+
+
+# ------------------------------------------------------------------ machine targets
+
+## Live hostiles for the machines (squads, turrets, barricades, geodes, the fortress; never
+## crates or gates) ahead within `reach`, whose span is within `lateral` of `x`, nearest first.
+func machine_targets(x: float, lateral: float, reach: float, count: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var near := d - 0.5
+	var far := d + reach
+	for i in range(maxi(_tk - 2, 0), _targ.size()):
+		var it := _targ[i]
+		var di := float(it["d"])
+		if di < near:
+			continue
+		if di > far:
+			break
+		if not it["alive"]:
+			continue
+		var k := str(it["kind"])
+		if k == "gate" or k == "crate":
+			continue
+		if absf(float(it["x"]) - x) > lateral + _hw(it):
+			continue
+		out.append(it)
+		if out.size() >= count:
+			break
+	return out
+
+
+## Live hostiles (not crates or gates) whose span reaches within `r` of world point `pos`.
+func machine_targets_near(pos: Vector3, r: float) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var pd := -pos.z
+	for i in range(maxi(_tk - 4, 0), _targ.size()):
+		var it := _targ[i]
+		var di := float(it["d"])
+		if di > pd + r + 3.0:
+			break
+		if not it["alive"]:
+			continue
+		var k := str(it["kind"])
+		if k == "gate" or k == "crate":
+			continue
+		var depth := Balance.squad_depth(float(it.get("w", 2.4)), float(it.get("hp", 1))) if k == "squad" else 0.4
+		var dz := 0.0
+		if pd < di:
+			dz = di - pd
+		elif pd > di + depth:
+			dz = pd - di - depth
+		var dx := maxf(absf(float(it["x"]) - pos.x) - _hw(it), 0.0)
+		if dx * dx + dz * dz <= r * r:
+			out.append(it)
+	return out
+
+
+## Half span of an item (corridor / overlap tests).
+func half_span(it: Dictionary) -> float:
+	return _hw(it)
+
+
+func _count_kills(source: String, n: float) -> void:
+	stats["kills_total"] = float(stats["kills_total"]) + n
+	if ArsenalData.MACHINES.has(source):
+		var km: Dictionary = stats["kills_by_machine"]
+		km[source] = float(km.get(source, 0.0)) + n
+		var kf: Dictionary = stats["kills_by_family"]
+		var f := ArsenalData.family_of(source)
+		kf[f] = float(kf.get(f, 0.0)) + n
 
 
 # ------------------------------------------------------------------ hero
 
 func _hero_rate() -> float:
-	return float(def["rate"]) * Balance.power_mult(int(Save.upgrades["power"])) * (1.0 + float(power["rate"]))
+	return float(def["rate"]) * (1.0 + float(power["rate"]))
 
 
-func _hero_damage() -> int:
-	return int(def["damage"]) + int(power["dmg"])
+## Hero damage per hit: base + damage gates, x the hero level multiplier (profile / RunHero).
+func _hero_damage() -> float:
+	return float(int(def["damage"]) + int(power["dmg"])) * hero_mult("dmg_mult")
 
 
 func _hero_attack(dt: float) -> void:
@@ -1443,10 +1867,21 @@ func _hero_attack(dt: float) -> void:
 		var at := aim_point(it)
 		_shot_fx(at, k)
 		var kind := str(it["kind"])
+		# The hero paints what it hits: PAINT machines follow (§2.2).
+		if kind != "gate" and kind != "crate":
+			painted = it
+			_paint_t = ArsenalData.PAINT_S
+		var n := dmg
 		if kind == "squad":
-			hurt(it, float(dmg + int(def["splash"])), "hero")
-		else:
-			hurt(it, float(dmg), "hero")
+			n += float(def["splash"])
+		# Hero shots always cross the Prism (+amp, bucket 2) and land Mark's vs (bucket 3).
+		if arsenal and kind != "gate" and arsenal.prism_crosses(it):
+			n *= 1.0 + arsenal.prism_amp()
+			if k == 0:
+				effects.prism_flash(arsenal.prism_pos(), WeaponModels.glow_color("prism"), (at - arsenal.prism_pos()).normalized(), 1)
+		if kind == "squad" and arsenal:
+			n *= arsenal.statuses.vs(it)
+		hurt(it, n, "hero")
 		if kind == "fortress":
 			juice.add_trauma(0.08)
 
@@ -1505,6 +1940,7 @@ func use_ult() -> bool:
 	start()
 	ult_points = 0.0
 	_ult_tick = 0.0
+	_ult_uses += 1
 	juice.hitstop(0.07)
 	juice.haptic("ult")
 	if hero_type == "bolt":
@@ -1641,6 +2077,7 @@ func _clash(dt: float) -> void:
 		if army >= 1:
 			var hit := mini(_burst(mini(army, ceili(foes))), mini(army, ceili(foes)))
 			_change_army(-hit, Vector3.INF, Vector3.ZERO, "front")
+			stats["clash_losses"] = int(stats["clash_losses"]) + hit
 			hurt(_foe, float(hit), "clash")
 			_clash_fx()
 		else:
@@ -1668,6 +2105,7 @@ func _burst(n: int) -> int:
 
 func _begin_siege(it: Dictionary) -> void:
 	state = State.SIEGE
+	_siege_t = t
 	_foe = it
 	_tick = 0.0
 	_finale = Balance.FINALE_TIME
@@ -1739,9 +2177,10 @@ func _win() -> void:
 		mult = float(st.get("mult", 1.0))
 		_stair_plan.append({"mult": mult, "cost": cost})
 	stairs_mult = mult
-	var victory := Balance.victory_coins(level, survivors)
+	var victory := EconData.victory_coins(level, survivors)
 	result = {"coins_run": coins, "victory": victory, "mult": mult,
 			"total": int(round(float(victory + coins) * mult)), "survivors": survivors}
+	_fill_result(true)
 	# Final blow: freeze, slow motion, the fortress crumbles into the abyss.
 	juice.hitstop(0.12, 0.3)
 	juice.add_trauma(1.0)
@@ -1931,6 +2370,67 @@ func _end_step(dt: float) -> void:
 		finished.emit(false, coins, str(result.get("reason", "ARMY_LOST")))
 
 
+## Run.result keys the meta reads (contracts §6.5 input): won, level, run_id, pickups,
+## bridge_fraction, fielded, new_unlock, crowns, shards, discoveries, boss_core, stats.
+func _fill_result(won: bool) -> void:
+	result["won"] = won
+	result["level"] = level
+	result["run_id"] = int(profile.get("run_id", 0))
+	result["pickups"] = coins
+	result["bridge_fraction"] = 1.0 if won else clampf(d / maxf(length, 1.0), 0.0, 1.0)
+	result["fielded"] = arsenal.fielded_report() if arsenal else []
+	result["new_unlock"] = new_unlock
+	result["shards"] = 0
+	result["discoveries"] = []
+	result["boss_core"] = 1 if won and ArsenalData.is_boss(level) else 0
+	var crowns := 0
+	if won:
+		crowns = 1
+		var need := float(EconData.CROWN_ARMY.get(level, EconData.CROWN_ARMY.get(str(level), expected * 0.6)))
+		if _army_at_fortress >= 0 and float(_army_at_fortress) >= need:
+			crowns = 2
+	result["crowns"] = crowns
+	var st := stats
+	st["wins"] = 1 if won else 0
+	st["kills_total"] = int(round(float(st["kills_total"])))
+	for k in ["kills_by_machine", "kills_by_family"]:
+		var dd: Dictionary = st[k]
+		for id: String in dd:
+			dd[id] = int(round(float(dd[id])))
+	var sc: Dictionary = st["statuses"]
+	if arsenal:
+		for key in ["freeze", "burn", "mark", "stun", "jolt", "seal"]:
+			sc[key] = int(arsenal.statuses.counts.get(key, 0))
+	st["hazard_losses"] = int(round(hazard_deaths))
+	st["levels_no_hazard_loss"] = 1 if won and hazard_deaths < 0.5 else 0
+	st["ult_uses"] = _ult_uses
+	st["army_peak"] = _peak
+	st["army_at_fortress"] = maxi(_army_at_fortress, 0)
+	st["survivors"] = int(result.get("survivors", 0))
+	st["stairs_mult"] = float(result.get("mult", 1.0)) if won else 0.0
+	st["stairs_reached_3"] = 1 if won and float(result.get("mult", 1.0)) >= 3.0 else 0
+	st["stairs_reached_5"] = 1 if won and float(result.get("mult", 1.0)) >= 5.0 else 0
+	if _siege_t > 0.0 and won:
+		st["fortress_time"] = snappedf(t - _siege_t, 0.1)
+		st["fortress_fast"] = 1 if t - _siege_t <= 3.0 else 0
+	var fams := {}
+	var fl: Array = result["fielded"]
+	for f: Dictionary in fl:
+		var fam := ArsenalData.family_of(str(f["id"]))
+		fams[fam] = int(fams.get(fam, 0)) + 1
+		if int(f["rank"]) >= 3:
+			st["rank3_reached"] = 1
+	var fam3 := false
+	for fam2: String in fams:
+		fam3 = fam3 or int(fams[fam2]) >= 3
+	st["wins_family3"] = 1 if won and fam3 else 0
+	st["wins_no_machines"] = 1 if won and fl.is_empty() else 0
+	var ld := str(profile.get("lead", ""))
+	if won and ld != "":
+		(st["wins_with_lead"] as Dictionary)[ld] = 1
+	result["stats"] = st
+
+
 func _lose(reason: String) -> void:
 	if state == State.LOST or _won:
 		return
@@ -1939,6 +2439,7 @@ func _lose(reason: String) -> void:
 	_foe = {}
 	arsenal.stop()
 	result = {"coins_run": coins, "victory": 0, "mult": 1.0, "total": coins, "survivors": 0, "reason": reason}
+	_fill_result(false)
 	hero.running = false
 	hero.fighting = false
 	effects.death(hero.global_position, Color(0.4, 0.6, 1.0), 0.6)

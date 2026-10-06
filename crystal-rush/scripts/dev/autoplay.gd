@@ -7,7 +7,9 @@ extends Node
 ## For fast, deterministic runs add `--fixed-fps 60` before `--` and use --speed=1: the game
 ## then steps 1/60 s per frame as fast as the CPU allows (about 5x real time headless).
 ## JSON fields: level, hero, bot, skill, won, reason, army_at_fortress, survivors, stairs_mult,
-## coins, weapons, arm_tier, hazard_deaths, time, length, expected (+ sim with --compare).
+## coins, weapons (id + Rank), arm_tier, hazard_deaths, time, length, expected, profile, crates,
+## bonus, rank_gates, new_unlock, crowns, kills_by_machine, statuses (+ sim with --compare).
+## The account is the dev profile: --profile=fresh|expected|max [--deck=a,b,c] (Meta, readonly).
 
 const TIMEOUT := 600.0
 
@@ -136,6 +138,16 @@ func _on_finished(won: bool, coins: int, reason: String) -> void:
 		"length": int(length) if length != null else 0,
 		"expected": int(_run.get("expected")) if _run.get("expected") != null else 0,
 	}
+	# Arsenal (Meta-1): what the run reports to Meta.finish_run.
+	var st: Dictionary = res.get("stats", {})
+	r["profile"] = str((_run.get("profile") as Dictionary).get("profile", "")) if _run.get("profile") is Dictionary else ""
+	r["crates"] = int(st.get("crates_opened", 0))
+	r["bonus"] = int(st.get("crate_bonus", 0))
+	r["rank_gates"] = int(st.get("rank_gates", 0))
+	r["new_unlock"] = str(res.get("new_unlock", ""))
+	r["crowns"] = int(res.get("crowns", 0))
+	r["kills_by_machine"] = st.get("kills_by_machine", {})
+	r["statuses"] = st.get("statuses", {})
 	if args.has("compare"):
 		var def := LevelGen.build(_level, Balance.START_ARMY)
 		var lv := LevelSim.make_level(def, _level)
