@@ -131,6 +131,8 @@ func _loop() -> void:
 			if altar:
 				await _drive_altar(altar)
 		else:
+			# A first-time walkout cannot be skipped: "Далі" works once it has closed.
+			await _until(func() -> bool: return not is_instance_valid(rf) or rf.get("_walk") == null, 30.0)
 			rf.call("_on_next")
 	else:
 		(flow as LossScreen).call("_leave", false)

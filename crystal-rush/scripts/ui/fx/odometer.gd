@@ -24,10 +24,22 @@ var _to := 0.0
 var _t := 0.0
 var _dur := 0.0
 var _digit_w := 18.0
+## A real counter window: the digits are painted on `_ink` inside the clipping `_win` (one
+## line plus room for the outline), so a still frame never shows a stray half digit.
+var _win: Control
+var _ink: Control
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_win = Control.new()
+	_win.clip_contents = true
+	_win.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_win, false, Node.INTERNAL_MODE_FRONT)
+	_ink = Control.new()
+	_ink.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_win.add_child(_ink)
+	_ink.draw.connect(_paint)
 	_measure()
 
 
@@ -82,6 +94,31 @@ func _text_for(n: int) -> String:
 
 func _draw() -> void:
 	var f := UIKit.font(true)
+	var pad := _pad()
+	var base_y := _base_y(f)
+	_win.position = Vector2(-pad, base_y - _cap(f) - pad)
+	_win.size = Vector2(size.x + pad * 2.0, _cap(f) + pad * 1.4)
+	_ink.position = -_win.position
+	_ink.size = size
+	_ink.queue_redraw()
+
+
+## Outline room around the digits inside the window.
+func _pad() -> float:
+	return float(outline) + 4.0
+
+
+## Digit height (Rubik figures sit at about 0.74 of the ascent).
+func _cap(f: Font) -> float:
+	return f.get_ascent(font_size) * 0.74
+
+
+func _base_y(f: Font) -> float:
+	return (size.y - f.get_height(font_size)) * 0.5 + f.get_ascent(font_size)
+
+
+func _paint() -> void:
+	var f := UIKit.font(true)
 	var x_val := maxf(_shown, 0.0)
 	var target := int(round(x_val)) if _dur <= 0.0 else int(floor(x_val))
 	var text := _text_for(maxi(target, int(_to) if _dur > 0.0 else target))
@@ -98,9 +135,9 @@ func _draw() -> void:
 	match align:
 		HORIZONTAL_ALIGNMENT_CENTER: x = (size.x - total_w) * 0.5
 		HORIZONTAL_ALIGNMENT_RIGHT: x = size.x - total_w
-	var line_h := f.get_height(font_size)
-	var base_y := (size.y - line_h) * 0.5 + f.get_ascent(font_size)
-	var clip_top := (size.y - line_h) * 0.5
+	var base_y := _base_y(f)
+	# One wheel step moves a digit fully out of the window.
+	var travel := _cap(f) + _pad() * 1.9
 	var k := digits - 1
 	for ch in text:
 		if not (ch >= "0" and ch <= "9"):
@@ -116,19 +153,17 @@ func _draw() -> void:
 		# Leading zeros of a shorter shown number stay blank.
 		var blank := q <= 0.0 and k > 0 and x_val < unit
 		if not blank:
-			_digit(f, str(d), Vector2(x, base_y - roll * line_h), clip_top, line_h, 1.0 - roll)
+			_digit(f, str(d), Vector2(x, base_y - roll * travel), 1.0 - roll)
 		if roll > 0.0 and not (blank and d == 9):
-			_digit(f, str((d + 1) % 10), Vector2(x, base_y + (1.0 - roll) * line_h), clip_top, line_h, roll)
+			_digit(f, str((d + 1) % 10), Vector2(x, base_y + (1.0 - roll) * travel), roll)
 		x += _digit_w
 		k -= 1
 
 
-func _digit(f: Font, s: String, pos: Vector2, clip_top: float, line_h: float, alpha: float) -> void:
-	if pos.y - f.get_ascent(font_size) > clip_top + line_h * 0.85 or pos.y < clip_top + line_h * 0.2:
-		return
+func _digit(f: Font, s: String, pos: Vector2, alpha: float) -> void:
 	var cw := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var p := pos + Vector2((_digit_w - cw) * 0.5, 0)
 	var a := clampf(alpha * 1.6, 0.0, 1.0)
-	draw_string_outline(f, p + Vector2(0, maxf(2.0, font_size / 14.0)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline + 4, Color(0, 0, 0.04, 0.45 * a))
-	draw_string_outline(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline, Color(0.02, 0.03, 0.08, 0.95 * a))
-	draw_string(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color.r, color.g, color.b, color.a * a))
+	_ink.draw_string_outline(f, p + Vector2(0, maxf(2.0, font_size / 14.0)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline + 4, Color(0, 0, 0.04, 0.45 * a))
+	_ink.draw_string_outline(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline, Color(0.02, 0.03, 0.08, 0.95 * a))
+	_ink.draw_string(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color.r, color.g, color.b, color.a * a))
