@@ -13,14 +13,21 @@ extends Control
 
 signal done
 
-const CARD := Vector2(176, 250)
+const CARD_FULL := Vector2(176, 250)
+const CARD_COMPACT := Vector2(160, 228)
 const GAP := 16.0
-const EGG := 300.0
+const EGG_FULL := 300.0
+const EGG_COMPACT := 220.0
 
 var rev: Dictionary = {}
 ## Timeline speed: 1 = design timings; "Швидкі церемонії" uses 0.6.
 var speed := 1.0
 var finished := false
+## Smaller egg and cards (the result screen); set before adding to the tree.
+var compact := false
+var CARD := CARD_FULL
+var EGG := EGG_FULL
+var _lift := 0.0
 
 var _egg: EggView
 var _hint: Label
@@ -41,6 +48,9 @@ func setup(p_rev: Dictionary) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	if compact:
+		CARD = CARD_COMPACT
+		EGG = EGG_COMPACT
 	custom_minimum_size = Vector2(CARD.x * 3 + GAP * 2, EGG + CARD.y + 70)
 	var best := str(rev.get("best", "C"))
 	var bc := UITokens.rarity(best)
@@ -101,7 +111,7 @@ func _layout() -> void:
 	for i in _cards.size():
 		_cards[i].position = slot(i)
 	_coins_row.size = Vector2(w, 44)
-	_coins_row.position = Vector2(0, EGG + CARD.y + 22)
+	_coins_row.position = Vector2(0, EGG + CARD.y + 22 - _lift)
 	_flash.size = size
 	_flash.position = Vector2.ZERO
 
@@ -110,7 +120,7 @@ func _layout() -> void:
 func slot(i: int) -> Vector2:
 	var n := maxi(_cards.size(), 1)
 	var row_w := n * CARD.x + (n - 1) * GAP
-	return Vector2((size.x - row_w) * 0.5 + i * (CARD.x + GAP), EGG + 10)
+	return Vector2((size.x - row_w) * 0.5 + i * (CARD.x + GAP), EGG + 10 - _lift)
 
 
 ## Canvas position of the coins line (RewardFly source).
@@ -230,6 +240,20 @@ func _quick() -> void:
 	_coins_row.modulate.a = 1.0
 	Audio.chord(7, true, -8.0)
 	_at(0.25, _finish)
+
+
+## After the reveal: the spent egg fades and the cards rise into its place (the result
+## screen needs the room for the Best-upgrade row).
+func collapse() -> void:
+	if _lift > 0.0:
+		return
+	_lift = EGG - 34.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(_egg, "modulate:a", 0.0, 0.25)
+	tw.tween_property(_rays, "modulate:a", 0.0, 0.25)
+	for i in _cards.size():
+		tw.tween_property(_cards[i], "position", slot(i), 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_coins_row, "position:y", EGG + CARD.y + 22 - _lift, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 ## Jumps to the end state (cards up, bars full, coins shown) and fires `done`.

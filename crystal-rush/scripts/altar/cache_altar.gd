@@ -205,7 +205,7 @@ func _strike_cam() -> Array:
 	d.y = 0.0
 	d = d.normalized()
 	var right := Vector3(-d.z, 0, d.x)
-	var p := hero.position - d * 3.1 - right * 1.0 + Vector3(0, 2.15, 0) - BASE
+	var p := hero.position - d * 2.9 + right * 0.9 + Vector3(0, 2.0, 0) - BASE
 	return [p, Vector3(0.1, 0.95, 0), 0.0]
 
 
@@ -535,8 +535,11 @@ func _fan() -> void:
 		_hint.text = Loc.t("TAP_TO_OPEN")
 		_hint.position.y = get_viewport().get_visible_rect().size.y * 0.53
 		_hint.visible = true
-		_open_btn.visible = true
-		UIJuice.pop(_open_btn, 0.0))
+		_open_btn.visible = not _open_all
+		if _open_all:
+			_flip_next()
+		else:
+			UIJuice.pop(_open_btn, 0.0))
 
 
 ## Flips the next card (tap) - or every card left, one after another ("Відкрити все").
@@ -578,7 +581,9 @@ func _after(sec: float, fn: Callable) -> void:
 func _on_open_all() -> void:
 	_open_all = true
 	_open_btn.visible = false
-	_flip_next()
+	_hint.visible = false
+	if state == "flips":
+		_flip_next()
 
 
 ## A NEW machine (or a Legendary+) walks out on the altar: the card dissolves into the 3D

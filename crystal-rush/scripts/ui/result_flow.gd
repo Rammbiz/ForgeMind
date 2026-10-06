@@ -69,7 +69,7 @@ func _ready() -> void:
 	add_child(root)
 	_vp = root.get_viewport_rect().size
 	_ins = UIKit.safe_insets(root.get_viewport())
-	root.add_child(scrim(_vp, 0.3, 0.9))
+	root.add_child(scrim(_vp, 0.5, 0.94))
 	var rays := UIKit.Rays.new()
 	rays.color = Color(1.0, 0.82, 0.4, 0.0)
 	rays.count = 18
@@ -94,8 +94,8 @@ func _ready() -> void:
 	_build_drip()
 	_cache_box = Control.new()
 	_cache_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cache_box.position = Vector2(0, _ins.y + 556)
-	_cache_box.size = Vector2(_vp.x, 520)
+	_cache_box.position = Vector2(0, _ins.y + 590)
+	_cache_box.size = Vector2(_vp.x, 470)
 	root.add_child(_cache_box)
 	_next_btn = UIKit.button(Loc.t("NEXT"), true, 440.0)
 	_next_btn.custom_minimum_size.y = 96
@@ -373,7 +373,7 @@ func _build_stats() -> void:
 func _build_drip() -> void:
 	var rows: Array = bundle.get("drip", [])
 	_drip = drip_strip(rows, _vp.x)
-	_drip.position = Vector2(0, _ins.y + 494)
+	_drip.position = Vector2(0, _ins.y + 484)
 	_drip.modulate.a = 0.0
 	root.add_child(_drip)
 
@@ -496,14 +496,15 @@ func _step_cache() -> void:
 	if bool(cd.get("inline", false)):
 		_inline = InlineReveal.new()
 		_inline.setup(cd.get("reveal", {}))
-		_inline.position = Vector2(36, 0)
-		_inline.size = Vector2(_vp.x - 72, 520)
+		_inline.compact = true
+		_inline.position = Vector2(36, 34)
+		_inline.size = Vector2(_vp.x - 72, 470)
 		_cache_box.add_child(_inline)
 		_inline.done.connect(_on_inline_done)
 		var title := UIKit.heading(Loc.f("CACHE_EARNED", [Loc.t(str((EconData.CACHES[type] as Dictionary)["name"]))]), 30, UIKit.GOLD_LIGHT, 6)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title.size = Vector2(_vp.x, 36)
-		title.position = Vector2(0, -6)
+		title.position = Vector2(0, 0)
 		_cache_box.add_child(title)
 	else:
 		_cache_box.add_child(_cache_card(type, int(cd.get("vault_index", -1))))
@@ -526,14 +527,14 @@ func _cache_card(type: String, vault_index: int) -> Control:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.size = Vector2(_vp.x, 480)
 	var egg := EggView.new(type)
-	egg.size = Vector2(280, 280)
-	egg.position = Vector2((_vp.x - 280) * 0.5, 30)
+	egg.size = Vector2(250, 250)
+	egg.position = Vector2((_vp.x - 250) * 0.5, 36)
 	box.add_child(egg)
 	egg.present()
 	var t := UIKit.gradient_heading(Loc.f("CACHE_EARNED", [Loc.t(str((EconData.CACHES[type] as Dictionary)["name"]))]), 40)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.size = Vector2(_vp.x, 50)
-	t.position = Vector2(0, -10)
+	t.position = Vector2(0, -6)
 	box.add_child(t)
 	if type == "stone":
 		var pill := PanelContainer.new()
@@ -543,13 +544,13 @@ func _cache_card(type: String, vault_index: int) -> Control:
 		r.add_child(Icons.make("vault", 40.0))
 		r.add_child(UIKit.heading(Loc.t("RF_TO_VAULT"), 28, UIKit.TEXT, 6))
 		pill.add_child(r)
-		pill.position = Vector2((_vp.x - 300) * 0.5, 330)
+		pill.position = Vector2((_vp.x - 300) * 0.5, 296)
 		pill.custom_minimum_size = Vector2(300, 0)
 		box.add_child(pill)
 		UIJuice.pop(pill, 0.3)
 		return box
 	var open := UIKit.styled_button(Loc.t("OPEN_ON_ALTAR"), "green", Vector2(420, 88), 32)
-	open.position = Vector2((_vp.x - 420) * 0.5, 322)
+	open.position = Vector2((_vp.x - 420) * 0.5, 282)
 	open.pressed.connect(func():
 		if _left:
 			return
@@ -559,7 +560,7 @@ func _cache_card(type: String, vault_index: int) -> Control:
 	box.add_child(open)
 	UIKit.add_shine(open, 26.0, 0.6, 2.2, 0.5)
 	var later := UIKit.styled_button(Loc.t("LATER"), "button", Vector2(260, 64), 26)
-	later.position = Vector2((_vp.x - 260) * 0.5, 420)
+	later.position = Vector2((_vp.x - 260) * 0.5, 378)
 	later.pressed.connect(func():
 		open.disabled = true
 		later.visible = false
@@ -568,7 +569,7 @@ func _cache_card(type: String, vault_index: int) -> Control:
 		var note := UIKit.heading(Loc.t("RF_IN_VAULT"), 26, UIKit.TEXT_DIM, 5)
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		note.size = Vector2(_vp.x, 34)
-		note.position = Vector2(0, 340)
+		note.position = Vector2(0, 300)
 		box.add_child(note)
 		UIJuice.fade_in(note))
 	box.add_child(later)
@@ -587,6 +588,8 @@ func _step_final() -> void:
 func _show_final() -> void:
 	if _best != null:
 		return
+	if _inline:
+		_inline.collapse()
 	_best = best_row(bundle.get("best_upgrade", {}), _vp.x - 60, func(id: String):
 		if _left or id == "":
 			return

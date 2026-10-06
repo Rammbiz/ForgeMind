@@ -24,6 +24,7 @@ func _ready() -> void:
 	var level := int(args.get("level", "8"))
 	Save.readonly = true
 	Save.level = level
+	Loc.set_language(str(args.get("lang", "uk")), false)
 	var acc := Meta.synthetic_account(level, str(args.get("profile", "expected")))
 	(acc["progress"] as Dictionary)["hero"] = str(args.get("hero", "bolt"))
 	Meta.account = acc
@@ -76,6 +77,10 @@ func _loop() -> void:
 	var hub := await _await_scene("Hub") as Hub
 	await _wait(2.0)
 	await _snap("01_hub")
+	if str(args.get("only", "")) == "loss":
+		await _loss_part(hub)
+		_quit()
+		return
 	var coins0 := Meta.currency("coins")
 	var level0 := Meta.level()
 	hub.play.emit()
@@ -92,18 +97,24 @@ func _loop() -> void:
 		_fail("coins did not grow after the run (%d -> %d)" % [coins0, Meta.currency("coins")])
 	if won and Meta.level() != level0 + 1:
 		_fail("frontier did not advance (%d -> %d)" % [level0, Meta.level()])
-	await _wait(1.2)
-	await _snap("02_result_a")
-	await _wait(1.6)
-	await _snap("03_result_b")
-	await _wait(3.5)
-	await _snap("04_result_c")
+	if won:
+		await _until(func() -> bool: return float(flow.get("_clock")) >= 1.0, 30.0)
+		await _snap("02_result_a")
+		await _until(func() -> bool: return int(flow.get("step")) >= 5, 40.0)
+		await _wait_clock(flow, 0.7)
+		await _snap("03_result_b")
+		await _until(func() -> bool: return int(flow.get("step")) >= 6, 40.0)
+		await _wait_clock(flow, 1.4)
+		await _snap("04_result_c")
+	else:
+		await _wait_clock(flow, 3.0)
+		await _snap("02_loss")
 	if won:
 		var rf := flow as ResultFlow
 		var open := _find_button(rf.root, Loc.t("OPEN_ON_ALTAR"))
 		if rf.step < 7:
 			rf.call("_on_next")         # "Далі" before step 7: everything lands, step 7
-			await _wait(0.6)
+			await _wait_clock(rf, 1.0)
 			open = _find_button(rf.root, Loc.t("OPEN_ON_ALTAR"))
 			await _snap("05_result_final")
 		if open:
@@ -118,24 +129,30 @@ func _loop() -> void:
 	hub = await _await_scene("Hub") as Hub
 	await _wait(1.5)
 	await _snap("09_hub_after")
-	# A lost run: the loss screen.
-	if hub:
-		hub.play.emit()
-		holder = await _await_scene("Play")
-		if holder:
-			var loss := await _play_run(holder, true)
-			if loss is LossScreen:
-				await _wait(2.6)
-				await _snap("10_loss")
-				await _wait(1.5)
-				await _snap("11_loss_b")
-				(loss as LossScreen).call("_leave", false)
-				hub = await _await_scene("Hub") as Hub
-				await _wait(1.5)
-				await _snap("12_hub_arsenal")
-			elif loss != null:
-				_fail("the forced loss showed a win flow")
+	if str(args.get("only", "")) != "win":
+		await _loss_part(hub)
 	_quit()
+
+
+func _loss_part(hub: Hub) -> void:
+	if hub == null:
+		return
+	hub.play.emit()
+	var holder := await _await_scene("Play")
+	if holder == null:
+		return
+	var loss := await _play_run(holder, true)
+	if loss is LossScreen:
+		await _wait_clock(loss, 1.2)
+		await _snap("10_loss_a")
+		await _wait_clock(loss, 2.2)
+		await _snap("11_loss_b")
+		(loss as LossScreen).call("_leave", false)
+		await _await_scene("Hub")
+		await _wait(1.5)
+		await _snap("12_hub_arsenal")
+	elif loss != null:
+		_fail("the forced loss showed a win flow")
 
 
 ## Plays the run in `holder` with the bot (army cut to 1 when `lose`), returns the flow node.
@@ -175,12 +192,12 @@ func _brief(b: Dictionary) -> Dictionary:
 
 
 func _drive_altar(altar: CacheAltar) -> void:
-	await _wait(0.7)
+	await _until(func() -> bool: return float(altar.get("_clock")) >= 0.7, 20.0)
 	await _snap("06_altar_present")
 	altar.call("_do_strike")
-	await _wait(0.45)
+	var c0 := float(altar.get("_clock"))
+	await _until(func() -> bool: return float(altar.get("_clock")) >= c0 + 0.47, 20.0)
 	await _snap("07_altar_burst")
-	await _wait(1.6)
 	altar.call("_on_open_all")
 	var t := 0.0
 	while altar.state != "summary" and t < 30.0:
@@ -188,9 +205,23 @@ func _drive_altar(altar: CacheAltar) -> void:
 		t += get_process_delta_time()
 	if altar.state != "summary":
 		_fail("the altar never reached the summary")
-	await _wait(1.2)
+	await _wait(1.0)
+	await _wait(1.0)
 	await _snap("08_altar_summary")
 	altar.call("_leave", "done", "")
+
+
+## Waits until `cond` holds (or `timeout` seconds of real time).
+func _until(cond: Callable, timeout: float) -> void:
+	var t0 := Time.get_ticks_msec()
+	while not cond.call() and Time.get_ticks_msec() - t0 < timeout * 1000.0:
+		await get_tree().process_frame
+
+
+## Waits until a flow's own clock advanced `sec` seconds (renders slowly under xvfb).
+func _wait_clock(flow: Node, sec: float) -> void:
+	var c0 := float(flow.get("_clock"))
+	await _until(func() -> bool: return not is_instance_valid(flow) or float(flow.get("_clock")) >= c0 + sec, 60.0)
 
 
 func _find_button(n: Node, text: String) -> Button:
