@@ -149,6 +149,7 @@ var _quake_wave := 99
 var _armor := 0.0
 ## Hazard clock (WS2b): blades and sweepers move on it; the Seer's rift slows it (hazard_slow).
 var hz_t := 0.0
+var _carry_placed := false            ## profile.new_carry: the first crate became the NEW crate
 var _rift: Node3D
 var _slow_acc := 0.0
 var _finale := 0.0
@@ -1572,6 +1573,12 @@ func _give_weapon(kind: String, at: Vector3) -> void:
 func _prepare_crate(it: Dictionary) -> void:
 	var w := str(it.get("weapon", "deck"))
 	var nc := str(profile.get("new_crate", ""))
+	if bool(profile.get("new_carry", false)) and nc != "" and not _carry_placed:
+		# A NEW machine missed on an earlier level: the level's first crate brings it back.
+		_carry_placed = true
+		it["new"] = true
+		it["weapon"] = nc
+		w = nc
 	if bool(it.get("new", false)) and (w != nc or nc == "" or not bool(ArsenalData.FEATURES["new_crates"])):
 		it["new"] = false
 		w = "deck"

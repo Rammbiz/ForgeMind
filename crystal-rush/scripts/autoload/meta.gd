@@ -677,6 +677,16 @@ func run_profile(lvl: int) -> Dictionary:
 		machines[id] = e
 	var owned_now := owned_ids()
 	var nc := ArsenalData.new_crate_at(lvl)
+	var carry := false
+	if (nc == "" or owned_now.has(nc)) and ArsenalData.crate_events(lvl, ArsenalData.is_boss(lvl)) > 0:
+		# A NEW machine passed up on an earlier level (its crate was in a pair, or never opened)
+		# comes back as this level's first crate, so the scripted unlock is never lost.
+		for back in range(lvl - 1, 0, -1):
+			var miss := ArsenalData.new_crate_at(back)
+			if miss != "" and ArsenalData.is_live(miss) and not owned_now.has(miss):
+				nc = miss
+				carry = true
+				break
 	var boss := ArsenalData.is_boss(lvl)
 	var m: Dictionary = account["meta"]
 	m["run_seq"] = int(m.get("run_seq", 0)) + 1
@@ -686,6 +696,7 @@ func run_profile(lvl: int) -> Dictionary:
 		"profile": dev_profile if dev_profile != "" else "account", "run_id": _open_run_id,
 		"deck": d, "lead": ld, "machines": machines, "owned": owned_now,
 		"new_crate": nc if nc != "" and not owned_now.has(nc) else "",
+		"new_carry": carry,
 		"inrun": {"crates": ArsenalData.crate_events(lvl, boss), "rank_gates": ArsenalData.rank_gates(lvl),
 				"pairs": ArsenalData.pairs_on(lvl), "crate_bonus": bool(ArsenalData.FEATURES["crate_bonus"])},
 		"hero": hero_profile(hero()),

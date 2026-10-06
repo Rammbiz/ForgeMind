@@ -126,6 +126,7 @@ class State extends RefCounted:
 	var deck: Array = []                ## profile deck (crate contents)
 	var levels := {}                    ## account level per machine (CratePicker)
 	var new_crate := ""                 ## the NEW crate machine of this level ("" = owned)
+	var new_got := false                ## planning: this line opened the NEW crate (a permanent unlock)
 	var hero_dmg := 1.0                 ## profile hero dmg_mult (x Reinforcements dmg_add)
 	var ult_rate := 1.0                 ## profile hero ult_rate_mult
 	var ult_pow := 1.0                  ## Ult Rank effect multiplier
@@ -182,7 +183,7 @@ class State extends RefCounted:
 		s.weapons = []
 		for w: Array in weapons:
 			s.weapons.append(w.duplicate())
-		s.prof = prof; s.deck = deck; s.levels = levels; s.new_crate = new_crate; s.hero_dmg = hero_dmg
+		s.prof = prof; s.deck = deck; s.levels = levels; s.new_crate = new_crate; s.new_got = new_got; s.hero_dmg = hero_dmg
 		s.content = content.duplicate()
 		s.arm = arm; s.p_rate = p_rate; s.p_dmg = p_dmg; s.p_multi = p_multi; s.upgrade = upgrade
 		s.script_done = script_done; s.pk = pk; s.bk = bk; s.armed = armed.duplicate(); s.hz = hz
@@ -696,6 +697,8 @@ static func _open_crate(lv: Level, s: State, i: int, bonus: bool) -> void:
 				w[3] = int(w[3]) + 1
 	else:
 		add_weapon(s, str(p[0]), 2 if bonus else 1)
+	if s.new_crate != "" and str(p[0]) == s.new_crate:
+		s.new_got = true
 	_fold_pair(lv, s, i)
 	_log(s, "crate -> %s%s" % [str(p[0]), " +bonus" if bonus else ""])
 
@@ -861,6 +864,9 @@ static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
 		# OPEN emptied: the crate is open (its pair partner folds), the BONUS ring fills.
 		s.val[i] = -1.0
 		_fold_pair(lv, s, i)
+		var ci := lv.items[i]
+		if s.new_crate != "" and bool(ci.get("new", false)) and (str(ci.get("content", "")) == s.new_crate or str(ci.get("weapon", "")) == s.new_crate):
+			s.new_got = true        # planning: the NEW machine is claimed once its crate is open
 	if s.hp[i] > 0.001:
 		return
 	s.hp[i] = 0.0
@@ -915,6 +921,9 @@ const MACHINE_TICK := 0.25
 ## Planning worth of a machine's crowd kill rate over the rest of the level (share of the
 ## time it has something to shoot; etap1 used 0.22 for the 5 machines).
 const MACHINE_WORTH := 0.4
+## Planning worth (soldiers) of opening the level's NEW crate: the machine is unlocked for good,
+## so the bot (a stand-in for a player) takes it over a deck crate of the same pair.
+const NEW_WORTH := 80.0
 
 
 static func _machines(lv: Level, s: State, dt: float) -> void:
@@ -1564,7 +1573,7 @@ static func value(lv: Level, s: State) -> float:
 	if s.mode == Mode.LOST:
 		return -10000.0 + s.d
 	if s.mode == Mode.WON:
-		return 1000.0 + s.survivors * 2.0 + s.total_coins * 0.2
+		return 1000.0 + s.survivors * 2.0 + s.total_coins * 0.2 + (NEW_WORTH if s.new_got else 0.0)
 	var left := maxf(lv.length - s.d, 0.0) / Balance.RUN_SPEED
 	var v := s.army
 	for w: Array in s.weapons:
@@ -1577,6 +1586,8 @@ static func value(lv: Level, s: State) -> float:
 	# The hero's fire also pumps gates and opens crates, so it is worth more than its kills.
 	v += hero_dps * left * 0.3
 	v += s.coins * 0.15 + s.ult * 0.25
+	if s.new_got:
+		v += NEW_WORTH
 	if s.army < 0.5:
 		v -= 30.0
 	return v
