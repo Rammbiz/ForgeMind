@@ -608,9 +608,9 @@ static func collet(ci: CanvasItem, c: Vector2, rad: float, kind := "ice", n_pron
 	gold_moulding(ci, regular(c, rad * 1.2, 32), regular(c, rad * 0.98, 32), 0.45)
 	brilliant(ci, c, rad, kind)
 	for k in n_prongs:
-		var a := -PI * 0.75 + TAU * k / n_prongs
+		var a := -PI * 0.5 + TAU * k / n_prongs + (PI / n_prongs if n_prongs == 4 else 0.0)
 		var u := Vector2(cos(a), sin(a))
-		prong(ci, c + u * rad * 1.32, c + u * rad * 0.72, rad * 0.32)
+		prong(ci, c + u * rad * 1.16, c + u * rad * 0.8, maxf(rad * 0.42, 4.0))
 
 
 # --- composite ornaments -----------------------------------------------------------------
@@ -632,13 +632,19 @@ static func plate_frame(ci: CanvasItem, r: Rect2, n := 22.0, w := 5.0, corner_ge
 		for k in 4:
 			var corner: Vector2 = cs[k]
 			var dir := Vector2(signf(ctr.x - corner.x), signf(ctr.y - corner.y)).normalized()
-			var gc := corner + dir * n * 0.2
-			var gr := n * 0.52
-			ci.draw_circle(gc + Vector2(0, 2), gr * 1.12, Color(0, 0, 0, 0.55), true, -1.0, true)
-			octagem(ci, gc, gr, corner_gem)
-			for a in [-PI * 0.3, 0.0, PI * 0.3]:
-				var u := dir.rotated(a)
-				prong(ci, corner + u * (n + 2.0), gc + u * (gr * 0.55), 7.5)
+			var gc := corner + dir * n * 0.22
+			var gr := n * 0.48
+			corner_setting(ci, gc, gr, corner_gem, dir)
+
+
+## A small gem in a gold collar with three short claws (plate corners).
+static func corner_setting(ci: CanvasItem, gc: Vector2, gr: float, kind: String, dir: Vector2) -> void:
+	ci.draw_circle(gc + Vector2(0, 2), gr + 5, Color(0, 0, 0, 0.5), true, -1.0, true)
+	gold_moulding(ci, regular(gc, gr + 4.0, 24), regular(gc, gr, 24), 0.45)
+	octagem(ci, gc, gr, kind)
+	for a in [-PI * 0.5, PI * 0.5, PI]:
+		var u := dir.rotated(a + PI * 0.25)
+		prong(ci, gc + u * (gr + 4.5), gc + u * (gr * 0.62), maxf(gr * 0.55, 4.0))
 
 
 ## Enamel fill colour for plain (non-shader) areas.

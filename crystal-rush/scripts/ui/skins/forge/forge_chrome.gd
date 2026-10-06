@@ -111,3 +111,35 @@ static func draw_bar(ci: CanvasItem, r: Rect2, k: float, text: String, full := f
 	ForgeKit.draw_rim(ci, outer, Color(0.75, 0.93, 1.0, 0.55), Color("05061A"), 1.0, 0.0)
 	if text != "":
 		ForgeKit.draw_text_oc(ci, text, "num", int(r.size.y * 0.74), r.get_center() + Vector2(slant * 0.1, 0), Color.WHITE, Color("05061A"), 7)
+
+
+## Slanted segmented tabs: one glass shard cut into parallelograms; the active one is an ice
+## prism with ink text.
+static func tabs(parent: Node, r: Rect2, names: Array, active: int, seed := 3201) -> void:
+	var pts := ForgeKit.panel(parent, r, seed, {"cuts": {0: Vector2(18, 12), 2: Vector2(18, 12)}, "skew": 0.0, "cleave": false, "facets": false, "tint_k": 0.9, "drop": false})
+	var slant := 14.0
+	var widths: Array[float] = []
+	var total := 0.0
+	for n: String in names:
+		var w := ForgeKit.text_w(n, "bold", 26) + 40.0
+		widths.append(w)
+		total += w
+	var extra := (r.size.x - total) / names.size()
+	ForgeKit.canvas(parent, func(ci: CanvasItem) -> void:
+		var x := r.position.x
+		for i in names.size():
+			var w: float = widths[i] + extra
+			if i == active:
+				var seg := PackedVector2Array([Vector2(x + 4 + slant, r.position.y + 5), Vector2(x + w - 2, r.position.y + 5),
+					Vector2(x + w - 2 - slant, r.end.y - 9), Vector2(x + 4, r.end.y - 9)])
+				if i == 0:
+					seg[0] = Vector2(x + 18, r.position.y + 5)
+					seg[3] = Vector2(x + 5, r.end.y - 18)
+					seg.insert(3, Vector2(x + 14, r.end.y - 9))
+				ForgeKit.draw_prism(ci, seg, ForgeKit.PRISMS["primary"], 4.0, 0.0, 0.0, false)
+				ForgeKit.draw_text_c(ci, names[i], "bold", 26, Vector2(x + w * 0.5, r.get_center().y - 2), ForgeKit.INK)
+			else:
+				ForgeKit.draw_text_c(ci, names[i], "bold", 26, Vector2(x + w * 0.5, r.get_center().y), ForgeKit.TEXT)
+			if i > 0 and i != active and i - 1 != active:
+				ci.draw_line(Vector2(x + slant, r.position.y + 10), Vector2(x, r.end.y - 10), Color(0.7, 0.92, 1.0, 0.3), 1.0, true)
+			x += w)

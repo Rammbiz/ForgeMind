@@ -264,7 +264,7 @@ func _modal() -> void:
 func _arsenal() -> void:
 	var ids := ["drone", "ballista", "mortar", "laser", "railgun", "prism"]
 	var thumbs := await _thumbs(ids)
-	_enamel_bg(Vector2(W * 0.5, 230), {"vignette": 0.6, "light": Vector2(W * 0.5, 240), "light_r": 700.0, "spacing": 10.0, "waves": 20.0})
+	_enamel_bg(Vector2(W * 0.5, -260), {"vignette": 0.6, "light": Vector2(W * 0.5, 240), "light_r": 760.0, "spacing": 10.0, "waves": 20.0})
 	var tiara := JwHub.Tiara.new()
 	tiara.crowns = "9"
 	_place(tiara, Vector2.ZERO, Vector2(W, 170))
@@ -285,8 +285,8 @@ func _arsenal() -> void:
 		["Рейкова гармата", "E", 3, Vector2i(1, 4), "", false],
 		["Призма", "L", 2, Vector2i(0, 3), "", false],
 	]
-	var cw := (W - 24.0 - 24.0) / 3.0
-	var ch := 316.0
+	var cw := (W - 24.0 - 32.0) / 3.0
+	var ch := 314.0
 	for i in data.size():
 		var d: Array = data[i]
 		var card := JwHub.Card.new()
@@ -300,7 +300,7 @@ func _arsenal() -> void:
 		card.thumb = thumbs.get(ids[i])
 		var col := i % 3
 		var row := i / 3
-		_place(card, Vector2(12 + col * (cw + 12), 300 + row * (ch + 14)), Vector2(cw, ch))
+		_place(card, Vector2(12 + col * (cw + 16), 298 + row * (ch + 16)), Vector2(cw, ch))
 		card.setup()
 	var dial := JwHub.Astrolabe.new()
 	dial.active = 1

@@ -272,7 +272,7 @@ class Card extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_en = JwUi.Layer.new(func(ci: CanvasItem) -> void:
-			Jw.fill(ci, Jw.notched(Rect2(Vector2(2, 2), size - Vector2(4, 4)), 18), Color.WHITE))
+			Jw.fill(ci, Jw.notched(Rect2(Vector2(2, 2), size - Vector2(4, 4)), 16), Color.WHITE))
 		_en.show_behind_parent = true
 		add_child(_en)
 		resized.connect(_layout)
@@ -299,56 +299,57 @@ class Card extends Control:
 		if _en:
 			_en.size = size
 		if _btn:
-			_btn.position = Vector2(8, size.y - 82)
-			_btn.size = Vector2(size.x - 16, 74)
+			_btn.position = Vector2(6, size.y - 80)
+			_btn.size = Vector2(size.x - 12, 74)
 		queue_redraw()
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		var k: String = Jw.RARITY_GEM[rarity]
 		if selected:
-			for i in 4:
-				Jw.fill(self, Jw.notched(r.grow(10 - i * 2), 18 + 10 - i * 2), Color(0.55, 0.9, 1.0, 0.07))
-		# machine render on its light pool
+			for i in 5:
+				Jw.fill(self, Jw.notched(r.grow(12 - i * 2.4), 14 + 12 - i * 2.4), Color(0.55, 0.9, 1.0, 0.06))
+		# machine render on its light pool (cropped: the thumbs carry generous padding)
+		var div_y := 172.0
 		if thumb:
-			var ts := minf(size.x - 20, 190)
-			draw_texture_rect(thumb, Rect2(Vector2((size.x - ts) * 0.5, 14), Vector2(ts, ts)), false)
-		Jw.plate_frame(self, r, 18, 5.0, k, false)
-		# name plaque divider
-		var ny := size.y - (148 if upgrade_price != "" else 116)
-		var dl := PackedVector2Array([Vector2(16, ny), Vector2(size.x - 16, ny)])
+			var ts := size.x - 16
+			draw_texture_rect_region(thumb, Rect2(Vector2(8, div_y - ts + 2), Vector2(ts, ts)), Rect2(34, 18, 188, 188))
+		Jw.plate_frame(self, r, 14, 5.0, k, false)
+		# divider with a set gem
+		var dl := PackedVector2Array([Vector2(16, div_y), Vector2(size.x - 16, div_y)])
 		draw_polyline(dl, Color(Jw.GOLD_INK, 0.8), 3.0, true)
 		draw_polyline(dl, Jw.gold(0.7), 1.3, true)
-		Jw.fill(self, Jw.regular(Vector2(size.x * 0.5, ny), 6, 4), Jw.gold(0.85))
-		Jw.octagem(self, Vector2(size.x * 0.5, ny), 3.6, k)
-		# name (up to two lines)
+		Jw.fill(self, Jw.regular(Vector2(size.x * 0.5, div_y), 7, 4), Jw.gold(0.85))
+		Jw.octagem(self, Vector2(size.x * 0.5, div_y), 4.2, k)
+		# name: fixed two-line block
 		var f := Jw.label()
 		var words := title.split(" ")
 		var lines: Array[String] = [title]
-		if Jw.text_w(f, title, 27) > size.x - 28 and words.size() > 1:
+		if Jw.text_w(f, title, 27) > size.x - 24 and words.size() > 1:
 			lines = [words[0], " ".join(words.slice(1))]
-		var ly := ny + 30 if lines.size() == 1 else ny + 26
+		var ly := div_y + 36.0 if lines.size() == 1 else div_y + 22.0
 		for s in lines:
 			Jw.text_c(self, f, s, Vector2(size.x * 0.5, ly + 2), 27, Color(0, 0, 0, 0.8))
 			Jw.text_c(self, f, s, Vector2(size.x * 0.5, ly), 27, Jw.IVORY)
-			ly += 30
+			ly += 29
 		# level shield badge (top-left)
-		var sr := Rect2(12, 12, 44, 54)
+		var sr := Rect2(12, 12, 42, 52)
 		Jw.fill(self, Jw.shield(sr.grow(2).grow_individual(0, -1, 0, 3)), Color(0, 0, 0, 0.5))
 		Jw.gold_moulding(self, Jw.shield(sr), Jw.shield(sr.grow(-4)), 0.45)
 		Jw.fill_ramp(self, Jw.shield(sr.grow(-4)), Jw.ramp_tex("shield_" + k, [[0.0, Jw.gem(k, 0.4)], [1.0, Jw.gem(k, 0.12)]]), Vector2(0, 1))
 		Jw.text_c(self, Jw.num(), str(lvl), sr.get_center() + Vector2(0, -3), 28, Jw.IVORY)
-		# rarity brilliant top-right
 		if ready_dot:
 			Jw.collet(self, Vector2(size.x - 30, 32), 10, "emerald", 4)
 			Jw.glint(self, Vector2(size.x - 36, 26), 14, Color(0.8, 1.0, 0.9))
-		# progress
+		# footer: count + baguette channel
 		if upgrade_price == "":
-			var bars := Rect2(14, size.y - 54, size.x - 28, 34)
 			var full := progress.x >= progress.y
-			_baguettes(bars, progress.x, progress.y, "emerald" if full else "ice")
 			var lab := "%d/%d" % [progress.x, progress.y]
-			Jw.text_c(self, Jw.num(), lab, Vector2(size.x * 0.5, size.y - 74), 26, Jw.IVORY if full else Jw.DIM)
+			var nf := Jw.num()
+			var lw := Jw.text_w(nf, lab, 26)
+			Jw.text_c(self, nf, lab, Vector2(16 + lw * 0.5, size.y - 37), 26, Jw.IVORY if full else Jw.DIM)
+			var bars := Rect2(24 + lw, size.y - 54, size.x - 38 - lw, 34)
+			_baguettes(bars, progress.x, progress.y, "emerald" if full else "ice")
 
 	func _baguettes(r: Rect2, filled: int, total: int, kind: String) -> void:
 		Jw.fill(self, Jw.chamfer(r.grow_individual(0, -1, 0, 3), 4), Color(0, 0, 0, 0.5))

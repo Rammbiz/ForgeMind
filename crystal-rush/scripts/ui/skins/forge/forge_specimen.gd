@@ -10,36 +10,38 @@ func _ready() -> void:
 	root.size = Vector2(720, 1280)
 	add_child(root)
 	ForgeKit.backdrop(root, Vector2(0.3, 0.1))
-	ForgeKit.label(root, "НАБІР ЕЛЕМЕНТІВ · НАПРЯМ B", "label", 26, ForgeKit.DIM, Rect2(24, 20, 680, 36), HORIZONTAL_ALIGNMENT_LEFT, false)
-	ForgeKit.headline(root, "КРИШТАЛЕВА", Vector2(22, 58), 64, {"max_w": 676})
-	ForgeKit.headline(root, "КУЗНЯ", Vector2(22, 118), 64, {"max_w": 676})
+	ForgeKit.label(root, "НАБІР ЕЛЕМЕНТІВ · НАПРЯМ B", "label", 22, ForgeKit.DIM, Rect2(24, 14, 680, 30), HORIZONTAL_ALIGNMENT_LEFT, false)
+	ForgeKit.headline(root, "КРИШТАЛЕВА КУЗНЯ", Vector2(20, 46), 56, {"max_w": 680})
 
 	# --- type ramp
-	ForgeKit.panel(root, Rect2(16, 192, 688, 312), 11, {"cuts": {1: Vector2(64, 26), 3: Vector2(18, 44)}})
-	ForgeKit.label(root, "ТИПОГРАФІКА", "label", 26, Color("7FE3FF"), Rect2(40, 206, 400, 36), HORIZONTAL_ALIGNMENT_LEFT, false)
-	ForgeKit.headline(root, "АРСЕНАЛ", Vector2(38, 242), 60, {"max_w": 420})
-	ForgeKit.label(root, "Облогова мортира", "bold", 40, ForgeKit.TEXT, Rect2(40, 308, 640, 50), HORIZONTAL_ALIGNMENT_LEFT, false)
-	ForgeKit.para(root, "Снаряд падає за 12 кроків перед героєм — наведи кільце на ворогів і тримай їх у ньому.", "body", 28, Color("C9D8F0"), Rect2(40, 356, 640, 76))
+	ForgeKit.panel(root, Rect2(16, 116, 688, 312), 11, {"cuts": {1: Vector2(64, 26), 3: Vector2(18, 44)}})
+	ForgeKit.label(root, "ТИПОГРАФІКА", "label", 26, Color("7FE3FF"), Rect2(40, 130, 400, 36), HORIZONTAL_ALIGNMENT_LEFT, false)
+	ForgeKit.headline(root, "АРСЕНАЛ", Vector2(38, 166), 60, {"max_w": 420})
+	ForgeKit.label(root, "Облогова мортира", "bold", 40, ForgeKit.TEXT, Rect2(40, 232, 640, 50), HORIZONTAL_ALIGNMENT_LEFT, false)
+	ForgeKit.para(root, "Снаряд падає за 12 кроків перед героєм — наведи кільце на ворогів і тримай їх у ньому.", "body", 28, Color("C9D8F0"), Rect2(40, 280, 640, 76))
 	ForgeKit.canvas(root, func(ci: CanvasItem) -> void:
 		var x := 40.0
-		x += ForgeKit.draw_text_l(ci, "2 590", "num", 40, Vector2(x, 466), ForgeKit.GOLD) + 28.0
-		x += ForgeKit.draw_text_l(ci, "×2,5", "num", 40, Vector2(x, 466), ForgeKit.RIM) + 28.0
-		x += ForgeKit.draw_text_l(ci, "+0,37", "num", 40, Vector2(x, 466), Color("7FE3FF")) + 28.0
-		ForgeKit.draw_text_l(ci, "14/20", "num", 40, Vector2(x, 466), ForgeKit.TEXT))
+		x += ForgeKit.draw_text_l(ci, "2 590", "num", 40, Vector2(x, 390), ForgeKit.GOLD) + 28.0
+		x += ForgeKit.draw_text_l(ci, "×2,5", "num", 40, Vector2(x, 390), ForgeKit.RIM) + 28.0
+		x += ForgeKit.draw_text_l(ci, "+0,37", "num", 40, Vector2(x, 390), Color("7FE3FF")) + 28.0
+		ForgeKit.draw_text_l(ci, "14/20", "num", 40, Vector2(x, 390), ForgeKit.TEXT))
 
 	# --- buttons
-	ForgeKit.panel(root, Rect2(16, 518, 688, 292), 12, {"cuts": {0: Vector2(26, 58), 2: Vector2(44, 16)}})
+	ForgeKit.panel(root, Rect2(16, 442, 688, 292), 12, {"cuts": {0: Vector2(26, 58), 2: Vector2(44, 16)}})
 	var cols := [["ЗВИЧАЙНА", "normal"], ["НАТИСНУТА", "pressed"], ["ВИМКНЕНА", "disabled"]]
 	var rows := [["primary", "ГРАТИ", ""], ["secondary", "ЩЕ РАЗ", "coin"], ["danger", "ЗДАТИСЯ", ""]]
 	var cx := [134.0, 360.0, 586.0]
 	for i in 3:
-		ForgeKit.label(root, cols[i][0], "label", 22, ForgeKit.DIM, Rect2(cx[i] - 110, 530, 220, 32), HORIZONTAL_ALIGNMENT_CENTER, false)
+		ForgeKit.label(root, cols[i][0], "label", 22, ForgeKit.DIM, Rect2(cx[i] - 110, 454, 220, 32), HORIZONTAL_ALIGNMENT_CENTER, false)
 	ForgeKit.canvas(root, func(ci: CanvasItem) -> void:
 		for j in rows.size():
 			for i in 3:
-				var r := Rect2(cx[i] - 100, 572 + j * 76, 200, 58)
+				var r := Rect2(cx[i] - 100, 496 + j * 76, 200, 58)
 				var p := ForgeKit.shard(r, 40 + j, {"cuts": {0: Vector2(24, 10), 2: Vector2(12, 26)}, "skew": 0.0})
 				ForgeKit.draw_button(ci, p, rows[j][0], rows[j][1], {"state": cols[i][1], "size": 26, "icon": rows[j][2], "icon_px": 30}))
+
+	# --- segmented tabs
+	ForgeChrome.tabs(root, Rect2(16, 752, 688, 56), ["Машини", "Колода · 3/3", "Креслення"], 1, 3301)
 
 	# --- currencies, rarity, bars, gems
 	ForgeKit.panel(root, Rect2(16, 824, 688, 262), 13, {"cuts": {1: Vector2(20, 48)}})
