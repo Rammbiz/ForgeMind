@@ -12,7 +12,7 @@ signal rendered(key: String, tex: Texture2D)
 
 const PX := 256
 ## Bump when the procedural models change their look (old PNGs are ignored).
-const VERSION := "m1d"
+const VERSION := "m1e"
 
 static var _cache := {}
 var _queue: Array[String] = []

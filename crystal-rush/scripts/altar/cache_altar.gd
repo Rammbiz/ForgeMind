@@ -380,7 +380,8 @@ func _arc_slot(i: int) -> Vector2:
 	var vp := get_viewport().get_visible_rect().size
 	var n := _cards.size()
 	var cs := _card_size()
-	var step := minf(cs.x - 24.0 + (40.0 if n <= 3 else 0.0), (vp.x - 64.0 - cs.x) / maxf(n - 1, 1))
+	# Keeps >= 50 px to the screen edges (the tilted outer cards used to sit ~20 px from them).
+	var step := minf(cs.x - 32.0 + (48.0 if n <= 3 else 0.0), (vp.x - 100.0 - cs.x) / maxf(n - 1, 1))
 	var u := i - (n - 1) * 0.5
 	var x := vp.x * 0.5 + u * step - cs.x * 0.5
 	var y := vp.y * 0.6 + u * u * 9.0

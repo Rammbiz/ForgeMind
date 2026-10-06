@@ -164,9 +164,6 @@ func _fill_body(id: String, unlocked: bool) -> void:
 		var l := _ink(Loc.f("HERO_LOCKED", [at]), 28)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_body.add_child(l)
-		var s := _ink(Loc.t("HERO_SOON"), 20, true)
-		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_body.add_child(s)
 		return
 	var lvl := Meta.hero_level(id)
 	var cap := Meta.hero_cap()

@@ -94,7 +94,8 @@ func _on_ult() -> void:
 	if get_tree().paused:
 		return
 	if run.use_ult():
-		view.toast(Loc.t(run.ult["name"]), Color(0.6, 0.85, 1.0) if run.hero_type == "bolt" else Color(0.5, 1.0, 0.65))
+		var hc: Color = (Balance.HEROES.get(run.hero_type, {}) as Dictionary).get("color", Color(0.6, 0.85, 1.0))
+		view.toast(Loc.t(run.ult["name"]), hc.lerp(Color.WHITE, 0.25))
 	else:
 		Audio.play("error", -6.0)
 
