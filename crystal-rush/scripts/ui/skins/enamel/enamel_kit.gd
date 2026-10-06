@@ -122,7 +122,8 @@ static func _draw_styled(ci: CanvasItem, f: Font, pos: Vector2, text: String, si
 			ci.draw_string(f, pos + Vector2(0, 1.6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, 0.9))
 			ci.draw_string(f, pos + Vector2(0, -0.8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0.05, 0.25))
 		"raised":
-			ci.draw_string(f, pos + Vector2(0, 2.4), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.02, 0.06, 0.2, 0.45))
+			ci.draw_string_outline(f, pos + Vector2(0, 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, maxi(3, size / 9), Color(0.02, 0.08, 0.26, 0.32))
+			ci.draw_string(f, pos + Vector2(0, 2.4), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.02, 0.06, 0.2, 0.5))
 		"shadow":
 			ci.draw_string_outline(f, pos + Vector2(0, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 6, Color(0.0, 0.0, 0.06, 0.55))
 			ci.draw_string(f, pos + Vector2(0, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.0, 0.0, 0.06, 0.75))
@@ -270,7 +271,7 @@ static func key(parent: Node, r: Rect2, label: String, o := {}) -> Rect2:
 	# The call to action is always ice CLOISONNE: gold wires between faceted ice-enamel cells.
 	if po.get("mat", "enamel") == "ice" and not o.has("cloison") and state != "disabled":
 		po["cloison"] = 1.0
-		po["cloison_cell"] = 100.0
+		po["cloison_cell"] = 120.0
 	if state == "pressed":
 		po["press"] = 1.0
 	if state == "disabled":
@@ -388,6 +389,14 @@ static func star(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
 	var w := r * 0.22
 	poly(ci, PackedVector2Array([c + Vector2(0, -r), c + Vector2(w, -w), c + Vector2(r, 0), c + Vector2(w, w),
 		c + Vector2(0, r), c + Vector2(-w, w), c + Vector2(-r, 0), c + Vector2(-w, -w)]), col)
+
+
+## A glint on polished gold / glaze: soft bloom + 4-point star.
+static func glint(ci: CanvasItem, c: Vector2, r: float) -> void:
+	for k in 4:
+		ci.draw_circle(c, r * (0.9 - k * 0.18), Color(1, 0.97, 0.85, 0.07 + k * 0.05), true, -1.0, true)
+	star(ci, c, r, Color(1, 1, 0.95, 0.95))
+	star(ci, c, r * 0.45, Color.WHITE)
 
 
 ## A gold rivet dome drawn on the canvas (for elements without the plate shader).

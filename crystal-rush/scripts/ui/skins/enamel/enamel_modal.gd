@@ -47,7 +47,9 @@ func _build() -> void:
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		var s := K.fit_size("ПЕРЕМОГА!", "logo", 76, pr.size.x - 96.0, 56)
 		K.text_c(ci, "ПЕРЕМОГА!", "logo", s, Vector2(cx, pr.position.y + 82.0), K.INK)
-		K.text_c(ci, "Рівень 14 · Орбітальна траса", "bold", 28, Vector2(cx, pr.position.y + 142.0), K.INK_DIM))
+		K.text_c(ci, "Рівень 14 · Орбітальна траса", "bold", 28, Vector2(cx, pr.position.y + 142.0), K.INK_DIM)
+		K.glint(ci, Vector2(pr.position.x + 92.0, pr.position.y + 56.0), 16.0)
+		K.glint(ci, Vector2(pr.end.x - 64.0, pr.position.y + 108.0), 10.0))
 	# Reward tray: three sunk slots.
 	var tr := Rect2(pr.position.x + 30.0, pr.position.y + 176.0, pr.size.x - 60.0, 132.0)
 	K.plate(_root, tr, {"mat": "tray", "recess": true, "ch": 18.0, "trim": 0.0, "shadow": 0.0, "outline_w": 0.0, "pad": 6.0})
@@ -68,7 +70,7 @@ func _build() -> void:
 	var rar: Array = K.RARITY["R"]
 	K.plate(_root, mr, {"mat": "window", "recess": true, "ch": 22.0, "rad": 6.0, "trim": 4.0, "inset": 1.0, "trim_cols": [Color(rar[2]).darkened(0.2), rar[1], rar[0]], "shadow": 0.0, "outline_w": 0.0, "pad": 6.0})
 	K.canvas(_root, func(ci: CanvasItem) -> void:
-		var wc := Vector2(mr.position.x + 150.0, mr.get_center().y + 6.0)
+		var wc := Vector2(mr.position.x + 146.0, mr.get_center().y + 10.0)
 		for k in 7:
 			var t := 1.0 - k / 7.0
 			ci.draw_circle(wc, 30.0 + k * 13.0, Color(rar[1], 0.07 * t + 0.02), true, -1.0, true)
@@ -77,10 +79,10 @@ func _build() -> void:
 		ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		var tex := MachineThumbs.get_thumb(_root, "mortar", false)
 		if tex:
-			ci.draw_texture_rect(tex, Rect2(wc.x - 112.0, wc.y - 118.0, 224, 224), false)
+			ci.draw_texture_rect(tex, Rect2(wc.x - 128.0, mr.end.y - 230.0, 256, 256), false)
 		var x := mr.position.x + 286.0
 		K.draw_inlay(ci, Vector2(mr.end.x - 30.0, mr.position.y + 34.0), Vector2(26, 40), [rar[0], rar[1], rar[2]])
-		K.text_l(ci, "Креслення", "caps", 22, Vector2(x, mr.position.y + 40.0), K.ICE, "plain")
+		K.text_l(ci, "Креслення", "caps", 26, Vector2(x, mr.position.y + 40.0), K.ICE, "plain")
 		K.text_l(ci, "Облогова", "display", 30, Vector2(x, mr.position.y + 82.0), K.ENAMEL, "plain")
 		K.text_l(ci, "мортира", "display", 30, Vector2(x, mr.position.y + 118.0), K.ENAMEL, "plain")
 		var w := K.text_l(ci, "+3", "num", 30, Vector2(x, mr.position.y + 164.0), K.ICE, "plain")
@@ -96,9 +98,16 @@ func _build() -> void:
 		"icon": func(ci: CanvasItem, fr: Rect2) -> float:
 			I.draw(ci, "ad", Rect2(fr.position.x + 28.0, fr.get_center().y - 26.0, 56, 52), K.WHITE, Color("3FB0F4"), "raised")
 			return fr.position.x + 92.0})
-	K.key(_root, Rect2(pr.position.x + 120.0, pr.position.y + 704.0, pr.size.x - 240.0, 80.0), "Забрати 240", {"depth": 10.0, "size": 30,
+	K.key(_root, Rect2(pr.position.x + 120.0, pr.position.y + 704.0, pr.size.x - 240.0, 80.0), "", {"depth": 10.0, "size": 30,
 		"icon": func(ci: CanvasItem, fr: Rect2) -> float:
-			return fr.position.x})
+			var w1 := K.text_w("Забрати", "display", 30)
+			var w2 := K.text_w("240", "num", 30)
+			var x := fr.get_center().x - (w1 + 12.0 + 34.0 + 8.0 + w2) * 0.5
+			var cy := fr.get_center().y
+			K.text_l(ci, "Забрати", "display", 30, Vector2(x, cy), K.INK)
+			I.draw(ci, "coin", Rect2(x + w1 + 12.0, cy - 17.0, 34, 34))
+			K.text_l(ci, "240", "num", 30, Vector2(x + w1 + 54.0, cy), K.INK)
+			return fr.end.x})
 
 
 func prepared() -> void:

@@ -74,11 +74,11 @@ func _card(r: Rect2, d: Array) -> void:
 		else:
 			# level coin, stamped
 			var lc := Vector2(wr.position.x + 26.0, wr.position.y + 26.0)
-			ci.draw_circle(lc + Vector2(0, 2.5), 21.0, Color(0, 0, 0.05, 0.5), true, -1.0, true)
-			ci.draw_circle(lc, 21.0, K.GOLD_DARK, true, -1.0, true)
-			ci.draw_circle(lc + Vector2(-0.5, -0.8), 19.0, K.GOLD, true, -1.0, true)
+			ci.draw_circle(lc + Vector2(0, 2.5), 22.0, Color(0, 0, 0.05, 0.5), true, -1.0, true)
+			ci.draw_circle(lc, 22.0, K.GOLD_DARK, true, -1.0, true)
+			ci.draw_circle(lc + Vector2(-0.5, -0.8), 20.0, K.GOLD, true, -1.0, true)
 			ci.draw_circle(lc + Vector2(-2, -3), 12.0, K.GOLD_LIGHT.lerp(K.GOLD, 0.4), true, -1.0, true)
-			K.text_c(ci, d[4], "num", 24, lc + Vector2(0, 0.5), Color("3A2206"), "plain")
+			K.text_c(ci, d[4], "num", 26, lc + Vector2(0, 0.5), Color("3A2206"), "plain")
 			# rarity lozenge at the window's cut corner
 			K.draw_inlay(ci, Vector2(wr.end.x - 24.0, wr.position.y + 26.0), Vector2(24, 36), [rar[0], rar[1], rar[2]]))
 	var ink := Color("6E6A64") if locked else K.INK

@@ -168,11 +168,11 @@ static func nameplate(parent: Node, pos: Vector2, title: String, kicker := "", o
 	var h := float(o.get("h", 84.0))
 	var r := Rect2(pos.x, pos.y, maxf(tw + 64.0, float(o.get("min_w", 0.0))), h)
 	if kicker != "":
-		var kw := K.text_w(kicker, "caps", 22) + 40.0
-		var kr := Rect2(pos.x + 18.0, pos.y - 30.0, kw, 40.0)
+		var kw := K.text_w(kicker, "caps", 26) + 40.0
+		var kr := Rect2(pos.x + 18.0, pos.y - 36.0, kw, 46.0)
 		K.plate(parent, kr, {"mat": "navy", "ch": 8.0, "rad": 4.0, "trim": 0.0, "shadow": 0.4, "pad": 12.0, "corners": "tl"})
 		K.canvas(parent, func(ci: CanvasItem) -> void:
-			K.text_l(ci, kicker, "caps", 22, Vector2(kr.position.x + 20.0, kr.position.y + 17.0), K.ICE, "plain"))
+			K.text_l(ci, kicker, "caps", 26, Vector2(kr.position.x + 20.0, kr.position.y + 19.0), K.ICE, "plain"))
 	K.plate(parent, r, {"ch": 16.0, "trim": 4.0, "rivet": 4.0, "shadow": 0.55})
 	K.canvas(parent, func(ci: CanvasItem) -> void:
 		K.text_c(ci, title, "display", s, r.get_center() + Vector2(0, 1), K.INK, "deboss"))

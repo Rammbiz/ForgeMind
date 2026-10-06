@@ -180,7 +180,7 @@ func _build_ui() -> void:
 		ci.draw_rect(Rect2(0, 900, 720, 380), bot))
 	C.top_bar(_root, {"level": "14", "coins": "2 590", "gems": "40", "crowns": "26"})
 	# The world's title plate hangs from the rail on two gold rods.
-	var tp := C.nameplate(_root, Vector2(16, 150), "Орбітальна траса", "СВІТ 1 · РІВЕНЬ 14 / 25", {"size": 44, "h": 78.0})
+	var tp := C.nameplate(_root, Vector2(16, 160), "Орбітальна траса", "СВІТ 1 · РІВЕНЬ 14 / 25", {"size": 44, "h": 78.0})
 	# Vault plate (right): a geode cache ready to open.
 	var vr := Rect2(480, 262, 224, 76)
 	K.plate(_root, vr, {"ch": 12.0, "trim": 3.0, "shadow": 0.55, "rivet": 3.4})
@@ -229,7 +229,7 @@ func _track(r: Rect2) -> void:
 		var done := i < 2
 		var boss := i == xs.size() - 1
 		var machine := i == 4
-		var sz := 92.0 if cur else (74.0 if boss else 62.0)
+		var sz := 92.0 if cur else (82.0 if boss else 66.0)
 		var depth := 9.0 if cur else 6.0
 		var tr := Rect2(c.x - sz * 0.5, c.y - sz * 0.5 - depth * 0.5, sz, sz + depth)
 		var mat := "ice" if cur else ("red" if boss else ("enamel" if not done else "enamel"))
@@ -243,11 +243,11 @@ func _track(r: Rect2) -> void:
 			if cur:
 				K.text_c(ci, lbl, "num", 40, fc + Vector2(0, 1), K.WHITE, "raised")
 			elif boss:
-				I.draw(ci, "horns", Rect2(fc - Vector2(19, 26), Vector2(38, 34)), K.WHITE, K.RED, "raised")
-				K.text_c(ci, lbl, "num", 22, fc + Vector2(0, 21), K.WHITE, "raised")
+				I.draw(ci, "horns", Rect2(fc - Vector2(19, 31), Vector2(38, 34)), K.WHITE, K.RED, "raised")
+				K.text_c(ci, lbl, "num", 26, fc + Vector2(0, 21), K.WHITE, "raised")
 			elif machine:
-				I.draw(ci, "cannon", Rect2(fc - Vector2(17, 22), Vector2(34, 30)), K.INK, Color("F1EDE4"))
-				K.text_c(ci, lbl, "num", 20, fc + Vector2(0, 17), K.INK)
+				I.draw(ci, "cannon", Rect2(fc - Vector2(15, 28), Vector2(30, 28)), K.INK, Color("F1EDE4"))
+				K.text_c(ci, lbl, "num", 24, fc + Vector2(0, 15), K.INK)
 			else:
 				K.text_c(ci, lbl, "num", 28, fc + Vector2(0, 1), K.INK if not done else K.INK_DIM)
 			if done:
@@ -256,7 +256,7 @@ func _track(r: Rect2) -> void:
 				ci.draw_circle(cc, 11.5, Color("2E8F5A"), true, -1.0, true)
 				I.draw(ci, "check", Rect2(cc - Vector2(8, 8), Vector2(16, 16)), K.WHITE, K.WHITE, "plain"))
 	K.canvas(_root, func(ci: CanvasItem) -> void:
-		K.text_c(ci, "БОС", "caps", 22, Vector2(xs[5], cy - 64.0), Color("FFB4A8"), "shadow")
+		K.text_c(ci, "БОС", "caps", 26, Vector2(xs[5], cy - 66.0), Color("FFB4A8"), "shadow")
 		pass)
 
 
@@ -271,7 +271,7 @@ func _launch_key(r: Rect2) -> void:
 	var depth := 16.0
 	var kr := Rect2(r.position.x + 6.0, r.position.y + 4.0, r.size.x - 12.0, r.size.y - 8.0)
 	K.plate(_root, kr, {"mat": "ice", "depth": depth, "ch": 22.0, "rad": 7.0, "trim": 0.0, "shadow": 0.5, "spec": 0.75, "bevel_w": 9.0, "bevel": 0.28,
-		"cloison": 1.0, "cloison_cell": 104.0, "cloison_seed": 5.0})
+		"cloison": 1.0, "cloison_cell": 118.0, "cloison_seed": 5.0})
 	var fr := K.face_of(kr, depth)
 	K.canvas(_root, func(ci: CanvasItem) -> void:
 		var cy := fr.get_center().y
@@ -286,7 +286,9 @@ func _launch_key(r: Rect2) -> void:
 		# ×2 gate badge on the right: the gate reward of this level, in Oi.
 		var bc := Vector2(x1 - 58.0, cy - 2.0)
 		K.text_c(ci, "×2", "logo", 56, bc, K.WHITE, "raised")
-		K.text_c(ci, "брама", "bold", 22, bc + Vector2(0, 38.0), Color("E9FBFF"), "raised"))
+		K.text_c(ci, "брама", "bold", 26, bc + Vector2(0, 38.0), Color("E9FBFF"), "raised")
+		K.glint(ci, Vector2(gr.position.x + 30.0, gr.position.y + 6.0), 15.0)
+		K.glint(ci, Vector2(fr.position.x + 50.0, cy - 30.0), 9.0))
 
 
 func prepared() -> void:

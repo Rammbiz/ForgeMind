@@ -19,7 +19,7 @@ func _ready() -> void:
 
 func _section(y: float, text: String) -> void:
 	K.canvas(_root, func(ci: CanvasItem) -> void:
-		var w := K.text_l(ci, text, "caps", 22, Vector2(26, y), K.GOLD_LIGHT, "plain")
+		var w := K.text_l(ci, text, "caps", 26, Vector2(26, y), K.GOLD_LIGHT, "plain")
 		ci.draw_line(Vector2(38 + w, y), Vector2(694, y), Color(K.GOLD, 0.55), 2.0, true)
 		K.rivet(ci, Vector2(698, y), 3.5))
 
@@ -33,9 +33,9 @@ func _build() -> void:
 	_section(198, "КЛАВІШІ")
 	K.key(_root, Rect2(18, 222, 336, 104), "ГРАТИ", {"mat": "ice", "depth": 12.0, "size": 46, "sub": "Рівень 14", "inlay": [K.ICE_WHITE, K.ICE, K.ICE_DEEP], "rivet": 4.0})
 	K.key(_root, Rect2(366, 222, 336, 104), "ГРАТИ", {"mat": "ice", "depth": 12.0, "size": 46, "sub": "натиснуто", "state": "pressed", "inlay": [K.ICE_WHITE, K.ICE, K.ICE_DEEP], "rivet": 4.0})
-	K.key(_root, Rect2(18, 346, 220, 78), "Покращити", {"depth": 10.0, "size": 28, "font": "display"})
-	K.key(_root, Rect2(250, 346, 220, 78), "Покращити", {"depth": 10.0, "size": 28, "font": "display", "state": "pressed"})
-	K.key(_root, Rect2(482, 346, 220, 78), "Покращити", {"depth": 10.0, "size": 28, "font": "display", "state": "disabled"})
+	K.key(_root, Rect2(18, 346, 220, 78), "Звичайна", {"depth": 10.0, "size": 28, "font": "display"})
+	K.key(_root, Rect2(250, 346, 220, 78), "Натиснута", {"depth": 10.0, "size": 28, "font": "display", "state": "pressed"})
+	K.key(_root, Rect2(482, 346, 220, 78), "Вимкнена", {"depth": 10.0, "size": 28, "font": "display", "state": "disabled"})
 	K.key(_root, Rect2(18, 440, 330, 78), "Відмовитися", {"mat": "red", "depth": 10.0, "size": 30})
 	K.key(_root, Rect2(360, 440, 342, 78), "Колода 3/3", {"mat": "navy", "depth": 10.0, "size": 30, "inlay": [Color("F0E2FF"), Color("A66BFF"), Color("5A26B8")]})
 
