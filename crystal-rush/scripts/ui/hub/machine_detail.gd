@@ -268,10 +268,14 @@ func _refresh_upgrade() -> void:
 		_btn_lbl.text = Loc.f("CONFIRM_COST", [Loc.num(int(c["coins"]))]) if int(c["coins"]) > 0 else Loc.f("CONFIRM_COST", [Loc.t("FREE")])
 		_btn_lbl.add_theme_color_override("font_color", UIKit.BROWN)
 		_btn_lbl.add_theme_constant_override("outline_size", 0)
+		# Crisp ink on the gold "confirm" plate (the dark drop shadow muddied the brown text).
+		_btn_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 		if int(c["wild_use"]) > 0:
 			_btn_sub.visible = true
 			_btn_sub.text = Loc.f("USES_WILD", [int(c["wild_use"])])
 			_btn_sub.add_theme_color_override("font_color", Color(0.4, 0.15, 0.55))
+			_btn_sub.add_theme_constant_override("outline_size", 0)
+			_btn_sub.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 		return
 	var kind := "green" if can else "button"
 	for st: String in ["normal", "hover"]:
@@ -279,6 +283,9 @@ func _refresh_upgrade() -> void:
 	_upgrade_btn.add_theme_stylebox_override("pressed", UIKit.lux(kind + "_pressed"))
 	_btn_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
 	_btn_lbl.add_theme_constant_override("outline_size", 8)
+	_btn_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0.04, 0.55))
+	_btn_sub.add_theme_constant_override("outline_size", 5)
+	_btn_sub.add_theme_color_override("font_shadow_color", Color(0, 0, 0.04, 0.55))
 	_btn_lbl.text = Loc.f("UPGRADE_TO", [int(c["to_lvl"])])
 	_btn_sub.visible = true
 	_btn_sub.add_theme_color_override("font_color", Color(0.92, 1.0, 0.9) if can else UIKit.TEXT_DIM)
