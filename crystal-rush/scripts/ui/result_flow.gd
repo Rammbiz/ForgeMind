@@ -310,6 +310,7 @@ func _build_coins() -> void:
 	_odo.position = Vector2(_vp.x * 0.5 - 100, 0)
 	_odo.size = Vector2(300, 112)
 	_odo.set_value(0, false)
+	_odo.clip_contents = true
 	_coin_block.add_child(_odo)
 	var coins := bundle.get("coins", {}) as Dictionary
 	var parts := Label.new()
@@ -383,12 +384,13 @@ func _build_drip() -> void:
 func _step_odometer() -> void:
 	step = 1
 	var coins := bundle.get("coins", {}) as Dictionary
+	var mult := float(coins.get("stairs_mult", 1.0))
 	var base := int(coins.get("victory", 0)) + int(coins.get("pickups", 0))
-	_odo.set_value(base, true, 0.85)
+	# Without a stairs stamp (or on a replay) the odometer goes straight to the paid total.
+	_odo.set_value(base if mult > 1.0 else int(coins.get("total", base)), true, 0.85)
 	_tick_coins(0.85, 9)
 	var parts := _coin_block.get_node("Parts") as Control
 	parts.create_tween().tween_property(parts, "modulate:a", 1.0, 0.3)
-	var mult := float(coins.get("stairs_mult", 1.0))
 	_at(0.95, _step_stamp if mult > 1.0 else _step_stats)
 
 

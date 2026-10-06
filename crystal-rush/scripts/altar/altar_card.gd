@@ -270,37 +270,44 @@ func _draw_face(body: Rect2, rc: Color, _r: String) -> void:
 	MachineCard.grad_box(self, inner, rc.darkened(0.45).lerp(Color(0.1, 0.12, 0.28), 0.4), Color(0.025, 0.03, 0.08), 16)
 	var id := str(data.get("id", ""))
 	var wild := bool(data.get("wild", false)) or id == ""
+	# Laid out bottom-up: bar, count, name (one or two lines), then the art fills what is left.
+	var cx := inner.get_center().x
+	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
+	var max_w := inner.size.x - 14
+	var fs := UIKit.fit_size(nm, max_w, 22, 17)
+	var two := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w and nm.contains(" ")
+	var count_y := _bar_rect().position.y - 7.0 if not wild else inner.end.y - 14.0
+	var count_fs := 26 if two else 30
+	var name_y := count_y - count_fs - 2.0
+	var name_top := name_y - (float(fs) if not two else 38.0)
 	# Art window: a family-accent glow behind the machine render.
 	var acc := UITokens.family(ArsenalData.family_of(id)) if not wild else Color(0.75, 0.5, 1.0)
-	var aw := inner.size.x - 20
-	var art := Rect2(inner.position + Vector2(10, 12), Vector2(aw, aw * 0.86))
+	var ah := maxf(name_top - inner.position.y - 14.0, 40.0)
+	var aw := minf(inner.size.x - 20, ah * 1.18)
+	var art := Rect2(Vector2(cx - aw * 0.5, inner.position.y + 10), Vector2(aw, ah))
 	draw_texture_rect(UIKit.glow_texture(), art.grow(10), false, Color(acc.r, acc.g, acc.b, 0.5))
+	var side := minf(art.size.x, art.size.y)
 	if wild:
-		Icons.draw_icon(self, "wild", art.grow(-aw * 0.16))
+		Icons.draw_icon(self, "wild", Rect2(art.get_center() - Vector2(side, side) * 0.36, Vector2(side, side) * 0.72))
 	elif _tex:
-		var s := art.size.x * 1.12
+		var s := side * 1.22
 		draw_texture_rect(_tex, Rect2(art.get_center() - Vector2(s, s) * 0.5 + Vector2(0, 2), Vector2(s, s)), false)
 	else:
-		Icons.draw_icon(self, id, art.grow(-aw * 0.14))
+		Icons.draw_icon(self, id, Rect2(art.get_center() - Vector2(side, side) * 0.38, Vector2(side, side) * 0.76))
 	# Name.
-	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
-	var fs := UIKit.fit_size(nm, inner.size.x - 14, 22, 17)
-	var ny := art.end.y + 26
-	if f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > inner.size.x - 14 and nm.contains(" "):
+	if two:
 		# Two lines (Плазмова / гармата) rather than a clipped name.
 		var cut := nm.find(" ", nm.length() / 2 - 2)
 		cut = cut if cut > 0 else nm.find(" ")
 		var l1 := nm.substr(0, cut)
 		var l2 := nm.substr(cut + 1)
-		var f2 := mini(UIKit.fit_size(l1, inner.size.x - 14, 20, 14), UIKit.fit_size(l2, inner.size.x - 14, 20, 14))
-		_text_c(f, l1, Vector2(inner.get_center().x, ny - 15), f2, Color(1, 1, 1), 5)
-		_text_c(f, l2, Vector2(inner.get_center().x, ny + 4), f2, Color(1, 1, 1), 5)
-		ny += 13
+		var f2 := mini(UIKit.fit_size(l1, max_w, 20, 14), UIKit.fit_size(l2, max_w, 20, 14))
+		_text_c(f, l1, Vector2(cx, name_y - 19), f2, Color(1, 1, 1), 5)
+		_text_c(f, l2, Vector2(cx, name_y), f2, Color(1, 1, 1), 5)
 	else:
-		_text_c(f, nm, Vector2(inner.get_center().x, ny), fs, Color(1, 1, 1), 5)
+		_text_c(f, nm, Vector2(cx, name_y), fs, Color(1, 1, 1), 5)
 	# Count.
-	var cnt := "×%d" % int(data.get("count", 1))
-	_text_c(f, cnt, Vector2(inner.get_center().x, ny + 30), 25 if ny > art.end.y + 30 else 30, rc.lightened(0.45), 6)
+	_text_c(f, "×%d" % int(data.get("count", 1)), Vector2(cx, count_y), count_fs, rc.lightened(0.45), 6)
 	# Blueprint bar.
 	if not wild:
 		var br := _bar_rect()

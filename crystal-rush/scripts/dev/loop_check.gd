@@ -3,7 +3,7 @@ extends Node
 ## a PNG at every stop (headless: no PNGs, same path), then quits with the number of problems:
 ##   hub (Play) -> PLAY -> the run (bot, x`--speed`) -> Meta.finish_run -> ResultFlow (win) ->
 ##   "Відкрити на вівтарі" (a World Cache on a boss level) or "Далі" -> CacheAltar (strike,
-##   "Відкрити все", summary, "Готово") -> hub -> a lost run (army cut to 1) -> LossScreen ->
+##   "Відкрити все", summary, "Готово") -> hub -> a lost run (defeat forced 55% down the bridge) -> LossScreen ->
 ##   "Арсенал" -> hub (Arsenal) -> quit.
 ## Flags: --level=N (default 8: the World 1 boss, which drops a World Cache), --profile=expected,
 ## --hero=bolt|titan, --speed=3, --out=DIR. The account is synthetic and never saved.
@@ -103,6 +103,14 @@ func _loop() -> void:
 		await _until(func() -> bool: return int(flow.get("step")) >= 5, 40.0)
 		await _wait_clock(flow, 0.7)
 		await _snap("03_result_b")
+		if str((holder.get_meta("bundle") as Dictionary).get("new_unlock", "")) != "":
+			await _until(func() -> bool: return flow.get("_walk") != null or int(flow.get("step")) >= 6, 40.0)
+			var w: Variant = flow.get("_walk")
+			if w is Walkout:
+				await _until(func() -> bool: return not is_instance_valid(w) or float((w as Walkout).get("_t")) >= 1.0, 30.0)
+				await _snap("03w_walkout_light")
+				await _until(func() -> bool: return not is_instance_valid(w) or float((w as Walkout).get("_t")) >= 2.3, 30.0)
+				await _snap("03x_walkout_name")
 		await _until(func() -> bool: return int(flow.get("step")) >= 6, 40.0)
 		await _wait_clock(flow, 1.4)
 		await _snap("04_result_c")
@@ -155,7 +163,8 @@ func _loss_part(hub: Hub) -> void:
 		_fail("the forced loss showed a win flow")
 
 
-## Plays the run in `holder` with the bot (army cut to 1 when `lose`), returns the flow node.
+## Plays the run in `holder` with the bot (a defeat forced past 55% when `lose`); returns the
+## flow node.
 func _play_run(holder: Node, lose: bool) -> Node:
 	var run: Run = holder.get_meta("run")
 	Engine.time_scale = speed
@@ -166,8 +175,8 @@ func _play_run(holder: Node, lose: bool) -> Node:
 	while is_instance_valid(holder) and not holder.has_meta("flow") and t < 240.0:
 		if run.state == Run.State.READY:
 			run.start()
-		if lose and not cut and run.state == Run.State.RUNNING and run.d > 4.0:
-			run.set_army(1)
+		if lose and not cut and run.state == Run.State.RUNNING and run.d > run.length * 0.55:
+			run.call("_lose", "ARMY_LOST")       # a deterministic defeat 55% down the bridge
 			cut = true
 		if run.state != Run.State.WON and run.state != Run.State.LOST:
 			_bot.think(run)

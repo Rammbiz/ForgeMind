@@ -170,6 +170,7 @@ func _build_payout() -> void:
 	_odo.position = Vector2(_vp.x * 0.5 + 34, 4)
 	_odo.size = Vector2(260, 90)
 	_odo.set_value(0, false)
+	_odo.clip_contents = true
 	row.add_child(_odo)
 
 
