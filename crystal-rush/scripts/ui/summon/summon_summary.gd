@@ -148,11 +148,18 @@ func _layout() -> void:
 	if W < 10.0:
 		return
 	var ins := UIKit.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
-	var top := ins.y + 96.0
-	_title.position = Vector2((W - _title.get_combined_minimum_size().x) * 0.5, top)
 	var cs := HeroCard.SIZES["S"] as Vector2
 	var pitch := 134.0
-	var row_y := [top + 76.0 + cs.y * 0.5 + 18.0, top + 76.0 + cs.y * 1.5 + 64.0]
+	# Centre the whole frame (title, two rows, the document) between the top bar and the dock.
+	_panel.size = Vector2(W - 2.0 * UITokens.GUTTER, 0)
+	_panel.reset_size()
+	var ph := _panel.get_combined_minimum_size().y
+	var block := 104.0 + cs.y * 2.0 + 64.0 + 44.0 + ph
+	var room_top := ins.y + 96.0
+	var room_bot := H - ins.w - 150.0
+	var top := room_top + maxf(0.0, (room_bot - room_top - block) * 0.45)
+	_title.position = Vector2((W - _title.get_combined_minimum_size().x) * 0.5, top)
+	var row_y := [top + 104.0 + cs.y * 0.5 + 18.0, top + 104.0 + cs.y * 1.5 + 64.0]
 	_slots.clear()
 	for slot in _order.size():
 		var row := slot / 5

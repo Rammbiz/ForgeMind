@@ -8,7 +8,7 @@ uniform float progress = 1.0;
 uniform vec4 gem : source_color = vec4(1.0, 0.72, 0.18, 1.0);
 uniform float rim = 0.0;
 uniform vec2 origin = vec2(0.5, 0.45);
-uniform float cells = 14.0;
+uniform float cells = 20.0;
 uniform float aspect = 0.56;     // texture width / height (keeps facets equilateral-ish)
 
 varying vec4 v_mod;
@@ -25,12 +25,15 @@ float hash21(vec2 p) {
 
 void fragment() {
 	vec4 tex = texture(TEXTURE, UV);
+	// Triangular facet lattice (skewed grid: each rhombus = two equilateral-ish facets).
 	vec2 g = vec2(UV.x * cells, UV.y * cells / max(aspect, 0.1));
-	vec2 id = floor(g);
-	vec2 f = fract(g);
-	float tri = step(f.x, f.y);
-	vec2 cid = id + vec2(tri * 0.33 + 0.33, 0.66 - tri * 0.33);
-	vec2 cuv = vec2(cid.x / cells, cid.y * max(aspect, 0.1) / cells);
+	vec2 q = vec2(g.x - g.y * 0.57735, g.y * 1.1547);
+	vec2 id = floor(q);
+	vec2 f = fract(q);
+	float tri = step(1.0, f.x + f.y);
+	vec2 qc = id + mix(vec2(0.333), vec2(0.667), tri);
+	vec2 gc = vec2(qc.x + qc.y * 0.5, qc.y * 0.866);
+	vec2 cuv = vec2(gc.x / cells, gc.y * max(aspect, 0.1) / cells);
 	float h = hash21(id * 1.7 + tri * 3.1);
 	float dist = length((cuv - origin) * vec2(1.0, 1.0 / max(aspect, 0.1) * 0.56));
 	float thr = dist * 1.05 + h * 0.22;

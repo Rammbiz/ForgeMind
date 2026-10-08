@@ -64,11 +64,11 @@ void fragment() {
 		float arms = 0.5 + 0.5 * sin(sw * 3.0 + swirl * 2.5);
 		vec3 deep = vec3(0.07, 0.05, 0.19);
 		vec3 base = mix(deep, tint.rgb * 0.75, smoothstep(0.15, 1.0, arms * swirl + 0.25 * (1.0 - d)));
-		vec3 sp = spectrum(fract(a / (2.0 * PI) + t * 0.06 + swirl * 0.4));
-		base = mix(base, mix(deep, sp * 0.9, smoothstep(0.2, 0.95, swirl)), opal);
+		vec3 sp = mix(vec3(0.62, 0.56, 0.86), spectrum(fract(a / (2.0 * PI) + t * 0.06 + swirl * 0.4)), 0.5);
+		base = mix(base, mix(deep, sp * 0.8, smoothstep(0.25, 0.95, swirl * arms + 0.2)), opal);
 		// Bright core (the light at the end of the tunnel) and a charge bloom.
-		float core = exp(-d * d / (0.10 + 0.28 * charge + 0.6 * open));
-		base += mix(tint_hi.rgb, vec3(1.0), 0.35 * open) * core * (0.55 + 0.9 * charge + 1.2 * open);
+		float core = exp(-d * d / (0.08 + 0.16 * charge + 0.5 * open));
+		base += mix(tint_hi.rgb, vec3(1.0), 0.35 * open) * core * (0.45 + 0.4 * charge + 0.9 * open);
 		// Stars drifting inward along the swirl.
 		vec2 sg = vec2(fract(sw / (2.0 * PI)) * 24.0, lr * 9.0 - t * 0.9);
 		vec2 sid = floor(sg);

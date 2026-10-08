@@ -57,10 +57,10 @@ static func window(t: float, a: float, b: float, fade := 0.2) -> float:
 
 ## The white-flash alpha of a flash that fires at `at` (80 ms, capped by FLASH_PEAK).
 static func flash(t: float, at: float, peak := FLASH_PEAK, dur := 0.08) -> float:
-	if t < at or t > at + dur * 3.0:
+	if t < at or t > at + dur * 2.0:
 		return 0.0
 	var u := (t - at) / dur
-	return minf(peak, FLASH_PEAK) * (1.0 - smoothstep(0.0, 3.0, u)) * smoothstep(0.0, 0.25, u)
+	return minf(peak, FLASH_PEAK) * (1.0 - smoothstep(0.4, 2.0, u)) * smoothstep(0.0, 0.2, u)
 
 
 static func pillar_color(g: String) -> Color:
@@ -175,9 +175,11 @@ static func draw_shards(ci: CanvasItem, g: String, c: Vector2, s: float, u: floa
 		var j := i % n
 		var p0 := outer[j]
 		var p1 := outer[(j + 1) % n]
-		var f0 := rng.randf_range(0.15, 0.55)
-		var f1 := rng.randf_range(0.6, 1.0)
-		var tri := PackedVector2Array([c.lerp(p0, f0), p0.lerp(p1, rng.randf_range(0.0, 0.4)) .lerp(c, 1.0 - f1), p0.lerp(p1, rng.randf_range(0.6, 1.0)).lerp(c, 1.0 - f1 * 0.9)])
+		var f0 := rng.randf_range(0.0, 0.35)
+		var f1 := rng.randf_range(0.7, 1.0)
+		var e0 := rng.randf_range(0.0, 0.3)
+		var e1 := rng.randf_range(0.7, 1.0)
+		var tri := PackedVector2Array([c.lerp(p0.lerp(p1, (e0 + e1) * 0.5), f0), p0.lerp(p1, e0).lerp(c, 1.0 - f1), p0.lerp(p1, e1).lerp(c, 1.0 - f1 * 0.95)])
 		var cen := (tri[0] + tri[1] + tri[2]) / 3.0
 		var dir := (cen - c).normalized()
 		if dir == Vector2.ZERO:

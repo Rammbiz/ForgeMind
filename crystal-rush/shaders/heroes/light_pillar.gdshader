@@ -48,7 +48,7 @@ void fragment() {
 	float k = (main + side) * v + pool * 0.9;
 	vec3 c = color.rgb;
 	if (opal > 0.0) {
-		vec3 sp = mix(vec3(0.78, 0.72, 0.95), spectrum(fract(uv.y * 0.8 - t * 0.42 + (uv.x - 0.5) * 1.5)), 0.55);
+		vec3 sp = mix(vec3(0.78, 0.72, 0.95), spectrum(fract(uv.y * 0.8 - t * 0.42 + (uv.x - 0.5) * 1.5)), 0.4);
 		float core = exp(-pow((uv.x - 0.5) / (width * 0.55), 2.0));
 		vec3 oc = mix(sp, vec3(0.42, 0.32, 0.62), core * 0.7);
 		c = mix(c, oc, opal);
