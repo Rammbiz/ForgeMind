@@ -5,9 +5,13 @@ shader_type spatial;
 render_mode cull_back;
 
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
-uniform vec4 marble_a : source_color = vec4(0.94, 0.92, 0.88, 1.0);
-uniform vec4 marble_b : source_color = vec4(0.88, 0.85, 0.80, 1.0);
-uniform vec4 vein : source_color = vec4(0.74, 0.70, 0.68, 1.0);
+// UI v2 final pass: warm ivory #E9DFCC with visible veining, a darker flagstone ring and an
+// AO / contact gradient under the dais, toned so the floor lands at luma ~170-205 (no white
+// haze under PLAY).
+uniform vec4 marble_a : source_color = vec4(0.914, 0.875, 0.80, 1.0);
+uniform vec4 marble_b : source_color = vec4(0.85, 0.80, 0.72, 1.0);
+uniform vec4 vein : source_color = vec4(0.62, 0.56, 0.52, 1.0);
+uniform float tone = 0.94;
 uniform vec4 grout : source_color = vec4(0.72, 0.66, 0.58, 1.0);
 uniform vec4 gold : source_color = vec4(0.95, 0.78, 0.45, 1.0);
 uniform vec4 sheen : source_color = vec4(0.80, 0.90, 1.0, 1.0);
@@ -52,7 +56,9 @@ void fragment() {
 	float w1 = texture(noise_tex, vp).r;
 	float w2 = texture(noise_tex, vp * 2.7 + vec2(w1 * 0.4, 0.1)).r;
 	float v = line(w1 * 0.7 + w2 * 0.3 - 0.52, 0.018) * 0.55 + line(w2 - 0.47, 0.01) * 0.3;
-	vec3 col = mix(base, vein.rgb, v * 0.45);
+	vec3 col = mix(base, vein.rgb, v * 0.7);
+	// The flagstone ring (2.3-3.35) a shade darker, so the terrace reads as laid stone.
+	col *= (ring == 2.0 ? 0.9 : 1.0);
 	col = mix(col, grout.rgb, g * 0.55);
 	// Gold inlay.
 	float inl = 0.0;
@@ -75,11 +81,15 @@ void fragment() {
 	col = mix(col, gold.rgb, inl);
 	// Soft darkening at the rim and a polish sheen across the slabs.
 	col *= mix(1.0, 0.86, smoothstep(rim_r - 0.9, rim_r, r));
+	// Contact / AO gradient under the dais and along the balustrade foot.
+	col *= mix(0.62, 1.0, smoothstep(0.5, 1.7, r));
+	col *= mix(1.0, 0.88, smoothstep(rim_r - 0.45, rim_r - 0.05, r));
+	col *= tone;
 	float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
-	col = mix(col, sheen.rgb, fres * 0.15 * (1.0 - inl));
+	col = mix(col, sheen.rgb * tone, fres * 0.12 * (1.0 - inl));
 	ALBEDO = col;
 	METALLIC = inl * 0.25;
 	EMISSION = gold.rgb * inl * 0.12;
 	ROUGHNESS = mix(0.42, 0.28, inl) + g * 0.3;
-	SPECULAR = 0.4;
+	SPECULAR = 0.25;
 }

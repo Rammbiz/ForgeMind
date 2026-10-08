@@ -61,6 +61,26 @@ func _process(delta: float) -> void:
 		h.scale = Vector3.ONE * kk
 
 
+## The Home sky and haze are tinted by the current world (fusion §6.8): World 1 (Orbital) a
+## pale lilac morning, World 2 (Reef) turquoise light; later worlds keep the warm morning.
+func set_world(w: int) -> void:
+	if sky_mat == null:
+		return
+	var looks := {
+		1: {"zenith": Color(0.42, 0.48, 0.86), "mid_sky": Color(0.66, 0.68, 0.94), "horizon": Color(0.99, 0.86, 0.84),
+				"haze": Color(0.97, 0.9, 0.92), "cloud_shade": Color(0.74, 0.72, 0.9), "fog": Color(0.96, 0.88, 0.92)},
+		2: {"zenith": Color(0.22, 0.64, 0.8), "mid_sky": Color(0.52, 0.86, 0.9), "horizon": Color(0.96, 0.94, 0.82),
+				"haze": Color(0.9, 0.97, 0.94), "cloud_shade": Color(0.68, 0.82, 0.86), "fog": Color(0.88, 0.96, 0.93)},
+	}
+	var L: Dictionary = looks.get(w, {})
+	if L.is_empty():
+		return
+	for k in ["zenith", "mid_sky", "horizon", "haze", "cloud_shade"]:
+		sky_mat.set_shader_parameter(k, L[k])
+	if environment:
+		environment.fog_light_color = L["fog"]
+
+
 ## Tints the lantern crystals and halos (the hero's gem colour, softened).
 func set_accent(c: Color) -> void:
 	var cc := Color(0.78, 0.93, 1.0).lerp(c, 0.35)
@@ -68,7 +88,7 @@ func set_accent(c: Color) -> void:
 		_crystal_mat.albedo_color = cc.lightened(0.2)
 		_crystal_mat.emission = cc
 	if _halo_mat:
-		_halo_mat.albedo_color = Color(cc.r, cc.g, cc.b, 0.55)
+		_halo_mat.albedo_color = Color(cc.r, cc.g, cc.b, 0.3)
 	if _motes:
 		_motes.color = Color(1.0, 0.95, 0.82).lerp(c.lightened(0.5), 0.25)
 
@@ -99,8 +119,9 @@ func _materials() -> void:
 	_halo_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_halo_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_halo_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	_halo_mat.albedo_texture = HubShowcase._radial_tex()
-	_halo_mat.albedo_color = Color(0.75, 0.92, 1.0, 0.55)
+	# A soft additive bloom sprite (smooth falloff), never a flat disc.
+	_halo_mat.albedo_texture = UIKit.glow_texture()
+	_halo_mat.albedo_color = Color(0.75, 0.92, 1.0, 0.3)
 	_halo_mat.no_depth_test = false
 
 
@@ -397,7 +418,7 @@ func _lantern(p: Vector3, h: float) -> void:
 	n.add_child(cry)
 	var halo := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(0.9, 0.9)
+	q.size = Vector2(1.25, 1.25)
 	halo.mesh = q
 	halo.material_override = _halo_mat
 	halo.position.y = h + 0.1
@@ -412,61 +433,67 @@ func _build_planters() -> void:
 	var leaf := StandardMaterial3D.new()
 	leaf.vertex_color_use_as_albedo = true
 	leaf.roughness = 0.85
+	# UI v2 final pass: small ivory planters with desaturated olive leaves and little crystal
+	# flowers (no big saturated ball bushes).
+	var k_s := 0.6
 	var bush := SphereMesh.new()
-	bush.radius = 0.5
-	bush.height = 0.85
-	bush.radial_segments = 12
-	bush.rings = 6
+	bush.radius = 0.5 * k_s
+	bush.height = 0.7 * k_s
+	bush.radial_segments = 10
+	bush.rings = 5
 	var flower := SphereMesh.new()
-	flower.radius = 0.045
-	flower.height = 0.09
-	flower.radial_segments = 6
-	flower.rings = 3
+	flower.radius = 0.04
+	flower.height = 0.13
+	flower.radial_segments = 4
+	flower.rings = 2
+	var cry := StandardMaterial3D.new()
+	cry.vertex_color_use_as_albedo = true
+	cry.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var bush_x: Array[Transform3D] = []
 	var bush_c := PackedColorArray()
 	var fl_x: Array[Transform3D] = []
 	var fl_c := PackedColorArray()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	var greens := [Color(0.42, 0.62, 0.3), Color(0.5, 0.7, 0.34), Color(0.36, 0.55, 0.3)]
-	var blooms := [Color(1.0, 0.78, 0.84), Color(1.0, 0.96, 0.9), Color(1.0, 0.86, 0.45), Color(0.86, 0.78, 1.0)]
+	var greens := [Color("#7E9A62"), Color("#8DA672"), Color("#6F8A58")]
+	var blooms := [Color(0.84, 0.94, 1.0), Color(1.0, 0.95, 0.86), Color(1.0, 0.88, 0.62), Color(0.88, 0.82, 1.0)]
 	for sgn in [-1.0, 1.0]:
 		for da in [0.42, 1.1]:
 			var a: float = g.x + sgn * da
 			var p := Vector3(cos(a) * (RIM_R - 0.75), 0, sin(a) * (RIM_R - 0.75))
 			var pot := MeshInstance3D.new()
 			var pm := CylinderMesh.new()
-			pm.top_radius = 0.42
-			pm.bottom_radius = 0.3
-			pm.height = 0.36
+			pm.top_radius = 0.42 * k_s
+			pm.bottom_radius = 0.3 * k_s
+			pm.height = 0.36 * k_s
 			pm.radial_segments = 16
 			pot.mesh = pm
 			pot.material_override = _ivory
-			pot.position = p + Vector3(0, 0.18, 0)
+			pot.position = p + Vector3(0, 0.18 * k_s, 0)
 			add_child(pot)
 			var band := MeshInstance3D.new()
 			var tm := TorusMesh.new()
-			tm.inner_radius = 0.4
-			tm.outer_radius = 0.44
+			tm.inner_radius = 0.4 * k_s
+			tm.outer_radius = 0.44 * k_s
 			tm.rings = 24
 			tm.ring_segments = 6
 			band.mesh = tm
 			band.material_override = _gold
-			band.position = p + Vector3(0, 0.35, 0)
+			band.position = p + Vector3(0, 0.35 * k_s, 0)
 			add_child(band)
 			for k in 4:
-				var o := Vector3(rng.randf_range(-0.16, 0.16), 0.46 + rng.randf_range(0.0, 0.12), rng.randf_range(-0.16, 0.16))
+				var o := Vector3(rng.randf_range(-0.1, 0.1), (0.46 + rng.randf_range(0.0, 0.1)) * k_s, rng.randf_range(-0.1, 0.1))
 				var s := rng.randf_range(0.5, 0.78)
 				bush_x.append(Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * s), p + o))
 				bush_c.append(greens[k % greens.size()])
 			for k in 14:
 				var aa := rng.randf() * TAU
-				var rr := rng.randf_range(0.1, 0.36)
-				var y := 0.6 + rng.randf_range(0.0, 0.22) * (1.0 - rr * 2.0)
+				var rr := rng.randf_range(0.06, 0.22)
+				var y := (0.62 + rng.randf_range(0.0, 0.2) * (1.0 - rr * 2.0)) * k_s
 				fl_x.append(Transform3D(Basis.IDENTITY, p + Vector3(cos(aa) * rr, y, sin(aa) * rr)))
 				fl_c.append(blooms[k % blooms.size()])
 	_multi(bush, leaf, bush_x, bush_c)
-	_multi(flower, leaf, fl_x, fl_c)
+	_multi(flower, cry, fl_x, fl_c)
 
 
 # ------------------------------------------------------------------ bridge
@@ -581,7 +608,7 @@ func _build_islands() -> void:
 ## a lobed rocky cone that narrows to an off-centre point; vertex colours only.
 func _island_mesh(r: float, rng: RandomNumberGenerator) -> ArrayMesh:
 	var seg := 20
-	var depth := r * rng.randf_range(1.6, 2.2)
+	var depth := r * rng.randf_range(1.05, 1.35)
 	var jit := PackedFloat32Array()
 	for i in seg:
 		jit.append(rng.randf_range(0.84, 1.1))
@@ -595,9 +622,12 @@ func _island_mesh(r: float, rng: RandomNumberGenerator) -> ArrayMesh:
 	var earth := Color(0.7, 0.58, 0.46)
 	var rock := Color(0.72, 0.64, 0.58)
 	var rock_lo := Color(0.6, 0.55, 0.58)
-	# Rings: [radius factor, y factor (of depth), colour]
-	var prof := [[1.0, 0.0, grass], [1.03, -0.03, lip], [0.96, -0.09, earth], [0.82, -0.22, earth.lerp(rock, 0.5)],
-			[0.62, -0.42, rock], [0.4, -0.64, rock.lerp(rock_lo, 0.5)], [0.18, -0.85, rock_lo]]
+	var sand := Color(0.82, 0.72, 0.58)
+	# Rings: [radius factor, y factor (of depth), colour] - rocky strata bands (sandstone /
+	# grey stone) stepping in, a blunt broken base (no cone).
+	var prof := [[1.0, 0.0, grass], [1.03, -0.03, lip], [0.97, -0.08, earth], [0.93, -0.15, sand], [0.86, -0.22, rock],
+			[0.84, -0.3, sand.lerp(rock, 0.4)], [0.72, -0.4, rock_lo], [0.68, -0.5, sand.lerp(rock_lo, 0.5)],
+			[0.54, -0.62, rock], [0.4, -0.76, rock_lo], [0.26, -0.88, rock_lo.darkened(0.08)]]
 	var ring_pts: Array = []
 	for k in prof.size():
 		var pr: Array = prof[k]
@@ -606,7 +636,7 @@ func _island_mesh(r: float, rng: RandomNumberGenerator) -> ArrayMesh:
 		for i in seg:
 			var a := TAU * i / seg
 			var lobe := 1.0 + 0.18 * sin(a * 2.0 + lobe_a) * t * 1.4 + 0.08 * sin(a * 5.0 + k)
-			var rr := r * float(pr[0]) * jit[i] * lobe
+			var rr := r * float(pr[0]) * jit[i] * lobe * (rng.randf_range(0.9, 1.08) if k > 2 else 1.0)
 			var y := depth * float(pr[1]) + (rng.randf_range(-0.05, 0.05) * r if k > 1 else 0.0)
 			var o := tip * t * 0.6
 			pts.append(Vector3(cos(a) * rr + o.x, y, sin(a) * rr + o.z))

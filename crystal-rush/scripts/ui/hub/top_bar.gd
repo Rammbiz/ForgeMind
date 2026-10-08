@@ -52,9 +52,22 @@ func _ready() -> void:
 	_render_avatar()
 
 
+## Rendered portraits survive hub rebuilds (no empty ring on the first frames); until the
+## first render lands the ring shows the hero's painted icon.
+static var _portrait_cache := {}
+
+
 func _render_avatar() -> void:
-	var tex := await UIKit.render_portrait(self, Meta.hero(), 160)
-	if tex and is_instance_valid(_avatar):
+	var hid := Meta.hero()
+	_avatar.hero = hid
+	_avatar.tex = _portrait_cache.get(hid)
+	_avatar.queue_redraw()
+	if _avatar.tex:
+		return
+	var tex := await UIKit.render_portrait(self, hid, 160)
+	if tex:
+		_portrait_cache[hid] = tex
+	if tex and is_instance_valid(_avatar) and _avatar.hero == hid:
 		_avatar.tex = tex
 		_avatar.queue_redraw()
 
@@ -199,6 +212,7 @@ class HubChip extends KitCurrencyPlate:
 ## progress as a thin amber arc on the ring, and the campaign level on a slate disc.
 class Avatar extends Control:
 	var tex: Texture2D
+	var hero := ""
 	var level := 1
 	var progress := 0.0
 
@@ -218,6 +232,8 @@ class Avatar extends Control:
 		for i in 8:
 			var k := float(i) / 7.0
 			draw_circle(c + Vector2(0, -face * 0.25 * k), face * (1.0 - k * 0.45), UITokens.SKY_TOP.lerp(UITokens.SKY_MID, k))
+		if tex == null and hero != "":
+			Icons.draw_icon(self, hero, Rect2(c - Vector2(face, face) * 0.78, Vector2(face, face) * 1.56))
 		if tex:
 			var pts := PackedVector2Array()
 			var uvs := PackedVector2Array()
@@ -233,14 +249,14 @@ class Avatar extends Control:
 		draw_arc(c, pr, 0, TAU, 64, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.9), 2.5, true)
 		if progress > 0.0:
 			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 48, UITokens.CTA, 2.5, true)
-		# Level disc (slate, gold hairline, warm white number).
-		var f := UIKit.font_w("bold")
+		# Level disc: a gold-rimmed cream disc with an ink number (no dark navy).
+		var f := UIKit.font_w("extrabold")
 		var txt := str(level)
-		var fs := 17 if txt.length() < 3 else 14
+		var fs := 18 if txt.length() < 3 else 15
 		var lc := c + Vector2(r * 0.72, r * 0.72)
-		var lr := 15.0
-		draw_circle(lc + Vector2(0, 1.5), lr + 1.0, Color(sc.r, sc.g, sc.b, 0.25))
-		draw_circle(lc, lr, UITokens.SOCKET)
-		draw_arc(lc, lr - 0.75, 0, TAU, 32, UITokens.GOLD_HI, 1.5, true)
+		var lr := 16.0
+		draw_circle(lc + Vector2(0, 1.5), lr + 1.0, Color(sc.r, sc.g, sc.b, 0.22))
+		draw_circle(lc, lr, UITokens.PAPER_0)
+		draw_arc(lc, lr - 1.0, 0, TAU, 32, UITokens.HAIRLINE, 2.0, true)
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(f, Vector2(lc.x - tw * 0.5, lc.y + fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.ON_SCENE)
+		draw_string(f, Vector2(lc.x - tw * 0.5, lc.y + fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)

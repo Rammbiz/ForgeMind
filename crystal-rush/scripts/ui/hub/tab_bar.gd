@@ -145,6 +145,10 @@ func _draw() -> void:
 	var breathe := 0.5 + 0.5 * sin(fmod(_t, 200.0 * PI) * TAU / UITokens.GLOW_PERIOD)
 	var glow := 0.55 + 0.35 * breathe if selected == "play" else 0.4 + 0.2 * breathe
 	KitNav.draw_medallion(self, mc, MED_R, glow)
+	# The arch's crystal keystone always shows: above the medallion when it sits in the centre.
+	var kx := size.x * 0.5
+	if absf(mc.x - kx) < MED_R + 14.0:
+		GemDraw.draw_keystone(self, Vector2(kx, mc.y - MED_R - 9.0), 18.0, 1.0)
 	var f_med := UIKit.font_w("medium")
 	var f_bold := UIKit.font_w("bold")
 	for i in TABS.size():
@@ -155,7 +159,8 @@ func _draw() -> void:
 		var locked := is_locked(id)
 		var pk := float(_pop.get(id, 0.0))
 		var pscale := 1.0 + 0.22 * sin(pk * PI) + (-0.06 if _press == id else 0.0)
-		var label := HomeText.t(LABELS[id]) if not locked else Loc.f("TAB_LOCKED", [locked_level(id)])
+		# Locked tabs keep their name (the level needed is in the tap toast) and a small lock.
+		var label := HomeText.t(LABELS[id])
 		var ir: Rect2
 		if sel:
 			var isz := 64.0 * pscale
@@ -168,10 +173,10 @@ func _draw() -> void:
 			ir = Rect2(Vector2(cx - isz2 * 0.5, r.position.y + 8.0), Vector2(isz2, isz2))
 			var near := clampf(absf(_sel_x - cx) / 50.0, 0.0, 1.0)
 			Icons.draw_icon(self, ICONS[id], ir, Color(1, 1, 1, (0.42 if locked else 1.0) * near))
-		var fs := UIKit.fit_size(label, r.size.x - 8.0, 18 if sel else 17, 13)
+		var fs := UIKit.fit_size(label, r.size.x - 6.0, 19 if sel else 18, 16)
 		var f := f_bold if sel else f_med
 		var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var col := UITokens.CTA_LO.darkened(0.18) if sel else (UITokens.INK_DIM if not locked else Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.7))
+		var col := UITokens.CTA_RIM if sel else UITokens.INK_DIM
 		draw_string(f, Vector2(cx - tw * 0.5, label_y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 		if locked:
 			var lc := Vector2(cx + 16.0, r.position.y + 46.0)

@@ -185,7 +185,7 @@ func _layout() -> void:
 	var foot := _sheet.get_child(0).get_node_or_null("Foot") as Control
 	if foot:
 		foot.custom_minimum_size.y = maxf(0.0, below - 12.0)
-	_show.offset_bottom = -SHEET_H + 120.0
+	_show.offset_bottom = -SHEET_H + 78.0
 	# Tall phones: the art band grows and the hero (framed by height) grows with it.
 	_show.offset_top = 60.0
 	_stage.queue_redraw()

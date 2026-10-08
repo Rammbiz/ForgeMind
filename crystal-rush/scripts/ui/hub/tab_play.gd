@@ -70,15 +70,17 @@ func _ready() -> void:
 			hub.toast(Loc.f("ASSIST_DESC", [int(a["soldiers"]), int(round(float(a["dmg_add"]) * 100.0))]), "plus"))
 	add_child(_assist)
 	# Edge rails: two per side.
-	var ev := _rail("events", func(): _soon("HOME_EVENTS", "events"))
-	var mail := _rail("mail", func(): _soon("HOME_MAIL", "mail"))
-	_quests_btn = _rail("quests", func(): _soon("HOME_QUESTS", "quests"))
-	_vault_btn = _rail("chest", func(): hub.open_vault())
+	# The three features to come show a muted icon and their name (a visible "скоро" state);
+	# Сховище is live.
+	var ev := _rail("events", func(): _soon("HOME_EVENTS", "events"), HomeText.t("HOME_EVENTS"), true)
+	var mail := _rail("mail", func(): _soon("HOME_MAIL", "mail"), HomeText.t("HOME_MAIL"), true)
+	_quests_btn = _rail("quests", func(): _soon("HOME_QUESTS", "quests"), HomeText.t("HOME_QUESTS"), true)
+	_vault_btn = _rail("chest", func(): hub.open_vault(), Loc.t("VAULT"))
 	_rails = [ev, mail, _quests_btn, _vault_btn]
 	# Level path (facets) and PLAY.
 	_path = LevelPath.new()
-	_path.custom_minimum_size = Vector2(520, 58)
-	_path.size = Vector2(520, 58)
+	_path.custom_minimum_size = Vector2(360, 46)
+	_path.size = Vector2(360, 46)
 	_path.current_pressed.connect(_play)
 	_path.node_pressed.connect(_on_node)
 	add_child(_path)
@@ -91,8 +93,12 @@ func _ready() -> void:
 	refresh()
 
 
-func _rail(icon: String, on_press: Callable) -> RoundButton:
+func _rail(icon: String, on_press: Callable, caption := "", soon := false) -> RoundButton:
 	var b := UIKit.edge_button(icon, RAIL_R)
+	b.caption = caption
+	if soon:
+		b.icon_tint = Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.45)
+		b.caption_color = UITokens.INK_DIM
 	b.pressed.connect(func():
 		UIJuice.haptic("CLICK", 0.4)
 		on_press.call())
@@ -118,7 +124,7 @@ func _layout() -> void:
 	var d := RAIL_R * 2.0 + 8.0
 	var left_x := 18.0
 	var right_x := w - 18.0 - d
-	var ys := [92.0, 196.0]
+	var ys := [92.0, 212.0]
 	(_rails[0] as Control).position = Vector2(left_x, ys[0])
 	(_rails[1] as Control).position = Vector2(left_x, ys[1])
 	(_rails[2] as Control).position = Vector2(right_x, ys[0])
@@ -127,7 +133,7 @@ func _layout() -> void:
 	var cta_y := h + 6.0 - PLAY_SIZE.y
 	_cta.position = Vector2((w - PLAY_SIZE.x) * 0.5, cta_y)
 	_cta.pivot_offset = PLAY_SIZE * 0.5
-	_path.position = Vector2((w - _path.size.x) * 0.5, cta_y - _path.size.y - 10.0)
+	_path.position = Vector2((w - _path.size.x) * 0.5, cta_y - _path.size.y - 6.0)
 
 
 func on_show() -> void:
@@ -301,7 +307,7 @@ class LevelPath extends Control:
 
 	func _node_pos(i: int) -> Vector2:
 		var n := ArsenalData.LEVELS_PER_WORLD
-		return Vector2(lerpf(46.0, size.x - 46.0, float(i) / float(n - 1)), 24.0)
+		return Vector2(lerpf(34.0, size.x - 34.0, float(i) / float(n - 1)), size.y * 0.5)
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
@@ -338,7 +344,6 @@ class LevelPath extends Control:
 		var cx := _node_pos(cur_i).x
 		draw_line(a, Vector2(cx, a.y), Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.85), 2.5, true)
 		draw_line(Vector2(cx, a.y), b, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), 1.5, true)
-		var f := UIKit.font_w("bold")
 		var breathe := 0.5 + 0.5 * sin(fmod(_t, 200.0 * PI) * TAU / UITokens.GLOW_PERIOD)
 		for i in n:
 			var l := first + i
@@ -353,17 +358,11 @@ class LevelPath extends Control:
 					draw_arc(p, 19.0 + breathe * 3.0, 0, TAU, 40, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.7 - breathe * 0.4), 2.0, true)
 				continue
 			if l < level:
+				# A lit facet only (the crowns live on the level's tap toast; no 4 px pips).
 				GemDraw.draw_pip(self, p, 18.0, true, UITokens.TOPAZ)
-				var cr := _crowns(l)
-				for k in 3:
-					var dp := p + Vector2((k - 1) * 6.0, 16.0)
-					draw_circle(dp, 1.8, UITokens.CTA_LO if k < cr else Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5))
 			elif l == level:
 				draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.78, 0.4, 0.35 + 0.3 * breathe))
 				GemDraw.draw_pip(self, p, 28.0, true, UITokens.TOPAZ)
-				var t := str(l)
-				var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-				draw_string(f, Vector2(p.x - tw * 0.5, p.y + 30.0), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.GOLD_TEXT)
 			else:
 				GemDraw.draw_pip(self, p, 16.0, false)
 			var nc := ArsenalData.new_crate_at(l)

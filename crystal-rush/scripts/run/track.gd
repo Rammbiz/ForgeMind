@@ -122,6 +122,9 @@ func _build_world_environment(quality_high: bool) -> void:
 		sm.set_shader_parameter("panorama", load(str(world["sky"])))
 		sm.set_shader_parameter("noise_tex", NOISE_TEX)
 		sm.set_shader_parameter("energy", float(world.get("sky_energy", 1.0)))
+		for k in ["neb_a", "neb_b", "neb_c", "deep"]:
+			if world.has(k):
+				sm.set_shader_parameter(k, world[k])
 		sky.sky_material = sm
 	else:
 		var sky_mat := PanoramaSkyMaterial.new()

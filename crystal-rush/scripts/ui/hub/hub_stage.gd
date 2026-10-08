@@ -12,10 +12,13 @@ extends Node3D
 ## Hero's native gem (the dais ring colour).
 const HERO_GEM := {"bolt": "sapphire", "titan": "topaz", "seer": "amethyst"}
 const DAIS_W := 1.15
-const HERO_SCALE := 1.15
-## Deck machine places: behind the hero, two per side (front pair first).
-const SLOTS: Array[Vector3] = [Vector3(-1.08, 0, -1.0), Vector3(1.08, 0, -1.0), Vector3(-1.0, 0, -3.6), Vector3(1.0, 0, -3.6)]
-const MACHINE_H := 0.95
+## UI v2 final pass: the hero 17 % smaller (the placeholder chibi's head reads less dominant),
+## with a soft gem-coloured back-glow and rim light.
+const HERO_SCALE := 0.95
+## Deck machine places: two fixed slots either side behind the hero (screen x ~130 / 590, feet
+## at y ~770 at 720x1280, §6.8) so they never stack; an empty side gets a crystal lantern.
+const SLOTS: Array[Vector3] = [Vector3(-0.9, 0, -0.75), Vector3(0.9, 0, -0.75)]
+const MACHINE_H := 0.78
 const DAIS_SHADER := preload("res://shaders/hub/home_dais.gdshader")
 
 var active := true:
@@ -35,6 +38,9 @@ var _deck_key := ""
 var _props: Node3D
 var _dais_mat: ShaderMaterial
 var _ring: MeshInstance3D
+var _glow: Sprite3D
+var _rim_light: OmniLight3D
+var _filler: Node3D
 var _hero_y := 0.0
 var _t := 0.0
 var _poke := 0.0
@@ -173,11 +179,13 @@ func refresh() -> void:
 		_props.add_child(_hero)
 		var g: Dictionary = UITokens.GEMS.get(HERO_GEM.get(h, "sapphire"), UITokens.GEMS["sapphire"])
 		var rim: Color = g["rim"]
+		_set_back_glow(rim, g["light"])
 		if _dais_mat:
 			_dais_mat.set_shader_parameter("rune_color", rim.lightened(0.1))
 		if _ring:
 			(_ring.material_override as StandardMaterial3D).albedo_color = Color(rim.r, rim.g, rim.b, 0.55)
 		world.set_accent(rim)
+	world.set_world(ArsenalData.world_of(Meta.level()))
 	var d := Meta.deck()
 	var key := ",".join(d)
 	for id in d:
@@ -186,9 +194,15 @@ func refresh() -> void:
 		return
 	_deck_key = key
 	for m in _machines:
+		var ob: Variant = m.get_meta("blob", null)
+		if ob is Node and is_instance_valid(ob):
+			(ob as Node).queue_free()
 		m.queue_free()
 	_machines.clear()
 	_machine_ids.clear()
+	if _filler:
+		_filler.queue_free()
+		_filler = null
 	for i in mini(d.size(), SLOTS.size()):
 		var id: String = d[i]
 		if not WeaponModels.KINDS.has(id):
@@ -200,14 +214,89 @@ func refresh() -> void:
 		holder.rotation.y = PI + (0.55 if SLOTS[i].x < 0 else -0.55)
 		var m := WeaponModels.machine(id, {"rank": 1, "ascended": lv >= ArsenalData.ASCENSION_LEVEL, "crew": true})
 		HubShowcase.hide_rank_marks(m)
-		_fit(m, 1.25, MACHINE_H)
+		_fit(m, 1.0, MACHINE_H)
 		holder.add_child(m)
 		holder.set_meta("model", m)
 		_props.add_child(holder)
-		var b := _blob(SLOTS[i], 1.5, 0.22)
+		var b := _blob(SLOTS[i], 1.25, 0.26)
 		holder.set_meta("blob", b)
 		_machines.append(holder)
 		_machine_ids.append(id)
+	# Only one machine: mirror the composition with a crystal lantern in the empty slot.
+	if _machines.size() == 1:
+		_filler = _crystal_lantern()
+		_filler.position = SLOTS[1] if _machines[0].position.x < 0.0 else SLOTS[0]
+		_props.add_child(_filler)
+
+
+## A soft gem-coloured glow behind the hero (billboard bloom) and a rim light from behind.
+func _set_back_glow(rim: Color, light: Color) -> void:
+	if _glow == null:
+		_glow = Sprite3D.new()
+		_glow.texture = UIKit.glow_texture()
+		_glow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_glow.shaded = false
+		_glow.pixel_size = 0.022
+		_glow.position = Vector3(0, _hero_y + 0.95, -0.55)
+		_glow.render_priority = -2
+		_props.add_child(_glow)
+		_rim_light = OmniLight3D.new()
+		_rim_light.position = Vector3(0, _hero_y + 1.3, -0.9)
+		_rim_light.omni_range = 1.9
+		_rim_light.light_energy = 1.1
+		_rim_light.light_specular = 0.2
+		_rim_light.shadow_enabled = false
+		_props.add_child(_rim_light)
+	_glow.modulate = Color(rim.r, rim.g, rim.b, 0.42)
+	_rim_light.light_color = light
+
+
+## A small crystal lantern on an ivory plinth (stands in an empty machine slot).
+func _crystal_lantern() -> Node3D:
+	var n := Node3D.new()
+	var ivory := StandardMaterial3D.new()
+	ivory.albedo_color = Color(0.9, 0.86, 0.79)
+	ivory.roughness = 0.5
+	var base := MeshInstance3D.new()
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.2
+	bm.bottom_radius = 0.26
+	bm.height = 0.34
+	bm.radial_segments = 8
+	base.mesh = bm
+	base.material_override = ivory
+	base.position.y = 0.17
+	n.add_child(base)
+	var cm := StandardMaterial3D.new()
+	cm.albedo_color = Color(0.86, 0.95, 1.0)
+	cm.emission_enabled = true
+	cm.emission = Color(0.6, 0.85, 1.0)
+	cm.emission_energy_multiplier = 1.2
+	cm.roughness = 0.15
+	for i in 3:
+		var c := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.09 - i * 0.015
+		sm.height = 0.5 - i * 0.12
+		sm.radial_segments = 4
+		sm.rings = 2
+		c.mesh = sm
+		c.material_override = cm
+		c.position = Vector3((i - 1) * 0.09, 0.55 - i * 0.04, (i % 2) * 0.05)
+		c.rotation = Vector3(0, PI * 0.25, (i - 1) * 0.25)
+		n.add_child(c)
+	var halo := Sprite3D.new()
+	halo.texture = UIKit.glow_texture()
+	halo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	halo.shaded = false
+	halo.pixel_size = 0.008
+	halo.modulate = Color(0.7, 0.9, 1.0, 0.35)
+	halo.position.y = 0.55
+	n.add_child(halo)
+	var b := _blob(Vector3.ZERO, 0.9, 0.2)
+	_props.remove_child(b)
+	n.add_child(b)
+	return n
 
 
 ## Scales `m` to fit `max_w` x `max_h` standing on y = 0, centred.
