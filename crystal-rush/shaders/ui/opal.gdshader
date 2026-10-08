@@ -4,8 +4,8 @@ shader_type canvas_item;
 
 uniform vec4 top_color : source_color = vec4(0.102, 0.082, 0.188, 1.0);
 uniform vec4 bottom_color : source_color = vec4(0.227, 0.176, 0.388, 1.0);
-uniform float fleck_scale = 7.0;
-uniform float fleck_alpha = 0.55;
+uniform float fleck_scale = 10.0;
+uniform float fleck_alpha = 0.38;
 uniform float speed = 0.25;
 
 vec2 hash2(vec2 p) {
@@ -34,7 +34,9 @@ void fragment() {
 		}
 	}
 	float h = fract(hash2(bid).x + TIME * speed * (0.5 + hash2(bid).y));
-	float blob = 1.0 - smoothstep(0.02, 0.16, best);
+	float blob = (1.0 - smoothstep(0.0, 0.1, best)) * step(0.55, hash2(bid + 7.0).x);
+	// A slow shimmer: each fleck fades in and out.
+	blob *= 0.5 + 0.5 * sin(TIME * 0.8 + hash2(bid).y * 6.28);
 	// Pastel spectrum: cyan, violet, pink, gold.
 	vec3 fc = mix(hue(h), vec3(1.0), 0.35);
 	COLOR = vec4(base + fc * blob * fleck_alpha, 1.0);

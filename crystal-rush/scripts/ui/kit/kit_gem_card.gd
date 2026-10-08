@@ -154,7 +154,7 @@ func draw_ground(ci: CanvasItem) -> void:
 
 
 static func _draw_fracture(ci: CanvasItem, gk: String, r: Rect2) -> void:
-	var a := 0.11
+	var a := 0.08
 	var col := Color(1, 1, 1, a)
 	var w := r.size.x
 	var h := r.size.y

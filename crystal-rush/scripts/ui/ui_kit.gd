@@ -765,10 +765,10 @@ static func heading(text: String, size := 40, color := TEXT, outline := 0) -> La
 ## Soft shadow for text on a scene (no stroke): slate 40 %, 2-3 px down, a little spread.
 static func soft_shadow(l: Label, size := 0, strength := 1.0) -> Label:
 	var fs := size if size > 0 else l.get_theme_font_size("font_size")
-	l.add_theme_color_override("font_shadow_color", Color(SCRIM.r, SCRIM.g, SCRIM.b, 0.42 * strength))
+	l.add_theme_color_override("font_shadow_color", Color(SCRIM.r, SCRIM.g, SCRIM.b, 0.3 * strength))
 	l.add_theme_constant_override("shadow_offset_x", 0)
-	l.add_theme_constant_override("shadow_offset_y", clampi(fs / 18, 1, 4))
-	l.add_theme_constant_override("shadow_outline_size", clampi(fs / 9, 2, 8))
+	l.add_theme_constant_override("shadow_offset_y", clampi(fs / 28, 1, 3))
+	l.add_theme_constant_override("shadow_outline_size", clampi(fs / 7, 3, 12))
 	return l
 
 
@@ -901,7 +901,7 @@ static func secondary_button(text: String, icon := "", min_size := Vector2(240, 
 		var ic := Icons.make(icon, 34.0, INK)
 		ic.size = Vector2(34, 34)
 		b.add_child(ic)
-		var place := func(): ic.position = Vector2(22, (b.size.y - 34.0) * 0.5 - (2.0 if b.is_pressed() else 0.0) + (2.0 if b.is_pressed() else 0.0))
+		var place := func(): ic.position = Vector2(22, (b.size.y - 34.0) * 0.5)
 		b.resized.connect(place)
 		place.call()
 	return b
@@ -1151,9 +1151,10 @@ static func toast(host: Control, text: String, icon := "", hold := 1.6, y := 180
 	var l := label(text, 24, INK, true)
 	row.add_child(l)
 	host.add_child(p)
-	p.reset_size()
+	var ms := p.get_combined_minimum_size()
+	p.size = ms
 	var vw := host.size.x if host.size.x > 0.0 else 720.0
-	p.position = Vector2((vw - p.size.x) * 0.5, y)
+	p.position = Vector2((vw - ms.x) * 0.5, y)
 	UIJuice.soft_in(p, Vector2(0, -16))
 	var tw := p.create_tween()
 	tw.tween_interval(UITokens.MENU_IN + hold)

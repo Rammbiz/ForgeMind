@@ -54,19 +54,18 @@ func _new_root(bg := "light") -> Control:
 		_stage = null
 	ui = Control.new()
 	ui.theme = UIKit.theme()
-	ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-	ui.size = vp
 	layer.add_child(ui)
+	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if bg == "light":
 		var g := _Backdrop.new()
 		g.mode = "light"
-		g.set_anchors_preset(Control.PRESET_FULL_RECT)
 		ui.add_child(g)
+		g.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	elif bg == "scene":
 		var g2 := _Backdrop.new()
 		g2.mode = "scene"
-		g2.set_anchors_preset(Control.PRESET_FULL_RECT)
 		ui.add_child(g2)
+		g2.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	elif bg == "stage" and _stage == null:
 		_stage = HubStage.new()
 		add_child(_stage)
@@ -212,6 +211,7 @@ func _page_widgets() -> void:
 	var strip := _Backdrop.new()
 	strip.mode = "scene"
 	strip.custom_minimum_size = Vector2(vp.x - 48, 190)
+	strip.clip_contents = true
 	v.add_child(strip)
 	var gp := UIKit.glass_panel()
 	gp.position = Vector2(20, 20)
@@ -473,7 +473,6 @@ class _Backdrop extends Control:
 			var a := TAU * i / 48.0
 			pts.append(pc + Vector2(cos(a) * w * 0.62, sin(a) * h * 0.11))
 		draw_colored_polygon(pts, Color("#EFE6D6"))
-		draw_arc(pc, 10.0, 0, TAU, 4, Color(0, 0, 0, 0), 1.0)
 		var dais := PackedVector2Array()
 		for i in 40:
 			var a := TAU * i / 40.0

@@ -302,7 +302,7 @@ func _draw_ult() -> void:
 	draw_circle(c, r - 3.2, Color("#C9A86A"), true, -1.0, true)
 	var face := r - 4.5
 	draw_circle(c, face, UITokens.PAPER_0, true, -1.0, true)
-	draw_circle(c + Vector2(0, face * 0.25), face * 0.8, Color(gc.r, gc.g, gc.b, 0.16), true, -1.0, true)
+	draw_circle(c + Vector2(0, face * 0.25), face * 0.8, Color(1.0, 0.86, 0.6, 0.22 if ready else 0.12), true, -1.0, true)
 	var gray := 1.0 if ready else 0.66
 	if icon_texture:
 		_draw_disc_texture(icon_texture, c, face, Color(gray, gray, gray * 1.02, 1.0), 1.06, Vector2(0, -0.04))

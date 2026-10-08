@@ -395,9 +395,16 @@ static func painted(ci: CanvasItem, k: String, r: Rect2, mod := Color.WHITE) -> 
 			# Embossed facet rhombus (our mark, not a currency sign).
 			var h := s * 0.19
 			var wd := s * 0.14
-			var rh := PackedVector2Array([c + Vector2(0, -h), c + Vector2(wd, 0), c + Vector2(0, h), c + Vector2(-wd, 0)])
-			ci.draw_colored_polygon(rh, Color(0.86, 0.56, 0.16, a) * Color(shade, 1.0))
-			ci.draw_colored_polygon(PackedVector2Array([rh[0], rh[1], c, rh[3]]), Color(1, 0.95, 0.75, 0.75 * a))
+			# Four facets lit from the upper left (reads as a cut stone, not an arrow).
+			var t := c + Vector2(0, -h)
+			var rr := c + Vector2(wd, 0)
+			var b := c + Vector2(0, h)
+			var l := c + Vector2(-wd, 0)
+			ci.draw_colored_polygon(PackedVector2Array([t, c, l]), Color("#FFF1C4") * Color(shade, a))
+			ci.draw_colored_polygon(PackedVector2Array([t, rr, c]), Color("#F6C55A") * Color(shade, a))
+			ci.draw_colored_polygon(PackedVector2Array([l, c, b]), Color("#EDB04A") * Color(shade, a))
+			ci.draw_colored_polygon(PackedVector2Array([c, rr, b]), Color("#C98526") * Color(shade, a))
+			GemDraw.outline(ci, PackedVector2Array([t, rr, b, l]), Color(0.7, 0.44, 0.12, 0.7 * a), 1.0)
 			ci.draw_arc(c, s * 0.4, PI * 1.08, PI * 1.62, 16, Color(1, 1, 1, 0.65 * a), maxf(1.0, s * 0.03), true)
 		"gem":
 			GemDraw.draw_gem(ci, "round", c + Vector2(0, s * 0.02), s * 0.86, Color("#3FA9FF") * shade, Color("#D2EEFF") * shade, Color("#1B4E7E") * shade, s >= 28.0, a)

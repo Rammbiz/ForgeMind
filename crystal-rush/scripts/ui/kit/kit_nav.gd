@@ -38,10 +38,18 @@ static func draw_bar(ci: CanvasItem, r: Rect2, sag := 8.0) -> void:
 	if tex:
 		ci.draw_style_box(UIKit.lux("nav_bar"), Rect2(r.position - Vector2(0, sag), r.size + Vector2(0, sag)))
 		return
-	for i in 6:
-		var o := float(i) * 3.0
-		ci.draw_rect(Rect2(r.position + Vector2(0, -o - sag), Vector2(r.size.x, 2.0)), Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.025 * (6 - i)))
 	var top := _arch_points(r, sag, 0.0, 48)
+	# Soft upward shadow: a gradient band following the arch (no stripes).
+	var sh := PackedVector2Array()
+	var shc := PackedColorArray()
+	var sc := UITokens.SCRIM
+	for p in top:
+		sh.append(p + Vector2(0, 2))
+		shc.append(Color(sc.r, sc.g, sc.b, 0.1))
+	for i in range(top.size() - 1, -1, -1):
+		sh.append(top[i] + Vector2(0, -16))
+		shc.append(Color(sc.r, sc.g, sc.b, 0.0))
+	ci.draw_polygon(sh, shc)
 	var body := top.duplicate()
 	body.append(r.end)
 	body.append(Vector2(r.position.x, r.end.y))
