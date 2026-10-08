@@ -51,10 +51,29 @@ const HERO_UNLOCK_V2 := {"bolt": 0, "titan": 4, "seer": 5}
 ## the build that turns the hero systems on (H3).
 const HEROES_PHASE := 0
 const HEROES_LIVE_PHASE := 3
+## The Workshop (WS-F, phase H4) opens its unlock row only from this phase (release 1 if green by the
+## release cut, else release 2; the retro grant makes a late unlock lossless).
+const HEROES_WORKSHOP_PHASE := 4
+
+## Tests and dev tools ONLY (never set by the shipped flow): -1 = the shipped flags; >= 0 forces
+## the heroes phase / the Meta-1 ArsenalData.PHASE so a flag-off build can test the live rules.
+## Every test that sets one restores -1.
+static var phase_override := -1
+static var meta_phase_override := -1
+
+
+## The heroes build phase in effect (HEROES_PHASE unless a test overrides it).
+static func heroes_phase() -> int:
+	return HEROES_PHASE if phase_override < 0 else phase_override
 
 
 static func heroes_live() -> bool:
-	return HEROES_PHASE >= HEROES_LIVE_PHASE
+	return heroes_phase() >= HEROES_LIVE_PHASE
+
+
+## The Meta-1 content phase the UnlockQueue opens rows for (ArsenalData.PHASE unless overridden).
+static func meta_phase() -> int:
+	return ArsenalData.PHASE if meta_phase_override < 0 else meta_phase_override
 const HERO_ASPECTS := {
 	"bolt": ["forked_fox", "railshot", "storm_fox"],
 	"titan": ["bulwark", "seismic", "crystal_colossus"],
@@ -215,6 +234,30 @@ const TRACK := {"step": 10, "cycle": [["coins", 0], ["coins", 0], ["cache", "sto
 		"coins_base": 100, "coins_per_frontier": 10, "wild_L_at": [150, 300, 450]}
 const ROAD := {"chapters": 12, "tiers": 10, "xp_per_tier": 100, "xp_win": 5, "wins_per_day": 20}
 
+
+## What one Road node pays (arsenal_design.md §8.3; Road is Meta-3 data until road.gd ships):
+## {cur, n}. From the heroes phase the paid lane (`road_premium`) pays no Gems (heroes_design.md §7.7,
+## critique m4): a Gem node of the premium lane pays coins at the Arsenal Track's own exchange rate
+## (a Track Gem node and a Track coin node are equal steps of the TRACK cycle, so n Gems =
+## n / track_gem_node() x track_coin_node(frontier) coins). The free lane is unchanged.
+static func road_node(lane: String, cur: String, n: int, frontier: int) -> Dictionary:
+	if lane == "premium" and cur == "gems" and heroes_live():
+		return {"cur": "coins", "n": int(round(float(n) * float(track_coin_node(frontier)) / float(maxi(1, track_gem_node()))))}
+	return {"cur": cur, "n": n}
+
+
+## Coins of an Arsenal Track coin node at `frontier` (TRACK coins_base + coins_per_frontier x frontier).
+static func track_coin_node(frontier: int) -> int:
+	return int(TRACK["coins_base"]) + int(TRACK["coins_per_frontier"]) * mini(maxi(1, frontier), ArsenalData.CAMPAIGN_LEVELS)
+
+
+## Gems of an Arsenal Track Gem node (the first ["gems", n] step of the TRACK cycle).
+static func track_gem_node() -> int:
+	for step: Array in TRACK["cycle"]:
+		if str(step[0]) == "gems":
+			return int(step[1])
+	return 1
+
 ## Real-money SKUs (Meta-3; all non-consumable) and the per-world set cap (filled by the sim).
 const SKUS := {
 	"starter_arsenal": {"tier": "2.99", "coins": 2000, "bp": {"drone": 6, "ballista": 6}, "finish": "royal_gold", "from_level": 28},
@@ -270,6 +313,20 @@ const STATS_KEYS: Array[String] = ["wins", "kills_total", "kills_by_machine", "k
 		"ult_uses", "apex_uses", "overdrive_uses", "fortress_time", "fortress_fast", "army_peak", "army_at_fortress",
 		"survivors", "stairs_mult", "stairs_reached_3", "stairs_reached_5", "crowns_gained", "invasion_wins",
 		"wins_family3", "wins_no_machines", "wins_with_lead"]
+## Heroes & Champions stats keys (heroes_design.md §12.5), appended by stats_keys() from the heroes
+## phase on; wins_with_hero and synergy_wins are {id: n} dictionaries like wins_with_lead.
+const STATS_KEYS_HEROES: Array[String] = ["champion_kills", "champion_heals", "champion_blocks", "champions_lost",
+		"wins_full_team", "wins_with_hero", "synergy_wins"]
+const STATS_DICT_KEYS_HEROES: Array[String] = ["wins_with_hero", "synergy_wins"]
+
+
+## The fixed Run.result.stats keys of the current phase (STATS_KEYS while the heroes phase is off,
+## so the 2.2.1 result and counters stay byte-identical).
+static func stats_keys() -> Array[String]:
+	var out: Array[String] = STATS_KEYS.duplicate()
+	if heroes_live():
+		out.append_array(STATS_KEYS_HEROES)
+	return out
 
 # ------------------------------------------------------------------ formulas
 
@@ -383,12 +440,84 @@ static func mission_coins(frontier: int) -> int:
 	return int(DAILY["coins_base"]) + int(DAILY["coins_per_frontier"]) * frontier
 
 
-## Unlock entry by id ({} when unknown).
+## Unlock entry by id ({} when unknown) in the rows of the current phase (unlocks()).
 static func unlock_entry(id: String) -> Dictionary:
-	for u: Dictionary in UNLOCKS:
+	for u: Dictionary in unlocks():
 		if str(u["id"]) == id:
 			return u
 	return {}
+
+
+## Heroes & Champions rows (heroes_design.md §11.1). `heroes` = the heroes phase that opens the row
+## (HEROES_LIVE_PHASE; the Workshop HEROES_WORKSHOP_PHASE); levels come from SaveV3Data.UNLOCK_AT
+## (generated from heroes_consts.json). `kind hero` never takes a session slot. The Seer's row moves
+## from the 2.2.1 L5 to UNLOCK_AT.seer (the World 3 boss) and L5 becomes her one guest level.
+static func unlocks_heroes() -> Array[Dictionary]:
+	var at: Dictionary = SaveV3Data.UNLOCK_AT
+	var live := HEROES_LIVE_PHASE
+	return [
+		{"id": "seer_guest", "kind": "inrun", "from_level": int(HERO_UNLOCK_V2["seer"]), "line": "", "phase": 1, "heroes": live},
+		{"id": "champions", "kind": "system", "after_win": int(at["champions"]), "line": "UNL_CHAMPIONS", "free": "first_champion", "phase": 1, "heroes": live},
+		{"id": "portal", "kind": "currency", "after_win": int(at["portal"]), "line": "UNL_PORTAL", "free": "welcome_x10", "phase": 1, "heroes": live},
+		{"id": "skills", "kind": "system", "after_win": int(at["skills"]), "line": "UNL_SKILLS", "free": "first_rank", "phase": 1, "heroes": live},
+		{"id": "workshop", "kind": "system", "after_win": int(at["workshop"]), "line": "UNL_WORKSHOP", "free": "first_craft", "phase": 1, "heroes": HEROES_WORKSHOP_PHASE},
+		{"id": "slot3", "kind": "hero", "after_win": int(at["slot3"]), "line": "UNL_SLOT3", "phase": 1, "heroes": live},
+	]
+
+
+static var _unlocks_cache: Array[Dictionary] = []
+static var _unlocks_phase := -2
+
+
+## Every UNLOCKS row of the current heroes phase, in level order. While the heroes phase is off this
+## is exactly the 2.2.1 UNLOCKS table (same rows, same order); from HEROES_LIVE_PHASE the Seer row moves
+## to UNLOCK_AT.seer and the §11.1 rows join (a row whose `heroes` phase is not reached stays out).
+static func unlocks() -> Array[Dictionary]:
+	var ph := heroes_phase()
+	if ph == _unlocks_phase:
+		return _unlocks_cache
+	var out: Array[Dictionary] = []
+	for u: Dictionary in UNLOCKS:
+		out.append(u)
+	if ph >= HEROES_LIVE_PHASE:
+		for i in out.size():
+			if str(out[i]["id"]) == "seer":
+				var s: Dictionary = out[i].duplicate()
+				s["after_win"] = int(SaveV3Data.UNLOCK_AT["seer"])
+				out[i] = s
+		for h: Dictionary in unlocks_heroes():
+			if ph >= int(h["heroes"]):
+				out.append(h)
+		# Stable by level: rows of the same level keep the table order (2.2.1 rows first).
+		var keyed: Array = []
+		for i2 in out.size():
+			keyed.append([_unlock_at(out[i2]) * 1000 + i2, out[i2]])
+		keyed.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) < int(b[0]))
+		out.clear()
+		for k: Array in keyed:
+			out.append(k[1])
+	_unlocks_cache = out
+	_unlocks_phase = ph
+	return out
+
+
+## Sort key of a row: the level from which it can open (after_win + 1, or from_level).
+static func _unlock_at(u: Dictionary) -> int:
+	return int(u["after_win"]) + 1 if u.has("after_win") else int(u.get("from_level", 1))
+
+
+## Campaign level whose WIN unlocks hero `id` (0 = from the start, -1 = never by progress: Portal and
+## Seal shop only). While the heroes phase is off this is the 2.2.1 HERO_UNLOCK table; live, the Seer
+## joins at UNLOCK_AT.seer (her L5 level becomes a guest level, seer_guest_level()).
+static func hero_unlock_at(id: String) -> int:
+	if heroes_live() and id == "seer":
+		return int(SaveV3Data.UNLOCK_AT["seer"])
+	return int(HERO_UNLOCK.get(id, -1))
+
+
+## The campaign level Мейра leads as a guest (0 = no guest level in this phase).
+static func seer_guest_level() -> int:
+	return int(HERO_UNLOCK_V2["seer"]) if heroes_live() else 0
 
 
 ## A brand-new account in the Save v3 shape (arsenal_design.md §9.2 + heroes_design.md §12.1).

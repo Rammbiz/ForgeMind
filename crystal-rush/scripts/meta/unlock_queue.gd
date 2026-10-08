@@ -13,8 +13,14 @@ class_name UnlockQueue
 ## stays closed until the next session, as the design asks.
 ##
 ## Account keys: unlocks {done [ids], pending [ids], session_count, done_at {id: level},
-## migrated_level (0 = none), cards [Loc keys of one-time cards], free {}}; meta {sessions,
-## last_session}.
+## migrated_level (0 = none), heroes_migrated_level (0 = none; the v2 -> v3 update day), cards [Loc
+## keys of one-time cards], free {}}; meta {sessions, last_session}.
+##
+## Heroes & Champions (heroes_design.md §11.1 - §11.2): the rows come from EconData.unlocks(), which
+## is the 2.2.1 table while the heroes phase is off. From the live phase the champions / Portal /
+## skills / Workshop / slot 3 rows join (Seer 5 -> 24), a migrated v2 player finds every row below
+## the update-day frontier open at once (its line still waits for a session slot, as a hub card),
+## and the free first steps first_champion / welcome_x10 / first_rank / first_craft are granted.
 
 ## Synthetic pending entry for the one-time migration card (does not use a session slot).
 const MIGRATION_ID := "migration"
@@ -40,7 +46,7 @@ static func is_open(acc: Dictionary, id: String) -> bool:
 
 ## The level (and phase) condition of an UNLOCKS entry, ignoring sessions.
 static func level_open(acc: Dictionary, u: Dictionary) -> bool:
-	if int(u.get("phase", 1)) > ArsenalData.PHASE:
+	if int(u.get("phase", 1)) > EconData.meta_phase() or int(u.get("heroes", 0)) > EconData.heroes_phase():
 		return false
 	var lvl := MetaAcc.level(acc)
 	if u.has("after_win"):
@@ -58,7 +64,7 @@ static func pending(acc: Dictionary) -> Array[Dictionary]:
 		out.append({"id": MIGRATION_ID, "kind": "card", "line": "MIGRATION_CARD", "free": "", "phase": 1})
 	var room := maxi(0, int(EconData.UNLOCK_RULES["per_session"]) - int(un.get("session_count", 0)))
 	var gap_hold := _gap_hold(acc)
-	for u: Dictionary in EconData.UNLOCKS:
+	for u: Dictionary in EconData.unlocks():
 		if room <= 0:
 			break
 		var id := str(u["id"])
@@ -113,8 +119,8 @@ static func on_session_pause(acc: Dictionary, now_s: int) -> void:
 ## opened, as result-bundle rows {id, kind, line, free}.
 static func opened_between(before_level: int, after_level: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for u: Dictionary in EconData.UNLOCKS:
-		if int(u.get("phase", 1)) > ArsenalData.PHASE:
+	for u: Dictionary in EconData.unlocks():
+		if int(u.get("phase", 1)) > EconData.meta_phase() or int(u.get("heroes", 0)) > EconData.heroes_phase():
 			continue
 		var opened := false
 		if u.has("after_win"):
@@ -130,7 +136,7 @@ static func opened_between(before_level: int, after_level: int) -> Array[Diction
 ## Marks every unlock open by level as done (synthetic dev / bot accounts: no tutorials).
 static func mark_all_done(acc: Dictionary) -> void:
 	var done: Array = (acc["unlocks"] as Dictionary)["done"]
-	for u: Dictionary in EconData.UNLOCKS:
+	for u: Dictionary in EconData.unlocks():
 		if level_open(acc, u) and not done.has(str(u["id"])):
 			done.append(str(u["id"]))
 
@@ -141,14 +147,18 @@ static func start_catch_up(acc: Dictionary, level: int) -> void:
 	var un: Dictionary = acc["unlocks"]
 	un["migrated_level"] = level
 	var pend: Array = un["pending"]
-	for u: Dictionary in EconData.UNLOCKS:
+	for u: Dictionary in EconData.unlocks():
 		if level_open(acc, u) and str(u.get("line", "")) != "" and not str(u["kind"]) in ["inrun", "hero"] \
 				and not pend.has(str(u["id"])):
 			pend.append(str(u["id"]))
 
 
 static func _catch_up(acc: Dictionary, u: Dictionary) -> bool:
-	var ml := int((acc["unlocks"] as Dictionary).get("migrated_level", 0))
+	var un: Dictionary = acc["unlocks"]
+	var ml := int(un.get("migrated_level", 0))
+	# The v2 -> v3 update day opens every heroes row (and the moved Seer row) the frontier had passed.
+	if u.has("heroes") or str(u.get("id", "")) == "seer":
+		ml = maxi(ml, int(un.get("heroes_migrated_level", 0)))
 	if ml <= 0:
 		return false
 	if u.has("after_win"):
@@ -191,3 +201,17 @@ static func _grant_free(acc: Dictionary, u: Dictionary) -> void:
 			var d: Array = (ar["decks"] as Array)[int(ar.get("deck_active", 0))]
 			if d.is_empty():
 				(ar["decks"] as Array)[int(ar.get("deck_active", 0))] = Arsenal.auto_deck(acc)
+		# Heroes & Champions (heroes_design.md §11.1, §11.4).
+		"first_champion":
+			# Scripted chest #1 (known contents) when the result screen of the unlock did not grant it
+			# (a migrated player's catch-up card): into the Vault; Meta.ack_unlock opens it at once and
+			# places its champion in slot 1.
+			var e := Vault.scripted_entry(acc, 1, "unlock", MetaAcc.level(acc) - 1)
+			if not e.is_empty():
+				Vault.add(acc, str(e["type"]), str(e["source"]), int(e["level"]), int(e["scripted"]))
+		"welcome_x10":
+			pass          # the free x10 waits in the Portal until summon.welcome_done (Meta.portal().welcome_ready)
+		"first_rank":
+			MetaAcc.free_steps(acc)["skill_rank"] = true        # one free Ult rank on the team hero (HeroesMeta.free_rank)
+		"first_craft":
+			MetaAcc.free_steps(acc)["craft"] = true             # the first Workshop craft is free (WS-F; + retro grant)

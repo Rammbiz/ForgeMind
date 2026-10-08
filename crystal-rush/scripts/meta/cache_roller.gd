@@ -179,7 +179,13 @@ static func grant_card(acc: Dictionary, r: String, pl: Array[String], rng: Rando
 		else:
 			var d := Arsenal.deck(acc)
 			var w := {}
+			# Heroes phase (heroes_design.md §7.2, §13.1 touch point): the Focus machine gets EXACTLY
+			# FOCUS_SHARE of its rarity's cards, so the remainder (Deck x1.5) is drawn without it. In the
+			# 2.2.1 rule (flag off) the Focus also takes its share of the remainder.
+			var exact := EconData.heroes_live() and f != "" and cands.has(f)
 			for id3 in cands:
+				if exact and id3 == f:
+					continue
 				w[id3] = EconData.DECK_WEIGHT if d.has(id3) else 1.0
 			mid = draw(w, rng)
 	var st_range: Array = EconData.STACK[r]
@@ -281,7 +287,7 @@ static func odds(type: String, pres: Array[String], pity: Dictionary = {}) -> Di
 	return {"type": type, "present": pres, "per_card": free, "guaranteed": guar, "best": best,
 			"pity_left": pity_left(pres, pity) if not pity.is_empty() else (-1 if not pres.has("L") else int(EconData.PITY["leg_hard"])),
 			"stack": EconData.STACK, "wild": EconData.WILD_CARD_CHANCE if bool(ArsenalData.FEATURES.get("wild", true)) else 0.0,
-			"focus": EconData.FOCUS_SHARE, "deck": EconData.DECK_WEIGHT, "slots": int(g["slots"]),
+			"focus": EconData.FOCUS_SHARE, "focus_exact": EconData.heroes_live(), "deck": EconData.DECK_WEIGHT, "slots": int(g["slots"]),
 			"pity": {"epic": int(EconData.PITY["epic"]), "leg_soft": int(EconData.PITY["leg_soft"]),
 					"leg_hard": int(EconData.PITY["leg_hard"]), "leg_soft_step": float(EconData.PITY["leg_soft_step"])}}
 
