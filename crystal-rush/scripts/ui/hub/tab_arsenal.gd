@@ -35,6 +35,7 @@ var _deck: DeckEditor
 var _best: PanelContainer
 var _best_wrap: MarginContainer
 var _cards := {}             ## id -> MachineCard
+var _info: VBoxContainer
 var _first_fill := true
 
 
@@ -67,6 +68,7 @@ func _ready() -> void:
 			hub.open_machine(selected_id))
 	_strip.add_child(_show)
 	var info := VBoxContainer.new()
+	_info = info
 	info.position = Vector2(UITokens.GUTTER, 2)
 	info.add_theme_constant_override("separation", 6)
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -169,7 +171,12 @@ func _ready() -> void:
 func _on_resized() -> void:
 	# Tall phones: the stage grows a little (up to +120 px); the sheet keeps its chrome.
 	var extra := clampf((size.y - 994.0) * 0.4, 0.0, 120.0)
-	_strip.custom_minimum_size.y = STRIP_H + extra
+	# Deck mode: the slots already show the machines, so the stage folds to a short strip and
+	# the list gets the room (two full rows at 720).
+	_strip.custom_minimum_size.y = (24.0 + extra * 0.3) if _sub == "deck" else STRIP_H + extra
+	for n: Control in [_show, _info, _lv]:
+		if n:
+			n.visible = _sub != "deck"
 	_place_milestone()
 	_stage.queue_redraw()
 
@@ -190,6 +197,8 @@ func show_sub(id: String) -> void:
 		UIKit.segmented_select(_seg, id)
 	var incoming: Control = _deck if id == "deck" else _machines_view
 	_best_wrap.visible = id == "machines"
+	_on_resized()
+	_milestone.visible = id != "deck" and not Meta.next_milestone().is_empty()
 	if id == "deck":
 		_deck.refresh()
 	if old != incoming:
@@ -231,10 +240,13 @@ func _show_selected() -> void:
 	_meta_row.add_child(MachineDetail.family_chip(str(c["family"])))
 	_lv.text = Loc.f("LV", [int(c["lvl"])]) if bool(c["owned"]) else ""
 	var ms := Meta.next_milestone()
-	_milestone.visible = not ms.is_empty()
+	_milestone.visible = not ms.is_empty() and _sub != "deck"
 	if not ms.is_empty():
 		var mname := Loc.t(str((ArsenalData.MACHINES[str(ms["id"])] as Dictionary)["name"]))
-		_milestone_lbl.text = Loc.f("MILESTONE", [Loc.t("BEAT_" + str(ms["beat"]).to_upper()), mname, int(ms["levels_left"])])
+		# "Ще 2 рів. до віхи «Лідер»" (quotes avoid case agreement); the machine's name only
+		# when the milestone belongs to another machine than the one on the stage.
+		var line := Loc.f("BEAT_NEXT", [int(ms["levels_left"]), Loc.t("BEAT_" + str(ms["beat"]).to_upper())])
+		_milestone_lbl.text = line if str(ms["id"]) == selected_id else "%s: %s" % [mname, line.substr(0, 1).to_lower() + line.substr(1)]
 		await get_tree().process_frame
 		_place_milestone()
 
@@ -288,7 +300,7 @@ func _fill_grid() -> void:
 		UIJuice.cards_in(fresh, 0.05 if _first_fill else 0.0)
 	_first_fill = false
 	var owned := Meta.owned_ids().size()
-	_count_lbl.text = "%d/%d" % [owned, ArsenalData.live_ids().size()]
+	_count_lbl.text = Loc.f("OWNED_COUNT", [owned, ArsenalData.live_ids().size()])
 
 
 func _fill_best() -> void:
@@ -440,7 +452,7 @@ class _Stage extends Control:
 		var R := size.x * 0.52
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R * 0.85), Vector2(R * 2.0, R * 1.7)), false, Color(lc.r, lc.g, lc.b, 0.55))
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R * 0.6, cy - R * 0.5), Vector2(R * 1.2, R)), false, Color(1, 1, 1, 0.35))
-		KitGemCard._draw_fracture(self, gem, Rect2(Vector2(0, y0), Vector2(size.x, y1 - y0)))
+		KitGemCard.draw_stage_fracture(self, gem, Rect2(Vector2(0, y0), Vector2(size.x, y1 - y0)))
 		# Soft floor: a darker warm band with a gentle shadow pool under the turntable.
 		var fl := UITokens.STAGE_BOTTOM.lerp(gt, 0.08)
 		var fl0 := Color(fl.r, fl.g, fl.b, 0.0)

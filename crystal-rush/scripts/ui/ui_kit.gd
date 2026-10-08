@@ -785,11 +785,25 @@ static func scene_halo(target: Control, strength := 1.0, scale := 1.5) -> Textur
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	g.show_behind_parent = true
 	target.add_child(g)
+	# Sized to the glyphs (not the Label rect, which a container may stretch): no smear.
 	var fit := func():
-		var s := target.size * Vector2(scale, scale * 1.25)
+		var box := Rect2(Vector2.ZERO, target.size)
+		if target is Label:
+			var l := target as Label
+			var fs := l.get_theme_font_size("font_size")
+			var tw := minf(l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, target.size.x)
+			var x0 := 0.0
+			if l.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER:
+				x0 = (target.size.x - tw) * 0.5
+			elif l.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT:
+				x0 = target.size.x - tw
+			box = Rect2(Vector2(x0, 0), Vector2(tw, target.size.y))
+		var s := box.size * Vector2(scale, scale * 1.25)
 		g.size = s
-		g.position = (target.size - s) * 0.5
+		g.position = box.position + (box.size - s) * 0.5
 	target.resized.connect(fit)
+	if target is Label:
+		target.draw.connect(func(): fit.call_deferred())
 	fit.call()
 	return g
 
@@ -1343,9 +1357,11 @@ static func add_shine(target: Control, radius := 12.0, delay := 0.35, every := 0
 
 
 ## Glint burst (CPU particles) centred on `pos` inside `parent` (juicy rewards only).
+## A burst of soft round motes in `color` (additive, bloom falloff). No 4-point sparkles: the
+## signature glint (sparkle_texture) is kept for rare single accents.
 static func sparkles(parent: Control, pos: Vector2, color := GOLD_LIGHT, amount := 26, spread := 260.0) -> CPUParticles2D:
 	var p := CPUParticles2D.new()
-	p.texture = sparkle_texture()
+	p.texture = glow_texture()
 	p.position = pos
 	p.amount = amount
 	p.one_shot = true
@@ -1360,15 +1376,15 @@ static func sparkles(parent: Control, pos: Vector2, color := GOLD_LIGHT, amount 
 	p.damping_max = 120.0
 	p.angular_velocity_min = -60.0
 	p.angular_velocity_max = 60.0
-	p.scale_amount_min = 0.25
-	p.scale_amount_max = 0.7
+	p.scale_amount_min = 0.1
+	p.scale_amount_max = 0.26
 	var curve := Curve.new()
 	curve.add_point(Vector2(0, 0.2))
 	curve.add_point(Vector2(0.15, 1.0))
 	curve.add_point(Vector2(1, 0))
 	p.scale_amount_curve = curve
 	var grad := Gradient.new()
-	grad.set_color(0, Color(1, 1, 1, 1))
+	grad.set_color(0, Color(1, 1, 1, 1).lerp(Color(color.r, color.g, color.b, 1.0), 0.35))
 	grad.set_color(1, Color(color.r, color.g, color.b, 0.0))
 	p.color_ramp = grad
 	var mat := CanvasItemMaterial.new()

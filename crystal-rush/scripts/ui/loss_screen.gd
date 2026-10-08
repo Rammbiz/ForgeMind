@@ -69,6 +69,16 @@ func _ready() -> void:
 	# Tall phones: the scene band above the sheet grows (half the extra height); the top bar
 	# stays put and the sheet's chrome keeps its size.
 	_ins.y += ResultFlow.tall_band(_vp, _ins)
+	# Content-sized sheet: when nothing tall (an inline Cache reveal) is coming, the spare
+	# height between the rows and the buttons goes to the title band, never mid-sheet.
+	var inline_cache := false
+	for c in bundle.get("caches", []):
+		if bool((c as Dictionary).get("inline", false)):
+			inline_cache = true
+	if not inline_cache:
+		var content_h := 304.0 + 96.0 + (110.0 if int((bundle.get("assist", {}) as Dictionary).get("stacks", 0)) > 0 else 0.0)
+		var spare := (_retry_btn_y() - 28.0) - (_ins.y + SHEET_Y + content_h)
+		_ins.y += clampf(spare * 0.7, 0.0, 220.0)
 	# Calm: a cool porcelain title that settles in, the reason, and (when the copy exists) a
 	# word of encouragement. No red anywhere.
 	var rib := ResultFlow.ribbon(Loc.t("DEFEAT"), false, _vp.x)
@@ -229,7 +239,7 @@ func _build_assist() -> void:
 	v.add_child(d)
 	row.add_child(v)
 	p.custom_minimum_size = Vector2(_vp.x - UITokens.GUTTER * 2.0, 96)
-	p.position = Vector2(UITokens.GUTTER, _retry_btn_y() - 124)
+	p.position = Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 304 + 100)
 	p.modulate.a = 0.0
 	root.add_child(p)
 	_assist = p

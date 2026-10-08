@@ -97,11 +97,13 @@ func _ready() -> void:
 	_stage.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_stage)
 	# The hero on the dais: big, centred a little left of the rail.
+	# Framed by height (Genshin: the character fills the art band), pushed to x ~60 % so the
+	# name block keeps its left column.
 	_show = HubShowcase.new("hero")
 	_show.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_show.offset_top = -40.0
-	_show.offset_left = 110.0
-	_show.offset_right = -60.0
+	_show.offset_left = 170.0
+	_show.offset_right = -20.0
 	_show.gui_input.connect(_swipe)
 	add_child(_show)
 	# Name block (top left, on the scene).
@@ -117,10 +119,11 @@ func _ready() -> void:
 	_name = UIKit.scene_label("", 56)
 	UIKit.scene_halo(_name, 0.45, 1.15)
 	_head.add_child(_name)
-	_title = UIKit.label("", 22, UIKit.GOLD_HI, true)
+	# The title in warm white on the scene (gold caps were 1.2-2.2:1 on quartz / sapphire).
+	_title = UIKit.label("", 22, UIKit.ON_SCENE, true)
 	_title.add_theme_font_override("font", UIKit.font_caps(22))
-	UIKit.soft_shadow(_title, 22, 1.3)
-	UIKit.scene_halo(_title, 0.5, 1.1)
+	UIKit.soft_shadow(_title, 22, 1.6)
+	UIKit.scene_halo(_title, 0.7, 1.1)
 	_head.add_child(_title)
 	_head.add_child(UIKit.gap(6))
 	_sockets = HBoxContainer.new()
@@ -183,10 +186,8 @@ func _layout() -> void:
 	if foot:
 		foot.custom_minimum_size.y = maxf(0.0, below - 12.0)
 	_show.offset_bottom = -SHEET_H + 120.0
-	# Tall phones: the hero stays standing on the sheet's arch, a little larger; the extra
-	# height goes to the air above the name block.
-	var extra := maxf(0.0, size.y - 994.0)
-	_show.offset_top = maxf(-40.0, size.y - SHEET_H + 120.0 - 686.0 - extra * 0.35)
+	# Tall phones: the art band grows and the hero (framed by height) grows with it.
+	_show.offset_top = 60.0
 	_stage.queue_redraw()
 
 
@@ -281,6 +282,8 @@ func refresh() -> void:
 	var unlocked := Meta.hero_unlocked(id)
 	var chosen := Meta.hero() == id
 	_show.show_hero(id)
+	# The dais crystals and the floor ring glow in the hero's gem, as on Home.
+	_show.set_accent((UITokens.gem(str(inf["gem"]))["rim"] as Color))
 	_stage.gem = str(inf["gem"])
 	_stage.queue_redraw()
 	# Head
@@ -302,7 +305,7 @@ func refresh() -> void:
 	_title.visible = _title.text != ""
 	_clear(_sockets)
 	_sockets.add_child(_socket("cls_" + str(inf["cls"]), false, tr2("H_CLASS") + " · " + tr2("CLS_" + str(inf["cls"]).to_upper())))
-	_sockets.add_child(_socket("el_" + str(inf["el"]), true, tr2("H_ELEMENT") + " · " + Loc.t("FAM_" + str(inf["el"]).to_upper())))
+	_sockets.add_child(_socket("el_" + str(inf["el"]), false, tr2("H_ELEMENT") + " · " + Loc.t("FAM_" + str(inf["el"]).to_upper())))
 	_sockets.add_child(_socket("fac_" + str(inf["fac"]), false, tr2("H_FACTION") + " · " + tr2("FAC_" + str(inf["fac"]).to_upper())))
 	# Lead chip / select button
 	_clear(_pick_row)
@@ -671,7 +674,7 @@ class _HeroStage extends Control:
 		var R := w * 0.6
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R), Vector2(R, R) * 2.0), false, Color(lc.r, lc.g, lc.b, 0.55))
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R * 0.45, cy - R * 0.55), Vector2(R * 0.9, R * 0.9)), false, Color(1, 1, 1, 0.25))
-		KitGemCard._draw_fracture(self, gem, Rect2(Vector2(x0, y0), Vector2(w, sheet_y - y0 + 20.0)))
+		KitGemCard.draw_stage_fracture(self, gem, Rect2(Vector2(x0, y0), Vector2(w, sheet_y - y0 + 20.0)))
 		if gem == "opal":
 			var fl: Array = g["flecks"]
 			var rng := RandomNumberGenerator.new()
@@ -801,6 +804,12 @@ class _Milestones extends Control:
 		var aw: Array = EconData.HERO["awakening_at"]
 		for j in aw.size():
 			marks.append([int(aw[j]), Loc.t("SOON"), false])
+		# Labels only on the next two ult ranks (no "Скоро" chatter); the rest are quiet pips.
+		var labelled := 0
+		for m: Array in marks:
+			if bool(m[2]) and lvl < int(m[0]) and labelled < 2:
+				m.append(true)
+				labelled += 1
 		for m: Array in marks:
 			var l := int(m[0])
 			var x := lerpf(x0, x1, float(l - 1) / (mx - 1.0))
@@ -813,11 +822,12 @@ class _Milestones extends Control:
 			else:
 				draw_circle(p, 11.0, UITokens.PAPER_1)
 				GemDraw.draw_keystone(self, p, 16.0, 0.55)
+			if m.size() < 4:
+				continue
 			var t := str(m[1])
-			var fs := 17
+			var fs := 18
 			var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-			draw_string(f if live else fm, Vector2(clampf(x - tw * 0.5, 0, size.x - tw), y + 38), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs,
-					(UITokens.INK if done else UITokens.INK_SOFT) if live else UITokens.INK_DIM)
-			var lt := str(l)
-			var lw := f.get_string_size(lt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-			draw_string(fm, Vector2(x - lw * 0.5, y + 60), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.INK_DIM)
+			draw_string(f, Vector2(clampf(x - tw * 0.5, 0, size.x - tw), y + 38), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
+			var lt := Loc.f("LV", [l])
+			var lw := fm.get_string_size(lt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+			draw_string(fm, Vector2(clampf(x - lw * 0.5, 0, size.x - lw), y + 62), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITokens.INK_DIM)

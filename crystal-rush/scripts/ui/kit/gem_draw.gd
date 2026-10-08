@@ -139,6 +139,9 @@ static func draw_mark(ci: CanvasItem, gem_key: String, c: Vector2, s: float, alp
 	var body: Color = g["rim"]
 	if gem_key == "opal":
 		body = Color("#3A2D63")
+	elif gem_key == "quartz":
+		# Rock crystal reads as a cut, cool stone (never a white pearl).
+		body = Color("#A9B6C4")
 	draw_gem(ci, cut, c, s, body, g["light"], g["deep"], s >= 22.0, alpha)
 	if gem_key == "opal":
 		var fl: Array = g["flecks"]

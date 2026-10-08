@@ -84,7 +84,7 @@ func _ready() -> void:
 	# Tall phones: the scene band above the sheet grows (half the extra height); the top bar
 	# stays put and the sheet's chrome keeps its size.
 	_ins.y += tall_band(_vp, _ins)
-	root.add_child(scrim(_vp, 0.74, 0.9))
+	root.add_child(scrim(_vp, 0.45, 0.62))
 	# Victory light: a warm pool and slow soft rays behind the title (juicy, never loud).
 	var pool := TextureRect.new()
 	pool.texture = UIKit.glow_texture()
@@ -97,8 +97,8 @@ func _ready() -> void:
 	pool.create_tween().tween_property(pool, "modulate:a", 0.42, 0.6)
 	var rays := UIKit.Rays.new()
 	rays.color = Color(1.0, 0.86, 0.55, 0.0)
-	rays.count = 16
 	rays.inner = 0.1
+	rays.gem = "topaz"
 	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rays.size = Vector2(_vp.x * 1.5, _vp.x * 1.5)
 	rays.position = Vector2(_vp.x * 0.5, _ins.y + TITLE_Y + 50) - rays.size * 0.5
@@ -108,11 +108,11 @@ func _ready() -> void:
 	var rib := ribbon(Loc.t("VICTORY"), true, _vp.x)
 	rib.position = Vector2(0, _ins.y + TITLE_Y)
 	root.add_child(rib)
-	var why := UIKit.scene_label(Loc.t(str(result.get("reason", "FORTRESS_FALLS"))) if result.has("reason") else Loc.t("FORTRESS_FALLS"), 24, false)
-	why.add_theme_color_override("font_color", UIKit.GOLD_HI)
+	# The reason sits on the amber band in deep amber ink (no gold-on-brown).
+	var why := UIKit.label(Loc.t(str(result.get("reason", "FORTRESS_FALLS"))) if result.has("reason") else Loc.t("FORTRESS_FALLS"), 24, UITokens.NEW_INK, true)
 	why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	why.size = Vector2(_vp.x, 32)
-	why.position = Vector2(0, _ins.y + TITLE_Y + 108)
+	why.position = Vector2(0, _ins.y + TITLE_Y + 96)
 	root.add_child(why)
 	UIJuice.fade_in(why, 0.35)
 	_build_crowns()
@@ -147,7 +147,8 @@ func _ready() -> void:
 	Audio.play("victory", -2.0)
 	UIJuice.haptic_pattern("win")
 	_at(0.12, func(): UIKit.sparkles(root, Vector2(_vp.x * 0.5, _ins.y + TITLE_Y + 50), UIKit.GOLD_LIGHT, 40, 420.0))
-	_at(TAP_FROM, func(): _next_btn.create_tween().tween_property(_next_btn, "modulate:a", 0.82, 0.2))
+	_at(TAP_FROM, func(): _next_btn.create_tween().tween_property(_next_btn, "modulate:a", 1.0, 0.2))
+	_build_placeholders()
 	_at(0.35, _step_odometer)
 
 
@@ -164,6 +165,31 @@ func _process(delta: float) -> void:
 		(ev[1] as Callable).call()
 
 
+## Cream wells where the rows will land (drip chips, the cache card, the best upgrade), laid
+## out at once so the sheet never looks empty while the sequence plays.
+func _build_placeholders() -> void:
+	var ph := Control.new()
+	ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ph.size = _vp
+	var rects: Array[Rect2] = []
+	var drip: Array = bundle.get("drip", [])
+	if not drip.is_empty():
+		rects.append(Rect2(Vector2(24, _ins.y + SHEET_Y + 244), Vector2(_vp.x - 48, 76)))
+	if not (bundle.get("caches", []) as Array).is_empty():
+		rects.append(Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252)))
+	if not (bundle.get("best_upgrade", {}) as Dictionary).is_empty():
+		rects.append(Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84)))
+	ph.draw.connect(func():
+		for r in rects:
+			var pts := GemDraw.chamfer_rect(r, 10.0)
+			ph.draw_colored_polygon(pts, Color(UITokens.PAPER_2.r, UITokens.PAPER_2.g, UITokens.PAPER_2.b, 0.55))
+			GemDraw.outline(ph, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), 1.0))
+	root.add_child(ph)
+	root.move_child(ph, root.get_children().find(_sheet) + 1)
+	ph.modulate.a = 0.0
+	ph.create_tween().tween_property(ph, "modulate:a", 1.0, 0.3)
+
+
 # ------------------------------------------------------------------ shared builders
 
 ## Full-screen scrim (v2, no blur): a warm translucent slate gradient from `top_a` to
@@ -173,11 +199,12 @@ static func scrim(vp: Vector2, top_a: float, bottom_a: float) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.size = vp
-	var warm := Color(0.16, 0.13, 0.14)
+	# Neutral slate (#1E2433): the frozen run dims but is never tinted brown.
+	var sl := UITokens.SCRIM
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
-	g.colors = PackedColorArray([Color(warm.r, warm.g, warm.b, top_a), Color(warm.r * 1.08, warm.g * 1.0, warm.b * 0.92, lerpf(top_a, bottom_a, 0.5)),
-			Color(UITokens.SCRIM.r * 0.8, UITokens.SCRIM.g * 0.8, UITokens.SCRIM.b * 0.8, bottom_a)])
+	g.colors = PackedColorArray([Color(sl.r, sl.g, sl.b, top_a), Color(sl.r, sl.g, sl.b, lerpf(top_a, bottom_a, 0.5)),
+			Color(sl.r * 0.85, sl.g * 0.85, sl.b * 0.85, bottom_a)])
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
 	gt.fill_from = Vector2(0.5, 0.0)
@@ -187,7 +214,7 @@ static func scrim(vp: Vector2, top_a: float, bottom_a: float) -> Control:
 	holder.add_child(_tex_rect(gt, vp))
 	var v := Gradient.new()
 	v.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	v.colors = PackedColorArray([Color(0.08, 0.06, 0.07, 0.0), Color(0.08, 0.06, 0.07, 0.08), Color(0.06, 0.05, 0.07, 0.6)])
+	v.colors = PackedColorArray([Color(sl.r, sl.g, sl.b, 0.0), Color(sl.r, sl.g, sl.b, 0.06), Color(sl.r * 0.7, sl.g * 0.7, sl.b * 0.7, 0.45)])
 	var vt := GradientTexture2D.new()
 	vt.gradient = v
 	vt.fill = GradientTexture2D.FILL_RADIAL
@@ -212,7 +239,6 @@ static func _tex_rect(t: Texture2D, vp: Vector2) -> TextureRect:
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_SCALE
 	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
 	tr.size = vp
 	return tr
 
@@ -225,20 +251,37 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.size = Vector2(w, 104)
-	var fs := UIKit.fit_size(text, w - 80.0, 84 if won else 72, 44)
+	if won:
+		# §6.8 Result: a full-width amber band that wipes in from the centre and fades out at
+		# both ends, gold hairlines with crystal keystones; the title sits on it.
+		text = text.trim_suffix("!").to_upper()
+		var band := _VictoryBand.new()
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.size = Vector2(w, 168)
+		band.position = Vector2(0, -26)
+		holder.add_child(band)
+		band.create_tween().tween_property(band, "reveal", 1.0, 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var fs := UIKit.fit_size(text, w - 80.0, 76 if won else 72, 44)
 	var title: Label
 	if won:
-		title = UIKit.gradient_heading(text, fs, UIKit.ON_SCENE, Color("#FFE6A3"), Color("#F5B451"))
+		title = UIKit.number(text, fs, false, UIKit.ON_SCENE)
+		# A soft 0-offset slate glow (3 px), no offset shadow / extrude.
+		title.add_theme_color_override("font_shadow_color", Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.42))
+		title.add_theme_constant_override("shadow_offset_x", 0)
+		title.add_theme_constant_override("shadow_offset_y", 0)
+		title.add_theme_constant_override("shadow_outline_size", 6)
 	else:
 		title = UIKit.gradient_heading(text, fs, UIKit.ON_SCENE, Color("#E9EDF3"), Color("#B9C3D2"))
-	UIKit.soft_shadow(title, fs, 1.4)
+		UIKit.soft_shadow(title, fs, 1.4)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title.size = Vector2(w, 96)
 	title.position = Vector2(0, 0)
 	holder.add_child(title)
-	HudView._halo_behind(title, UIKit.font_w("extrabold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, 0.9 if won else 0.8)
+	if not won:
+		HudView._halo_behind(title, UIKit.font_w("extrabold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, 0.8)
 	var line := _TitleLine.new()
+	line.visible = not won
 	line.won = won
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.size = Vector2(minf(w - 120.0, 480.0), 16)
@@ -390,14 +433,22 @@ func _build_top() -> void:
 	var coins := bundle.get("coins", {}) as Dictionary
 	var gain := 0 if bool(bundle.get("duplicate", false)) else int(coins.get("total", 0)) + _inline_coins()
 	_chip = coin_chip(root, int(bundle.get("coins_balance", Meta.currency("coins"))) - gain, _ins0, _vp)
-	# Arsenal chip: where the blueprints fly (a porcelain square with the painted nav icon).
+	# Blueprint chip: where the blueprints fly (the parchment icon and the run's count, as on
+	# the Arsenal), shown only when the run dripped blueprints.
+	var bp := 0
+	for r in bundle.get("drip", []):
+		bp += int((r as Dictionary).get("bp_after", 0)) - int((r as Dictionary).get("bp_before", 0))
+	var bpt := "+%d" % bp
+	var bw := 64.0 + UIKit.font_w("extrabold").get_string_size(bpt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 	_bp_chip = Control.new()
 	_bp_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bp_chip.size = Vector2(60, 56)
-	_bp_chip.position = Vector2(_chip.position.x - 74, _chip.position.y + (_chip.size.y - 56) * 0.5)
+	_bp_chip.size = Vector2(bw, 56)
+	_bp_chip.position = Vector2(_chip.position.x - bw - 12, _chip.position.y + (_chip.size.y - 56) * 0.5)
 	_bp_chip.draw.connect(func():
-		_bp_chip.draw_style_box(UIKit.lux("plate"), Rect2(Vector2(2, 4), Vector2(56, 48)))
-		Icons.draw_icon(_bp_chip, "tab_arsenal", Rect2(Vector2(8, 6), Vector2(44, 44))))
+		_bp_chip.draw_style_box(UIKit.lux("plate"), Rect2(Vector2(2, 4), Vector2(bw - 4, 48)))
+		Icons.draw_icon(_bp_chip, "blueprint", Rect2(Vector2(8, 8), Vector2(40, 40)))
+		_bp_chip.draw_string(UIKit.font_w("extrabold"), Vector2(52, 37), bpt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIKit.INK))
+	_bp_chip.visible = bp > 0
 	root.add_child(_bp_chip)
 	root.add_child(level_plate(int(bundle.get("level", result.get("level", 1))), _ins0))
 
@@ -454,7 +505,7 @@ func _build_coins() -> void:
 	_stamp.size = Vector2(132, 76)
 	_stamp.pivot_offset = _stamp.size * 0.5
 	_stamp.position = Vector2(_vp.x - 172 - _ins.z, 36)
-	_stamp.rotation = deg_to_rad(-7)
+	_stamp.rotation = 0.0
 	_stamp.visible = false
 	_coin_block.add_child(_stamp)
 
@@ -639,6 +690,9 @@ func _step_cache() -> void:
 		_inline.size = Vector2(_vp.x - 72, 470)
 		_cache_box.add_child(_inline)
 		_inline.done.connect(_on_inline_done)
+		# The reveal is tall: "Далі" steps aside while it plays (no overlap with its coin line).
+		_next_btn.create_tween().tween_property(_next_btn, "modulate:a", 0.0, 0.15)
+		_next_btn.disabled = true
 		var title := UIKit.label(Loc.f("CACHE_EARNED", [Loc.t(str((EconData.CACHES[type] as Dictionary)["name"]))]), 26, UIKit.INK, true)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title.size = Vector2(_vp.x, 34)
@@ -737,9 +791,9 @@ func _cache_card(type: String, vault_index: int) -> Control:
 		_land_all()
 		altar.emit(vault_index))
 	box.add_child(open)
-	var later := UIKit.text_button(Loc.t("LATER"), Vector2(cw, 44), 22)
-	later.position = Vector2(x0, 222)
-	later.size = Vector2(cw, 44)
+	var later := UIKit.text_button(Loc.t("LATER"), Vector2(cw, 72), 22)
+	later.position = Vector2(x0, 210)
+	later.size = Vector2(cw, 72)
 	later.pressed.connect(func():
 		open.disabled = true
 		later.visible = false
@@ -799,6 +853,7 @@ func _show_final() -> void:
 	if _best.visible:
 		UIJuice.soft_in(_best, Vector2(0, 16))
 	_next_btn.modulate.a = 1.0
+	_next_btn.disabled = false
 	_sync_next()
 	if _next_btn.visible:
 		UIJuice.pop(_next_btn, 0.05)
@@ -901,7 +956,7 @@ class Stamp extends Control:
 			fs -= 2
 		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var p := Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.36)
-		draw_string(f, p + Vector2(0, 2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.55, 0.27, 0.05, 0.45))
+		draw_string(f, p + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.9, 0.64, 0.5))
 		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.CTA_TEXT)
 
 
@@ -1080,3 +1135,45 @@ class _TitleLine extends Control:
 		var y := size.y * 0.5
 		var col := UITokens.GOLD_HI if won else Color(0.86, 0.88, 0.92, 0.85)
 		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), col, 1.5, true, true)
+
+
+## The victory band (§6.8): an amber band across the width whose alpha fades to 0 over the
+## outer 18 % at each side, 1.5 px gold hairlines top and bottom with crystal keystones; it
+## wipes in from the centre (`reveal` 0..1).
+class _VictoryBand extends Control:
+	var reveal := 0.0:
+		set(v):
+			reveal = v
+			queue_redraw()
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		var half := w * 0.5 * reveal
+		var x0 := w * 0.5 - half
+		var x1 := w * 0.5 + half
+		if half < 2.0:
+			return
+		var xs := [x0, lerpf(x0, x1, 0.18), lerpf(x0, x1, 0.82), x1]
+		var ax := [0.0, 1.0, 1.0, 0.0]
+		var ys := [10.0, h * 0.5, h - 10.0]
+		var cs := [Color("#F7C46A"), Color("#EFA445"), Color("#D98632")]
+		var a := 0.94
+		for j in 2:
+			for i in 3:
+				var c00: Color = cs[j]
+				var c10: Color = cs[j + 1]
+				draw_polygon(PackedVector2Array([Vector2(xs[i], ys[j]), Vector2(xs[i + 1], ys[j]), Vector2(xs[i + 1], ys[j + 1]), Vector2(xs[i], ys[j + 1])]),
+						PackedColorArray([Color(c00, a * ax[i]), Color(c00, a * ax[i + 1]), Color(c10, a * ax[i + 1]), Color(c10, a * ax[i])]))
+		# Soft light across the top third.
+		draw_polygon(PackedVector2Array([Vector2(xs[1], ys[0]), Vector2(xs[2], ys[0]), Vector2(xs[2], h * 0.36), Vector2(xs[1], h * 0.36)]),
+				PackedColorArray([Color(1, 1, 1, 0.18), Color(1, 1, 1, 0.18), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)]))
+		var gl := UITokens.GOLD_HI
+		for y: float in [6.0, h - 6.0]:
+			for i in 3:
+				draw_polygon(PackedVector2Array([Vector2(xs[i], y - 0.75), Vector2(xs[i + 1], y - 0.75), Vector2(xs[i + 1], y + 0.75), Vector2(xs[i], y + 0.75)]),
+						PackedColorArray([Color(gl, ax[i]), Color(gl, ax[i + 1]), Color(gl, ax[i + 1]), Color(gl, ax[i])]))
+		for x: float in [xs[1], xs[2]]:
+			for y: float in [6.0, h - 6.0]:
+				GemDraw.draw_keystone(self, Vector2(x, y), 14.0, reveal, Color(1.0, 0.92, 0.7))
+		GemDraw.draw_keystone(self, Vector2(w * 0.5, h - 6.0), 20.0, reveal, Color(1.0, 0.92, 0.7))

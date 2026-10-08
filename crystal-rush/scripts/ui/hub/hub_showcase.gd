@@ -34,6 +34,8 @@ void fragment() {
 
 var mode := "machine"
 var accent := Color(0.4, 0.7, 1.0)
+## Hero mode frames by height: the subject region (w, h) in world units around the look target.
+var hero_region := Vector2(1.7, 2.25)
 var spin_speed := 0.45
 var _vp: SubViewport
 var _root: Node3D
@@ -102,7 +104,7 @@ func _build_stage() -> void:
 	_build_dais()
 	match mode:
 		"hero":
-			_cam.look_at_from_position(Vector3(0, 1.25, 4.9), Vector3(0, 0.6, 0))
+			_cam.look_at_from_position(Vector3(0, 1.1, 4.9), Vector3(0, 0.82, 0))
 		"army":
 			_cam.look_at_from_position(Vector3(0, 2.6, 5.6), Vector3(0, 0.3, 0))
 			_build_army()
@@ -166,7 +168,7 @@ static func ivory_dais(w: float, ring := Color(0.45, 0.82, 1.0)) -> Dictionary:
 
 
 func _build_dais() -> void:
-	var dw := 2.1 if mode == "hero" else 2.0
+	var dw := 1.5 if mode == "hero" else 2.0
 	var owner := owner_dais(dw) if mode != "army" else {}
 	if not owner.is_empty():
 		# UI v2: the owner's dais re-glazed as warm ivory marble with gold (home_dais), its
@@ -295,6 +297,8 @@ func _build_glow_fx(r: float, floor_y: float) -> void:
 	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	# Light, not dust: additive warm-white / gem-light motes with a bloom falloff.
+	mm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mm.albedo_texture = _radial_tex()
 	mm.vertex_color_use_as_albedo = true
 	_motes.material_override = mm
@@ -312,7 +316,7 @@ func _build_glow_fx(r: float, floor_y: float) -> void:
 func _frame() -> void:
 	if size.y < 4.0 or _cam == null:
 		return
-	var region: Vector2 = {"hero": Vector2(3.2, 2.9), "army": Vector2(5.2, 3.0)}.get(mode, Vector2(3.3, 2.5))
+	var region: Vector2 = {"hero": hero_region, "army": Vector2(5.2, 3.0)}.get(mode, Vector2(3.3, 2.5))
 	var d := _cam.position.length()
 	var aspect := size.x / size.y
 	var v_need := 2.0 * atan(region.y * 0.5 / d)
@@ -346,12 +350,12 @@ func set_accent(c: Color) -> void:
 	if _dais_mat:
 		# The hero keeps the owner's ice ring warmed by its colour; a machine's ring takes the
 		# family accent.
-		_dais_mat.set_shader_parameter("rune_color", Color(0.45, 0.8, 1.0).lerp(c, 0.45 if mode == "hero" else 0.7))
+		_dais_mat.set_shader_parameter("rune_color", Color(0.45, 0.8, 1.0).lerp(c, 0.9 if mode == "hero" else 0.7))
 	var g := _root.get_node_or_null("FloorGlow") as MeshInstance3D
 	if g:
 		(g.material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, 0.55)
 	if _motes:
-		_motes.color = c.lightened(0.35)
+		_motes.color = c.lerp(Color(1.0, 0.97, 0.9), 0.6)
 	if _beam_mat:
 		_beam_mat.set_shader_parameter("color", c.lerp(Color(0.75, 0.85, 1.0), 0.55))
 

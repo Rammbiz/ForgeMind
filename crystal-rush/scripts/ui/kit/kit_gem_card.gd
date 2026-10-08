@@ -150,50 +150,109 @@ func draw_ground(ci: CanvasItem) -> void:
 	var lc: Color = g["light"]
 	var R := size.x * 0.75
 	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(size.x * 0.5 - R, size.y * 0.36 - R), Vector2(R, R) * 2.0), false, Color(lc.r, lc.g, lc.b, 0.22))
-	_draw_fracture(ci, gem, Rect2(Vector2.ZERO, size))
+	if gem == "quartz":
+		# Crafted rock crystal: a frosted diagonal sheen (brushed light) over the planes.
+		ci.draw_polygon(PackedVector2Array([Vector2(0, size.y * 0.1), Vector2(size.x * 0.55, 0), Vector2(size.x, 0), Vector2(size.x, size.y * 0.12), Vector2(0, size.y * 0.62)]),
+				PackedColorArray([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.0)]))
+	_draw_fracture(ci, gem, Rect2(Vector2.ZERO, size), pts)
 
 
-static func _draw_fracture(ci: CanvasItem, gk: String, r: Rect2) -> void:
-	var a := 0.08
+## The gem's faint fracture pattern in `r`, clipped to `clip` (the card shape) when given, all
+## segments batched into one draw_multiline call.
+static func _draw_fracture(ci: CanvasItem, gk: String, r: Rect2, clip := PackedVector2Array()) -> void:
+	var a := 0.08 if gk != "quartz" else 0.12
 	var col := Color(1, 1, 1, a)
 	var w := r.size.x
 	var h := r.size.y
 	var c := r.get_center()
+	var lines := PackedVector2Array()
 	match gk:
 		"quartz":
+			# Frosted 60/120-degree planes.
 			var step := w * 0.32
 			for i in range(-6, 7):
 				var o := c + Vector2(i * step, 0)
 				for ang: float in [PI / 3.0, 2.0 * PI / 3.0]:
 					var d := Vector2(cos(ang), sin(ang)) * h
-					ci.draw_line(o - d, o + d, col, 1.0, true)
+					lines.append_array([o - d, o + d])
 		"sapphire":
 			var step := w * 0.2
 			var rot := deg_to_rad(12.0)
 			var ux := Vector2(cos(rot), sin(rot))
 			var uy := Vector2(-ux.y, ux.x)
 			for i in range(-8, 9):
-				ci.draw_line(c + ux * i * step - uy * h, c + ux * i * step + uy * h, col, 1.0, true)
-				ci.draw_line(c + uy * i * step - ux * h, c + uy * i * step + ux * h, col, 1.0, true)
+				lines.append_array([c + ux * i * step - uy * h, c + ux * i * step + uy * h])
+				lines.append_array([c + uy * i * step - ux * h, c + uy * i * step + ux * h])
 		"amethyst":
 			var step := w * 0.34
 			for ang: float in [PI / 6.0, PI / 2.0, 5.0 * PI / 6.0]:
 				var d := Vector2(cos(ang), sin(ang))
 				var n := Vector2(-d.y, d.x)
 				for i in range(-5, 6):
-					ci.draw_line(c + n * i * step - d * h, c + n * i * step + d * h, col, 1.0, true)
+					lines.append_array([c + n * i * step - d * h, c + n * i * step + d * h])
 		"topaz":
 			var o := Vector2(c.x, r.position.y + h * 0.3)
 			for i in 5:
 				var ang := -PI / 2.0 + TAU * i / 5.0
 				var d := Vector2(cos(ang), sin(ang))
 				var n := Vector2(-d.y, d.x) * w * 0.05
-				ci.draw_colored_polygon(PackedVector2Array([o, o + d * h + n, o + d * h - n]), Color(1, 0.95, 0.8, 0.08))
-				ci.draw_line(o, o + d * h, Color(1, 0.96, 0.85, 0.14), 1.0, true)
+				var tri := PackedVector2Array([o, o + d * h + n, o + d * h - n])
+				if not clip.is_empty():
+					for q in Geometry2D.intersect_polygons(tri, clip):
+						if (q as PackedVector2Array).size() >= 3:
+							ci.draw_colored_polygon(q, Color(1, 0.95, 0.8, 0.08))
+				else:
+					ci.draw_colored_polygon(tri, Color(1, 0.95, 0.8, 0.08))
+				lines.append_array([o, o + d * h])
+			col = Color(1, 0.96, 0.85, 0.14)
 		"opal":
 			for i in 5:
 				var cc := Vector2(r.position.x + w * (0.2 + 0.15 * i), r.position.y + h * (0.9 - 0.12 * i))
-				ci.draw_arc(cc, w * (0.35 + 0.1 * i), PI * 1.1, PI * 1.9, 24, Color(0.85, 0.8, 1.0, 0.12), 1.0, true)
+				var rad := w * (0.35 + 0.1 * i)
+				var prev := cc + Vector2(cos(PI * 1.1), sin(PI * 1.1)) * rad
+				for k in range(1, 25):
+					var t := PI * 1.1 + PI * 0.8 * k / 24.0
+					var q := cc + Vector2(cos(t), sin(t)) * rad
+					lines.append_array([prev, q])
+					prev = q
+			col = Color(0.85, 0.8, 1.0, 0.12)
+	if lines.is_empty():
+		return
+	if not clip.is_empty():
+		var cut := PackedVector2Array()
+		var i := 0
+		while i + 1 < lines.size():
+			for seg in Geometry2D.clip_polyline_with_polygon(PackedVector2Array([lines[i], lines[i + 1]]), clip):
+				var sg := seg as PackedVector2Array
+				for j in sg.size() - 1:
+					cut.append_array([sg[j], sg[j + 1]])
+			i += 2
+		lines = cut
+	if lines.size() >= 2:
+		ci.draw_multiline(lines, col, 1.0, true)
+
+
+## The stage-scale version (detail / Arsenal / Heroes stages): 4 long, very soft refraction
+## planes (6-10 %, varying width, fading mid-line) and a large soft caustic - the dense card
+## grid would read as graph paper at full-screen size.
+static func draw_stage_fracture(ci: CanvasItem, gk: String, r: Rect2) -> void:
+	var lc: Color = UITokens.gem(gk)["light"]
+	var w := r.size.x
+	var h := r.size.y
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(gk)
+	for i in 4:
+		var a := deg_to_rad(rng.randf_range(-35.0, 35.0) + (60.0 if i % 2 == 1 else -20.0))
+		var d := Vector2(cos(a), sin(a))
+		var o := r.position + Vector2(w * rng.randf_range(0.15, 0.85), h * rng.randf_range(0.2, 0.75))
+		var L := w * 0.9
+		var n := 10
+		for k in n:
+			var t0 := float(k) / n
+			var t1 := float(k + 1) / n
+			var fade := sin(PI * (t0 + t1) * 0.5) * (0.55 + 0.45 * absf(cos(PI * (t0 + t1) * 1.5)))
+			ci.draw_line(o + d * L * (t0 - 0.5), o + d * L * (t1 - 0.5), Color(lc.r, lc.g, lc.b, 0.09 * fade), 1.0 + 2.5 * fade, true)
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(r.position + Vector2(w * 0.08, h * 0.05), Vector2(w * 0.7, h * 0.55)), false, Color(lc.r, lc.g, lc.b, 0.16))
 
 
 func _draw_over(ci: CanvasItem) -> void:

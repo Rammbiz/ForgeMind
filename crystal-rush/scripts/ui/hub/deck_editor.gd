@@ -16,6 +16,8 @@ var _slots: HBoxContainer
 var _list: GridContainer
 var _hint: Label
 var _auto: Button
+var _sc: ScrollContainer
+var _undo: Control
 
 
 func setup(p_hub: Hub) -> void:
@@ -57,11 +59,29 @@ func _ready() -> void:
 	drow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	drow.add_child(UIKit.divider(560.0))
 	add_child(drow)
+	# The list scrolls in a frame with a 24 px cream fade at its bottom edge, and snaps so a
+	# row never ends cut at the seam.
+	var frame := Control.new()
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.clip_contents = true
+	add_child(frame)
 	var sc := ScrollContainer.new()
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sc = sc
+	sc.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	add_child(sc)
+	sc.scroll_ended.connect(_snap)
+	frame.add_child(sc)
+	var fade := Control.new()
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	fade.offset_top = -24
+	fade.draw.connect(func():
+		var p0 := UITokens.PAPER_1
+		fade.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(fade.size.x, 0), fade.size, Vector2(0, fade.size.y)]),
+				PackedColorArray([Color(p0, 0.0), Color(p0, 0.0), Color(p0, 0.95), Color(p0, 0.95)])))
+	frame.add_child(fade)
 	var cc := CenterContainer.new()
 	cc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(cc)
@@ -143,17 +163,18 @@ func _slot(i: int, id: String, editable: bool) -> Control:
 	mc.pressed.connect(func(mid: String): hub.open_machine(mid))
 	box.add_child(mc)
 	if editable:
+		# Cream sockets with a gold ring: "make Lead" (crown) and "remove" (an ink minus), at
+		# least 96 px apart so their 88 px touch targets never overlap.
 		var tools := HBoxContainer.new()
 		tools.alignment = BoxContainer.ALIGNMENT_CENTER
-		tools.add_theme_constant_override("separation", 10)
+		tools.add_theme_constant_override("separation", 52)
 		tools.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if i > 0:
-			var up := UIKit.edge_button("crown", 24.0)
+			var up := UIKit.edge_button("crown", 22.0)
 			up.pressed.connect(func(): _make_lead(id))
 			tools.add_child(up)
-		var rm := UIKit.edge_button("close", 24.0)
-		rm.ring_color = UITokens.ALERT_FILL
-		rm.pressed.connect(func(): _remove(id))
+		var rm := UIKit.edge_button("minus", 22.0)
+		rm.pressed.connect(func(): _remove(id, true))
 		tools.add_child(rm)
 		box.add_child(tools)
 	return box
@@ -172,10 +193,58 @@ func _toggle(id: String) -> void:
 	_apply(d)
 
 
-func _remove(id: String) -> void:
-	var d := Meta.deck()
+func _remove(id: String, offer_undo := false) -> void:
+	var before := Meta.deck()
+	var d := before.duplicate()
 	d.erase(id)
 	_apply(d)
+	if offer_undo:
+		_show_undo(id, before)
+
+
+## A short cream chip under the slots: "<name> - прибрано з колоди  [Повернути]" (3.5 s).
+func _show_undo(id: String, before: Array) -> void:
+	if is_instance_valid(_undo):
+		_undo.queue_free()
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UIKit.lux("toast", Vector2(16, 4)))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	p.add_child(row)
+	var l := UIKit.label(Loc.f("DECK_REMOVED", [Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"]))]), 20, UIKit.INK)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(l)
+	var b := UIKit.text_button(Loc.t("UNDO"), Vector2(0, 72), 22)
+	b.pressed.connect(func():
+		if Meta.set_deck(before):
+			Audio.play("build", -8.0)
+			refresh()
+		if is_instance_valid(p):
+			p.queue_free())
+	row.add_child(b)
+	p.top_level = true
+	add_child(p)
+	_undo = p
+	await get_tree().process_frame
+	if not is_instance_valid(p):
+		return
+	p.size = p.get_combined_minimum_size()
+	var sr := _slots.get_global_rect()
+	p.global_position = Vector2(sr.get_center().x - p.size.x * 0.5, sr.end.y - p.size.y * 0.5)
+	UIJuice.fade_in(p, 0.0, 0.18)
+	var tw := p.create_tween()
+	tw.tween_interval(3.5)
+	tw.tween_property(p, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(p.queue_free)
+
+
+## Snaps the list so rows end on a card bottom (no card cut at the seam).
+func _snap() -> void:
+	var pitch := MachineCard.SIZE.y + 24.0
+	var target := roundf(_sc.scroll_vertical / pitch) * pitch
+	var tw := _sc.create_tween()
+	tw.tween_property(_sc, "scroll_vertical", int(target), 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _make_lead(id: String) -> void:

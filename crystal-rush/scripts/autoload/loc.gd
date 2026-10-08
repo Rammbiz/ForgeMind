@@ -155,7 +155,7 @@ const STRINGS := {
 	"VERB_LANE_DESC": ["Стріляє вздовж смуги героя", "Fires down the hero's lane"],
 	"VERB_PAINT": ["Ціль", "Paint"],
 	"VERB_PAINT_DESC": ["Б’є туди, куди влучив герой", "Hits what the hero hit"],
-	"VERB_PLACE": ["Місце", "Place"],
+	"VERB_PLACE": ["Ціль: точка", "Target: point"],
 	"VERB_PLACE_DESC": ["Б’є в точку попереду героя", "Strikes a spot ahead of the hero"],
 	"VERB_RULE": ["Правило", "Rule"],
 	"VERB_RULE_DESC": ["Змінює ворота, пастки чи бій", "Changes gates, hazards or clashes"],

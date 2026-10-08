@@ -105,7 +105,7 @@ const BRIDGE_EDGE := Color("#8FD9F0")
 ## rim + vivid accent, `light` = lit facet pip / glints, `deep` = shadow facet, `cut` = gem-cut
 ## silhouette (colour-blind code): round / square / triangle / star / eye.
 const GEMS := {
-	"quartz": {"name": "GEM_QUARTZ", "top": Color("#7F8A96"), "bot": Color("#C3CCD5"), "rim": Color("#D6DEE6"),
+	"quartz": {"name": "GEM_QUARTZ", "top": Color("#77879A"), "bot": Color("#CAD4DF"), "rim": Color("#E2E9F0"),
 			"light": Color("#F2F5F8"), "deep": Color("#5C6672"), "cut": "round", "metal": Color("#AEB7C2")},
 	"sapphire": {"name": "GEM_SAPPHIRE", "top": Color("#2D6A9C"), "bot": Color("#63A9DD"), "rim": Color("#3FA9FF"),
 			"light": Color("#A8DBFF"), "deep": Color("#1B4E7E"), "cut": "square", "metal": Color("#E8E6E0")},

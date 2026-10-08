@@ -14,7 +14,9 @@ extends Control
 signal pressed(id: String)
 
 const SIZE := Vector2(156, 200)
-const FOOTER_RATIO := 0.28
+const FOOTER_RATIO := 0.36
+const NAME_SIZE := 18               ## one name size for the whole grid (2 lines allowed)
+const SMALL_SIZE := 18              ## footer line 2 (never below 18 px)
 const PRESTIGE := {"bronze": Color("#C98B5A"), "silver": Color("#C9D2DC"), "gold": Color("#E8B84A")}
 
 var card: Dictionary = {}
@@ -40,6 +42,7 @@ var _over: _Over
 var _fam: KitSocket
 var _badge: KitSocket
 var _badge_icon: Icons
+var _fx: _Fx
 var _tex: Texture2D
 var _t := 0.0
 var _press := false
@@ -63,7 +66,7 @@ func _init(p_card := {}) -> void:
 	_art.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_gem.content.add_child(_art)
 	_fam = KitSocket.new()
-	_fam.slate = true
+	_fam.slate = false
 	_fam.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_fam)
 	_over = _Over.new()
@@ -79,6 +82,12 @@ func _init(p_card := {}) -> void:
 	_badge_icon = Icons.make("arrow_up", 18.0, UIKit.BROWN)
 	_badge_icon.visible = false
 	_badge.add_child(_badge_icon)
+	# The only per-frame layer: the light travelling along an Epic+ frame (the rest is static).
+	_fx = _Fx.new()
+	_fx.mc = self
+	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_fx)
 	resized.connect(_layout)
 
 
@@ -115,9 +124,10 @@ func _layout() -> void:
 	var s := clampf(size.x * 0.2, 26.0, 40.0)
 	_fam.size = Vector2(s, s)
 	_fam.position = Vector2(size.x - s - 6.0, 7.0)
-	var bs := clampf(size.x * 0.17, 26.0, 32.0)
+	# The one state badge: a 28 px gold "!" inside the card, bottom-right of the art.
+	var bs := 28.0
 	_badge.size = Vector2(bs, bs)
-	_badge.position = Vector2(size.x - bs * 0.55, -bs * 0.45)
+	_badge.position = Vector2(size.x - bs - 7.0, _seam() - bs - 9.0)
 	_badge_icon.size = Vector2(bs, bs) * 0.62
 	_badge_icon.position = Vector2(bs, bs) * 0.19
 	if _over:
@@ -136,8 +146,8 @@ func _sync() -> void:
 	_fam.modulate.a = 0.55 if locked != "" else 1.0
 	var badge := str(card.get("badge", "")) if locked == "" else ""
 	_badge.visible = badge != ""
-	_badge_icon.visible = badge == "arrow"
-	_badge.badge_text = " " if badge == "arrow" else "!"
+	_badge_icon.visible = false
+	_badge.badge_text = "!"
 	modulate = Color(1, 1, 1, 0.55) if picked else Color.WHITE
 	_art.queue_redraw()
 	_over.queue_redraw()
@@ -170,7 +180,7 @@ func _animated() -> bool:
 func _process(delta: float) -> void:
 	_t += delta
 	if _animated():
-		_over.queue_redraw()
+		_fx.queue_redraw()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -241,18 +251,25 @@ func draw_over(ci: CanvasItem) -> void:
 	var lvl := int(card.get("lvl", 0))
 	var fb := UIKit.font_w("bold")
 	var fm := UIKit.font_w("medium")
-	# Name (footer line 1).
+	# Name (footer line 1): one size for the grid; a long name wraps to 2 lines (over the art
+	# edge on a soft cream lip), ellipsis only as a last resort.
 	var name := Loc.t(str(card.get("name", "")))
-	var ns := int(clampf(fh * 0.34, 15.0, 24.0))
-	while ns > 13 and fb.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x > w - 14.0:
-		ns -= 1
-	var nw := fb.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+	var ns := NAME_SIZE
 	var line2 := not compact or locked != ""
 	var ny := seam + (fh * 0.47 if line2 else fh * 0.62) + (4.0 if not compact and locked == "" else 0.0)
-	ci.draw_string(fb, Vector2((w - nw) * 0.5, ny), name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, UITokens.INK if locked == "" else UITokens.INK_DIM)
+	var ncol := UITokens.INK if locked == "" else UITokens.INK_DIM
+	var lines := _name_lines(name, fb, ns, w - 12.0)
+	if lines.size() == 1:
+		var nw := fb.get_string_size(lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+		ci.draw_string(fb, Vector2((w - nw) * 0.5, ny), lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, ns, ncol)
+	else:
+		var y0 := seam + 6.0 + ns + 1.0
+		for i in 2:
+			var nw2 := fb.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+			ci.draw_string(fb, Vector2((w - nw2) * 0.5, y0 + (ns + 1.0) * i), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, ns, ncol)
 	# Footer line 2: level + blueprint count, or where to find it.
-	var ss := int(clampf(fh * 0.27, 14.0, 19.0))
-	var y2 := size.y - fh * 0.16
+	var ss := SMALL_SIZE
+	var y2 := size.y - 8.0
 	if locked == "world":
 		var home := int(card.get("home_level", 0))
 		var txt := Loc.f("LOCKED_WORLD", [ArsenalData.world_of(home), ArsenalData.level_in_world(home)]) if home > 0 else Loc.t("LOCKED_SOON")
@@ -269,14 +286,11 @@ func draw_over(ci: CanvasItem) -> void:
 		var bw := fm.get_string_size(bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
 		ci.draw_string(fm, Vector2(w - 10.0 - bw, y2), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK if bool(card.get("can_upgrade", false)) else UITokens.INK_DIM)
 		_seam_bar(ci, seam, maxed)
-	# Above the seam: Deck and Focus marks (small cream sockets).
-	if locked == "":
-		var ms := clampf(w * 0.15, 20.0, 30.0)
-		var my := seam - ms * 0.5 - 7.0
-		if bool(card.get("in_deck", false)):
-			_mini_socket(ci, Vector2(8.0 + ms * 0.5, my), ms, "deck")
-		if bool(card.get("is_focus", false)):
-			_mini_socket(ci, Vector2(w - 8.0 - ms * 0.5, my), ms, "target")
+	# Deck membership: a thin gold hairline along the top edge (Focus lives on the detail).
+	if locked == "" and bool(card.get("in_deck", false)):
+		var ch0 := _gem._cham()
+		ci.draw_line(Vector2(ch0 + 4.0, 2.5), Vector2(w - ch0 - 4.0, 2.5), UITokens.CTA, 3.0, true)
+		ci.draw_line(Vector2(ch0 + 4.0, 4.5), Vector2(w - ch0 - 4.0, 4.5), Color(1.0, 0.95, 0.8, 0.8), 1.0, true)
 	# Locked: a lock socket in the middle of the art.
 	if locked == "world":
 		var lc := Vector2(w * 0.5, seam * 0.52)
@@ -286,28 +300,13 @@ func draw_over(ci: CanvasItem) -> void:
 	var fr := str(card.get("frame", ""))
 	if PRESTIGE.has(fr) and locked == "":
 		GemDraw.outline(ci, GemDraw.chamfer_rect(Rect2(Vector2(1.5, 1.5), size - Vector2(3, 3)), _gem._cham() - 1.0), PRESTIGE[fr], 2.0)
-	# Rarity motion (restrained): Epic+ a soft light travels along the frame; Legendary+ a glint
-	# blinks on the gem mark now and then.
-	var r := str(card.get("rarity", "C"))
-	if locked == "" and r in ["E", "L", "M"]:
-		var body := Rect2(Vector2(1, 1), size - Vector2(2, 2))
-		var per := 2.0 * (body.size.x + body.size.y)
-		var p := _perimeter(body, fposmod(_t * 70.0, per))
-		var lc2: Color = (UITokens.gem(r) as Dictionary)["light"]
-		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(16, 16), Vector2(32, 32)), false, Color(lc2.r, lc2.g, lc2.b, 0.55))
-		if r in ["L", "M"]:
-			var k := fposmod(_t, 4.0)
-			if k < 0.6:
-				var a := sin(k / 0.6 * PI)
-				var mc := Vector2(_gem._cham() + clampf(w * 0.15, 18.0, 40.0) * 0.5 + 2.0, _gem._cham() + clampf(w * 0.15, 18.0, 40.0) * 0.5 + 2.0)
-				GemDraw.draw_glint(ci, mc + Vector2(-4, -4), 18.0 * a + 4.0, Color(1, 1, 1, 0.9 * a))
 	# Selected: a warm double hairline + keystone at the top.
 	if selected and locked == "":
 		var pts := GemDraw.chamfer_rect(Rect2(Vector2(-2, -2), size + Vector2(4, 4)), _gem._cham() + 1.0)
 		GemDraw.outline(ci, pts, UITokens.CTA, 2.0)
 		GemDraw.draw_keystone(ci, Vector2(w * 0.5, -2.0), 14.0, 1.0, Color(1.0, 0.86, 0.5))
-	# Lead: a painted crown over the top edge.
-	if bool(card.get("is_lead", false)) and locked == "":
+	# Lead: a painted crown over the top edge (the state badge slot: not with the "!").
+	if bool(card.get("is_lead", false)) and locked == "" and not _badge.visible:
 		var cs := clampf(w * 0.26, 30.0, 46.0)
 		var bob := sin(fmod(_t, 100.0) * 1.6) * 1.0 if selected else 0.0
 		Icons.draw_icon(ci, "crown", Rect2(Vector2(w * 0.5 - cs * 0.5, -cs * 0.52 + bob), Vector2(cs, cs)))
@@ -333,8 +332,7 @@ func _seam_bar(ci: CanvasItem, seam: float, maxed: bool) -> void:
 		var wk := clampf(float(have + wild) / float(need), 0.0, 1.0)
 		if wk > k:
 			var wr := Rect2(tr.position, Vector2(tr.size.x * wk, tr.size.y))
-			var am: Dictionary = UITokens.GEMS["amethyst"]
-			ci.draw_colored_polygon(GemDraw.chamfer_rect(wr, 2.0), am["light"])
+			ci.draw_colored_polygon(GemDraw.chamfer_rect(wr, 2.0), UITokens.CTA_HI)
 	if k > 0.0:
 		var can := bool(card.get("can_upgrade", false))
 		var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * k, 4.0), tr.size.y))
@@ -362,10 +360,57 @@ func _mini_socket(ci: CanvasItem, c: Vector2, s: float, icon: String) -> void:
 
 func _center_text(ci: CanvasItem, txt: String, cx: float, y: float, fs: int, col: Color, max_w: float) -> void:
 	var f := UIKit.font_w("medium")
-	while fs > 12 and f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+	while fs > 16 and f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
 		fs -= 1
 	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	ci.draw_string(f, Vector2(cx - tw * 0.5, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+
+
+## The animated layer (Epic+ only, redrawn per frame): a soft light travelling along the frame;
+## Legendary+ adds the signature glint on the gem mark now and then.
+func draw_fx(ci: CanvasItem) -> void:
+	var r := str(card.get("rarity", "C"))
+	if card.is_empty() or _locked() != "" or not r in ["E", "L", "M"]:
+		return
+	var w := size.x
+	var body := Rect2(Vector2(1, 1), size - Vector2(2, 2))
+	var per := 2.0 * (body.size.x + body.size.y)
+	var p := _perimeter(body, fposmod(_t * 70.0, per))
+	var lc2: Color = (UITokens.gem(r) as Dictionary)["light"]
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(16, 16), Vector2(32, 32)), false, Color(lc2.r, lc2.g, lc2.b, 0.55))
+	if r in ["L", "M"]:
+		var k := fposmod(_t, 4.0)
+		if k < 0.6:
+			var a := sin(k / 0.6 * PI)
+			var mc := Vector2(_gem._cham() + clampf(w * 0.15, 18.0, 40.0) * 0.5 + 2.0, _gem._cham() + clampf(w * 0.15, 18.0, 40.0) * 0.5 + 2.0)
+			GemDraw.draw_glint(ci, mc + Vector2(-4, -4), 18.0 * a + 4.0, Color(1, 1, 1, 0.9 * a))
+
+
+## Splits `name` into 1-2 lines that fit `max_w` at `fs` (word wrap; ellipsis last).
+static func _name_lines(name: String, f: Font, fs: int, max_w: float) -> PackedStringArray:
+	if f.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_w:
+		return PackedStringArray([name])
+	var words := name.split(" ")
+	if words.size() >= 2:
+		var best := -1
+		for i in range(1, words.size()):
+			var a := " ".join(words.slice(0, i))
+			var b := " ".join(words.slice(i))
+			if f.get_string_size(a, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_w and f.get_string_size(b, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_w:
+				best = i
+		if best > 0:
+			return PackedStringArray([" ".join(words.slice(0, best)), " ".join(words.slice(best))])
+	var cut := name
+	while cut.length() > 2 and f.get_string_size(cut + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+		cut = cut.substr(0, cut.length() - 1)
+	return PackedStringArray([cut + "…"])
+
+
+class _Fx extends Control:
+	var mc: MachineCard
+
+	func _draw() -> void:
+		mc.draw_fx(self)
 
 
 class _Art extends Control:

@@ -132,7 +132,6 @@ func _build() -> void:
 	_head.add_child(tv)
 	var title := UIKit.scene_label(Loc.t(str(c["name"])), 44)
 	title.add_theme_font_size_override("font_size", UIKit.fit_size(title.text, 470.0, 44, 30))
-	UIKit.scene_halo(title, 0.6, 1.2)
 	tv.add_child(title)
 	var chips := HBoxContainer.new()
 	chips.add_theme_constant_override("separation", 8)
@@ -379,9 +378,27 @@ func _do_upgrade() -> void:
 	Audio.play("upgrade")
 	var g: Dictionary = UITokens.gem(str(before["rarity"]))
 	var center := _show.get_global_rect().get_center() - global_position
-	var flash_at := UIJuice.flare(self, center, (g["light"] as Color).lerp(UITokens.TOPAZ_HI, 0.35), tier, 150.0)
+	# Everything stays on the stage: a clip host over the stage band (never over the sheet).
+	var clip := _stage_clip()
+	var flash_at := UIJuice.flare(clip, center, (g["light"] as Color).lerp(UITokens.TOPAZ_HI, 0.35), tier, 150.0)
 	_show.celebrate(1.0 if tier == "full" else 0.6)
-	UIKit.sparkles(self, center, (g["light"] as Color).lerp(Color.WHITE, 0.3), 30 if tier == "full" else 18, 260.0)
+	UIKit.sparkles(clip, center, (g["light"] as Color).lerp(Color.WHITE, 0.3), 30 if tier == "full" else 18, 260.0)
+	get_tree().create_timer(flash_at).timeout.connect(func():
+		if not is_instance_valid(clip):
+			return
+		# Juicy even without a beat: a 120 ms white-gold flash on the stage + gem motes.
+		var fl := ColorRect.new()
+		fl.color = Color(1.0, 0.96, 0.84, 0.55)
+		fl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fl.size = clip.size
+		clip.add_child(fl)
+		var ft := fl.create_tween()
+		ft.tween_property(fl, "color:a", 0.0, 0.12)
+		ft.tween_callback(fl.queue_free)
+		UIKit.sparkles(clip, center, g["rim"] as Color, 18, 220.0))
+	get_tree().create_timer(UITokens.ceremony(tier) + 0.6).timeout.connect(func():
+		if is_instance_valid(clip):
+			clip.queue_free())
 	await get_tree().create_timer(flash_at).timeout
 	if not is_instance_valid(self):
 		return
@@ -390,7 +407,8 @@ func _do_upgrade() -> void:
 	if asc_now != asc_before:
 		_show.show_machine(id, int(res["lvl"]), false)
 	_set_level(int(res["lvl"]))
-	UIJuice.punch(_lv_lbl, 1.35, 0.4)
+	_lv_lbl.pivot_offset = _lv_lbl.size * 0.5
+	UIJuice.punch(_lv_lbl, 1.35 if tier == "full" else 1.12, 0.4 if tier == "full" else 0.28)
 	Meta.note("upgrade_ceremony", {"id": id, "tier": tier})
 	_busy = false
 	_rebuild_body()
@@ -405,36 +423,54 @@ func _do_upgrade() -> void:
 				UIJuice.punch(_talent_box, 1.03, 0.35)
 
 
-## Full ceremony (a beat level): warm rays, the beat's icon and name rise over the stage.
-func _beat_banner(beat: String) -> void:
-	# Host = the stage band (clipped at the sheet's top so the rays stay on the stage).
+## A clip host over the stage band (clip_contents, ends at the sheet's top) for ceremony FX.
+func _stage_clip() -> Control:
 	var host := Control.new()
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.clip_contents = true
 	host.size = Vector2(size.x, _sheet.position.y - 8.0)
 	add_child(host)
+	return host
+
+
+## Full ceremony (a beat level): soft shafts, a 40 % dim and the Genshin level-up band in the
+## machine's gem colour (§6.7 "Level-up: gem colour") with the beat's icon and name.
+func _beat_banner(beat: String) -> void:
+	var host := _stage_clip()
 	var c := _show.get_global_rect().get_center() - global_position
 	c.y = minf(c.y, host.size.y - 90.0)
+	var dim := ColorRect.new()
+	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.4)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.size = host.size
+	host.add_child(dim)
+	UIJuice.fade_in(dim, 0.0, UITokens.FAST)
+	var gk := UITokens.gem_of(str(Meta.machine_card(id)["rarity"]))
 	var rays := UIKit.Rays.new()
-	rays.color = Color(1.0, 0.9, 0.6, 0.4)
+	rays.color = Color(UITokens.gem(gk)["light"], 0.3)
+	rays.gem = gk
 	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rays.position = c - Vector2(380, 380)
 	rays.size = Vector2(760, 760)
 	host.add_child(rays)
-	# Genshin level-up band: a full-width amber band with the beat's icon and name.
-	var band := UIKit.band(Loc.t("BEAT_" + beat.to_upper()), "amber", 112.0)
+	var band := GemBand.new()
+	band.gem = gk
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bl := band.get_child(0) as Label
-	bl.add_theme_font_size_override("font_size", UIKit.fit_size(bl.text, size.x - 220.0, 52, 30))
-	var ic := Icons.make(str(BEAT_ICONS.get(beat, "trophy")), 56.0, UIKit.CTA_TEXT)
+	var bl := UIKit.number(Loc.t("BEAT_" + beat.to_upper()), UIKit.fit_size(Loc.t("BEAT_" + beat.to_upper()), size.x - 260.0, 52, 30), true)
+	bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var ic := Icons.make(str(BEAT_ICONS.get(beat, "trophy")), 56.0, UIKit.ON_SCENE)
 	var row := Control.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.position = Vector2(0, c.y - 56.0)
-	row.size = Vector2(size.x, 112.0)
+	row.position = Vector2(0, c.y - 65.0)
+	row.size = Vector2(size.x, 130.0)
 	host.add_child(row)
 	band.size = row.size
 	row.add_child(band)
-	ic.position = Vector2(UITokens.GUTTER + 14.0, 28.0)
+	bl.size = row.size
+	row.add_child(bl)
+	var fw := UIKit.font_w("extrabold").get_string_size(bl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, bl.get_theme_font_size("font_size")).x
+	ic.position = Vector2((size.x - fw) * 0.5 - 76.0, 37.0)
 	ic.size = Vector2(56, 56)
 	row.add_child(ic)
 	UIJuice.pop(row, 0.0, UITokens.SLOW, 0.85)
@@ -534,6 +570,9 @@ func _stats_page(c: Dictionary) -> Control:
 		var vl: Label = row.get_meta("value")
 		vl.add_theme_font_override("font", UIKit.font_w("extrabold"))
 		vl.add_theme_font_size_override("font_size", 26)
+		# Fixed right-aligned value column + a fixed delta column (empty when no delta).
+		vl.custom_minimum_size.x = 112
+		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		vl.set_meta("key", key)
 		vl.set_meta("value", val)
 		vl.set_meta("fmt", fmt)
@@ -541,7 +580,8 @@ func _stats_page(c: Dictionary) -> Control:
 		var dl := UIKit.label("", 20, UIKit.PLUS, true)
 		dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		dl.size_flags_vertical = Control.SIZE_FILL
-		dl.custom_minimum_size.x = 76
+		dl.custom_minimum_size.x = 92
+		dl.clip_text = true
 		if not nxt.is_empty():
 			var nval := _stat_value(nxt, key) * (100.0 if key == "amp" else 1.0)
 			if nval - val > 0.005:
@@ -704,6 +744,13 @@ func _focus_row(c: Dictionary) -> Control:
 	t.on = bool(c["is_focus"])
 	t.custom_minimum_size = Vector2(86, 46)
 	t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# The Lead is the focus by default: turning it "off" would fall straight back to it, so the
+	# switch shows on, disabled, with the reason - only an explicit choice is a real toggle.
+	var explicit := str((Meta.account.get("arsenal", {}) as Dictionary).get("focus", "")) != ""
+	if bool(c["is_focus"]) and not explicit:
+		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		t.modulate.a = 0.55
+		d.text = Loc.t("FOCUS_DEFAULT")
 	t.toggled.connect(func(v2: bool):
 		Meta.set_focus(id if v2 else "")
 		UIJuice.haptic("CLICK", 0.5))
@@ -821,7 +868,7 @@ class _GemStage extends Control:
 		var R := w * 0.62
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(w * 0.5 - R, cy - R), Vector2(R, R) * 2.0), false, Color(lc.r, lc.g, lc.b, 0.5))
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(w * 0.5 - R * 0.5, cy - R * 0.4), Vector2(R, R * 0.8)), false, Color(1, 1, 1, 0.22))
-		KitGemCard._draw_fracture(self, gem, Rect2(Vector2.ZERO, Vector2(w, sheet_y + 20.0)))
+		KitGemCard.draw_stage_fracture(self, gem, Rect2(Vector2.ZERO, Vector2(w, sheet_y + 20.0)))
 		if gem == "opal":
 			var fl: Array = g["flecks"]
 			var rng := RandomNumberGenerator.new()
@@ -858,7 +905,7 @@ class BpBar extends Control:
 		var txt := "%d / %d" % [have, need]
 		var extra := ""
 		if wild > 0 and have < need:
-			extra = "  (+%d)" % mini(wild, need - have)
+			extra = " · " + (Loc.f("WILD_SHARE", [mini(wild, need - have)]) if Loc.STRINGS.has("WILD_SHARE") else "+%d" % mini(wild, need - have))
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fm.get_string_size(extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
 		var bh := 14.0
 		var r := Rect2(Vector2(8, (size.y - bh) * 0.5), Vector2(size.x - tw - 30.0, bh))
@@ -868,9 +915,15 @@ class BpBar extends Control:
 		var k := clampf(float(have) / float(maxi(need, 1)), 0.0, 1.0)
 		var kw := clampf(float(have + wild) / float(maxi(need, 1)), 0.0, 1.0)
 		if kw > k:
-			var am: Dictionary = UITokens.GEMS["amethyst"]
+			# The wild share: a pale amber segment with fine diagonal hatching (never another
+			# rarity's colour).
 			var wr := Rect2(r.position, Vector2(maxf(r.size.x * kw, ch * 2.0), bh))
-			draw_colored_polygon(GemDraw.chamfer_rect(wr, ch), am["light"])
+			draw_colored_polygon(GemDraw.chamfer_rect(wr, ch), UITokens.CTA_HI)
+			var x0 := r.position.x + r.size.x * k
+			var hx := x0
+			while hx < wr.end.x + bh:
+				draw_line(Vector2(maxf(hx - bh, x0), r.end.y), Vector2(minf(hx, wr.end.x), r.end.y - (minf(hx, wr.end.x) - maxf(hx - bh, x0))), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.55), 1.4, true)
+				hx += 7.0
 		if k > 0.0:
 			var fr := Rect2(r.position, Vector2(maxf(r.size.x * k, ch * 2.0), bh))
 			var fp := GemDraw.chamfer_rect(fr, ch)
@@ -887,7 +940,7 @@ class BpBar extends Control:
 		var y := size.y * 0.5 + f.get_ascent(fs) * 0.36
 		draw_string(f, Vector2(x, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 		if extra != "":
-			draw_string(fm, Vector2(x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, y), extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, (UITokens.GEMS["amethyst"] as Dictionary)["deep"])
+			draw_string(fm, Vector2(x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, y), extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITokens.INK_SOFT)
 
 
 ## Lv1-15 facet track: a gold hairline with a rhombus pip per level (lit up to the current
@@ -1025,3 +1078,28 @@ class TalentCard extends Control:
 		if line != "":
 			out.append(line)
 		return out
+
+
+## The level-up band in a gem colour: a horizontal gradient whose alpha fades to 0 over the
+## outer 18 % at each side, 1.5 px gold hairlines top and bottom with marquise terminals.
+class GemBand extends Control:
+	var gem := "topaz"
+
+	func _draw() -> void:
+		var g: Dictionary = UITokens.gem(gem)
+		var w := size.x
+		var h := size.y
+		var xs := [0.0, w * 0.18, w * 0.82, w]
+		var ax := [0.0, 1.0, 1.0, 0.0]
+		var top: Color = (g["rim"] as Color).lerp(g["light"] as Color, 0.25)
+		var bot: Color = g["deep"]
+		for i in 3:
+			draw_polygon(PackedVector2Array([Vector2(xs[i], 6), Vector2(xs[i + 1], 6), Vector2(xs[i + 1], h - 6), Vector2(xs[i], h - 6)]),
+					PackedColorArray([Color(top, 0.92 * ax[i]), Color(top, 0.92 * ax[i + 1]), Color(bot, 0.92 * ax[i + 1]), Color(bot, 0.92 * ax[i])]))
+		var gl := UITokens.GOLD_HI
+		for y: float in [3.0, h - 3.0]:
+			for i in 3:
+				draw_polygon(PackedVector2Array([Vector2(xs[i], y - 0.75), Vector2(xs[i + 1], y - 0.75), Vector2(xs[i + 1], y + 0.75), Vector2(xs[i], y + 0.75)]),
+						PackedColorArray([Color(gl, ax[i]), Color(gl, ax[i + 1]), Color(gl, ax[i + 1]), Color(gl, ax[i])]))
+			for x: float in [xs[1], xs[2]]:
+				GemDraw.draw_gem(self, "eye", Vector2(x, y), 22.0, UITokens.GOLD_HI, Color(1, 0.96, 0.84), UITokens.HAIRLINE, false)

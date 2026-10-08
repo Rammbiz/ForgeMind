@@ -22,6 +22,8 @@ var _cap_lbl: Label
 var _sheet: KitSheet
 var _list: VBoxContainer
 var _all_btn: KitCTA
+var _all_armed := false
+var _all_total := 0
 
 
 static func tr2(key: String) -> String:
@@ -141,6 +143,26 @@ func refresh() -> void:
 		_list.add_child(_row(t, cap))
 		any = any or Meta.can_buy_barracks(t)
 	_all_btn.disabled = not any
+	_all_total = _buy_all_total()
+	_all_armed = false
+	_all_btn.text = Loc.t("BAR_ALL")
+	_all_btn.sub = Loc.f("COINS_SHORT", [Loc.num(_all_total)]) if any else ""
+
+
+## What "Покращити все" would spend (simulated on a copy of the account: cheapest first).
+func _buy_all_total() -> int:
+	var acc: Dictionary = Meta.account.duplicate(true)
+	var before := MetaAcc.amount(acc, "coins")
+	for _i in 60:
+		var best := ""
+		var best_cost := 1 << 30
+		for t in EconData.BARRACKS_ORDER:
+			if Barracks.can_buy(acc, t) and Barracks.cost(acc, t) < best_cost:
+				best = t
+				best_cost = Barracks.cost(acc, t)
+		if best == "" or not bool(Barracks.buy(acc, best).get("ok", false)):
+			break
+	return before - MetaAcc.amount(acc, "coins")
 
 
 ## The effect number alone ("+2", "+6%", "+1,5") for the "Далі" line.
@@ -204,7 +226,7 @@ func _row(track: String, cap: int) -> Control:
 	r.add_child(v)
 	var can := Meta.can_buy_barracks(track)
 	var btn := UIKit.button("", false, 132.0)
-	btn.custom_minimum_size = Vector2(132, 60)
+	btn.custom_minimum_size = Vector2(132, 72)
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var bc := HBoxContainer.new()
 	bc.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -256,6 +278,17 @@ func _buy(track: String, at: Control, bar: Control) -> void:
 
 
 func _buy_all() -> void:
+	# Two taps, like every other upgrade: the first shows the total ("Підтвердити · 2 320").
+	if not _all_armed and Meta.can_buy_barracks(_cheapest()):
+		_all_armed = true
+		_all_btn.text = Loc.f("BUY_ALL_CONFIRM", [Loc.num(_all_total)])
+		_all_btn.sub = ""
+		UIJuice.punch(_all_btn, 1.04, 0.2)
+		get_tree().create_timer(3.0).timeout.connect(func():
+			if is_instance_valid(self) and _all_armed:
+				refresh())
+		return
+	_all_armed = false
 	var bought := 0
 	for _i in 60:
 		var best := ""
@@ -277,6 +310,16 @@ func _buy_all() -> void:
 	else:
 		Audio.play("error", -6.0)
 		UIJuice.wobble(_all_btn, 0.3, 0.3)
+
+
+func _cheapest() -> String:
+	var best := ""
+	var best_cost := 1 << 30
+	for t in EconData.BARRACKS_ORDER:
+		if Meta.can_buy_barracks(t) and Meta.barracks_cost(t) < best_cost:
+			best = t
+			best_cost = Meta.barracks_cost(t)
+	return best
 
 
 func _celebrate(pos: Vector2) -> void:
