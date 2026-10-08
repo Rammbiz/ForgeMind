@@ -45,6 +45,7 @@ func _ready() -> void:
 	height_frac = 0.0
 	max_frac = 0.72
 	scrim_style = "warm"
+	defer_in = true
 	_h = HeroesUIModel.hero(hero_id)
 	title = HeroesText.t("MANAGE_TITLE")
 	var em := HeroGemEmblem.make(str(_h["gem"]), 64, str(_h["native"]) if bool(_h["is_recut"]) else "")
@@ -79,6 +80,13 @@ func _ready() -> void:
 	_show_page(false)
 	HeroesUIModel.bus().changed.connect(_on_model)
 	super._ready()
+	# Wrapped labels know their height only once laid out at the sheet width: fit, then slide in.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
+	_fit_to_page(false)
+	show_in()
 
 
 func _tab_options() -> Array:
@@ -137,6 +145,11 @@ func _fit_to_page(relayout := true) -> void:
 	_sc.custom_minimum_size.y = minf(want, _vp_h() * 0.6)
 	if relayout and is_inside_tree():
 		_layout()
+		# Re-fit once the new page is laid out (wrapped labels shrink to their real height).
+		await get_tree().process_frame
+		if is_instance_valid(self) and is_instance_valid(_page):
+			_sc.custom_minimum_size.y = minf(_page_host.get_combined_minimum_size().y, _vp_h() * 0.6)
+			_layout()
 
 
 func _small(text: String, col := UITokens.INK_SOFT) -> Label:
@@ -247,6 +260,7 @@ func _facets_page(page: Control) -> void:
 	top.add_child(col)
 	col.add_child(UIKit.label(HeroesText.t("FACET_FULL") if f >= fmax else HeroesText.t("FACET_COUNT", [f, fmax]), 32, UITokens.INK, true))
 	var pips := HeroFacetPips.make(gem, f, 30, fmax)
+	pips.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	col.add_child(pips)
 	var card := UIKit.label(HeroesText.t("FACET_CARD", [f, fmax]), 22, UITokens.INK)
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

@@ -555,12 +555,7 @@ func _open(id: String) -> void:
 
 
 func _open_codex() -> void:
-	var c := HeroesCodexSheet.make(hub, hub == null)
-	if hub:
-		hub.push_modal(c)
-	else:
-		add_child(c)
-		c.closed.connect(c.queue_free)
+	HeroesNav.open(hub, "codex", self)
 
 
 func _play_cards_in() -> void:

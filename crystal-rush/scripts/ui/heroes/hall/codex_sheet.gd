@@ -5,7 +5,8 @@ extends HeroesBottomSheet
 ## lines of copy and «де це видно». A row appears only once its system is unlocked (faction from
 ## the Champions unlock, element from the Portal, recut from the first Full facets / recut).
 ## Never a coach mark.
-##   var c := HeroesCodexSheet.make(hub); hub.push_modal(c)          # Hall
+##   HeroesNav.open(hub, "codex")                                    # Hall, Showcase (route)
+##   var c := HeroesCodexSheet.make(hub); hub.push_modal(c)          # direct
 ##   var c := HeroesCodexSheet.make(null, true); layer.add_child(c)    # inside a screen
 
 static func make(p_hub: Hub, p_own_scrim := false) -> HeroesCodexSheet:
@@ -14,6 +15,12 @@ static func make(p_hub: Hub, p_own_scrim := false) -> HeroesCodexSheet:
 	c.own_scrim = p_own_scrim
 	c.hub_modal = not p_own_scrim and p_hub != null
 	return c
+
+
+## HeroesNav route "codex" (host "modal": the hub modal from the Hall, HeroesNav's modal layer
+## over a full screen).
+func setup(p_hub: Hub, _args: PackedStringArray) -> void:
+	hub = p_hub
 
 
 func _ready() -> void:

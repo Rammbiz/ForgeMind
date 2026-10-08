@@ -29,6 +29,9 @@ var hub: Hub
 ## Sheet height as a share of the screen (0 = fit the content, up to max_frac).
 var height_frac := 0.0
 var max_frac := 0.86
+## true: the sheet stays hidden after _ready until show_in() (a subclass that sizes itself to
+## laid-out content waits a frame or two first, so the slide-in ends at the right height).
+var defer_in := false
 var sheet: KitSheet
 var body: VBoxContainer
 var head: HBoxContainer
@@ -103,6 +106,17 @@ func _ready() -> void:
 		else:
 			_scrim.create_tween().tween_property(_scrim, "color:a", 0.45, UITokens.MENU_IN)
 	_layout()
+	if defer_in:
+		sheet.modulate.a = 0.0
+		return
+	if not UITokens.reduce_motion():
+		UIJuice.sheet_in(sheet)
+
+
+## Shows a `defer_in` sheet (slides in from its final height).
+func show_in() -> void:
+	sheet.modulate.a = 1.0
+	_layout()
 	if not UITokens.reduce_motion():
 		UIJuice.sheet_in(sheet)
 
@@ -127,7 +141,10 @@ func close() -> void:
 	if _closing:
 		return
 	if str(get_meta("heroes_host", "")) == "modal":
+		# A HeroesNav modal route: the router plays the exit (play_exit) and frees the layer.
 		_closing = true
+		if own_scrim:
+			_fade_scrim_out()
 		closed.emit()
 		return
 	if hub_modal and hub:
@@ -138,14 +155,18 @@ func close() -> void:
 	Audio.play("click", -12.0)
 	var tw := play_exit()
 	if own_scrim:
-		_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_scrim.create_tween().tween_property(_scrim, "color:a", 0.0, UITokens.MENU_OUT)
-		if _warm:
-			_warm.create_tween().tween_property(_warm, "modulate:a", 0.0, UITokens.MENU_OUT)
+		_fade_scrim_out()
 	if tw:
 		tw.finished.connect(func(): closed.emit())
 	else:
 		closed.emit()
+
+
+func _fade_scrim_out() -> void:
+	_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scrim.create_tween().tween_property(_scrim, "color:a", 0.0, UITokens.MENU_OUT)
+	if _warm:
+		_warm.create_tween().tween_property(_warm, "modulate:a", 0.0, UITokens.MENU_OUT)
 
 
 ## Hub.pop_modal calls this for the exit motion.

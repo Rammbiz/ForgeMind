@@ -105,7 +105,8 @@ func _shot_step(name: String) -> void:
 		return
 	hub.select_tab("heroes", false)
 	await _wait(0.3)
-	var c := HeroesNav.open(hub, uri, self)
+	# force: the gallery shoots locked routes too (team / portal at L4) to check their layout.
+	var c := HeroesNav.open(hub, uri, self, true)
 	var wait := float(e.get("wait", 1.4))
 	if c and c.has_method("gallery_seek"):
 		await _wait(wait)

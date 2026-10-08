@@ -320,6 +320,7 @@ const FALLBACK := {
 	# ---------------------------------------------------------------- generic
 	"UI_BACK": ["Назад", "Back"], "UI_CLOSE": ["Закрити", "Close"], "UI_CONFIRM": ["Підтвердити", "Confirm"],
 	"UI_NOT_BUILT": ["Екран ще будується: %s", "Screen still being built: %s"],
+	"UI_ROUTE_LOCKED": ["Відкриється після рівня %d", "Opens after level %d"],
 }
 
 static var _extra: Dictionary = {}

@@ -690,25 +690,25 @@ func _open_manage(tab: String) -> void:
 		return
 	if not bool(_h["owned"]):
 		return
-	var s := HeroManageSheet.make(hub, hero_id, tab, true)
-	_sheet = s
-	add_child(s)
-	if _stage:
-		_stage.set_paused(false)
-	s.closed.connect(func():
-		s.queue_free()
-		_sheet = null)
+	# Through HeroesNav: over this screen the sheet lands on the router's modal layer (above the
+	# screen layer) with the sheet's own warm scrim; the 3D stage keeps rendering above it.
+	_sheet = HeroesNav.open(hub, "manage/%s/%s" % [hero_id, tab], self)
+	if _sheet:
+		_sheet.tree_exited.connect(func(): _sheet = null)
 
 
 func _open_codex() -> void:
 	if _sheet and is_instance_valid(_sheet):
 		return
-	var c := HeroesCodexSheet.make(hub, true)
-	_sheet = c
-	add_child(c)
-	c.closed.connect(func():
-		c.queue_free()
-		_sheet = null)
+	_sheet = HeroesNav.open(hub, "codex", self)
+	if _sheet:
+		_sheet.tree_exited.connect(func(): _sheet = null)
+
+
+func _exit_tree() -> void:
+	# The screen closes under an open sheet (Android back, close_all): take the sheet along.
+	if _sheet and is_instance_valid(_sheet):
+		HeroesNav.back(_sheet, false)
 
 
 ## Swipe on the art = the next / previous hero of the Hall (the Hall's order).
