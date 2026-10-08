@@ -534,6 +534,17 @@ func _build_crowns() -> void:
 	var cr := bundle.get("crowns", {}) as Dictionary
 	var got := int(cr.get("run", result.get("crowns", 1)))
 	var gained := int(cr.get("gained", 0))
+	# A soft slate pool behind the crown row: the frozen run's bright props (arches, rings)
+	# recede, so an empty crown socket reads as a socket, not as a hole onto the scene.
+	var calm := TextureRect.new()
+	calm.texture = UIKit.glow_texture()
+	calm.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	calm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	calm.size = Vector2(minf(_vp.x * 0.9, 560.0), 200)
+	calm.position = Vector2((_vp.x - calm.size.x) * 0.5, _ins.y + TITLE_Y + 156 + 48 - 100)
+	calm.modulate = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
+	root.add_child(calm)
+	calm.create_tween().tween_property(calm, "modulate:a", 0.55, 0.4)
 	_crown_row = HBoxContainer.new()
 	_crown_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_crown_row.add_theme_constant_override("separation", 22)

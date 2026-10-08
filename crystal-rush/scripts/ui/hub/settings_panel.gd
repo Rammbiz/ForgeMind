@@ -109,7 +109,11 @@ func _ready() -> void:
 func _fit_height() -> void:
 	var ins := hub.insets()
 	var vp := get_viewport_rect().size
-	var avail := vp.y - ins.y - ins.w - 168.0
+	# The modal sits between the top bar and the nav's rising medallion (never over it); when
+	# the content is taller it may cover the top bar, still clear of the medallion.
+	var lo := vp.y - ins.w - UITokens.TAB_BAR_H - 56.0
+	var hi := ins.y + 84.0
+	var avail := lo - hi
 	# Measured from the rows themselves (an autowrapped label can report a huge minimum height
 	# before its first layout): section headers ~50 px, rows ROW_H + 4 plus the hairline.
 	var list_h := 0.0
@@ -118,7 +122,12 @@ func _fit_height() -> void:
 	var chrome := 36.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
 	var h := minf(list_h + chrome, avail)
 	_sc.custom_minimum_size.y = maxf(120.0, h - chrome)
-	var top := ins.y + (vp.y - ins.y - ins.w - h) * 0.5
+	if list_h + chrome > avail:
+		hi = ins.y + 24.0
+		avail = lo - hi
+		h = minf(list_h + chrome, avail)
+		_sc.custom_minimum_size.y = maxf(120.0, h - chrome)
+	var top := hi + (avail - h) * 0.5
 	_panel.offset_top = top
 	_panel.offset_bottom = -(vp.y - top - h)
 
