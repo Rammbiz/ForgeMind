@@ -1,5 +1,7 @@
 class_name UIJuice
-## Motion and feedback primitives of the meta UI (arsenal_design.md §7.1, §7.4): press bounce,
+## Motion and feedback primitives of the meta UI (arsenal_design.md §7.1, §7.4; UI v2 contract):
+## MENUS are soft (soft_in/soft_out/sheet_in/cross_fade: 180-280 ms fades and short slides, no
+## overshoot); REWARDS / summons / upgrades stay juicy (pop, punch, wobble, flare). Press bounce,
 ## pops, sheet slides, Balatro wobble, chip punch, haptics, and the upgrade flare (charge glow
 ## -> white flash 80 ms -> shockwave -> sparkles) sized by ceremony tier. Timings come from
 ## UITokens; everything respects Reduce Motion.
@@ -105,12 +107,13 @@ static func fade_in(c: CanvasItem, delay := 0.0, dur := UITokens.STD) -> void:
 
 
 ## Slides a free-positioned control in from `offset` (px) to its current position.
+## v2 menus are soft: cubic ease-out, no overshoot.
 static func slide_in(c: Control, offset: Vector2, delay := 0.0, dur := UITokens.ENTER) -> Tween:
 	var to := c.position
 	c.position = to + (offset * 0.2 if UITokens.reduce_motion() else offset)
 	c.modulate.a = 0.0
 	var tw := c.create_tween().set_parallel(true)
-	tw.tween_property(c, "position", to, dur).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "position", to, dur).set_delay(delay).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(c, "modulate:a", 1.0, dur * 0.6).set_delay(delay).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	return tw
 
@@ -121,6 +124,73 @@ static func slide_out(c: Control, offset: Vector2, dur := UITokens.EXIT) -> Twee
 	tw.tween_property(c, "position", c.position + offset, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(c, "modulate:a", 0.0, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	return tw
+
+
+# ------------------------------------------------------------------ v2 menu motion (soft)
+
+## Soft entrance for menu surfaces: fade + a short slide from `offset` (default from below),
+## UITokens.MENU_IN, cubic ease-out, no overshoot. Works inside containers (it animates a
+## transform offset via `position` only for free controls; inside containers it fades only).
+static func soft_in(c: CanvasItem, offset := Vector2(0, 24), delay := 0.0, dur := UITokens.MENU_IN) -> Tween:
+	c.modulate.a = 0.0
+	var tw := c.create_tween().set_parallel(true)
+	tw.tween_property(c, "modulate:a", 1.0, dur).set_delay(delay).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if c is Control and not ((c as Control).get_parent() is Container) and offset != Vector2.ZERO and not UITokens.reduce_motion():
+		var ctl := c as Control
+		var to := ctl.position
+		ctl.position = to + offset
+		tw.tween_property(ctl, "position", to, dur).set_delay(delay).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	return tw
+
+
+## Soft exit (fade + short slide), UITokens.MENU_OUT. Calls `then` when done (e.g. queue_free).
+static func soft_out(c: CanvasItem, offset := Vector2(0, 16), then := Callable(), dur := UITokens.MENU_OUT) -> Tween:
+	var tw := c.create_tween().set_parallel(true)
+	tw.tween_property(c, "modulate:a", 0.0, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	if c is Control and not ((c as Control).get_parent() is Container) and offset != Vector2.ZERO:
+		var ctl := c as Control
+		tw.tween_property(ctl, "position", ctl.position + offset, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	if then.is_valid():
+		tw.chain().tween_callback(then)
+	return tw
+
+
+## Bottom sheet entrance: rises UITokens.MENU_SLIDE px with a fade (260 ms, ease-out).
+static func sheet_in(c: Control, delay := 0.0) -> Tween:
+	return soft_in(c, Vector2(0, UITokens.MENU_SLIDE), delay, UITokens.MENU_IN + 0.02)
+
+
+static func sheet_out(c: Control, then := Callable()) -> Tween:
+	return soft_out(c, Vector2(0, UITokens.MENU_SLIDE), then)
+
+
+## Tab content cross-fade: `old` fades out, `new` fades in (UITokens.TAB_FADE). Either may be null.
+static func cross_fade(old: CanvasItem, incoming: CanvasItem) -> void:
+	if old:
+		var t1 := old.create_tween()
+		t1.tween_property(old, "modulate:a", 0.0, UITokens.TAB_FADE * 0.8)
+		t1.tween_callback(func(): old.visible = false)
+	if incoming:
+		incoming.visible = true
+		incoming.modulate.a = 0.0
+		var t2 := incoming.create_tween()
+		t2.tween_interval(UITokens.TAB_FADE * 0.35)
+		t2.tween_property(incoming, "modulate:a", 1.0, UITokens.TAB_FADE).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+## Gentle glow breathing (alpha 0.55..1) for a ready / notify element. Returns the loop tween.
+static func glow_breathe(c: CanvasItem, period := UITokens.GLOW_PERIOD) -> Tween:
+	if UITokens.reduce_motion():
+		return null
+	var tw := c.create_tween().set_loops()
+	tw.tween_property(c, "modulate:a", 0.55, period * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(c, "modulate:a", 1.0, period * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return tw
+
+
+## Genshin card pop-in: staggered (UITokens.CARD_STAGGER), small scale overshoot.
+static func cards_in(list: Array, delay := 0.0) -> void:
+	stagger(list, delay, UITokens.CARD_STAGGER, UITokens.ENTER)
 
 
 ## Scale punch 1 -> s -> 1.

@@ -899,9 +899,11 @@ static func secondary_button(text: String, icon := "", min_size := Vector2(240, 
 		b.add_theme_stylebox_override("hover_pressed", lux("button_pressed", pad))
 		b.add_theme_stylebox_override("disabled", lux("button_disabled", pad))
 		var ic := Icons.make(icon, 34.0, INK)
-		ic.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-		ic.position = Vector2(20, (min_size.y - 34.0) * 0.5)
+		ic.size = Vector2(34, 34)
 		b.add_child(ic)
+		var place := func(): ic.position = Vector2(22, (b.size.y - 34.0) * 0.5 - (2.0 if b.is_pressed() else 0.0) + (2.0 if b.is_pressed() else 0.0))
+		b.resized.connect(place)
+		place.call()
 	return b
 
 
