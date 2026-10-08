@@ -30,6 +30,7 @@ var root: Control
 
 var _t := 0.0
 var _ins := Vector4.ZERO
+var _ins0 := Vector4.ZERO      ## safe insets without the tall-phone band (top bar)
 var _vp := Vector2(720, 1280)
 var _events: Array = []
 var _clock := 0.0
@@ -66,7 +67,7 @@ func setup(p_bundle: Dictionary, p_result: Dictionary) -> void:
 ## Layout (y below the safe top; the sheet runs to the bottom edge, tall phones grow the gap
 ## above "Далі", never the chrome).
 const TITLE_Y := 100.0
-const SHEET_Y := 336.0
+const SHEET_Y := 362.0
 
 
 func _ready() -> void:
@@ -79,6 +80,10 @@ func _ready() -> void:
 	add_child(root)
 	_vp = root.get_viewport_rect().size
 	_ins = UIKit.safe_insets(root.get_viewport())
+	_ins0 = _ins
+	# Tall phones: the scene band above the sheet grows (half the extra height); the top bar
+	# stays put and the sheet's chrome keeps its size.
+	_ins.y += tall_band(_vp, _ins)
 	root.add_child(scrim(_vp, 0.74, 0.9))
 	# Victory light: a warm pool and slow soft rays behind the title (juicy, never loud).
 	var pool := TextureRect.new()
@@ -107,7 +112,7 @@ func _ready() -> void:
 	why.add_theme_color_override("font_color", UIKit.GOLD_HI)
 	why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	why.size = Vector2(_vp.x, 32)
-	why.position = Vector2(0, _ins.y + TITLE_Y + 114)
+	why.position = Vector2(0, _ins.y + TITLE_Y + 108)
 	root.add_child(why)
 	UIJuice.fade_in(why, 0.35)
 	_build_crowns()
@@ -194,6 +199,11 @@ static func scrim(vp: Vector2, top_a: float, bottom_a: float) -> Control:
 	holder.modulate.a = 0.0
 	holder.create_tween().tween_property(holder, "modulate:a", 1.0, 0.3)
 	return holder
+
+
+## Extra px the title band takes on screens taller than 1280 canvas px (half the excess).
+static func tall_band(vp: Vector2, ins: Vector4) -> float:
+	return clampf((vp.y - ins.y - ins.w - 1280.0) * 0.5, 0.0, 200.0)
 
 
 static func _tex_rect(t: Texture2D, vp: Vector2) -> TextureRect:
@@ -379,7 +389,7 @@ static func best_row(best: Dictionary, w: float, on_tap: Callable) -> Control:
 func _build_top() -> void:
 	var coins := bundle.get("coins", {}) as Dictionary
 	var gain := 0 if bool(bundle.get("duplicate", false)) else int(coins.get("total", 0)) + _inline_coins()
-	_chip = coin_chip(root, int(bundle.get("coins_balance", Meta.currency("coins"))) - gain, _ins, _vp)
+	_chip = coin_chip(root, int(bundle.get("coins_balance", Meta.currency("coins"))) - gain, _ins0, _vp)
 	# Arsenal chip: where the blueprints fly (a porcelain square with the painted nav icon).
 	_bp_chip = Control.new()
 	_bp_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -389,7 +399,7 @@ func _build_top() -> void:
 		_bp_chip.draw_style_box(UIKit.lux("plate"), Rect2(Vector2(2, 4), Vector2(56, 48)))
 		Icons.draw_icon(_bp_chip, "tab_arsenal", Rect2(Vector2(8, 6), Vector2(44, 44))))
 	root.add_child(_bp_chip)
-	root.add_child(level_plate(int(bundle.get("level", result.get("level", 1))), _ins))
+	root.add_child(level_plate(int(bundle.get("level", result.get("level", 1))), _ins0))
 
 
 func _inline_coins() -> int:
@@ -459,7 +469,7 @@ func _build_crowns() -> void:
 	_crown_row.add_theme_constant_override("separation", 22)
 	_crown_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_crown_row.size = Vector2(_vp.x, 96)
-	_crown_row.position = Vector2(0, _ins.y + TITLE_Y + 132)
+	_crown_row.position = Vector2(0, _ins.y + TITLE_Y + 156)
 	root.add_child(_crown_row)
 	for i in 3:
 		var c := CrownSlot.new()

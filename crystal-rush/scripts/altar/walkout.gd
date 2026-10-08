@@ -35,7 +35,7 @@ var _t := 0.0
 var _fire := 0.0
 var _beats := {}
 var _closing := false
-var _title: Label
+var _title: Control
 var _name: Label
 var _sub: Label
 var _tap: Label
@@ -94,19 +94,28 @@ func _ready() -> void:
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_flash)
-	_title = UIKit.gradient_heading(Loc.t("NEW_MACHINE"), 44, Color(1, 1, 1), rc.lightened(0.4), rc, 10)
-	_name = UIKit.gradient_heading(Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])), 76)
+	# v2: a cream name plate ("Нова машина"), the name in soft warm type into the gem's light
+	# tone (no stroke, soft shadow + halo), rarity · family in gold, a quiet tap hint.
+	var gl: Color = UITokens.gem(ArsenalData.rarity_of(id))["light"]
+	var plate := UIKit.title_plate(Loc.t("NEW_MACHINE").trim_suffix("!"), 300.0, false)
+	plate.font_size = 24
+	_title = plate
+	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"]))
+	var nfs := UIKit.fit_size(nm, 660.0, 76, 40)
+	_name = UIKit.gradient_heading(nm, nfs, UIKit.ON_SCENE, UIKit.ON_SCENE.lerp(gl, 0.5), gl)
+	UIKit.soft_shadow(_name, nfs, 1.4)
 	var fam := str((ArsenalData.FAMILIES[ArsenalData.family_of(id)] as Dictionary)["name"])
 	var rar := str((ArsenalData.RARITIES[ArsenalData.rarity_of(id)] as Dictionary)["name"])
-	_sub = UIKit.heading("%s · %s" % [Loc.t(rar), Loc.t(fam)], 30, rc.lightened(0.3), 6)
-	_tap = UIKit.heading(Loc.t("TAP_CONTINUE"), 26, UIKit.TEXT_DIM, 5)
-	for l: Label in [_title, _name, _sub, _tap]:
+	_sub = UIKit.scene_label("%s · %s" % [Loc.t(rar), Loc.t(fam)], 28, true)
+	_sub.add_theme_color_override("font_color", UIKit.GOLD_HI)
+	_tap = UIKit.scene_label(Loc.t("TAP_CONTINUE"), 22, false)
+	_tap.add_theme_color_override("font_color", Color(UIKit.ON_SCENE.r, UIKit.ON_SCENE.g, UIKit.ON_SCENE.b, 0.75))
+	for l: Label in [_name, _sub, _tap]:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	for l: Control in [_title, _name, _sub, _tap]:
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		l.modulate.a = 0.0
 		add_child(l)
-	var fs := UIKit.fit_size(_name.text, 660.0, 76, 40)
-	_name.add_theme_font_size_override("font_size", fs)
 	resized.connect(_layout)
 	_layout()
 	Audio.play("weapon_get", -8.0)
@@ -114,8 +123,8 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var vp := size
-	_title.size = Vector2(vp.x, 56)
-	_title.position = Vector2(0, vp.y * 0.13)
+	_title.size = Vector2(300, 46)
+	_title.position = Vector2((vp.x - 300) * 0.5, vp.y * 0.13)
 	_name.size = Vector2(vp.x, 96)
 	_name.position = Vector2(0, vp.y * 0.69)
 	_name.pivot_offset = _name.size * 0.5

@@ -55,6 +55,7 @@ func _ready() -> void:
 	var best := str(rev.get("best", "C"))
 	var bc := UITokens.rarity(best)
 	_rays = UIKit.Rays.new()
+	bc = Color(UITokens.gem(best)["rim"])
 	_rays.color = Color(bc.r, bc.g, bc.b, 0.0)
 	_rays.count = 16
 	_rays.inner = 0.1
@@ -63,7 +64,8 @@ func _ready() -> void:
 	_egg = EggView.new(str(rev.get("type", "stone")))
 	_egg.frame_k = 1.45
 	add_child(_egg)
-	_hint = UIKit.heading(Loc.t("TAP_TO_CRACK"), 26, UIKit.GOLD_LIGHT, 6)
+	# It plays on the cream result sheet: ink / gold text, no strokes.
+	_hint = UIKit.label(Loc.t("TAP_TO_CRACK"), 22, UIKit.GOLD_TEXT, true)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
@@ -81,7 +83,7 @@ func _ready() -> void:
 	var coins := int(rev.get("coins", 0))
 	if coins > 0:
 		_coins_row.add_child(Icons.make("coin", 40.0))
-		_coins_row.add_child(UIKit.heading("+" + Loc.num(coins), 36, UIKit.GOLD_LIGHT, 7))
+		_coins_row.add_child(UIKit.number("+" + Loc.num(coins), 34, false, UIKit.GOLD_TEXT))
 	_coins_row.modulate.a = 0.0
 	add_child(_coins_row)
 	_flash = ColorRect.new()

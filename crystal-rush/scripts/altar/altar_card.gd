@@ -43,7 +43,10 @@ func _init(p_data: Dictionary = {}) -> void:
 
 func _ready() -> void:
 	resized.connect(_layout)
+	# v2 draws its own porcelain back and gem-ground face (the shader rects stay for API
+	# compatibility, hidden).
 	_back = _shader_rect(0)
+	_back.visible = false
 	add_child(_back)
 	_frame = _shader_rect(1)
 	_frame.visible = false
@@ -149,7 +152,7 @@ func _show_face() -> void:
 		return
 	face_up = true
 	_back.visible = false
-	_frame.visible = true
+	_frame.visible = false
 	_flash = 1.0
 	var r := rarity()
 	_stinger(r)
@@ -219,96 +222,129 @@ func _process(delta: float) -> void:
 			_over.queue_redraw()
 
 
+func _gem() -> String:
+	return UITokens.gem_of(rarity())
+
+
+func _body() -> Rect2:
+	return Rect2(Vector2(4, 6), size - Vector2(8, 12))
+
+
+func _foot_h() -> float:
+	return roundf(_body().size.y * (0.34 if not _is_wild() else 0.2))
+
+
+func _is_wild() -> bool:
+	return bool(data.get("wild", false)) or str(data.get("id", "")) == ""
+
+
 func _bar_rect() -> Rect2:
-	return Rect2(Vector2(18, size.y - 40), Vector2(size.x - 36, 18))
+	var b := _body()
+	var seam := b.end.y - _foot_h()
+	return Rect2(Vector2(b.position.x + 14, seam + _foot_h() * 0.46), Vector2(b.size.x - 28, 9))
 
 
 func _draw() -> void:
-	var r := rarity()
-	var rc := color()
-	var body := Rect2(Vector2(4, 6), size - Vector2(8, 12))
+	var gk := _gem()
+	var g: Dictionary = UITokens.gem(gk)
+	var rc: Color = g["rim"]
+	var body := _body()
 	var pulse := 0.85 + 0.15 * sin(_t * 3.0)
 	if glow > 0.0:
-		var ga := (0.32 if not face_up else 0.42) * glow * pulse * (1.4 if r in ["L", "M"] else 1.0)
-		draw_texture_rect(UIKit.glow_texture(), body.grow(34 + CacheModels.tier(r) * 6), false, Color(rc.r, rc.g, rc.b, ga))
+		var ga := (0.3 if not face_up else 0.4) * glow * pulse * (1.4 if rarity() in ["L", "M"] else 1.0)
+		draw_texture_rect(UIKit.glow_texture(), body.grow(30 + CacheModels.tier(rarity()) * 6), false, Color(rc.r, rc.g, rc.b, ga))
+	var pts := GemDraw.chamfer_rect(body, 10.0)
+	for i in 4:
+		var sp := PackedVector2Array()
+		for q in pts:
+			sp.append(q + Vector2(0, 2.0 + i * 1.6))
+		draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.08))
 	if not face_up:
+		_draw_back(body, pts, gk, g)
 		return
-	_draw_face(body, rc, r)
+	_draw_face(body, pts, gk, g)
 
 
-## Over the animated frame: the flip flash, the NEW ribbon and the blueprint sparks.
-func _draw_over() -> void:
-	if not face_up:
-		return
-	var body := Rect2(Vector2(4, 6), size - Vector2(8, 12))
-	var f := UIKit.font(true)
-	if _flash > 0.0:
-		_over.draw_style_box(UIKit.box(Color(1, 1, 1, _flash * 0.85), Color(0, 0, 0, 0), 20, 0, 0, Vector2.ZERO), body)
-	if bool(data.get("new", false)):
-		var tag := Loc.t("REVEAL_NEW")
-		var nw := f.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
-		var tr := Rect2(Vector2(body.get_center().x - nw * 0.5 - 12, body.position.y - 12), Vector2(nw + 24, 30))
-		_over.draw_style_box(UIKit.box(Color(1.0, 0.34, 0.3), Color(1, 0.92, 0.7), 13, 2, 3, Vector2.ZERO), tr)
-		_over.draw_string(f, tr.position + Vector2(12, 22), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color(1, 1, 1))
-	for s in _sparks:
-		if float(s["t"]) < 0.0:
-			continue
-		var k := clampf(float(s["t"]) / 0.4, 0.0, 1.0)
-		var a: Vector2 = s["from"]
-		var b: Vector2 = s["to"]
-		var mid := (a + b) * 0.5 + Vector2(float(s["bend"]), -40.0)
-		var p := a.lerp(mid, k).lerp(mid.lerp(b, k), k)
-		var sz := 16.0 * (1.0 - k * 0.5)
-		_over.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(sz, sz), Vector2(sz, sz) * 2.0), false, Color(0.55, 0.85, 1.0, 0.9))
-		_over.draw_circle(p, 3.0, Color(1, 1, 1))
+## Porcelain back: cream with a faint facet lattice, a double gold frame and the honest tell -
+## the rarity's gem mark in the middle on a soft glow of its colour.
+func _draw_back(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary) -> void:
+	var cols := PackedColorArray()
+	for q in pts:
+		cols.append(UITokens.PAPER_0.lerp(UITokens.PAPER_2, (q.y - body.position.y) / body.size.y))
+	draw_polygon(pts, cols)
+	var c := body.get_center()
+	var lat := Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.22)
+	var step := body.size.x / 4.0
+	for i in range(-4, 9):
+		var x := body.position.x + i * step
+		draw_line(Vector2(x, body.position.y + 8), Vector2(x + body.size.y * 0.5, body.end.y - 8), lat, 1.0, true)
+		draw_line(Vector2(x + body.size.y * 0.5, body.position.y + 8), Vector2(x, body.end.y - 8), lat, 1.0, true)
+	var inner := GemDraw.chamfer_rect(body.grow(-8.0), 7.0)
+	draw_colored_polygon(GemDraw.chamfer_rect(Rect2(c - Vector2(36, 36), Vector2(72, 72)), 18.0), Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.95))
+	var rim: Color = g["rim"]
+	draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(70, 70), Vector2(140, 140)), false, Color(rim.r, rim.g, rim.b, 0.45))
+	GemDraw.draw_mark(self, gk, c, minf(body.size.x * 0.3, 46.0))
+	GemDraw.outline(self, inner, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), 1.0)
+	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
 
 
-func _draw_face(body: Rect2, rc: Color, _r: String) -> void:
-	var f := UIKit.font(true)
-	MachineCard.grad_box(self, body, rc.lightened(0.35), rc.darkened(0.5), 20)
-	var inner := body.grow(-5)
-	MachineCard.grad_box(self, inner, rc.darkened(0.45).lerp(Color(0.1, 0.12, 0.28), 0.4), Color(0.025, 0.03, 0.08), 16)
+## Face: the gem-ground card (Genshin construction): gradient + light pool, the machine render
+## on a family-accent glow, the count on a cream chip, a cream footer with the name and the
+## blueprint bar (cream track, amber fill, gold "!" when upgradable), inner rim, gold hairline
+## and the gem-cut mark.
+func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary) -> void:
+	var f := UIKit.font_w("bold")
+	var fm := UIKit.font_w("medium")
+	var top: Color = g["top"]
+	var bot: Color = g["bot"]
+	var cols := PackedColorArray()
+	for q in pts:
+		cols.append(top.lerp(bot, (q.y - body.position.y) / body.size.y))
+	draw_polygon(pts, cols)
+	if gk == "opal":
+		var fl: Array = g["flecks"]
+		for i in 14:
+			var fp := body.position + Vector2(fposmod(i * 37.3, body.size.x - 16) + 8, fposmod(i * 53.7, body.size.y * 0.6) + 10)
+			var fc: Color = fl[i % fl.size()]
+			draw_circle(fp, 1.6 + (i % 3), Color(fc.r, fc.g, fc.b, 0.5 + 0.3 * sin(_t * 2.0 + i)))
+	var lc: Color = g["light"]
+	var fh := _foot_h()
+	var seam := body.end.y - fh
 	var id := str(data.get("id", ""))
-	var wild := bool(data.get("wild", false)) or id == ""
-	# Laid out bottom-up: bar, count, name (one or two lines), then the art fills what is left.
-	var cx := inner.get_center().x
-	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
-	var max_w := inner.size.x - 14
-	var fs := UIKit.fit_size(nm, max_w, 22, 17)
-	var two := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w and nm.contains(" ")
-	var count_y := _bar_rect().position.y - 7.0 if not wild else inner.end.y - 14.0
-	var count_fs := 26 if two else 30
-	var name_y := count_y - count_fs - 2.0
-	var name_top := name_y - (float(fs) if not two else 38.0)
-	# Art window: a family-accent glow behind the machine render.
+	var wild := _is_wild()
+	var cx := body.get_center().x
+	var art := Rect2(Vector2(body.position.x + 6, body.position.y + 8), Vector2(body.size.x - 12, seam - body.position.y - 10))
 	var acc := UITokens.family(ArsenalData.family_of(id)) if not wild else Color(0.75, 0.5, 1.0)
-	var ah := maxf(name_top - inner.position.y - 14.0, 40.0)
-	var aw := minf(inner.size.x - 20, ah * 1.18)
-	var art := Rect2(Vector2(cx - aw * 0.5, inner.position.y + 10), Vector2(aw, ah))
-	draw_texture_rect(UIKit.glow_texture(), art.grow(10), false, Color(acc.r, acc.g, acc.b, 0.5))
+	draw_texture_rect(UIKit.glow_texture(), art.grow(16), false, Color(lc.r, lc.g, lc.b, 0.32))
+	draw_texture_rect(UIKit.glow_texture(), art.grow(-art.size.x * 0.08), false, Color(acc.r, acc.g, acc.b, 0.3))
 	var side := minf(art.size.x, art.size.y)
 	if wild:
 		Icons.draw_icon(self, "wild", Rect2(art.get_center() - Vector2(side, side) * 0.36, Vector2(side, side) * 0.72))
 	elif _tex:
-		var s := side * 1.22
-		draw_texture_rect(_tex, Rect2(art.get_center() - Vector2(s, s) * 0.5 + Vector2(0, 2), Vector2(s, s)), false)
+		var sz := side * 1.6
+		draw_texture_rect(_tex, Rect2(art.get_center() - Vector2(sz, sz) * 0.5 + Vector2(0, 4), Vector2(sz, sz)), false)
 	else:
 		Icons.draw_icon(self, id, Rect2(art.get_center() - Vector2(side, side) * 0.38, Vector2(side, side) * 0.76))
-	# Name.
-	if two:
-		# Two lines (Плазмова / гармата) rather than a clipped name.
-		var cut := nm.find(" ", nm.length() / 2 - 2)
-		cut = cut if cut > 0 else nm.find(" ")
-		var l1 := nm.substr(0, cut)
-		var l2 := nm.substr(cut + 1)
-		var f2 := mini(UIKit.fit_size(l1, max_w, 20, 14), UIKit.fit_size(l2, max_w, 20, 14))
-		_text_c(f, l1, Vector2(cx, name_y - 19), f2, Color(1, 1, 1), 5)
-		_text_c(f, l2, Vector2(cx, name_y), f2, Color(1, 1, 1), 5)
-	else:
-		_text_c(f, nm, Vector2(cx, name_y), fs, Color(1, 1, 1), 5)
-	# Count.
-	_text_c(f, "×%d" % int(data.get("count", 1)), Vector2(cx, count_y), count_fs, rc.lightened(0.45), 6)
-	# Blueprint bar.
+	# Footer strip.
+	var foot := PackedVector2Array([Vector2(body.position.x, seam), Vector2(body.end.x, seam), Vector2(body.end.x, body.end.y - 10.0),
+			Vector2(body.end.x - 10.0, body.end.y), Vector2(body.position.x + 10.0, body.end.y), Vector2(body.position.x, body.end.y - 10.0)])
+	draw_colored_polygon(foot, UITokens.PAPER_1)
+	draw_line(Vector2(body.position.x, seam), Vector2(body.end.x, seam), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0, true)
+	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
+	var max_w := body.size.x - 14.0
+	var fs := UIKit.fit_size(nm, max_w, 19, 13)
+	var name_y := seam + (fh * 0.36 if not wild else fh * 0.62)
+	_text_c(f, nm, Vector2(cx, name_y), fs, UITokens.INK)
+	# Count chip (top-right of the art).
+	var ct := "×%d" % int(data.get("count", 1))
+	var cf := UIKit.font_w("extrabold")
+	var cfs := 22 if body.size.x > 160.0 else 19
+	var cw := cf.get_string_size(ct, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs).x + 14.0
+	var cr := Rect2(Vector2(body.end.x - cw - 6.0, seam - cfs - 16.0), Vector2(cw, cfs + 8.0))
+	var cp := GemDraw.chamfer_rect(cr, 5.0)
+	draw_colored_polygon(cp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
+	GemDraw.outline(self, cp, UITokens.HAIRLINE, 1.0)
+	draw_string(cf, Vector2(cr.position.x + 7.0, cr.end.y - 6.0), ct, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs, UITokens.GOLD_TEXT)
 	if not wild:
 		var br := _bar_rect()
 		var need := maxi(int(data.get("bp_need", 0)), 1)
@@ -316,22 +352,61 @@ func _draw_face(body: Rect2, rc: Color, _r: String) -> void:
 		var after := int(data.get("bp_after", before))
 		var shown := lerpf(float(before), float(after), bar_k)
 		var up := bool(data.get("upgradable", false)) and bar_k >= 1.0
-		draw_style_box(UIKit.box(Color(0.0, 0.0, 0.03, 0.9), Color(1, 1, 1, 0.18), 9, 2, 0, Vector2.ZERO), br)
+		var tp := GemDraw.chamfer_rect(br, 3.0)
+		draw_colored_polygon(tp, UITokens.PAPER_3)
 		var fk := clampf(shown / float(need), 0.0, 1.0)
 		if fk > 0.0:
-			var top := Color(0.55, 1.0, 0.5) if up else Color(0.5, 0.82, 1.0)
-			var bot := Color(0.2, 0.7, 0.25) if up else Color(0.15, 0.45, 0.95)
-			MachineCard.grad_box(self, Rect2(br.position + Vector2(2, 2), Vector2((br.size.x - 4) * fk, br.size.y - 4)), top, bot, 7)
+			var fr := Rect2(br.position, Vector2(maxf(br.size.x * fk, 6.0), br.size.y))
+			var fp := GemDraw.chamfer_rect(fr, 3.0)
+			var fc := PackedColorArray()
+			for q in fp:
+				fc.append(UITokens.CTA_HI.lerp(UITokens.CTA, (q.y - fr.position.y) / fr.size.y))
+			draw_polygon(fp, fc)
+		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.0)
 		if _bar_hit > 0.0:
-			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(0.6, 0.9, 1.0, _bar_hit * 0.7))
-		var bt := "%d/%d" % [int(round(shown)), need]
-		_text_c(f, bt, Vector2(br.get_center().x, br.end.y - 2), 15, Color(1, 1, 1), 4)
+			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(1.0, 0.82, 0.45, _bar_hit * 0.7))
+		_text_c(fm, "%d/%d" % [int(round(shown)), need], Vector2(cx, br.end.y + 17.0), 15, UITokens.INK_DIM)
 		if up:
-			Icons.draw_icon(self, "arrow_up", Rect2(Vector2(br.end.x - 8, br.position.y - 14), Vector2(28, 28)))
+			var bc := Vector2(br.end.x + 2.0, br.position.y - 2.0)
+			draw_circle(bc + Vector2(0, 1.5), 11.0, Color(0.3, 0.18, 0.05, 0.25), true, -1.0, true)
+			draw_circle(bc, 11.0, Color(1, 0.98, 0.92), true, -1.0, true)
+			draw_circle(bc, 9.5, UITokens.NOTIFY, true, -1.0, true)
+			_text_c(cf, "!", bc + Vector2(0, 6.0), 16, UIKit.BROWN)
+	# Frame.
+	var rim: Color = g["rim"]
+	GemDraw.outline(self, GemDraw.chamfer_rect(body.grow(-3.0), 8.5), Color(rim.r, rim.g, rim.b, 0.7), 1.0)
+	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+	var ms := clampf(body.size.x * 0.15, 18.0, 28.0)
+	GemDraw.draw_mark(self, gk, body.position + Vector2(10.0 + ms * 0.5, 10.0 + ms * 0.5), ms)
 
 
-func _text_c(f: Font, s: String, at: Vector2, fs: int, col: Color, ol: int) -> void:
+## Over the face: the flip flash, the NEW tag and the blueprint sparks.
+func _draw_over() -> void:
+	if not face_up:
+		return
+	var body := _body()
+	if _flash > 0.0:
+		_over.draw_colored_polygon(GemDraw.chamfer_rect(body, 10.0), Color(1, 0.99, 0.94, _flash * 0.85))
+	if bool(data.get("new", false)):
+		var nf := UIKit.font_w("extrabold")
+		var tag := Loc.t("REVEAL_NEW").to_upper()
+		var nw := nf.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		var tr := Rect2(Vector2(body.get_center().x - nw * 0.5 - 10, body.position.y - 11), Vector2(nw + 20, 24))
+		_over.draw_style_box(UIKit.lux("tag_new"), tr)
+		_over.draw_string(nf, tr.position + Vector2(10, 17.5), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.NEW_INK)
+	for sp in _sparks:
+		if float(sp["t"]) < 0.0:
+			continue
+		var k := clampf(float(sp["t"]) / 0.4, 0.0, 1.0)
+		var a: Vector2 = sp["from"]
+		var b: Vector2 = sp["to"]
+		var mid := (a + b) * 0.5 + Vector2(float(sp["bend"]), -40.0)
+		var p := a.lerp(mid, k).lerp(mid.lerp(b, k), k)
+		var sz := 15.0 * (1.0 - k * 0.5)
+		_over.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(sz, sz), Vector2(sz, sz) * 2.0), false, Color(1.0, 0.82, 0.45, 0.9))
+		GemDraw.draw_glint(_over, p, sz * 1.2, Color(1, 1, 0.95, 0.95))
+
+
+func _text_c(f: Font, s: String, at: Vector2, fs: int, col: Color) -> void:
 	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	var p := Vector2(at.x - w * 0.5, at.y)
-	draw_string_outline(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ol, Color(0, 0.01, 0.05))
-	draw_string(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	draw_string(f, Vector2(at.x - w * 0.5, at.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)

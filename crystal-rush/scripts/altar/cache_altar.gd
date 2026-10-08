@@ -96,6 +96,7 @@ var _ident_name: Label
 var _ident_sub: Label
 var _sheet: Control
 var _summary_shown := false
+var _sum_sheet: KitSheet
 
 
 ## A ceremony for the reveal bundle `p_rev` (Meta.open_cache / roll_cache result, §6.6).
@@ -228,8 +229,8 @@ func _build_ui() -> void:
 	# Bottom shade so the cards read over the road.
 	var shade := TextureRect.new()
 	var g := Gradient.new()
-	g.set_color(0, Color(0.01, 0.015, 0.05, 0.0))
-	g.set_color(1, Color(0.01, 0.015, 0.05, 0.86))
+	g.set_color(0, Color(0.1, 0.08, 0.1, 0.0))
+	g.set_color(1, Color(0.08, 0.07, 0.1, 0.78))
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
 	gt.fill_from = Vector2(0.5, 0.0)
@@ -243,8 +244,8 @@ func _build_ui() -> void:
 	_root_ui.add_child(shade)
 	var top := TextureRect.new()
 	var g2 := Gradient.new()
-	g2.set_color(0, Color(0.01, 0.015, 0.05, 0.75))
-	g2.set_color(1, Color(0.01, 0.015, 0.05, 0.0))
+	g2.set_color(0, Color(0.1, 0.08, 0.1, 0.62))
+	g2.set_color(1, Color(0.1, 0.08, 0.1, 0.0))
 	var gt2 := GradientTexture2D.new()
 	gt2.gradient = g2
 	gt2.fill_from = Vector2(0.5, 0.0)
@@ -264,14 +265,15 @@ func _build_ui() -> void:
 	_root_ui.add_child(_rays)
 	# Title, odds (i), pity bar.
 	var type := str(rev.get("type", "world"))
-	_title = UIKit.gradient_heading(Loc.t(str((EconData.CACHES[type] as Dictionary)["name"])), 46)
+	# Night ceremony: light type with a soft shadow on the scene (no strokes).
+	_title = UIKit.gradient_heading(Loc.t(str((EconData.CACHES[type] as Dictionary)["name"])), 46, UIKit.ON_SCENE, Color("#FFF1D2"), UIKit.GOLD_HI)
+	UIKit.soft_shadow(_title, 46, 1.3)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title.size = Vector2(vp.x, 60)
 	_title.position = Vector2(0, ins.y + 96)
 	_root_ui.add_child(_title)
-	_info = RoundButton.new(26.0)
-	_info.icon_kind = "info"
+	_info = UIKit.edge_button("info", 26.0)
 	_info.position = Vector2(vp.x - 86 - ins.z, ins.y + 98)
 	_info.pressed.connect(_toggle_odds)
 	_root_ui.add_child(_info)
@@ -307,7 +309,7 @@ func _build_ui() -> void:
 	var id_shade := TextureRect.new()
 	id_shade.texture = UIKit.glow_texture()
 	id_shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	id_shade.modulate = Color(0.0, 0.0, 0.05, 0.62)
+	id_shade.modulate = Color(UIKit.SCRIM.r, UIKit.SCRIM.g, UIKit.SCRIM.b, 0.55)
 	id_shade.size = Vector2(vp.x * 1.25, 360)
 	id_shade.position = Vector2(-vp.x * 0.125, 10)
 	id_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -315,12 +317,14 @@ func _build_ui() -> void:
 	_ident_glyph = Icons.make("fam_kinetic", 104.0)
 	_ident_glyph.position = Vector2(vp.x * 0.5 - 52, 0)
 	_ident.add_child(_ident_glyph)
-	_ident_world = UIKit.heading("", 26, UIKit.TEXT_DIM, 6)
+	_ident_world = UIKit.scene_label("", 24, true)
+	_ident_world.add_theme_color_override("font_color", UIKit.GOLD_HI)
 	_ident_world.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ident_world.size = Vector2(vp.x, 34)
 	_ident_world.position = Vector2(0, 112)
 	_ident.add_child(_ident_world)
-	_ident_name = UIKit.gradient_heading("", 70)
+	_ident_name = UIKit.gradient_heading("", 70, UIKit.ON_SCENE, Color("#FFF1D2"), UIKit.GOLD_HI)
+	UIKit.soft_shadow(_ident_name, 70, 1.4)
 	_ident_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ident_name.size = Vector2(vp.x, 90)
 	_ident_name.position = Vector2(0, 150)
@@ -346,7 +350,7 @@ func _build_ui() -> void:
 	var coins := int(rev.get("coins", 0))
 	if coins > 0:
 		_coins_row.add_child(Icons.make("coin", 44.0))
-		_coins_row.add_child(UIKit.heading("+" + Loc.num(coins), 40, UIKit.GOLD_LIGHT, 8))
+		_coins_row.add_child(UIKit.number("+" + Loc.num(coins), 38, false, UIKit.GOLD_TEXT))
 	_coins_row.size = Vector2(vp.x, 50)
 	_coins_row.position = Vector2(0, vp.y * 0.785)
 	_coins_row.modulate.a = 0.0
@@ -357,15 +361,14 @@ func _build_ui() -> void:
 	_open_btn.visible = false
 	_open_btn.pressed.connect(_on_open_all)
 	_root_ui.add_child(_open_btn)
-	_done_btn = UIKit.button(Loc.t("DONE"), true, 420.0)
-	_done_btn.custom_minimum_size.y = 96
-	_done_btn.add_theme_font_size_override("font_size", 40)
+	_done_btn = UIKit.cta_button(Loc.t("DONE"), "", Vector2(420, 96), 40)
 	_done_btn.size = Vector2(420, 96)
 	_done_btn.position = Vector2((vp.x - 420) * 0.5, vp.y - 150 - ins.w)
 	_done_btn.visible = false
 	_done_btn.pressed.connect(func(): _leave("done", ""))
 	_root_ui.add_child(_done_btn)
-	_up_btn = UIKit.styled_button("", "button", Vector2(420, 72), 26)
+	_up_btn = UIKit.secondary_button("", "arrow_up", Vector2(420, 72), 24)
+	_up_btn.size = Vector2(420, 72)
 	_up_btn.position = Vector2((vp.x - 420) * 0.5, vp.y - 236 - ins.w)
 	_up_btn.visible = false
 	_root_ui.add_child(_up_btn)
@@ -741,6 +744,15 @@ func _summary() -> void:
 		tw.tween_property(c, "scale", Vector2.ONE, 0.3).set_delay(i * 0.04)
 	var vp := get_viewport().get_visible_rect().size
 	_rays.position = Vector2(vp.x * 0.5, _grid_slot(0).y + _card_size().y) - _rays.size * 0.5
+	# The summary lands on a cream sheet (arched top + keystone) behind the card grid.
+	if _sum_sheet == null:
+		_sum_sheet = UIKit.sheet()
+		_sum_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_sum_sheet.position = Vector2(0, _grid_slot(0).y - 44.0)
+		_sum_sheet.size = Vector2(vp.x, vp.y - _sum_sheet.position.y + 24.0)
+		_root_ui.add_child(_sum_sheet)
+		_root_ui.move_child(_sum_sheet, _cards[0].get_index() if not _cards.is_empty() else _coins_row.get_index())
+		UIJuice.sheet_in(_sum_sheet)
 	var coins := int(rev.get("coins", 0))
 	if coins > 0:
 		_coins_row.position.y = _grid_slot(order.size() - 1).y + _card_size().y + 8
@@ -760,7 +772,6 @@ func _summary() -> void:
 			up_id = id
 	_done_btn.visible = true
 	UIJuice.pop(_done_btn, 0.25)
-	UIKit.add_shine(_done_btn, 30.0, 0.9, 2.4, 0.5)
 	if up_id != "":
 		_up_btn.text = Loc.f("UPGRADE_MACHINE", [Loc.t(str((ArsenalData.MACHINES[up_id] as Dictionary)["name"]))])
 		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 18))
@@ -889,7 +900,7 @@ func _toggle_odds() -> void:
 	var od := Meta.odds(str(rev.get("type", "world")))
 	var vp := get_viewport().get_visible_rect().size
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.lux("panel", Vector2(30, 24)))
+	p.add_theme_stylebox_override("panel", UIKit.lux("modal", Vector2(30, 24)))
 	p.custom_minimum_size = Vector2(600, 0)
 	p.position = Vector2((vp.x - 600) * 0.5, vp.y * 0.2)
 	p.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -900,14 +911,20 @@ func _toggle_odds() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	p.add_child(col)
-	var t := UIKit.gradient_heading(Loc.t("ODDS_TITLE"), 40)
+	var t := UIKit.heading(Loc.t("ODDS_TITLE"), 34, UIKit.INK)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
 	col.add_child(UIKit.divider(520.0))
 	for r: String in od.get("present", []):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
-		var nm := UIKit.heading(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 26, UITokens.rarity(r), 5)
+		var gk := UITokens.gem_of(r)
+		var mark := Control.new()
+		mark.custom_minimum_size = Vector2(30, 30)
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mark.draw.connect(func(): GemDraw.draw_mark(mark, gk, mark.size * 0.5, 22.0))
+		row.add_child(mark)
+		var nm := UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 24, UIKit.INK, true)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nm)
 		var pc := float((od.get("per_card", {}) as Dictionary).get(r, 0.0)) * 100.0

@@ -66,6 +66,9 @@ func _ready() -> void:
 	var gain := 0 if bool(bundle.get("duplicate", false)) else int((bundle.get("coins", {}) as Dictionary).get("total", 0)) + _inline_coins()
 	_chip = ResultFlow.coin_chip(root, int(bundle.get("coins_balance", Meta.currency("coins"))) - gain, _ins, _vp)
 	root.add_child(ResultFlow.level_plate(int(bundle.get("level", result.get("level", 1))), _ins))
+	# Tall phones: the scene band above the sheet grows (half the extra height); the top bar
+	# stays put and the sheet's chrome keeps its size.
+	_ins.y += ResultFlow.tall_band(_vp, _ins)
 	# Calm: a cool porcelain title that settles in, the reason, and (when the copy exists) a
 	# word of encouragement. No red anywhere.
 	var rib := ResultFlow.ribbon(Loc.t("DEFEAT"), false, _vp.x)
