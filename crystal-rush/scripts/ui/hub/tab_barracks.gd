@@ -1,15 +1,34 @@
 extends Control
-## Казарми tab (arsenal_design.md §4.2, §7.1): the Crystal Knights in formation on a stone dais,
-## the world cap, and a parchment list of the five tracks (Новобранці, Резерв, Обережність,
-## Муштра, Залпи): icon, level pips up to the world cap, the effect now and after the next level,
-## and the price. Buying is a micro ceremony (the knights cheer); "Покращити все" buys the
-## cheapest affordable levels in one go.
+## Казарми tab (arsenal_design.md §4.2, §7.1; UI v2): the Crystal Knights in formation on the
+## ivory dais in a sunlit hall (warm haze, a sunbeam, a soft floor), the screen title and the
+## world cap chip, then the cream sheet with the arched top: the five tracks (Новобранці,
+## Резерв, Обережність, Муштра, Залпи) as clean list rows with hairlines - a line icon in a
+## thin gold ring, the name and level, bridge-tile progress up to the world cap, the effect now
+## and the next level's gain, and a cream price button. The one amber jewel is «Покращити все»
+## (buys the cheapest affordable levels in one go). Buying is a micro ceremony (glints on the
+## row, the knights cheer).
+
+const STRIP_H := 330.0          ## the army stage at H 1280 (grows on tall phones)
+const ICONS := {"recruits": "team", "reserves": "helmet", "scrape_guard": "cls_guardian", "drill": "target", "volleys": "cls_ranger"}
+const T := {
+	"BAR_SECTION": ["Муштра армії", "Army training"],
+}
 
 var hub: Hub
+var _stage: _HallStage
+var _strip: Control
 var _show: HubShowcase
 var _cap_lbl: Label
+var _sheet: KitSheet
 var _list: VBoxContainer
-var _all_btn: Button
+var _all_btn: KitCTA
+
+
+static func tr2(key: String) -> String:
+	if Loc.STRINGS.has(key):
+		return Loc.t(key)
+	var row: Array = T.get(key, [key, key])
+	return str(row[0] if Loc.lang == "uk" else row[1])
 
 
 func setup(p_hub: Hub) -> void:
@@ -18,54 +37,91 @@ func setup(p_hub: Hub) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var col := VBoxContainer.new()
-	col.set_anchors_preset(Control.PRESET_FULL_RECT)
-	col.add_theme_constant_override("separation", 6)
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(col)
-	var strip := Control.new()
-	strip.custom_minimum_size = Vector2(0, 250)
-	strip.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.add_child(strip)
+	_stage = _HallStage.new()
+	_stage.page = self
+	_stage.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_stage)
+	_strip = Control.new()
+	_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_strip)
 	_show = HubShowcase.new("army")
 	_show.set_anchors_preset(Control.PRESET_FULL_RECT)
-	strip.add_child(_show)
-	var title := UIKit.gradient_heading(Loc.t("TAB_BARRACKS"), 52)
-	title.position = Vector2(UITokens.GUTTER, 0)
-	strip.add_child(title)
-	var cap := PanelContainer.new()
-	cap.add_theme_stylebox_override("panel", UIKit.lux("pill", Vector2(16, 6)))
+	_show.offset_top = 40.0
+	_show.offset_bottom = 70.0
+	_strip.add_child(_show)
+	var title := UIKit.gradient_heading(Loc.t("TAB_BARRACKS"), 40)
+	title.position = Vector2(UITokens.GUTTER, 4)
+	_strip.add_child(title)
+	var cap := UIKit.glass_panel(Vector2(14, 6))
+	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	cap.position = Vector2(-UITokens.GUTTER - 230, 12)
+	cap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	cap.position = Vector2(-UITokens.GUTTER, 12)
 	var crow := HBoxContainer.new()
-	crow.add_theme_constant_override("separation", 6)
-	crow.add_child(Icons.make("tab_barracks", 28.0))
-	_cap_lbl = UIKit.heading("", 22, UIKit.GOLD_LIGHT, 5)
+	crow.add_theme_constant_override("separation", 8)
+	crow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ci := Icons.make("tab_barracks", 28.0)
+	ci.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	crow.add_child(ci)
+	_cap_lbl = UIKit.label("", 20, UIKit.INK, true)
 	crow.add_child(_cap_lbl)
 	cap.add_child(crow)
-	strip.add_child(cap)
-	var pwrap := MarginContainer.new()
-	pwrap.add_theme_constant_override("margin_left", 12)
-	pwrap.add_theme_constant_override("margin_right", 12)
-	pwrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIKit.lux("parch", Vector2(18, 18)))
-	pwrap.add_child(panel)
-	col.add_child(pwrap)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	panel.add_child(v)
+	_strip.add_child(cap)
+	_cap_chip = cap
+	# The cream sheet (placed by hand: it runs under the nav, the content stops at the page bottom).
+	_sheet = UIKit.sheet(Vector2(UITokens.GUTTER, 12))
+	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_sheet)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	_sheet.add_child(col)
+	col.add_child(UIKit.gap(4))
 	_list = VBoxContainer.new()
-	_list.add_theme_constant_override("separation", 8)
-	v.add_child(_list)
+	_list.add_theme_constant_override("separation", 0)
+	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_list)
 	var arow := HBoxContainer.new()
 	arow.alignment = BoxContainer.ALIGNMENT_CENTER
-	_all_btn = UIKit.styled_button(Loc.t("BAR_ALL"), "green", Vector2(380, 74), 28)
+	arow.custom_minimum_size.y = 100
+	_all_btn = UIKit.cta_button(Loc.t("BAR_ALL"), "", Vector2(440, 88), 32)
+	_all_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_all_btn.pressed.connect(_buy_all)
 	arow.add_child(_all_btn)
-	v.add_child(arow)
+	col.add_child(arow)
+	var foot := UIKit.gap(0)
+	foot.name = "Foot"
+	col.add_child(foot)
+	resized.connect(_layout)
+	_sheet.minimum_size_changed.connect(_layout, CONNECT_DEFERRED)
+	_layout()
+	_layout.call_deferred()
 	refresh()
+	UIJuice.sheet_in(_sheet)
+
+
+var _cap_chip: PanelContainer
+
+
+func _layout() -> void:
+	var below := _below_page()
+	# Tall phones: the hall grows (the sheet keeps its chrome).
+	var strip_h := STRIP_H + maxf(0.0, size.y - 994.0)
+	_strip.position = Vector2.ZERO
+	_strip.size = Vector2(size.x, strip_h)
+	_sheet.position = Vector2(-2.0, strip_h)
+	_sheet.size = Vector2(size.x + 4.0, size.y - strip_h + below)
+	var foot := _sheet.get_child(0).get_node_or_null("Foot") as Control
+	if foot:
+		foot.custom_minimum_size.y = maxf(0.0, below - 10.0)
+	_stage.floor_y = strip_h
+	_stage.queue_redraw()
+
+
+func _below_page() -> float:
+	if not is_inside_tree():
+		return UITokens.TAB_BAR_H + 34.0
+	var vp := get_viewport().get_visible_rect().size
+	return maxf(0.0, vp.y - get_global_rect().end.y)
 
 
 func on_show() -> void:
@@ -78,13 +134,13 @@ func refresh() -> void:
 	var cap := Meta.barracks_cap()
 	_cap_lbl.text = Loc.f("BAR_CAP", [cap])
 	for c in _list.get_children():
+		_list.remove_child(c)
 		c.queue_free()
 	var any := false
 	for t in EconData.BARRACKS_ORDER:
 		_list.add_child(_row(t, cap))
 		any = any or Meta.can_buy_barracks(t)
 	_all_btn.disabled = not any
-	_all_btn.modulate = Color.WHITE if any else Color(1, 1, 1, 0.6)
 
 
 ## The effect number alone ("+2", "+6%", "+1,5") for the "Далі" line.
@@ -114,71 +170,89 @@ static func _num(v: float) -> String:
 	return s.replace(".", ",") if Loc.lang == "uk" else s
 
 
+## One track as a list row: socket · name + level, tiles to the cap, effect now / next · price.
 func _row(track: String, cap: int) -> Control:
 	var def: Dictionary = EconData.BARRACKS[track]
 	var lvl := Meta.barracks_level(track)
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.lux("parch_card", Vector2(12, 8)))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	p.add_child(row)
-	var medal := Medal.new()
-	medal.icon = {"recruits": "recruits", "reserves": "reserves", "scrape_guard": "shield", "drill": "drill", "volleys": "volley"}.get(track, "soldier")
-	medal.custom_minimum_size = Vector2(72, 72)
-	medal.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(medal)
+	var r := UIKit.KitRow.new()
+	r.custom_minimum_size = Vector2(0, 104)
+	r.add_theme_constant_override("separation", 14)
+	var sock := UIKit.socket(str(ICONS.get(track, "team")), 56.0)
+	sock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.add_child(sock)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 0)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 2)
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 10)
-	name_row.add_child(UIKit.label(Loc.t(str(def["name"])), 26, UITokens.PARCH_INK, true))
-	var pips := Pips.new()
-	pips.lvl = lvl
-	pips.cap = cap
-	pips.custom_minimum_size = Vector2(16 * cap, 22)
-	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	name_row.add_child(pips)
+	name_row.add_child(UIKit.label(Loc.t(str(def["name"])), 24, UIKit.INK, true))
+	var lv := UIKit.label("%d / %d" % [lvl, cap], 18, UIKit.INK_DIM, true)
+	lv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(lv)
 	v.add_child(name_row)
-	var eff := lvl if lvl > 0 else 1
-	var now := UIKit.label(value_text(track, eff) if lvl > 0 else value_text(track, 1), 19, UITokens.PARCH_INK_DIM, false)
-	now.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if lvl == 0:
-		now.text = value_text(track, 1)
-	v.add_child(now)
+	var bar := UIKit.progress(lvl, cap, 300.0, 7.0, cap)
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	v.add_child(bar)
+	var eff := UIKit.label(value_text(track, maxi(lvl, 1)), 18, UIKit.INK_SOFT)
+	eff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	eff.custom_minimum_size.x = 340.0
+	v.add_child(eff)
 	if lvl > 0 and lvl < cap:
-		var nx := UIKit.label(Loc.f("BAR_NEXT", [value_short(track, lvl + 1)]), 19, Color(0.12, 0.5, 0.16), true)
-		nx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		v.add_child(nx)
-	row.add_child(v)
+		v.add_child(UIKit.label(Loc.f("BAR_NEXT", [value_short(track, lvl + 1)]), 18, UIKit.PLUS, true))
+	r.add_child(v)
 	var can := Meta.can_buy_barracks(track)
-	var btn := UIKit.styled_button("", "green" if can else "button", Vector2(150, 70))
+	var btn := UIKit.button("", false, 132.0)
+	btn.custom_minimum_size = Vector2(132, 60)
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var bc := HBoxContainer.new()
 	bc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bc.offset_bottom = -6
 	bc.alignment = BoxContainer.ALIGNMENT_CENTER
-	bc.add_theme_constant_override("separation", 5)
+	bc.add_theme_constant_override("separation", 6)
 	bc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if lvl >= cap:
-		bc.add_child(UIKit.heading(Loc.t("MAX"), 24, UIKit.TEXT_DIM, 5))
+		bc.add_child(UIKit.label(Loc.t("MAX"), 22, UIKit.INK_DIM, true))
 		btn.disabled = true
 	else:
-		bc.add_child(Icons.make("coin", 28.0))
-		bc.add_child(UIKit.heading(Loc.num(Meta.barracks_cost(track)), 24, Color(1, 1, 1) if can else UIKit.TEXT_DIM, 6))
+		var coin := Icons.make("coin", 28.0)
+		coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		coin.modulate = Color.WHITE if can else Color(1, 1, 1, 0.55)
+		bc.add_child(coin)
+		var cost := Meta.barracks_cost(track)
+		var pl := UIKit.label(Loc.num(cost), 22, UIKit.INK if can else (UIKit.ALERT if cost > Meta.currency("coins") else UIKit.INK_DIM), true)
+		bc.add_child(pl)
 	btn.add_child(bc)
-	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	btn.pressed.connect(func(): _buy(track, medal))
-	row.add_child(btn)
-	return p
+	btn.pressed.connect(func(): _buy(track, sock, bar))
+	r.add_child(btn)
+	return r
 
 
-func _buy(track: String, medal: Control) -> void:
+## Dev tools / screenshots: buys the first affordable track.
+func buy_first() -> void:
+	for i in EconData.BARRACKS_ORDER.size():
+		var t: String = EconData.BARRACKS_ORDER[i]
+		if Meta.can_buy_barracks(t):
+			var row := _list.get_child(i)
+			_buy(t, row.get_child(0) as Control, null)
+			return
+
+
+func _buy(track: String, at: Control, bar: Control) -> void:
 	var res := Meta.buy_barracks(track)
 	if not bool(res.get("ok", false)):
 		Audio.play("error", -6.0)
 		return
-	_celebrate(medal)
+	var pos := at.get_global_rect().get_center() - global_position if is_instance_valid(at) else size * 0.5
 	refresh()
+	_celebrate(pos)
+	# Punch the new row's tiles.
+	var i := EconData.BARRACKS_ORDER.find(track)
+	if i >= 0 and i < _list.get_child_count():
+		var row := _list.get_child(i)
+		var s := row.get_child(0) as Control
+		s.pivot_offset = Vector2(28, 28)
+		UIJuice.punch(s, 1.18, 0.2)
 
 
 func _buy_all() -> void:
@@ -196,49 +270,64 @@ func _buy_all() -> void:
 			break
 		bought += 1
 	if bought > 0:
-		_celebrate(_all_btn)
+		var pos := _all_btn.get_global_rect().get_center() - global_position
 		refresh()
+		_celebrate(pos)
+		_celebrate(_show.get_global_rect().get_center() - global_position)
 	else:
 		Audio.play("error", -6.0)
+		UIJuice.wobble(_all_btn, 0.3, 0.3)
 
 
-func _celebrate(at: Control) -> void:
+func _celebrate(pos: Vector2) -> void:
 	Audio.play("upgrade", -3.0)
-	if is_instance_valid(at):
-		UIJuice.flare(self, at.get_global_rect().get_center() - global_position, UIKit.GOLD_LIGHT, "micro", 80.0)
+	UIJuice.flare(self, pos, Color(1.0, 0.82, 0.45), "micro", 80.0)
+	UIKit.sparkles(self, pos, UITokens.CTA_HI, 12, 160.0)
+	UIJuice.haptic("CLICK", 0.6)
 	_show.cheer()
 
 
-## Round gold medallion with a track icon.
-class Medal extends Control:
-	var icon := "soldier"
+## The page backdrop: a sunlit hall (warm paper haze, a sunbeam from the upper left, a soft
+## warm light pool behind the formation, a gentle floor band). Paints the whole screen behind
+## the page (top bar and nav included) so the tab reads light whatever the hub backdrop is.
+class _HallStage extends Control:
+	var page: Control
+	var floor_y := 330.0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var c := size * 0.5
-		var r := minf(size.x, size.y) * 0.5 - 2.0
-		draw_circle(c + Vector2(0, 3), r, Color(0.3, 0.15, 0.03, 0.4))
-		draw_circle(c, r, Color(0.55, 0.3, 0.08))
-		draw_circle(c + Vector2(0, -1), r - 2.0, Color(1.0, 0.86, 0.45))
-		draw_circle(c, r - 5.0, Color(0.2, 0.24, 0.42))
-		draw_circle(c + Vector2(0, -r * 0.15), r * 0.62, Color(0.28, 0.34, 0.58))
-		Icons.draw_icon(self, icon, Rect2(c - Vector2(r, r) * 0.66, Vector2(r, r) * 1.32))
-
-
-## Level pips up to the world cap (gold filled, cream empty).
-class Pips extends Control:
-	var lvl := 0
-	var cap := 4
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		for i in cap:
-			var c := Vector2(8 + i * 16, size.y * 0.5)
-			var dm := PackedVector2Array([c + Vector2(0, -8), c + Vector2(6, 0), c + Vector2(0, 8), c + Vector2(-6, 0)])
-			draw_colored_polygon(dm, Color(0.42, 0.24, 0.08))
-			var dm2 := PackedVector2Array([c + Vector2(0, -6), c + Vector2(4.5, 0), c + Vector2(0, 6), c + Vector2(-4.5, 0)])
-			draw_colored_polygon(dm2, Color(1.0, 0.75, 0.25) if i < lvl else Color(0.95, 0.88, 0.72))
+		var vp := get_viewport().get_visible_rect().size
+		var gp := get_global_rect().position
+		var full := Rect2(-gp, vp)
+		var x0 := full.position.x
+		var x1 := full.end.x
+		var y0 := full.position.y
+		var y1 := floor_y
+		var top := UITokens.PAPER_0.lerp(Color("#F3E6CF"), 0.45)
+		var mid := Color("#EEDFC4")
+		var low := UITokens.STAGE_TOP
+		var ym := lerpf(y0, y1, 0.55)
+		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, ym), Vector2(x0, ym)]), PackedColorArray([top, top, mid, mid]))
+		draw_polygon(PackedVector2Array([Vector2(x0, ym), Vector2(x1, ym), Vector2(x1, y1 + 60.0), Vector2(x0, y1 + 60.0)]), PackedColorArray([mid, mid, low, low]))
+		# Sunbeam from the upper left.
+		var sun := Color(UITokens.SUN.r, UITokens.SUN.g, UITokens.SUN.b, 0.24)
+		var clear := Color(sun.r, sun.g, sun.b, 0.0)
+		draw_polygon(PackedVector2Array([Vector2(-40, y0), Vector2(240, y0), Vector2(size.x * 0.8, y1), Vector2(size.x * 0.3, y1)]),
+				PackedColorArray([sun, sun, clear, clear]))
+		# Warm light pool behind the formation.
+		var cx := size.x * 0.5
+		var cy := y1 * 0.6
+		var R := size.x * 0.55
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R * 0.7), Vector2(R * 2.0, R * 1.4)), false, Color(1.0, 0.93, 0.75, 0.6))
+		# Soft floor band where the dais stands.
+		var fl := UITokens.STAGE_BOTTOM
+		var fl0 := Color(fl.r, fl.g, fl.b, 0.0)
+		draw_polygon(PackedVector2Array([Vector2(x0, y1 - 80.0), Vector2(x1, y1 - 80.0), Vector2(x1, y1 + 20.0), Vector2(x0, y1 + 20.0)]),
+				PackedColorArray([fl0, fl0, Color(fl.r, fl.g, fl.b, 0.5), Color(fl.r, fl.g, fl.b, 0.5)]))
+		# Very soft side vignette.
+		var vg := Color(0.45, 0.36, 0.28, 0.12)
+		var cl := Color(vg.r, vg.g, vg.b, 0.0)
+		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + 70, y0), Vector2(x0 + 70, y1), Vector2(x0, y1)]), PackedColorArray([vg, cl, cl, vg]))
+		draw_polygon(PackedVector2Array([Vector2(x1 - 70, y0), Vector2(x1, y0), Vector2(x1, y1), Vector2(x1 - 70, y1)]), PackedColorArray([cl, vg, vg, cl]))
