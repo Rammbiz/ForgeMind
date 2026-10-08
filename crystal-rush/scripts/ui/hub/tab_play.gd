@@ -1,24 +1,34 @@
 extends Control
-## ГРА tab (arsenal_design.md §7.1 Play map): the world banner, the hero and the Deck machines
-## on the road behind (HubStage), the world's level path (8 nodes along a glowing trail: cleared
-## levels with their Crowns, the current one pulsing, NEW-machine teasers, the boss fortress
-## with its World Cache), the Vault on the right rail, then the PLAY call-to-action
-## ("Рівень 3 · Орбітальна траса") with the Reinforcements chip, and the Deck row.
+## ГРАТИ tab = the Home screen (UI v2, fusion §6.8 "Home", concept home_v1 layout with Genshin
+## restraint). Over HubStage's bright 3D bridgehead (the hero large on the dais, the Deck
+## machines behind) it lays out only quiet chrome:
+##   - the world ribbon "Світ 2 · Кораловий риф · Рівень 14" (KitTitlePlate) and, when active,
+##     the Reinforcements chip under it;
+##   - two round cream edge buttons per side (line icons in thin gold rings): Події, Пошта |
+##     Завдання, Сховище (gold "!" + soft pulse while caches wait);
+##   - small porcelain tags under the Deck machines (rarity gem, level, the Lead's crown) -
+##     a tap opens the Deck;
+##   - the world's level path as a slim line of facets (cleared = lit topaz, the current one
+##     breathing, crowns as tiny pips, the boss fortress at the end);
+##   - the amber jewel PLAY ("ГРАТИ" + "Рівень N").
+## A tap on the hero makes them turn to the camera.
 
 const WORLD_KEYS: Array[String] = ["WORLD_SPACE", "WORLD_REEF", "WORLD_MYSTIC", "WORLD_VOLCANO", "WORLD_ICE", "WORLD_SKY", "WORLD_RIFT"]
+const PLAY_SIZE := Vector2(448, 112)
+const RAIL_R := 38.0
 
 var hub: Hub
-var _col: VBoxContainer
-var _banner_world: Label
-var _banner_name: Label
-var _path: LevelPath
-var _cta: Button
-var _cta_title: Label
-var _cta_sub: Label
+var _ribbon: KitTitlePlate
 var _assist: PanelContainer
 var _assist_lbl: Label
-var _deck_row: HBoxContainer
+var _path: LevelPath
+var _cta: KitCTA
+var _rails: Array[RoundButton] = []
 var _vault_btn: RoundButton
+var _quests_btn: RoundButton
+var _tags: Array[DeckTag] = []
+var _hero_hit: Control
+var _shown_once := false
 
 
 func setup(p_hub: Hub) -> void:
@@ -31,101 +41,120 @@ static func world_name(w: int) -> String:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_col = VBoxContainer.new()
-	_col.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_col.offset_left = UITokens.GUTTER
-	_col.offset_right = -UITokens.GUTTER
-	_col.offset_bottom = -10
-	_col.add_theme_constant_override("separation", 8)
-	_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_col)
-	# World banner
-	var banner := VBoxContainer.new()
-	banner.add_theme_constant_override("separation", -6)
-	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_banner_world = UIKit.heading("", 24, Color(0.72, 0.88, 1.0), 6)
-	_banner_world.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner.add_child(_banner_world)
-	_banner_name = UIKit.gradient_heading("", 50)
-	_banner_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner.add_child(_banner_name)
-	_col.add_child(banner)
-	_col.add_child(UIKit.spacer(false))
-	# Level path
-	_path = LevelPath.new()
-	_path.custom_minimum_size = Vector2(0, 220)
-	_path.current_pressed.connect(func(): _play())
-	_path.node_pressed.connect(_on_node)
-	_col.add_child(_path)
-	# Reinforcements chip
-	var arow := HBoxContainer.new()
-	arow.alignment = BoxContainer.ALIGNMENT_CENTER
-	arow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_assist = PanelContainer.new()
-	_assist.add_theme_stylebox_override("panel", UIKit.box(Color(0.06, 0.24, 0.12, 0.92), Color(0.45, 0.95, 0.5, 0.9), 22, 3, 6, Vector2(18, 6)))
+	# Hero tap target (lowest, so every control sits above it).
+	_hero_hit = Control.new()
+	_hero_hit.mouse_filter = Control.MOUSE_FILTER_STOP
+	_hero_hit.gui_input.connect(func(e: InputEvent):
+		if UIJuice.is_tap(e) and hub and hub.stage:
+			hub.stage.poke_hero()
+			UIJuice.haptic("TICK", 0.4))
+	add_child(_hero_hit)
+	# World ribbon.
+	_ribbon = UIKit.title_plate("", 440)
+	_ribbon.font_size = 22
+	add_child(_ribbon)
+	# Reinforcements chip.
+	_assist = UIKit.pill()
 	_assist.mouse_filter = Control.MOUSE_FILTER_STOP
 	var ar := HBoxContainer.new()
-	ar.add_theme_constant_override("separation", 8)
+	ar.add_theme_constant_override("separation", 6)
 	ar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ar.add_child(Icons.make("plus", 24.0, Color(0.6, 1.0, 0.6)))
-	_assist_lbl = UIKit.heading("", 24, Color(0.85, 1.0, 0.85), 5)
+	ar.add_child(Icons.make("plus", 22.0, UITokens.PLUS))
+	_assist_lbl = UIKit.label("", 20, UITokens.PLUS, true)
 	ar.add_child(_assist_lbl)
 	_assist.add_child(ar)
 	_assist.gui_input.connect(func(e: InputEvent):
 		if UIJuice.is_tap(e):
 			var a := EconData.assist(Meta.assist_stacks())
-			hub.toast(Loc.f("ASSIST_DESC", [int(a["soldiers"]), int(round(float(a["dmg_add"]) * 100.0))]), "plus", Color(0.75, 1.0, 0.75)))
-	arow.add_child(_assist)
-	_col.add_child(arow)
-	# PLAY call-to-action
-	var crow := HBoxContainer.new()
-	crow.alignment = BoxContainer.ALIGNMENT_CENTER
-	crow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cta = UIKit.button("", true, 504.0)
-	_cta.custom_minimum_size = Vector2(504, 132)
+			hub.toast(Loc.f("ASSIST_DESC", [int(a["soldiers"]), int(round(float(a["dmg_add"]) * 100.0))]), "plus"))
+	add_child(_assist)
+	# Edge rails: two per side.
+	var ev := _rail("events", func(): _soon("HOME_EVENTS", "events"))
+	var mail := _rail("mail", func(): _soon("HOME_MAIL", "mail"))
+	_quests_btn = _rail("quests", func(): _soon("HOME_QUESTS", "quests"))
+	_vault_btn = _rail("chest", func(): hub.open_vault())
+	_rails = [ev, mail, _quests_btn, _vault_btn]
+	# Level path (facets) and PLAY.
+	_path = LevelPath.new()
+	_path.custom_minimum_size = Vector2(520, 58)
+	_path.size = Vector2(520, 58)
+	_path.current_pressed.connect(_play)
+	_path.node_pressed.connect(_on_node)
+	add_child(_path)
+	_cta = UIKit.cta_button(Loc.t("PLAY").to_upper(), "", PLAY_SIZE, 46)
+	_cta.size = PLAY_SIZE
 	_cta.pressed.connect(_play)
-	var cc := VBoxContainer.new()
-	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	cc.offset_bottom = -7
-	cc.alignment = BoxContainer.ALIGNMENT_CENTER
-	cc.add_theme_constant_override("separation", -8)
-	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cta_title = UIKit.heading(Loc.t("PLAY").to_upper(), 54, Color(1, 1, 0.96), 0)
-	_cta_title.add_theme_color_override("font_shadow_color", Color(0.5, 0.18, 0.0, 0.7))
-	_cta_title.add_theme_constant_override("shadow_offset_y", 4)
-	_cta_title.add_theme_constant_override("outline_size", 10)
-	_cta_title.add_theme_color_override("font_outline_color", Color(0.55, 0.22, 0.02))
-	_cta_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cc.add_child(_cta_title)
-	_cta_sub = UIKit.label("", 24, Color(0.36, 0.14, 0.02), true)
-	_cta_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cc.add_child(_cta_sub)
-	_cta.add_child(cc)
-	crow.add_child(_cta)
-	_col.add_child(crow)
-	UIKit.add_shine(_cta, 30.0, 0.9, 3.2, 0.55)
-	UIJuice.breathe(_cta, 0.025, 1.8)
-	# Deck row
-	_deck_row = HBoxContainer.new()
-	_deck_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_deck_row.add_theme_constant_override("separation", 14)
-	_deck_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_col.add_child(_deck_row)
-	# Right rail: the Vault.
-	_vault_btn = RoundButton.new(40.0)
-	_vault_btn.icon_kind = "cache_world"
-	_vault_btn.base_color = Color(0.12, 0.08, 0.22, 0.94)
-	_vault_btn.caption = Loc.t("VAULT")
-	_vault_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_vault_btn.position = Vector2(-UITokens.GUTTER - 100, 118)
-	_vault_btn.pressed.connect(func(): hub.open_vault())
-	add_child(_vault_btn)
+	add_child(_cta)
+	resized.connect(_layout)
+	_layout()
 	refresh()
-	UIJuice.stagger([banner, _path, _cta, _deck_row], 0.05, 0.08)
+
+
+func _rail(icon: String, on_press: Callable) -> RoundButton:
+	var b := UIKit.edge_button(icon, RAIL_R)
+	b.pressed.connect(func():
+		UIJuice.haptic("CLICK", 0.4)
+		on_press.call())
+	add_child(b)
+	return b
+
+
+func _soon(key: String, icon: String) -> void:
+	Audio.play("click", -8.0)
+	hub.toast(HomeText.f("HOME_SOON", [HomeText.t(key)]), icon)
+
+
+## Free layout (page-local): ribbon at the top (page top = y 104 of the screen), rails at
+## y 96 / 200, PLAY with its bottom just above the nav medallion, the facet path above it.
+func _layout() -> void:
+	var w := size.x if size.x > 0.0 else 720.0
+	var h := size.y if size.y > 0.0 else 994.0
+	_ribbon.size = Vector2(440, 44)
+	_ribbon.position = Vector2((w - 440.0) * 0.5, 0)
+	var asz := _assist.get_combined_minimum_size()
+	_assist.size = asz
+	_assist.position = Vector2((w - asz.x) * 0.5, 54)
+	var d := RAIL_R * 2.0 + 8.0
+	var left_x := 18.0
+	var right_x := w - 18.0 - d
+	var ys := [92.0, 196.0]
+	(_rails[0] as Control).position = Vector2(left_x, ys[0])
+	(_rails[1] as Control).position = Vector2(left_x, ys[1])
+	(_rails[2] as Control).position = Vector2(right_x, ys[0])
+	(_rails[3] as Control).position = Vector2(right_x, ys[1])
+	# PLAY: bottom 6 px below the page (the page ends 34 px above the nav's medallion room).
+	var cta_y := h + 6.0 - PLAY_SIZE.y
+	_cta.position = Vector2((w - PLAY_SIZE.x) * 0.5, cta_y)
+	_cta.pivot_offset = PLAY_SIZE * 0.5
+	_path.position = Vector2((w - _path.size.x) * 0.5, cta_y - _path.size.y - 10.0)
 
 
 func on_show() -> void:
 	refresh()
+	if UITokens.reduce_motion():
+		return
+	# Soft arrival: chrome fades in, rails drift in from their edges, PLAY rises a little.
+	var first := not _shown_once
+	_shown_once = true
+	_ribbon.modulate.a = 0.0
+	_ribbon.create_tween().tween_property(_ribbon, "modulate:a", 1.0, UITokens.MENU_IN).set_delay(0.05)
+	for i in _rails.size():
+		var r: Control = _rails[i]
+		if not r.visible:
+			continue
+		r.modulate.a = 0.0
+		var tw := r.create_tween()
+		tw.tween_property(r, "modulate:a", 1.0, UITokens.MENU_IN).set_delay(0.08 + 0.04 * (i % 2))
+	_path.modulate.a = 0.0
+	_path.create_tween().tween_property(_path, "modulate:a", 1.0, UITokens.MENU_IN).set_delay(0.12)
+	if first:
+		_cta.modulate.a = 0.0
+		var tc := _cta.create_tween()
+		tc.tween_property(_cta, "modulate:a", 1.0, UITokens.MENU_IN + 0.06).set_delay(0.1)
+
+
+func on_hide() -> void:
+	pass
 
 
 func refresh() -> void:
@@ -133,10 +162,11 @@ func refresh() -> void:
 		return
 	var lv := Meta.level()
 	var w := ArsenalData.world_of(lv)
-	_banner_world.text = Loc.f("WORLD_N", [w]).to_upper()
-	_banner_name.text = world_name(w)
-	_banner_name.add_theme_font_size_override("font_size", UIKit.fit_size(_banner_name.text, size.x - 80.0 if size.x > 0 else 600.0, 50, 30))
-	_cta_sub.text = "%s · %s" % [Loc.f("LEVEL", [lv]), world_name(w)]
+	var wn := world_name(w)
+	_ribbon.text = "%s · %s · %s" % [Loc.f("WORLD_N", [w]), wn, Loc.f("LEVEL", [lv])]
+	_ribbon.accent = wn
+	_cta.text = Loc.t("PLAY").to_upper()
+	_cta.sub = Loc.f("LEVEL", [lv])
 	_path.level = lv
 	_path.queue_redraw()
 	var stacks := Meta.assist_stacks() if bool(Meta.setting("reinforcements", true)) else 0
@@ -146,32 +176,54 @@ func refresh() -> void:
 		_assist_lbl.text = Loc.f("ASSIST_CHIP", [int(round(float(a["dmg_add"]) * 100.0))])
 	var n := Meta.vault().size()
 	_vault_btn.visible = Meta.is_unlocked("stone_cache") or n > 0
-	_vault_btn.badge = str(n) if n > 0 else ""
+	_vault_btn.badge = "!" if n > 0 else ""
 	_vault_btn.highlight = n > 0
-	_vault_btn.caption = Loc.t("VAULT")
-	for c in _deck_row.get_children():
-		c.queue_free()
-	var d := Meta.deck()
-	var ld := Meta.lead()
-	var cap := UIKit.heading(Loc.t("DECK").to_upper(), 20, UIKit.TEXT_DIM, 5)
-	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_deck_row.add_child(cap)
-	for i in maxi(Meta.deck_slots(), 3):
-		var chip := DeckChip.new()
-		chip.id = d[i] if i < d.size() else ""
-		chip.lead = chip.id != "" and chip.id == ld
-		chip.lvl = Meta.machine_level(chip.id) if chip.id != "" else 0
-		chip.custom_minimum_size = Vector2(84, 84)
-		chip.gui_input.connect(func(e: InputEvent):
+	_layout()
+	_sync_tags()
+
+
+## One tag per Deck machine standing on the stage.
+func _sync_tags() -> void:
+	if hub == null or hub.stage == null:
+		return
+	hub.stage.refresh()
+	var ids := hub.stage.deck_ids()
+	while _tags.size() > ids.size():
+		(_tags.pop_back() as DeckTag).queue_free()
+	while _tags.size() < ids.size():
+		var t := DeckTag.new()
+		t.gui_input.connect(func(e: InputEvent):
 			if UIJuice.is_tap(e):
+				Audio.play("click", -8.0)
 				hub.open_deck())
-		UIJuice.press(chip)
-		_deck_row.add_child(chip)
+		add_child(t)
+		move_child(t, 1)
+		_tags.append(t)
+	var ld := Meta.lead()
+	for i in ids.size():
+		var t := _tags[i]
+		t.id = ids[i]
+		t.lvl = Meta.machine_level(ids[i])
+		t.lead = ids[i] == ld
+		t.queue_redraw()
+
+
+func _process(_delta: float) -> void:
+	if not is_visible_in_tree() or hub == null or hub.stage == null:
+		return
+	var origin := get_global_rect().position
+	for i in _tags.size():
+		var p := hub.stage.deck_screen_pos(i)
+		var t := _tags[i]
+		t.visible = p.x >= 0.0
+		t.position = p - origin - Vector2(t.size.x * 0.5, t.size.y - 22.0)
+	var hr := hub.stage.hero_screen_rect()
+	_hero_hit.position = hr.position - origin
+	_hero_hit.size = hr.size
 
 
 func _play() -> void:
 	UIJuice.haptic("THUD", 0.7)
-	Audio.play("click")
 	hub.play.emit()
 
 
@@ -182,60 +234,41 @@ func _on_node(level: int) -> void:
 	elif nc != "" and not Meta.owned(nc):
 		hub.toast(Loc.f("NEW_CRATE_AT", [Loc.t(ArsenalData.MACHINES[nc]["name"])]), nc)
 	else:
-		hub.toast(Loc.f("LEVEL", [level]), "crystal")
+		hub.toast(Loc.f("LEVEL", [level]), "map")
 
 
-## One machine of the Deck: rarity-rimmed medallion with the machine render, its level and the
-## Lead crown.
-class DeckChip extends Control:
+## A Deck machine's tag on the terrace: a porcelain chip with the rarity gem, "Рів. N" and the
+## Lead's small crown. The control is tall so the machine above the chip is tappable too.
+class DeckTag extends Control:
 	var id := ""
-	var lvl := 0
+	var lvl := 1
 	var lead := false
-	var _tex: Texture2D
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
-
-	func _ready() -> void:
-		if id != "":
-			_tex = MachineThumbs.get_thumb(self, id, lvl >= ArsenalData.ASCENSION_LEVEL)
-			if _tex == null and WeaponModels.KINDS.has(id):
-				MachineThumbs.service(get_tree()).rendered.connect(func(k: String, t: Texture2D):
-					if k == MachineThumbs.key_of(id, lvl >= ArsenalData.ASCENSION_LEVEL) and is_instance_valid(self):
-						_tex = t
-						queue_redraw())
+		size = Vector2(150, 150)
 
 	func _draw() -> void:
-		var c := size * 0.5
-		var r := minf(size.x, size.y) * 0.5 - 4.0
-		draw_circle(c + Vector2(0, 4), r + 1.0, Color(0, 0, 0.03, 0.5))
 		if id == "":
-			draw_circle(c, r, Color(0.04, 0.05, 0.1, 0.85))
-			draw_arc(c, r - 1.0, 0, TAU, 40, Color(1, 1, 1, 0.18), 2.0, true)
-			Icons.draw_icon(self, "plus", Rect2(c - Vector2(14, 14), Vector2(28, 28)), Color(1, 1, 1, 0.35))
 			return
-		var rc := UITokens.rarity(ArsenalData.rarity_of(id))
-		draw_circle(c, r, rc.darkened(0.45))
-		draw_circle(c + Vector2(0, -1), r - 1.5, rc)
-		draw_circle(c, r - 5.0, Color(0.06, 0.08, 0.18))
-		draw_circle(c + Vector2(0, -r * 0.15), r * 0.7, UITokens.family(ArsenalData.family_of(id)).darkened(0.55))
-		var ir := Rect2(c - Vector2(r, r) * 0.82, Vector2(r, r) * 1.64)
-		if _tex:
-			draw_texture_rect(_tex, ir.grow(6), false)
-		else:
-			Icons.draw_icon(self, id, ir.grow(-8))
-		draw_arc(c, r - 5.0, PI * 1.1, PI * 1.9, 20, Color(1, 1, 1, 0.3), 2.0, true)
-		var f := UIKit.font(true)
-		var t := str(lvl)
-		var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-		var br := Rect2(Vector2(c.x - tw * 0.5 - 9, size.y - 22), Vector2(tw + 18, 24))
-		draw_style_box(UIKit.box(Color(0.05, 0.06, 0.14), rc, 10, 2, 0, Vector2.ZERO), br)
-		draw_string(f, Vector2(c.x - tw * 0.5, br.position.y + 19), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1))
+		var f := UIKit.font_w("bold")
+		var txt := Loc.f("LV", [lvl])
+		var fs := 18
+		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var cw := tw + 46.0
+		var r := Rect2(Vector2((size.x - cw) * 0.5, size.y - 34.0), Vector2(cw, 30))
+		draw_style_box(UIKit.lux("pill"), r)
+		var gem := UITokens.gem_of(ArsenalData.rarity_of(id))
+		GemDraw.draw_mark(self, gem, Vector2(r.position.x + 17.0, r.get_center().y), 15.0)
+		draw_string(f, Vector2(r.position.x + 30.0, r.position.y + 21.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 		if lead:
-			Icons.draw_icon(self, "crown", Rect2(Vector2(c.x - 16, -10), Vector2(32, 32)))
+			Icons.draw_icon(self, "crown", Rect2(Vector2(r.position.x - 8.0, r.position.y - 16.0), Vector2(24, 24)))
 
 
-## The world's level path: 8 nodes on a gentle wave, cleared / current / ahead / boss.
+## The world's level path as a slim line of facets on a translucent porcelain plate: cleared
+## levels are lit topaz facets with tiny crown pips under them, the current level is a larger
+## breathing facet with its number, levels ahead are engraved outlines (a NEW machine on one
+## shows a small glint), the boss fortress closes the line.
 class LevelPath extends Control:
 	signal current_pressed
 	signal node_pressed(level: int)
@@ -248,24 +281,24 @@ class LevelPath extends Control:
 
 	func _process(delta: float) -> void:
 		_t += delta
-		queue_redraw()
+		if is_visible_in_tree():
+			queue_redraw()
 
 	func _first() -> int:
 		return (ArsenalData.world_of(level) - 1) * ArsenalData.LEVELS_PER_WORLD + 1
 
 	func _node_pos(i: int) -> Vector2:
 		var n := ArsenalData.LEVELS_PER_WORLD
-		var x := lerpf(52.0, size.x - 64.0, float(i) / float(n - 1))
-		var y := size.y * 0.56 + (-1.0 if i % 2 == 0 else 1.0) * 30.0
-		if i == n - 1:
-			y = size.y * 0.5
-		return Vector2(x, y)
+		return Vector2(lerpf(46.0, size.x - 46.0, float(i) / float(n - 1)), 24.0)
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 			var hit := -1
+			var best := 40.0
 			for i in ArsenalData.LEVELS_PER_WORLD:
-				if event.position.distance_to(_node_pos(i)) < 44.0:
+				var d: float = absf(event.position.x - _node_pos(i).x)
+				if d < best:
+					best = d
 					hit = i
 			if event.pressed:
 				_press = hit
@@ -285,114 +318,42 @@ class LevelPath extends Control:
 	func _draw() -> void:
 		var n := ArsenalData.LEVELS_PER_WORLD
 		var first := _first()
-		var pts := PackedVector2Array()
-		for i in n:
-			pts.append(_node_pos(i))
-		# Trail: smooth curve through the nodes (Catmull-Rom), dark bed, then lit / dim halves.
-		var curve := PackedVector2Array()
-		var lit_upto := -1
-		for i in n - 1:
-			var p0 := pts[maxi(i - 1, 0)]
-			var p1 := pts[i]
-			var p2 := pts[i + 1]
-			var p3 := pts[mini(i + 2, n - 1)]
-			for s in 12:
-				var t := float(s) / 12.0
-				var t2 := t * t
-				var t3 := t2 * t
-				curve.append(0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3))
-			if first + i + 1 <= level:
-				lit_upto = curve.size()
-		curve.append(pts[n - 1])
-		draw_polyline(curve, Color(0.0, 0.01, 0.05, 0.65), 20.0, true)
-		draw_polyline(curve, Color(0.3, 0.38, 0.62, 0.55), 8.0, true)
-		# Dashes on the road ahead.
-		for k in range(maxi(lit_upto, 0), curve.size() - 1, 3):
-			draw_line(curve[k], curve[mini(k + 1, curve.size() - 1)], Color(0.75, 0.85, 1.0, 0.55), 4.0, true)
-		if lit_upto > 0:
-			var lit := curve.slice(0, lit_upto + 1)
-			draw_polyline(lit, Color(1.0, 0.7, 0.25, 0.35), 18.0, true)
-			draw_polyline(lit, Color(1.0, 0.82, 0.38), 8.0, true)
-			draw_polyline(lit, Color(1.0, 0.97, 0.8), 3.0, true)
-			# A spark running along the lit trail.
-			var k2 := int(fposmod(_t * 30.0, float(lit.size())))
-			draw_texture_rect(UIKit.glow_texture(), Rect2(lit[k2] - Vector2(16, 16), Vector2(32, 32)), false, Color(1, 0.95, 0.7, 0.9))
-		var f := UIKit.font(true)
+		draw_style_box(UIKit.lux("pill"), Rect2(Vector2(10, 2), Vector2(size.x - 20, size.y - 4)))
+		var a := _node_pos(0)
+		var b := _node_pos(n - 1)
+		# The line: lit (amber) up to the current level, a hairline after it.
+		var cur_i := clampi(level - first, 0, n - 1)
+		var cx := _node_pos(cur_i).x
+		draw_line(a, Vector2(cx, a.y), Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.85), 2.5, true)
+		draw_line(Vector2(cx, a.y), b, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), 1.5, true)
+		var f := UIKit.font_w("bold")
+		var breathe := 0.5 + 0.5 * sin(fmod(_t, 200.0 * PI) * TAU / UITokens.GLOW_PERIOD)
 		for i in n:
 			var l := first + i
-			var p := pts[i]
+			var p := _node_pos(i)
 			var boss := i == n - 1
-			var cur := l == level
-			var done := l < level
-			var r := 40.0 if boss else (36.0 if cur else 28.0)
-			if cur:
-				var pulse := 0.5 + 0.5 * sin(fmod(_t, 100.0) * 3.5)
-				draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(r, r) * 2.2, Vector2(r, r) * 4.4), false, Color(0.45, 0.85, 1.0, 0.45 + 0.25 * pulse))
-				draw_arc(p, r + 8.0 + pulse * 6.0, 0, TAU, 48, Color(0.6, 0.92, 1.0, 0.8 - pulse * 0.5), 3.0, true)
-			draw_circle(p + Vector2(0, 5), r + 2.0, Color(0, 0, 0.03, 0.55))
-			var rim_hi: Color
-			var rim_lo: Color
-			var face: Color
 			if boss:
-				rim_hi = Color(1.0, 0.86, 0.5) if (done or cur) else Color(0.62, 0.5, 0.42)
-				rim_lo = Color(0.55, 0.18, 0.08)
-				face = Color(0.42, 0.08, 0.08) if not done else Color(0.6, 0.38, 0.1)
-			elif done:
-				rim_hi = Color(1.0, 0.92, 0.6)
-				rim_lo = Color(0.7, 0.42, 0.1)
-				face = Color(0.98, 0.7, 0.22)
-			elif cur:
-				rim_hi = Color(0.85, 1.0, 1.0)
-				rim_lo = Color(0.15, 0.45, 0.75)
-				face = Color(0.2, 0.55, 0.95)
-			else:
-				rim_hi = Color(0.5, 0.56, 0.72)
-				rim_lo = Color(0.16, 0.18, 0.28)
-				face = Color(0.08, 0.1, 0.2)
-			draw_circle(p, r, rim_lo.darkened(0.3))
-			draw_circle(p + Vector2(0, -1.2), r - 1.2, rim_hi)
-			draw_circle(p + Vector2(0, 1.5), r - 4.0, rim_lo)
-			draw_circle(p, r - 6.0, face)
-			draw_circle(p + Vector2(0, -r * 0.18), (r - 6.0) * 0.72, face.lightened(0.12))
-			draw_arc(p, r - 7.0, PI * 1.12, PI * 1.88, 18, Color(1, 1, 1, 0.35), 2.5, true)
-			if boss:
-				Icons.draw_icon(self, "fortress", Rect2(p - Vector2(r, r) * 0.62, Vector2(r, r) * 1.24), Color(1, 1, 1) if (done or cur) else Color(0.7, 0.66, 0.7))
-				Icons.draw_icon(self, "cache_world", Rect2(p + Vector2(r * 0.35, -r * 1.35), Vector2(34, 34)))
-				var bl := Loc.t("BOSS")
-				var bw := f.get_string_size(bl, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-				draw_string_outline(f, p + Vector2(-bw * 0.5, r + 24), bl, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 5, Color(0.1, 0.0, 0.0))
-				draw_string(f, p + Vector2(-bw * 0.5, r + 24), bl, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1.0, 0.6, 0.5))
-			else:
-				var txt := str(l)
-				var fs := 30 if cur else 24
-				var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-				var tc := Color(1, 1, 1) if (cur or done) else Color(0.62, 0.68, 0.82)
-				var oc := Color(0.45, 0.24, 0.02) if done else Color(0.02, 0.06, 0.2)
-				draw_string_outline(f, p + Vector2(-tw * 0.5, fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 6, oc)
-				draw_string(f, p + Vector2(-tw * 0.5, fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, tc)
-			if done and not boss:
+				var lit := l <= level
+				draw_circle(p, 15.0, UITokens.PAPER_0)
+				draw_arc(p, 14.5, 0, TAU, 32, UITokens.HAIRLINE, 1.5, true)
+				Icons.line(self, "trophy", Rect2(p - Vector2(10, 10), Vector2(20, 20)), UITokens.GOLD_TEXT if lit else UITokens.INK_DIM)
+				if l == level:
+					draw_arc(p, 19.0 + breathe * 3.0, 0, TAU, 40, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.7 - breathe * 0.4), 2.0, true)
+				continue
+			if l < level:
+				GemDraw.draw_pip(self, p, 18.0, true, UITokens.TOPAZ)
 				var cr := _crowns(l)
 				for k in 3:
-					var a := -PI / 2.0 + (k - 1) * 0.55
-					var cp := p + Vector2(cos(a), sin(a)) * (r + 8.0)
-					Icons.draw_icon(self, "crown", Rect2(cp - Vector2(10, 10), Vector2(20, 20)), Color.WHITE if k < cr else Color(0.25, 0.25, 0.35, 0.8))
-			if cur:
-				var bob := sin(fmod(_t, 100.0) * 4.0) * 5.0
-				var pin := p + Vector2(0, -r - 34 + bob)
-				draw_colored_polygon(PackedVector2Array([pin + Vector2(-13, -6), pin + Vector2(13, -6), pin + Vector2(0, 14)]), Color(0.02, 0.05, 0.15))
-				draw_colored_polygon(PackedVector2Array([pin + Vector2(-10, -5), pin + Vector2(10, -5), pin + Vector2(0, 10)]), Color(1.0, 0.8, 0.3))
-			# NEW machine teaser.
+					var dp := p + Vector2((k - 1) * 6.0, 16.0)
+					draw_circle(dp, 1.8, UITokens.CTA_LO if k < cr else Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5))
+			elif l == level:
+				draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.78, 0.4, 0.35 + 0.3 * breathe))
+				GemDraw.draw_pip(self, p, 28.0, true, UITokens.TOPAZ)
+				var t := str(l)
+				var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+				draw_string(f, Vector2(p.x - tw * 0.5, p.y + 30.0), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.GOLD_TEXT)
+			else:
+				GemDraw.draw_pip(self, p, 16.0, false)
 			var nc := ArsenalData.new_crate_at(l)
 			if nc != "" and l >= level and not Meta.owned(nc):
-				var bp := p + Vector2(0, (r + 46) * (1.0 if i % 2 == 0 else -1.0))
-				if cur:
-					bp = p + Vector2(0, r + 50)
-				draw_circle(bp + Vector2(0, 3), 25, Color(0, 0, 0.04, 0.5))
-				draw_circle(bp, 25, Color(0.85, 0.9, 1.0))
-				draw_circle(bp, 22, Color(0.12, 0.16, 0.3))
-				Icons.draw_icon(self, nc, Rect2(bp - Vector2(17, 17), Vector2(34, 34)))
-				var tag := Loc.t("CRATE_NEW")
-				var tw2 := f.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-				var tr := Rect2(bp + Vector2(-tw2 * 0.5 - 6, 14), Vector2(tw2 + 12, 19))
-				draw_style_box(UIKit.box(Color(0.92, 0.95, 1.0), Color(0.35, 0.45, 0.7), 8, 1, 0, Vector2.ZERO), tr)
-				draw_string(f, Vector2(tr.position.x + 6, tr.position.y + 15), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.1, 0.15, 0.35))
+				GemDraw.draw_glint(self, p + Vector2(10, -12), 12.0 + breathe * 3.0, Color(1.0, 0.85, 0.45, 0.95))

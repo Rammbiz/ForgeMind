@@ -90,11 +90,12 @@ func _build() -> void:
 	ui.add_child(_page_host)
 	top_bar = HubTopBar.new()
 	top_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top_bar.offset_left = 16 + _insets.x
-	top_bar.offset_right = -16 - _insets.z
-	top_bar.offset_top = 10 + _insets.y
-	top_bar.offset_bottom = 10 + _insets.y + UITokens.TOP_BAR_H - 6
+	top_bar.offset_left = _insets.x
+	top_bar.offset_right = -_insets.z
+	top_bar.offset_top = _insets.y
+	top_bar.offset_bottom = _insets.y + UITokens.TOP_BAR_H
 	top_bar.settings_pressed.connect(open_settings)
+	top_bar.shop_pressed.connect(func(): select_tab("shop"))
 	top_bar.avatar_pressed.connect(func(): select_tab("heroes") if not tab_bar.is_locked("heroes") else null)
 	ui.add_child(top_bar)
 	tab_bar = HubTabBar.new()
@@ -148,11 +149,13 @@ func select_tab(id: String, animate := true) -> void:
 	if animate:
 		UIJuice.haptic("TICK", 0.4)
 		Audio.play("click", -10.0)
+	# Soft tab change (Genshin): the old page fades out drifting 24 px, the new one fades in
+	# drifting from the other side; no overshoot.
 	if old and old != page:
 		if old.has_method("on_hide"):
 			old.call("on_hide")
 		if animate and not UITokens.reduce_motion():
-			var tw := UIJuice.slide_out(old, Vector2(-70.0 * dir, 0))
+			var tw := UIJuice.soft_out(old, Vector2(-24.0 * dir, 0))
 			tw.finished.connect(func():
 				if current != prev:
 					old.visible = false
@@ -165,7 +168,7 @@ func select_tab(id: String, animate := true) -> void:
 	if page.has_method("on_show"):
 		page.call("on_show")
 	if animate and not UITokens.reduce_motion():
-		UIJuice.slide_in(page, Vector2(90.0 * dir, 0))
+		UIJuice.soft_in(page, Vector2(32.0 * dir, 0), UITokens.TAB_FADE * 0.4)
 	else:
 		page.modulate.a = 1.0
 
@@ -261,10 +264,10 @@ func push_modal(c: Control, sticky := false) -> void:
 	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal_host.add_child(holder)
 	var dim := ColorRect.new()
-	dim.color = Color(0.01, 0.015, 0.05, 0.0)
+	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(dim)
-	dim.create_tween().tween_property(dim, "color:a", 0.72, UITokens.FAST)
+	dim.create_tween().tween_property(dim, "color:a", 0.38, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if not sticky:
 		dim.gui_input.connect(func(e: InputEvent):
 			if UIJuice.is_tap(e):
@@ -292,7 +295,7 @@ func pop_modal() -> void:
 	if c.has_method("play_exit"):
 		tw = c.call("play_exit")
 	var dim := holder.get_child(0) as ColorRect
-	dim.create_tween().tween_property(dim, "color:a", 0.0, UITokens.EXIT)
+	dim.create_tween().tween_property(dim, "color:a", 0.0, UITokens.MENU_OUT)
 	if tw:
 		tw.finished.connect(holder.queue_free)
 	else:
@@ -384,32 +387,14 @@ func reward_target(cur: String) -> Control:
 	return top_bar.chip("coins")
 
 
-## A short message pill above the tab bar.
-func toast(text: String, icon := "", color := UIKit.GOLD_LIGHT) -> void:
+## A short message chip above the bottom nav (UI v2: cream-glass chip, ink text, a line icon;
+## soft in, hold, soft out). `color` is kept for old callers and ignored (text is always ink).
+func toast(text: String, icon := "", _color := UIKit.GOLD_LIGHT) -> void:
 	if _toast and is_instance_valid(_toast):
 		_toast.queue_free()
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.lux("pill", Vector2(22, 10)))
-	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if icon != "":
-		row.add_child(Icons.make(icon, 34.0))
-	row.add_child(UIKit.heading(text, 26, color, 6))
-	p.add_child(row)
-	ui.add_child(p)
-	_toast = p
-	await get_tree().process_frame
-	if not is_instance_valid(p):
-		return
-	var vs := ui.size
-	p.position = Vector2((vs.x - p.size.x) * 0.5, vs.y - UITokens.TAB_BAR_H - _insets.w - p.size.y - 24.0)
-	UIJuice.slide_in(p, Vector2(0, 40))
-	var tw := p.create_tween()
-	tw.tween_interval(1.8)
-	tw.tween_property(p, "modulate:a", 0.0, UITokens.EXIT)
-	tw.tween_callback(p.queue_free)
+	var vs := ui.size if ui.size.y > 0.0 else Vector2(720, 1280)
+	var y := vs.y - UITokens.TAB_BAR_H - _insets.w - 96.0
+	_toast = UIKit.toast(ui, text, icon, 1.8, y)
 
 
 # ------------------------------------------------------------------ unlock queue (§4.6)
@@ -459,29 +444,37 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ inner widgets
 
-## Full-screen painted backdrop per tab: Play = clear (the 3D world) with soft top/bottom
-## shading; Arsenal = deep navy spotlight stage; Heroes/Barracks/Shop = warm royal dusk.
+## Full-screen painted backdrop per tab (UI v2: light and warm everywhere). Play = clear (the
+## 3D Home) with a whisper of slate under the top plates, a warm floor fade under the nav and
+## soft light shafts from the sun side; Arsenal = a pale ivory gallery with a cool-white
+## spotlight; Heroes / Barracks / Shop = a warm parchment haze with a golden spotlight.
 class Backdrop extends Control:
 	var _from := {}
 	var _to := {}
 	var _k := 1.0
 	var _t := 0.0
+	var _shafts: Shafts
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_to = _look("play")
 		_from = _to
+		_shafts = Shafts.new()
+		_shafts.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(_shafts)
 
 	static func _look(tab: String) -> Dictionary:
+		var sc := UITokens.SCRIM
 		match tab:
 			"play":
-				return {"top": Color(0.02, 0.02, 0.08, 0.55), "mid": Color(0.02, 0.02, 0.08, 0.0), "bot": Color(0.01, 0.01, 0.05, 0.8), "spot": Color(0.5, 0.6, 1.0, 0.0), "spot_y": 0.3}
+				return {"top": Color(sc.r, sc.g, sc.b, 0.16), "mid": Color(sc.r, sc.g, sc.b, 0.0), "bot": Color(0.55, 0.42, 0.3, 0.16),
+						"spot": Color(1, 1, 1, 0.0), "spot_y": 0.3, "vig": 0.0, "shafts": 1.0}
 			"arsenal":
-				return {"top": Color(0.07, 0.09, 0.22, 1.0), "mid": Color(0.03, 0.04, 0.11, 1.0), "bot": Color(0.01, 0.015, 0.05, 1.0), "spot": Color(0.45, 0.6, 1.0, 0.42), "spot_y": 0.2}
-			"shop":
-				return {"top": Color(0.2, 0.08, 0.14, 1.0), "mid": Color(0.11, 0.05, 0.1, 1.0), "bot": Color(0.04, 0.02, 0.05, 1.0), "spot": Color(1.0, 0.7, 0.4, 0.35), "spot_y": 0.15}
+				return {"top": Color("#F1ECE2"), "mid": Color("#E4DDD0"), "bot": Color("#CFC5B4"), "spot": Color(1.0, 0.99, 0.96, 0.75),
+						"spot_y": 0.22, "vig": 0.16, "shafts": 0.0}
 			_:
-				return {"top": Color(0.24, 0.12, 0.1, 1.0), "mid": Color(0.12, 0.06, 0.08, 1.0), "bot": Color(0.04, 0.02, 0.05, 1.0), "spot": Color(1.0, 0.72, 0.38, 0.45), "spot_y": 0.22}
+				return {"top": Color("#F4ECDD"), "mid": UITokens.STAGE_TOP, "bot": UITokens.STAGE_BOTTOM, "spot": Color(1.0, 0.93, 0.78, 0.7),
+						"spot_y": 0.2, "vig": 0.18, "shafts": 0.0}
 
 	func set_tab(tab: String, animate := true) -> void:
 		_from = _cur()
@@ -502,34 +495,79 @@ class Backdrop extends Control:
 		if _k < 1.0:
 			_k = minf(1.0, _k + delta / UITokens.STD)
 			queue_redraw()
+		_shafts.strength = float(_cur()["shafts"])
+		_shafts.visible = _shafts.strength > 0.01
 
 	func _draw() -> void:
 		var L := _cur()
 		var h := size.y
+		var w := size.x
 		var top: Color = L["top"]
 		var mid: Color = L["mid"]
 		var bot: Color = L["bot"]
-		var pts := PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, h * 0.45), Vector2(0, h * 0.45)])
-		draw_polygon(pts, PackedColorArray([top, top, mid, mid]))
-		var pts2 := PackedVector2Array([Vector2(0, h * 0.45), Vector2(size.x, h * 0.45), Vector2(size.x, h), Vector2(0, h)])
-		draw_polygon(pts2, PackedColorArray([mid, mid, bot, bot]))
+		var play_like := float(L["shafts"]) > 0.5
+		# Play: the slate whisper only covers the top band and the warm fade the bottom band.
+		var y1 := h * (0.2 if play_like else 0.45)
+		var y2 := h * (0.72 if play_like else 0.45)
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, y1), Vector2(0, y1)]), PackedColorArray([top, top, mid, mid]))
+		draw_rect(Rect2(Vector2(0, y1), Vector2(w, y2 - y1)), mid)
+		draw_polygon(PackedVector2Array([Vector2(0, y2), Vector2(w, y2), Vector2(w, h), Vector2(0, h)]), PackedColorArray([mid, mid, bot, bot]))
 		var spot: Color = L["spot"]
 		if spot.a > 0.01:
 			var cy: float = h * float(L["spot_y"])
-			var r := size.x * 0.9
-			draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(size.x * 0.5 - r, cy - r * 0.8), Vector2(r * 2.0, r * 1.6)), false, spot)
+			var r := w * 0.95
+			draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(w * 0.5 - r, cy - r * 0.8), Vector2(r * 2.0, r * 1.6)), false, spot)
 			# Faint light rays fanning down from the top.
 			for i in 7:
-				var x := size.x * (0.5 + (i - 3) * 0.13)
-				var w := size.x * 0.05
-				var a := spot.a * 0.18 * (1.0 - absf(i - 3) / 4.0)
-				draw_polygon(PackedVector2Array([Vector2(size.x * 0.5 - 6, -10), Vector2(size.x * 0.5 + 6, -10), Vector2(x + w, cy * 2.2), Vector2(x - w, cy * 2.2)]),
-						PackedColorArray([Color(spot.r, spot.g, spot.b, a), Color(spot.r, spot.g, spot.b, a), Color(spot.r, spot.g, spot.b, 0.0), Color(spot.r, spot.g, spot.b, 0.0)]))
-		# Vignette edges.
-		var vg := Color(0, 0, 0.02, 0.35)
-		var clear := Color(0, 0, 0.02, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(60, 0), Vector2(60, h), Vector2(0, h)]), PackedColorArray([vg, clear, clear, vg]))
-		draw_polygon(PackedVector2Array([Vector2(size.x - 60, 0), Vector2(size.x, 0), Vector2(size.x, h), Vector2(size.x - 60, h)]), PackedColorArray([clear, vg, vg, clear]))
+				var x := w * (0.5 + (i - 3) * 0.13)
+				var bw := w * 0.05
+				var a := spot.a * 0.22 * (1.0 - absf(i - 3) / 4.0)
+				draw_polygon(PackedVector2Array([Vector2(w * 0.5 - 6, -10), Vector2(w * 0.5 + 6, -10), Vector2(x + bw, cy * 2.4), Vector2(x - bw, cy * 2.4)]),
+						PackedColorArray([Color(1, 1, 1, a), Color(1, 1, 1, a), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)]))
+		var vk := float(L["vig"])
+		if vk > 0.01:
+			var vg := Color(0.45, 0.36, 0.28, vk)
+			var clear := Color(0.45, 0.36, 0.28, 0.0)
+			draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(70, 0), Vector2(70, h), Vector2(0, h)]), PackedColorArray([vg, clear, clear, vg]))
+			draw_polygon(PackedVector2Array([Vector2(w - 70, 0), Vector2(w, 0), Vector2(w, h), Vector2(w - 70, h)]), PackedColorArray([clear, vg, vg, clear]))
+
+
+## Soft additive light shafts from the sun (upper right) over the Home stage; they drift a
+## little and breathe so the morning light feels alive.
+class Shafts extends Control:
+	var strength := 1.0
+	var _t := 0.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		material = m
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if visible:
+			queue_redraw()
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		var src := Vector2(w * 0.92, -h * 0.08)
+		var beams := [[0.18, 0.16, 0.05], [0.34, 0.1, 0.035], [0.5, 0.2, 0.045], [0.68, 0.12, 0.03], [0.84, 0.15, 0.04]]
+		for i in beams.size():
+			var b: Array = beams[i]
+			var sway := sin(_t * 0.25 + i * 1.3) * 0.015
+			var tx := w * (float(b[0]) + sway) - w * 0.25
+			var end := Vector2(tx, h * 0.78)
+			var half := w * float(b[1]) * 0.5
+			var a := float(b[2]) * strength * (0.8 + 0.2 * sin(_t * 0.6 + i))
+			var c0 := Color(1.0, 0.93, 0.78, a)
+			var c1 := Color(1.0, 0.93, 0.78, 0.0)
+			draw_polygon(PackedVector2Array([src + Vector2(-8, 0), src + Vector2(8, 0), end + Vector2(half, 0), end - Vector2(half, 0)]),
+					PackedColorArray([c0, c0, c1, c1]))
+		# Sun bloom in the corner.
+		var r := w * 0.55
+		draw_texture_rect(UIKit.glow_texture(), Rect2(src - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(1.0, 0.9, 0.7, 0.22 * strength))
 
 
 ## A newly opened system (UnlockQueue line): icon in a halo, "Відкрито!", the line, "Далі".
