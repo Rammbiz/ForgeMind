@@ -133,7 +133,7 @@ func _glow_ring(r: float) -> MeshInstance3D:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.albedo_texture = _ring_tex()
-	m.albedo_color = Color(0.6, 0.85, 1.0, 0.9)
+	m.albedo_color = Color(0.6, 0.85, 1.0, 0.6)
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position.y = 0.02
@@ -175,7 +175,7 @@ func refresh() -> void:
 		if _dais_mat:
 			_dais_mat.set_shader_parameter("rune_color", rim.lightened(0.1))
 		if _ring:
-			(_ring.material_override as StandardMaterial3D).albedo_color = Color(rim.r, rim.g, rim.b, 0.85)
+			(_ring.material_override as StandardMaterial3D).albedo_color = Color(rim.r, rim.g, rim.b, 0.55)
 		world.set_accent(rim)
 	var d := Meta.deck()
 	var key := ",".join(d)
@@ -248,6 +248,12 @@ func _place_camera(t: float) -> void:
 	_cam.fov = fov
 	_cam.position = Vector3(sin(a) * cam_d, cam_h, cos(a) * cam_d)
 	_cam.look_at(Vector3(0, look_y, 0))
+	# Taller phones: the art band grows, so lift the view a little (the hero sits lower, nearer
+	# PLAY, and the sky grows above) instead of growing both ends evenly.
+	var vs := get_viewport().get_visible_rect().size
+	var extra := maxf(0.0, vs.y / maxf(vs.x, 1.0) - 1280.0 / 720.0)
+	var d := Vector3(0, cam_h - look_y, cam_d).length()
+	_cam.v_offset = extra * 2.0 * d * tan(deg_to_rad(fov * 0.5)) * 0.32
 
 
 ## The hero turns to the camera with a full spin (a tap on the hero).

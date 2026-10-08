@@ -1,16 +1,16 @@
 class_name HubShowcase
 extends SubViewportContainer
 ## A small 3D stage inside the UI (arsenal_design.md §7.1: "3D showcase" strips): its own world
-## in a transparent SubViewport, so the tab's painted backdrop shows around it.
-##   mode "machine": a navy spotlight stage - dark pedestal with a gold rim and an accent ring,
-##                   a light cone from above, rising motes, the machine on a slow turntable
-##                   (silhouette for a locked machine);
-##   mode "hero":    the hero on the owner's dais (navy stone, gold filigree, a glowing
-##                   ice-crystal ring; assets/ui/dais.glb) in warm key light;
-##   mode "army":    a formation of the owner's Crystal Knights (VAT idle) on a stone dais.
-## The machine stage stands on the same dais, its crystal ring in the family accent. Without
-## the GLB both keep the procedural pedestal. Rendering stops while the container is hidden
-## (UPDATE_WHEN_VISIBLE).
+## in a transparent SubViewport, so the tab's painted backdrop shows around it. UI v2 daylight
+## studio: neutral-warm light, no shadow maps, and the owner's dais re-glazed as ivory marble
+## with gold (shaders/hub/home_dais, the same dais as on the Home terrace).
+##   mode "machine": the dais with its crystal ring in the family accent, a soft light cone from
+##                   above, rising motes, the machine on a slow turntable (silhouette for a
+##                   locked machine);
+##   mode "hero":    the hero on the dais, its ring warmed by the hero colour;
+##   mode "army":    a formation of the owner's Crystal Knights (VAT idle) on an ivory dais.
+## Without the GLB both keep the procedural (ivory and gold) pedestal. Rendering stops while the
+## container is hidden (UPDATE_WHEN_VISIBLE).
 
 signal tapped
 
@@ -69,22 +69,27 @@ func _build_stage() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.62, 0.68, 0.95) if mode == "machine" else Color(1.0, 0.86, 0.72)
-	env.ambient_light_energy = 0.62 if mode == "machine" else 0.75
+	# UI v2 daylight studio: neutral-warm ambient, a soft key from the front left and a rim
+	# without specular. No shadow maps: in gl_compatibility a shadowed directional light
+	# double-adds the ambient and the other lights (the ivory dais clipped to gold-white).
+	env.ambient_light_color = Color(0.88, 0.9, 0.98) if mode == "machine" else Color(0.95, 0.91, 0.9)
+	env.ambient_light_energy = 0.5
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_root.add_child(we)
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-38, -32, 0)
-	key.light_color = Color(1.0, 0.95, 0.86) if mode == "machine" else Color(1.0, 0.88, 0.7)
-	key.light_energy = 1.15
-	key.shadow_enabled = true
+	key.light_color = Color(1.0, 0.97, 0.92)
+	key.light_energy = 0.85
+	key.shadow_enabled = false
 	_root.add_child(key)
 	var rim := DirectionalLight3D.new()
 	rim.rotation_degrees = Vector3(-12, 160, 0)
-	rim.light_color = Color(0.55, 0.75, 1.0) if mode == "machine" else Color(1.0, 0.7, 0.45)
-	rim.light_energy = 0.9
+	rim.light_color = Color(0.78, 0.88, 1.0) if mode == "machine" else Color(1.0, 0.84, 0.62)
+	rim.light_energy = 0.5
+	rim.light_specular = 0.0
 	_root.add_child(rim)
 	_cam = Camera3D.new()
 	_cam.fov = 30.0
@@ -142,18 +147,25 @@ func _build_dais() -> void:
 	var dw := 2.1 if mode == "hero" else 2.0
 	var owner := owner_dais(dw) if mode != "army" else {}
 	if not owner.is_empty():
-		_dais_mat = owner["mat"]
+		# UI v2: the owner's dais re-glazed as warm ivory marble with gold (home_dais), its
+		# crystal ring glowing in the accent colour - the same dais as on the Home terrace.
+		var src: ShaderMaterial = owner["mat"]
+		_dais_mat = ShaderMaterial.new()
+		_dais_mat.shader = HubStage.DAIS_SHADER
+		for k in ["albedo_tex", "normal_tex", "has_normal"]:
+			_dais_mat.set_shader_parameter(k, src.get_shader_parameter(k))
+		(owner["node"] as MeshInstance3D).material_override = _dais_mat
 		_root.add_child(owner["node"])
 		_build_glow_fx(dw * 0.5, -float(owner["depth"]) - 0.01)
 		return
 	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.08, 0.1, 0.2) if mode == "machine" else Color(0.32, 0.22, 0.14)
-	dark.metallic = 0.6
-	dark.roughness = 0.35
+	dark.albedo_color = Color(0.9, 0.87, 0.82)
+	dark.metallic = 0.05
+	dark.roughness = 0.45
 	var gold := StandardMaterial3D.new()
-	gold.albedo_color = Color(1.0, 0.76, 0.32)
-	gold.metallic = 0.85
-	gold.roughness = 0.25
+	gold.albedo_color = Color(0.95, 0.78, 0.46)
+	gold.metallic = 0.3
+	gold.roughness = 0.32
 	var r := 1.2 if mode != "army" else 2.3
 	var base := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
@@ -312,8 +324,7 @@ func set_accent(c: Color) -> void:
 	if _dais_mat:
 		# The hero keeps the owner's ice ring warmed by its colour; a machine's ring takes the
 		# family accent.
-		_dais_mat.set_shader_parameter("rune_color", Color(0.3, 0.7, 1.0).lerp(c, 0.25 if mode == "hero" else 0.7))
-		_dais_mat.set_shader_parameter("rune_mix", 0.5 if mode == "hero" else 0.8)
+		_dais_mat.set_shader_parameter("rune_color", Color(0.45, 0.8, 1.0).lerp(c, 0.45 if mode == "hero" else 0.7))
 	var g := _root.get_node_or_null("FloorGlow") as MeshInstance3D
 	if g:
 		(g.material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, 0.55)
