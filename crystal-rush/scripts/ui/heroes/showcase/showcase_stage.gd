@@ -14,6 +14,16 @@ var gem := "R"
 var interactive := false
 ## Subject region (w, h) in world units the camera keeps in frame.
 var region := Vector2(2.2, 2.4)
+var _look := Vector3(0, 0.95, 0)
+## Where the hero stands across the stage (0..1): the art view keeps it right of the info
+## column with a lens shift (Camera3D.h_offset), the 3D view centres it.
+## Art view: the model's widest point stays right of this screen fraction (the info column).
+var left_clear := 0.0
+var _model_w := 0.0
+var focus_x := 0.5:
+	set(v):
+		focus_x = v
+		_frame()
 var _vp: SubViewport
 var _cam: Camera3D
 var _turn: Node3D
@@ -80,6 +90,16 @@ func _ready() -> void:
 		_model = HeroModels.hero(hero_id)
 		_model.scale = Vector3.ONE * 1.12
 		_turn.add_child(_model)
+		# Frame this hero (a slim fox and a wide golem need different cameras): the model's box
+		# plus the dais (about 1.6 wide, 0.45 deep below the feet).
+		var box := WeaponModels._visual_aabb(_model, _model.transform)
+		if box.size != Vector3.ZERO:
+			var top := box.end.y + 0.12
+			var bottom := -0.5
+			_model_w = maxf(box.size.x, box.size.z)
+			region = Vector2(maxf(_model_w, 1.75) + 0.25, top - bottom)
+			_look = Vector3(0, (top + bottom) * 0.5, 0)
+	_cam.look_at_from_position(Vector3(0, _look.y + 0.2, 5.2), _look)
 	resized.connect(_frame)
 	_frame()
 
@@ -87,12 +107,19 @@ func _ready() -> void:
 func _frame() -> void:
 	if size.y < 4.0 or _cam == null:
 		return
-	var d := _cam.position.distance_to(Vector3(0, 0.95, 0))
+	var d := _cam.position.distance_to(_look)
 	var aspect := size.x / size.y
+	var right := maxf(0.15, 1.0 - focus_x)
 	var v_need := 2.0 * atan(region.y * 0.5 / d)
-	var h_need := 2.0 * atan(region.x * 0.5 / d)
-	var v_from_h := 2.0 * atan(tan(h_need * 0.5) / aspect)
+	# The visible width holds most of the subject's right half between the focus and the edge
+	# (with the focus off-centre the dais may run off the right edge of the screen a little).
+	var vis_w_need := region.x / (2.0 * right) * (1.0 if focus_x <= 0.5 else 0.74)
+	if left_clear > 0.0 and focus_x > left_clear + 0.05:
+		vis_w_need = maxf(vis_w_need, _model_w * 0.3 / (focus_x - left_clear))
+	var v_from_h := 2.0 * atan(vis_w_need * 0.5 / d / aspect)
 	_cam.fov = clampf(rad_to_deg(maxf(v_need, v_from_h)), 14.0, 70.0)
+	var vis_w := 2.0 * d * tan(deg_to_rad(_cam.fov) * 0.5) * aspect
+	_cam.h_offset = (0.5 - focus_x) * vis_w
 
 
 func _process(delta: float) -> void:

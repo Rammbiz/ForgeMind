@@ -25,6 +25,8 @@ extends Control
 signal closed
 
 const COL_W := 340.0
+## Where a live 3D hero stands across the screen in the art view (right of the info column).
+const STAGE_FOCUS := 0.7
 
 var hub: Hub
 var hero_id := "vesta"
@@ -32,6 +34,7 @@ var _h: Dictionary = {}
 var _mode3d := false
 var _start_3d := false
 var _start_manage := false
+var _start_codex := false
 var _manage_tab := "level"
 var _ins := Vector4.ZERO
 var _t := 0.0
@@ -62,6 +65,7 @@ func setup(p_hub: Hub, args: PackedStringArray) -> void:
 		hero_id = str(args[0])
 	_start_3d = "3d" in args
 	_start_manage = "manage" in args
+	_start_codex = "codex" in args
 	for t: String in ["level", "facets", "skills", "gear"]:
 		if t in args:
 			_manage_tab = t
@@ -77,6 +81,8 @@ func _ready() -> void:
 	HeroesUIModel.bus().changed.connect(_on_model)
 	if _start_manage:
 		_open_manage(_manage_tab)
+	elif _start_codex:
+		_open_codex()
 
 
 func _on_model(_what: String) -> void:
@@ -136,6 +142,7 @@ func _build_hero(entrance: bool) -> void:
 		_art.add_child(_splash)
 	elif st == "live3d" and DisplayServer.get_name() != "headless":
 		_stage = HeroShowcaseStage.make(hero_id, gem)
+		_stage.left_clear = (UITokens.GUTTER + COL_W) / maxf(1.0, _vp().x)
 		_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if not owned:
 			_stage.modulate = Color(0.6, 0.62, 0.7, 0.6)
@@ -542,6 +549,7 @@ func _layout() -> void:
 		var sr := _stage_rect(_mode3d)
 		_stage.position = sr.position
 		_stage.size = sr.size
+		_stage.focus_x = 0.5 if _mode3d else STAGE_FOCUS
 	if _card:
 		var cw := W * 0.47
 		var ch := cw * 1.36
@@ -564,7 +572,7 @@ func _stage_rect(three_d: bool) -> Rect2:
 		return Rect2(Vector2(0, y0 + 60.0), Vector2(W, dock_y - y0 - 120.0))
 	var sk_y := dock_y - 16.0 - (_skills.get_combined_minimum_size().y if _skills else 260.0)
 	var top := maxf(y0 + 40.0, sk_y - 880.0)
-	return Rect2(Vector2(W * 0.41, top), Vector2(W * 0.59, sk_y - top + 40.0))
+	return Rect2(Vector2(0, top), Vector2(W, sk_y - top + 40.0))
 
 
 # ------------------------------------------------------------------ motion
@@ -618,12 +626,15 @@ func _set_3d(on: bool, animate: bool) -> void:
 		_stage.interactive = on
 		_stage.mouse_filter = Control.MOUSE_FILTER_STOP if on else Control.MOUSE_FILTER_IGNORE
 		var r := _stage_rect(on)
+		var fx := 0.5 if on else STAGE_FOCUS
 		if dur > 0.0:
 			tw.tween_property(_stage, "position", r.position, dur)
 			tw.tween_property(_stage, "size", r.size, dur)
+			tw.tween_property(_stage, "focus_x", fx, dur)
 		else:
 			_stage.position = r.position
 			_stage.size = r.size
+			_stage.focus_x = fx
 		_hint3d.visible = on
 	else:
 		_none3d.visible = on

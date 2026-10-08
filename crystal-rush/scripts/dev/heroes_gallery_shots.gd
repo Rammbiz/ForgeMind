@@ -24,6 +24,7 @@ const SHOTS := {
 	"manage_*": {"uri": "hero/{arg}/manage"},
 	"facets_*": {"uri": "hero/{arg}/manage/facets"},
 	"skills_*": {"uri": "hero/{arg}/manage/skills"},
+	"codex_*": {"uri": "hero/{arg}/codex"},
 	"recut_*": {"uri": "recut/{arg}"},
 	"champion_*": {"uri": "champion/{arg}"},
 	"team": {"uri": "team"},

@@ -19,6 +19,8 @@ static func make(p_hub: Hub, p_own_scrim := false) -> HeroesCodexSheet:
 func _ready() -> void:
 	title = HeroesText.t("CODEX_TITLE")
 	var sub := UIKit.label(HeroesText.t("CODEX_SUB"), 22, UITokens.INK_DIM)
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.custom_minimum_size = Vector2(600, 0)
 	body.add_child(sub)
 	body.add_child(UIKit.divider(600))
 	var un := HeroesUIModel.unlocks()
@@ -46,12 +48,20 @@ func _row(k: String) -> Control:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 2)
 	row.add_child(col)
-	col.add_child(UIKit.label(HeroesText.t("CODEX_" + k + "_T"), 26, UITokens.INK, true))
-	var txt := UIKit.label(HeroesText.t("CODEX_" + k), 22, UITokens.INK)
+	var head := HeroesText.t("CODEX_" + k + "_T")
+	col.add_child(UIKit.label(head, 26, UITokens.INK, true))
+	# The Loc row starts with its own title («Самоцвіт: ...»); the bold title already says it.
+	var body_text := HeroesText.t("CODEX_" + k)
+	if body_text.begins_with(head + ":"):
+		body_text = body_text.substr(head.length() + 1).strip_edges()
+		body_text = body_text.left(1).to_upper() + body_text.substr(1)
+	var txt := UIKit.label(body_text, 22, UITokens.INK)
 	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	txt.custom_minimum_size = Vector2(540, 0)
 	col.add_child(txt)
 	var where := UIKit.label(HeroesText.t("CODEX_WHERE", [HeroesText.t("CODEX_" + k + "_WHERE")]), 22, UITokens.GOLD_TEXT)
 	where.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	where.custom_minimum_size = Vector2(540, 0)
 	col.add_child(where)
 	var wrap := VBoxContainer.new()
 	wrap.add_theme_constant_override("separation", 10)
