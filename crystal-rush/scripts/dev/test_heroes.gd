@@ -1151,6 +1151,7 @@ func _test_summon_rules() -> void:
 	for src in ["track", "track_nodes", "road", "shop", "ad", "supporter", "gems", "feat", "replay", "chest"]:
 		never = never and Summon.credit(acc4, src) == 0
 	_ok(never, "no Beacons from Track, Road, shop, ads, supporter, Gems, Feats, replays or chests")
+	_ok(Summon.BEACON_SOURCES == Summon.beacon_sources(), "BEACON_SOURCES = the paying PortalData.BEACON nodes")
 	_ok(Summon.credit(_acc(20), "boss") == 0, "no Beacons before the Portal opens")
 	# Focus validation.
 	_ok(not Summon.set_focus(acc3, "C", "lumen") and Summon.set_focus(acc3, "M", "pava") and Summon.focus(acc3, "M") == "pava"

@@ -54,6 +54,8 @@ const C_RELIC: Array[float] = [0.03, 0.01]
 const W_C: float = 0.012
 const CHAMP_UPTIME: float = 0.94
 const CHAMP_KIT_TOL: float = 0.03
+## Relic tempering ranks with a beat (+Ladder.RELIC_BEAT each; heroes and champions). (heroes_design.md §3.4)
+const RELIC_BEAT_AT: Array[int] = [4, 8, 12]
 
 ## Where every generated constant comes from: consts:<path> = tools/data/heroes_consts.json,
 ## roster:<path> = tools/data/heroes_roster.json (both checked by scripts/dev/test_heroes.gd),
@@ -76,6 +78,7 @@ const SOURCE_KEYS: Dictionary[String, String] = {
 	"W_C": "consts:budgets.W_C",
 	"CHAMP_UPTIME": "consts:budgets.CHAMP_UPTIME",
 	"CHAMP_KIT_TOL": "consts:budgets.CHAMP_KIT_TOL",
+	"RELIC_BEAT_AT": "doc:§3.4",
 }
 # </GENERATED>
 

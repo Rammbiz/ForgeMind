@@ -99,6 +99,8 @@ DOC = {
                           "skill": 0.2, "form": 0.5, "awaken": 0.6, "craft": 0.35, "temper_tier": 0.35,
                           "temper_beat": 0.35}, "§9.4"),
     "TEAM_READY": (0.4, "§9.4"),
+    # §3.4 / §4.1: relic beats (named modifiers, +RELIC_BEAT each) at these tempering ranks (= heroes_sim champ_index).
+    "RELIC_BEAT_AT": ([4, 8, 12], "§3.4"),
     "SKIP_FROM": (0.5, "§9.4 / §7.1"),
 }
 
@@ -435,6 +437,7 @@ def block_champion(b: Block) -> None:
     b.head("champion budgets (§4.1, §2.3)")
     for k in CHAMPION_BUDGETS:
         b.consts(k, "budgets." + k)
+    b.docv("RELIC_BEAT_AT", "Relic tempering ranks with a beat (+Ladder.RELIC_BEAT each; heroes and champions).")
 
 
 def block_team(b: Block) -> None:

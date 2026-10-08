@@ -18,8 +18,8 @@ class_name Summon
 ## characters enter the Portal, WS-E); [] = every hero.
 
 const HISTORY_MAX := 100
-## Beacon income sources (PortalData.BEACON keys that pay; §7.3). Nothing else ever pays Beacons:
-## not Feats, Track or Road nodes, replays, ads, SKUs, Gems or random chests (two-track rule).
+## Beacon income sources = beacon_sources() (the PortalData.BEACON nodes that pay; test_heroes checks
+## the two agree). Kept as a const for the Meta API / tests.
 const BEACON_SOURCES: Array[String] = ["first_clear", "boss", "mission", "weekly", "exp3", "exp5", "login7"]
 
 static var _cons_cache: Dictionary = {}
@@ -28,6 +28,19 @@ static var _stat_cache: Dictionary = {}
 
 static func is_open(acc: Dictionary) -> bool:
 	return Roster.system_open(acc, "portal")
+
+
+## Beacon income sources: the PortalData.BEACON nodes that pay a number of Beacons (§7.3; first
+## clear, world boss, daily mission, weekly, Expedition 3/5 and 5/5, login day 7). Nothing else ever
+## pays Beacons: not Feats, Track nodes (BEACON.track = 0) or Road nodes, replays, ads, SKUs, Gems or
+## random chests (two-track rule).
+static func beacon_sources() -> Array[String]:
+	var out: Array[String] = []
+	for k: String in PortalData.BEACON:
+		var v: Variant = PortalData.BEACON[k]
+		if (v is float or v is int) and float(v) > 0.0:
+			out.append(k)
+	return out
 
 
 static func state(acc: Dictionary) -> Dictionary:

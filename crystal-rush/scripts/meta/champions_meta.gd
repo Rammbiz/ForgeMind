@@ -76,7 +76,7 @@ static func relic_bonus(rank: int) -> float:
 static func index(n: int, g: int, f: int, cl: int, relic_rank := -1, mult := 1.0) -> float:
 	var beats := 0
 	if relic_rank >= 0:
-		for b in [4, 8, 12]:
+		for b: int in ChampionData.RELIC_BEAT_AT:
 			if relic_rank >= b:
 				beats += 1
 	return (Ladder.mult(Ladder.GEMS[n], Ladder.GEMS[g], f) * cl_mult(cl) * (1.0 + relic_bonus(relic_rank))
