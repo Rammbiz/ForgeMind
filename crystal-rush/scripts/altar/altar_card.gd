@@ -231,7 +231,15 @@ func _body() -> Rect2:
 
 
 func _foot_h() -> float:
-	return roundf(_body().size.y * (0.34 if not _is_wild() else 0.2))
+	var b := _body()
+	if _is_wild():
+		return roundf(b.size.y * 0.2)
+	# v3.1: sized to its text stack (name 1-2 lines, then the bar / count row), never overlapping.
+	var nl := _name_layout()
+	var fs: int = nl[1]
+	var lines := _name_rows()
+	var need := 8.0 + fs * lines + 4.0 * (lines - 1) + 6.0 + _count_fs() + 8.0
+	return roundf(maxf(need, b.size.y * 0.34))
 
 
 func _is_wild() -> bool:
@@ -239,25 +247,63 @@ func _is_wild() -> bool:
 
 
 var _name_two := false
+var _nl_cache: Array = []
+var _nl_key := ""
+
+
+## [lines, font size] of the name on the footer: Medium 22 (20 on narrow cards), wrapped to at
+## most two lines; a very long word drops to 18.
+func _name_layout() -> Array:
+	var b := _body()
+	var id := str(data.get("id", ""))
+	var key := "%s_%d" % [id, int(b.size.x)]
+	if key == _nl_key:
+		return _nl_cache
+	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
+	var f := UIKit.font_w("medium")
+	var max_w := b.size.x - 12.0
+	var fs0 := _count_fs()
+	var lines := MachineCard._name_lines(nm, f, fs0, max_w)
+	var fs := fs0
+	for ln in lines:
+		fs = mini(fs, UIKit.fit_size(ln, max_w, fs0, 18, false))
+	_nl_cache = [lines, fs]
+	_nl_key = key
+	return _nl_cache
+
+
+## Rows the name block takes: narrow cards always keep two (a row of cards keeps one footer
+## height; a one-line name is centred in it), wider cards fit their name.
+func _name_rows() -> int:
+	return 2 if _body().size.x < 160.0 else (_name_layout()[0] as PackedStringArray).size()
+
+
+## Footer text size: 22 px (§5), 20 on the narrow summary / inline cards.
+func _count_fs() -> int:
+	return NAME_FS if _body().size.x >= 160.0 else NAME_FS - 2
 
 
 func _bar_rect() -> Rect2:
 	var b := _body()
 	var seam := b.end.y - _foot_h()
-	# The bar shares its row with the "n/need" count (right), on every card: a two-line name
-	# no longer drops the count.
-	var w := b.size.x - 28.0 - _count_w() - 8.0
-	return Rect2(Vector2(b.position.x + 14, seam + _foot_h() * (0.66 if _name_two else 0.62) - 4.5), Vector2(w, 9))
+	var nl := _name_layout()
+	var lines := _name_rows()
+	var fs: int = nl[1]
+	# The bar shares its row with the "n/need" count (right), under the name block.
+	var w := b.size.x - 24.0 - _count_w() - 8.0
+	var cy := seam + 8.0 + fs * lines + 4.0 * (lines - 1) + 6.0 + _count_fs() * 0.5
+	return Rect2(Vector2(b.position.x + 12, cy - 4.0), Vector2(w, 8))
 
 
-const COUNT_FS := 15
+## v3.1: footer text >= 22 px on glass (§5, MF-15); 20 on the narrow summary / inline cards.
+const NAME_FS := 22
 
 
 func _count_w() -> float:
 	if _is_wild():
 		return 0.0
 	var need := maxi(int(data.get("bp_need", 0)), 1)
-	return UIKit.font_w("bold").get_string_size("%d/%d" % [need, need], HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_FS).x
+	return UIKit.font_w("medium").get_string_size("%d/%d" % [need, need], HORIZONTAL_ALIGNMENT_LEFT, -1, _count_fs()).x
 
 
 func _draw() -> void:
@@ -265,16 +311,13 @@ func _draw() -> void:
 	var g: Dictionary = UITokens.gem(gk)
 	var rc: Color = g["rim"]
 	var body := _body()
-	var pulse := 0.85 + 0.15 * sin(_t * 3.0)
+	# v3.1: a static rarity glow (nothing breathes) and ONE soft halo shadow (no stacked slabs).
 	if glow > 0.0:
-		var ga := (0.3 if not face_up else 0.4) * glow * pulse * (1.4 if rarity() in ["L", "M"] else 1.0)
+		var ga := (0.3 if not face_up else 0.4) * glow * (1.4 if rarity() in ["L", "M"] else 1.0)
 		draw_texture_rect(UIKit.glow_texture(), body.grow(30 + CacheModels.tier(rarity()) * 6), false, Color(rc.r, rc.g, rc.b, ga))
 	var pts := GemDraw.chamfer_rect(body, 10.0)
-	for i in 4:
-		var sp := PackedVector2Array()
-		for q in pts:
-			sp.append(q + Vector2(0, 2.0 + i * 1.6))
-		draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.08))
+	var sc := UITokens.SCRIM
+	draw_texture_rect(UIKit.glow_texture(), Rect2(body.position + Vector2(-14, -2), body.size + Vector2(28, 24)), false, Color(sc.r, sc.g, sc.b, 0.24))
 	if not face_up:
 		_draw_back(body, pts, gk, g)
 		return
@@ -293,15 +336,16 @@ func _draw_back(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 	var step := body.size.x / 4.0
 	for i in range(-4, 9):
 		var x := body.position.x + i * step
-		draw_line(Vector2(x, body.position.y + 8), Vector2(x + body.size.y * 0.5, body.end.y - 8), lat, 1.0, true)
-		draw_line(Vector2(x + body.size.y * 0.5, body.position.y + 8), Vector2(x, body.end.y - 8), lat, 1.0, true)
+		draw_line(Vector2(x, body.position.y + 8), Vector2(x + body.size.y * 0.5, body.end.y - 8), lat, UIKit.px(1.0), true)
+		draw_line(Vector2(x + body.size.y * 0.5, body.position.y + 8), Vector2(x, body.end.y - 8), lat, UIKit.px(1.0), true)
 	var inner := GemDraw.chamfer_rect(body.grow(-8.0), 7.0)
 	draw_colored_polygon(GemDraw.chamfer_rect(Rect2(c - Vector2(36, 36), Vector2(72, 72)), 18.0), Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.95))
 	var rim: Color = g["rim"]
 	draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(70, 70), Vector2(140, 140)), false, Color(rim.r, rim.g, rim.b, 0.45))
 	GemDraw.draw_mark(self, gk, c, minf(body.size.x * 0.3, 46.0))
-	GemDraw.outline(self, inner, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), 1.0)
-	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+	# v3.1 frame: the inner line is light (never a second gold frame), ONE 1 dpx gold line outside.
+	GemDraw.outline(self, inner, Color(1, 1, 1, 0.7), UIKit.px(1.0))
+	GemDraw.outline(self, pts, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0))
 
 
 ## Face: the gem-ground card (Genshin construction): gradient + light pool, the machine render
@@ -309,7 +353,7 @@ func _draw_back(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 ## blueprint bar (cream track, amber fill, gold "!" when upgradable), inner rim, gold hairline
 ## and the gem-cut mark.
 func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary) -> void:
-	var f := UIKit.font_w("bold")
+	var f := UIKit.font_w("medium")
 	var top: Color = g["top"]
 	var bot: Color = g["bot"]
 	var cols := PackedColorArray()
@@ -343,30 +387,32 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 	# Footer strip.
 	var foot := PackedVector2Array([Vector2(body.position.x, seam), Vector2(body.end.x, seam), Vector2(body.end.x, body.end.y - 10.0),
 			Vector2(body.end.x - 10.0, body.end.y), Vector2(body.position.x + 10.0, body.end.y), Vector2(body.position.x, body.end.y - 10.0)])
-	draw_colored_polygon(foot, UITokens.PAPER_1)
-	draw_line(Vector2(body.position.x, seam), Vector2(body.end.x, seam), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0, true)
-	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
-	# Name: 16-19 px, a long name wraps to two lines (never shrunk to 13 px or clipped).
-	var max_w := body.size.x - 14.0
-	var fs := UIKit.fit_size(nm, max_w, 19, 16)
-	var lines := MachineCard._name_lines(nm, f, fs, max_w)
+	# §7.3: a glass footer at 0.86 under a 1 dpx seam.
+	draw_colored_polygon(foot, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.9))
+	var sy := GemDraw.pixel_y(self, seam)
+	draw_line(Vector2(body.position.x, sy), Vector2(body.end.x, sy), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), -1.0)
+	# Name: 22 px Medium (20 for a very long single word), a long name wraps to two lines.
+	var nl := _name_layout()
+	var lines: PackedStringArray = nl[0]
+	var fs: int = nl[1]
 	_name_two = lines.size() == 2 and not wild
-	if _name_two:
-		_text_c(f, lines[0], Vector2(cx, seam + 19.0), fs, UITokens.INK)
-		_text_c(f, lines[1], Vector2(cx, seam + 19.0 + fs + 1.0), fs, UITokens.INK)
+	if wild:
+		_text_c(f, lines[0], Vector2(cx, seam + fh * 0.5 + fs * 0.36), fs, UITokens.INK)
 	else:
-		var name_y := seam + (fh * 0.40 if not wild else fh * 0.62)
-		_text_c(f, lines[0], Vector2(cx, name_y), fs, UITokens.INK)
-	# Count chip (top-right of the art).
+		# Baselines: cap height ~0.72 fs under the line top (8 px under the seam, 4 px leading).
+		var off := (_name_rows() - lines.size()) * (fs + 4.0) * 0.5
+		for i in lines.size():
+			_text_c(f, lines[i], Vector2(cx, seam + 8.0 + off + fs * 0.8 + i * (fs + 4.0)), fs, UITokens.INK)
+	# Count chip (top-right of the art): glass, one 1 dpx line, Bold 22.
 	var ct := "×%d" % int(data.get("count", 1))
-	var cf := UIKit.font_w("extrabold")
-	var cfs := 22 if body.size.x > 160.0 else 19
+	var cf := UIKit.font_w("bold")
+	var cfs := 22
 	var cw := cf.get_string_size(ct, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs).x + 14.0
 	var cr := Rect2(Vector2(body.end.x - cw - 6.0, seam - cfs - 16.0), Vector2(cw, cfs + 8.0))
 	var cp := GemDraw.chamfer_rect(cr, 5.0)
-	draw_colored_polygon(cp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
-	GemDraw.outline(self, cp, UITokens.HAIRLINE, 1.0)
-	draw_string(cf, Vector2(cr.position.x + 7.0, cr.end.y - 6.0), ct, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs, UITokens.GOLD_TEXT)
+	draw_colored_polygon(cp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.92))
+	GemDraw.outline(self, cp, UITokens.LINE_GOLD, UIKit.line_px(1.0))
+	draw_string(cf, Vector2(cr.position.x + 7.0, cr.end.y - 6.5), ct, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs, UITokens.GOLD_TEXT_GLASS)
 	if not wild:
 		var br := _bar_rect()
 		var need := maxi(int(data.get("bp_need", 0)), 1)
@@ -374,33 +420,36 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 		var after := int(data.get("bp_after", before))
 		var shown := lerpf(float(before), float(after), bar_k)
 		var up := bool(data.get("upgradable", false)) and bar_k >= 1.0
+		# §7.5: a 1 dpx hairline frame round a glass track, a flat amber fill with a table light.
 		var tp := GemDraw.chamfer_rect(br, 3.0)
-		draw_colored_polygon(tp, UITokens.PAPER_3)
+		draw_colored_polygon(tp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.6))
+		var tr := br.grow(-2.0)
+		draw_colored_polygon(GemDraw.chamfer_rect(tr, 1.5), Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.55))
 		var fk := clampf(shown / float(need), 0.0, 1.0)
 		if fk > 0.0:
-			var fr := Rect2(br.position, Vector2(maxf(br.size.x * fk, 6.0), br.size.y))
-			var fp := GemDraw.chamfer_rect(fr, 3.0)
+			var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * fk, 3.0), tr.size.y))
+			var fp := GemDraw.chamfer_rect(fr, 1.5)
 			var fc := PackedColorArray()
 			for q in fp:
-				fc.append(UITokens.CTA_HI.lerp(UITokens.CTA, (q.y - fr.position.y) / fr.size.y))
+				fc.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (q.y - fr.position.y) / fr.size.y))
 			draw_polygon(fp, fc)
-		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.0)
+		GemDraw.outline(self, tp, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), UIKit.line_px(1.0))
 		if _bar_hit > 0.0:
 			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(1.0, 0.82, 0.45, _bar_hit * 0.7))
-		draw_string(UIKit.font_w("bold"), Vector2(body.end.x - 14.0 - _count_w(), br.get_center().y + 5.5), "%d/%d" % [int(round(shown)), need],
-				HORIZONTAL_ALIGNMENT_RIGHT, _count_w(), COUNT_FS, UITokens.GOLD_TEXT if up else UITokens.INK_DIM)
+		draw_string(UIKit.font_w("medium"), Vector2(body.end.x - 12.0 - _count_w(), br.get_center().y + _count_fs() * 0.36), "%d/%d" % [int(round(shown)), need],
+				HORIZONTAL_ALIGNMENT_RIGHT, _count_w(), _count_fs(), UITokens.GOLD_TEXT_GLASS if up else UITokens.INK_DIM_GLASS)
 		if up:
-			# The gold "!" sits in the card's top-right corner over the art (as on the Arsenal),
-			# never on the name / bar row.
+			# §7.11 notify badge in the card's top-right corner over the art: a 28 px amber disc,
+			# a 1 dpx cream ring, one halo; never on the name / bar row.
 			var bc := Vector2(body.end.x - 18.0, body.position.y + 18.0)
-			draw_circle(bc + Vector2(0, 1.5), 14.0, Color(0.3, 0.18, 0.05, 0.25), true, -1.0, true)
-			draw_circle(bc, 14.0, Color(1, 0.98, 0.92), true, -1.0, true)
-			draw_circle(bc, 12.5, UITokens.NOTIFY, true, -1.0, true)
-			_text_c(cf, "!", bc + Vector2(0, 7.0), 19, UIKit.BROWN)
-	# Frame.
+			draw_texture_rect(UIKit.glow_texture(), Rect2(bc - Vector2(20, 18), Vector2(40, 40)), false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.25))
+			draw_circle(bc, 14.0, UITokens.NOTIFY, true, -1.0, true)
+			draw_arc(bc, 14.0 - UIKit.px(0.5), 0, TAU, 40, Color(1, 0.98, 0.92, 0.95), UIKit.line_px(1.0), true)
+			_text_c(UIKit.font_w("bold"), "!", bc + Vector2(0, 7.5), 22, UIKit.BROWN)
+	# Frame: the gem's light rim 1 dpx inside, ONE 1 dpx gold line outside.
 	var rim: Color = g["rim"]
-	GemDraw.outline(self, GemDraw.chamfer_rect(body.grow(-3.0), 8.5), Color(rim.r, rim.g, rim.b, 0.7), 1.0)
-	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+	GemDraw.outline(self, GemDraw.chamfer_rect(body.grow(-2.5), 9.0), Color(rim.r, rim.g, rim.b, 0.6), UIKit.px(1.0))
+	GemDraw.outline(self, pts, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0))
 	var ms := clampf(body.size.x * 0.15, 18.0, 28.0)
 	GemDraw.draw_mark(self, gk, body.position + Vector2(10.0 + ms * 0.5, 10.0 + ms * 0.5), ms)
 
@@ -413,12 +462,12 @@ func _draw_over() -> void:
 	if _flash > 0.0:
 		_over.draw_colored_polygon(GemDraw.chamfer_rect(body, 10.0), Color(1, 0.99, 0.94, _flash * 0.85))
 	if bool(data.get("new", false)):
-		var nf := UIKit.font_w("extrabold")
+		var nf := UIKit.font_caps(20)
 		var tag := Loc.t("REVEAL_NEW").to_upper()
-		var nw := nf.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		var tr := Rect2(Vector2(body.get_center().x - nw * 0.5 - 10, body.position.y - 11), Vector2(nw + 20, 24))
+		var nw := nf.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+		var tr := Rect2(Vector2(body.get_center().x - nw * 0.5 - 11, body.position.y - 14), Vector2(nw + 22, 28))
 		_over.draw_style_box(UIKit.lux("tag_new"), tr)
-		_over.draw_string(nf, tr.position + Vector2(10, 17.5), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.NEW_INK)
+		_over.draw_string(nf, tr.position + Vector2(11, 21.0), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UITokens.NEW_INK)
 	for sp in _sparks:
 		if float(sp["t"]) < 0.0:
 			continue

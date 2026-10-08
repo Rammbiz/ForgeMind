@@ -805,7 +805,7 @@ func _summary_settled() -> void:
 	UIJuice.pop(_done_btn, 0.16)
 	if up_id != "":
 		_up_btn.text = Loc.f("UPGRADE_MACHINE", [Loc.t(str((ArsenalData.MACHINES[up_id] as Dictionary)["name"]))])
-		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 18))
+		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 22, false))
 		_up_btn.visible = true
 		for cn in _up_btn.pressed.get_connections():
 			_up_btn.pressed.disconnect(cn["callable"])
@@ -942,7 +942,7 @@ func _toggle_odds() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	p.add_child(col)
-	var t := UIKit.heading(Loc.t("ODDS_TITLE"), 34, UIKit.INK)
+	var t := UIKit.heading(Loc.t("ODDS_TITLE"), 40, UIKit.INK)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
 	col.add_child(UIKit.divider(520.0))
@@ -955,13 +955,13 @@ func _toggle_odds() -> void:
 		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		mark.draw.connect(func(): GemDraw.draw_mark(mark, gk, mark.size * 0.5, 22.0))
 		row.add_child(mark)
-		var nm := UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 24, UIKit.INK, true)
+		var nm := UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 24, UIKit.INK)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nm)
 		var pc := float((od.get("per_card", {}) as Dictionary).get(r, 0.0)) * 100.0
 		var bc := float((od.get("best", {}) as Dictionary).get(r, 0.0)) * 100.0
-		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_PER_CARD"), pc], 20, UIKit.TEXT_DIM))
-		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_BEST"), bc], 20, UIKit.TEXT))
+		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_PER_CARD"), pc], 22, UIKit.TEXT_DIM))
+		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_BEST"), bc], 22, UIKit.TEXT))
 		col.add_child(row)
 	col.add_child(UIKit.divider(520.0))
 	var g := str((EconData.CACHES[str(rev.get("type", "world"))] as Dictionary).get("guaranteed", "R"))
@@ -969,7 +969,7 @@ func _toggle_odds() -> void:
 	gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(gl)
 	for k in ["ODDS_WILD", "ODDS_FOCUS", "ODDS_DECK", "ODDS_DUPES", "PITY_EPIC"]:
-		var l := UIKit.label(Loc.t(k), 20, UIKit.TEXT_DIM)
+		var l := UIKit.label(Loc.t(k), 22, UIKit.TEXT_DIM)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(l)
 	_root_ui.add_child(p)

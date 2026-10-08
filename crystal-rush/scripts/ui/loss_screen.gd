@@ -102,6 +102,9 @@ func _ready() -> void:
 	_sheet.position = Vector2(0, _ins.y + SHEET_Y)
 	_sheet.size = Vector2(_vp.x, _vp.y - _ins.y - SHEET_Y + 24)
 	root.add_child(_sheet)
+	# §4.3 / §7.10: the rows sit on a 94 % cream text bed (flat sheet outside the hub, so the run's
+	# road never prints through the numbers); the world shows only above the sheet and in its rim.
+	UIKit.text_bed(_sheet, 0.0)
 	UIJuice.sheet_in(_sheet, 0.08)
 	_build_progress()
 	_build_payout()
@@ -164,7 +167,7 @@ func _frac() -> float:
 # ------------------------------------------------------------------ build
 
 func _build_progress() -> void:
-	var lbl := UIKit.label(Loc.f("LOSS_PROGRESS", [int(round(_frac() * 100.0))]), 26, UIKit.INK, true)
+	var lbl := UIKit.label(Loc.f("LOSS_PROGRESS", [int(round(_frac() * 100.0))]), 26, UIKit.INK)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.size = Vector2(_vp.x, 34)
 	lbl.position = Vector2(0, _ins.y + SHEET_Y + 30)
@@ -236,8 +239,8 @@ func _build_assist() -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	var pct := int(round(float(a.get("dmg_add", 0.0)) * 100.0))
-	v.add_child(UIKit.label(Loc.f("ASSIST_CHIP", [pct]), 26, UIKit.PLUS, true))
-	var d := UIKit.label(Loc.f("ASSIST_DESC", [int(a.get("soldiers", 0)), pct]), 20, UIKit.INK_DIM)
+	v.add_child(UIKit.label(Loc.f("ASSIST_CHIP", [pct]), 26, UIKit.PLUS))
+	var d := UIKit.label(Loc.f("ASSIST_DESC", [int(a.get("soldiers", 0)), pct]), 22, UIKit.INK_DIM)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(d)
 	row.add_child(v)
@@ -349,7 +352,7 @@ func _step_cache() -> void:
 		gt.icon = "cache_stone"
 		gt.custom_minimum_size = Vector2(56, 56)
 		r.add_child(gt)
-		var rl := UIKit.label(Loc.t("CACHE_STONE") + "  ·  " + Loc.t("RF_TO_VAULT"), 24, UIKit.INK, true)
+		var rl := UIKit.label(Loc.t("CACHE_STONE") + "  ·  " + Loc.t("RF_TO_VAULT"), 24, UIKit.INK)
 		rl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		rl.size_flags_vertical = Control.SIZE_FILL
 		r.add_child(rl)
@@ -391,53 +394,60 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ widgets
 
-## The bridge, v2: a row of cream crystal planks from the start (army) to the fortress, the
-## planks the army crossed lit amber, a warm topaz keystone where it stopped; line icons at
-## both ends.
+## The bridge (v3.1, §7.5): a slim glass track in ONE 1 dpx hairline frame, cut into 12 planks by
+## 1 dpx light seams; the planks the army crossed fill flat amber with a 1 dpx table light; a
+## small topaz cut gem on a static warm glow marks where it stopped (nothing pulses). Line icons
+## at both ends.
 class BridgeBar extends Control:
 	const TILES := 12
-	var k := 0.0
-	var _t := 0.0
+	var k := 0.0:
+		set(v):
+			k = v
+			queue_redraw()
 
 	func run_to(target: float, dur: float) -> void:
 		var tw := create_tween()
 		tw.tween_property(self, "k", target, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
-	func _process(delta: float) -> void:
-		_t = fmod(_t + delta, 100.0)
-		queue_redraw()
-
 	func _draw() -> void:
-		var h := 18.0
-		var x0 := 48.0
-		var x1 := size.x - 48.0
+		var h := 12.0
+		var x0 := 56.0
+		var x1 := size.x - 56.0
 		var cy := size.y * 0.5
-		var gap := 4.0
-		var tw := (x1 - x0 - gap * (TILES - 1)) / TILES
-		var fill := (x1 - x0) * clampf(k, 0.0, 1.0)
-		for i in TILES:
-			var r := Rect2(Vector2(x0 + i * (tw + gap), cy - h * 0.5), Vector2(tw, h))
-			var pts := GemDraw.chamfer_rect(r, 4.0)
-			draw_colored_polygon(pts, UITokens.PAPER_3)
-			var lit := clampf((fill - (r.position.x - x0)) / tw, 0.0, 1.0)
-			if lit > 0.0:
-				var fr := Rect2(r.position, Vector2(maxf(tw * lit, 4.0), h))
-				var fp := GemDraw.chamfer_rect(fr, 4.0)
-				var cols := PackedColorArray()
-				for p in fp:
-					cols.append(UITokens.CTA_HI.lerp(UITokens.CTA, (p.y - fr.position.y) / h))
-				draw_polygon(fp, cols)
-			GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), 1.0)
-		Icons.draw_icon(self, "soldier", Rect2(Vector2(0, cy - 22), Vector2(44, 44)))
-		Icons.draw_icon(self, "fortress", Rect2(Vector2(size.x - 44, cy - 24), Vector2(46, 46)))
-		var mx := x0 + fill
-		var g := 20.0 + 4.0 * sin(_t * 3.0)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(mx - g, cy - g), Vector2(g, g) * 2.0), false, Color(1.0, 0.78, 0.36, 0.8))
-		GemDraw.draw_gem(self, "star", Vector2(mx, cy), 26.0, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"))
+		var r := Rect2(Vector2(x0, cy - h * 0.5), Vector2(x1 - x0, h))
+		var pts := GemDraw.chamfer_rect(r, 4.0)
+		var p0 := UITokens.PAPER_0
+		draw_colored_polygon(pts, Color(p0.r, p0.g, p0.b, 0.6))
+		var tr := r.grow(-2.0)
+		draw_colored_polygon(GemDraw.chamfer_rect(tr, 2.5), Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.55))
+		var fill := tr.size.x * clampf(k, 0.0, 1.0)
+		if fill > 0.5:
+			var fr := Rect2(tr.position, Vector2(maxf(fill, 3.0), tr.size.y))
+			var fp := GemDraw.chamfer_rect(fr, 2.5)
+			var cols := PackedColorArray()
+			for p in fp:
+				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
+			draw_polygon(fp, cols)
+			var ty := GemDraw.pixel_y(self, fr.position.y + 0.5)
+			draw_line(Vector2(fr.position.x + 1.0, ty), Vector2(fr.end.x - 1.0, ty), Color(1.0, 0.98, 0.9, 0.85), -1.0)
+		# Plank seams: 1 dpx light lines across the track.
+		var seam := Color(1, 1, 1, 0.75)
+		var sc := UIKit.ui_scale()
+		var gx := get_global_transform_with_canvas().origin.x
+		for i in range(1, TILES):
+			var x := tr.position.x + tr.size.x * float(i) / TILES
+			x = (floorf((gx + x) * sc) + 0.5) / sc - gx
+			draw_line(Vector2(x, tr.position.y), Vector2(x, tr.end.y), seam, -1.0)
+		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), UIKit.line_px(1.0))
+		Icons.draw_icon(self, "soldier", Rect2(Vector2(4, cy - 20), Vector2(40, 40)))
+		Icons.draw_icon(self, "fortress", Rect2(Vector2(size.x - 44, cy - 22), Vector2(42, 42)))
+		var mx := tr.position.x + fill
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(mx - 22, cy - 22), Vector2(44, 44)), false, Color(1.0, 0.8, 0.4, 0.7))
+		GemDraw.draw_gem(self, "cushion", Vector2(mx, cy), 24.0, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"))
 
 
-## Stone Cache charge: "Схованка 2/3" and three sapphire gem sockets (cut gems when filled,
-## engraved gold bezels when empty).
+## Stone Cache charge (v3.1): "Схованка 2/3" and three sapphire gem sockets (cut gems when
+## filled, 1 dpx gold bezels when empty).
 class ChargePips extends Control:
 	var value := 0
 	var _fresh := 0.0
@@ -454,7 +464,7 @@ class ChargePips extends Control:
 			queue_redraw(), 0.0, 1.0, 0.4)
 
 	func _draw() -> void:
-		var f := UIKit.font_w("bold")
+		var f := UIKit.font_w("medium")
 		var txt := Loc.f("LOSS_CHARGE", [value])
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
 		var total := 48.0 + tw + 20.0 + 3.0 * 48.0
@@ -466,27 +476,24 @@ class ChargePips extends Control:
 			var c := Vector2(x0 + 52.0 + tw + 40.0 + i * 48.0, cy)
 			var k := 1.0 if i < value - 1 else (_fresh if i == value - 1 else 0.0)
 			var bez := GemDraw.cut_points("square", c, 30.0)
-			draw_colored_polygon(bez, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.9))
-			GemDraw.outline(self, bez, UITokens.HAIRLINE, 1.2)
+			draw_colored_polygon(bez, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.6))
+			GemDraw.outline(self, bez, UITokens.LINE_GOLD, UIKit.line_px(1.0))
 			if i < value and k > 0.0:
-				draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(26, 26) * k, Vector2(52, 52) * k), false, Color(0.4, 0.72, 1.0, 0.55))
+				draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(26, 26) * k, Vector2(52, 52) * k), false, Color(0.4, 0.72, 1.0, 0.5))
 				GemDraw.draw_mark(self, "sapphire", c, 24.0 * (0.6 + 0.4 * k), k)
 
 
-## Reinforcements badge: a cream disc with a thin gold ring and a green shield-plus.
+## Reinforcements badge (v3.1): a glass disc with one 1 dpx gold ring and one halo, a fine green
+## line shield-plus (line icon weight, no thick strokes).
 class AssistBadge extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var r := minf(size.x, size.y) * 0.5 - 2.0
-		var sc := UITokens.SCRIM
-		for i in 3:
-			draw_circle(c + Vector2(0, 1.5 + i), r - 1.0 + i, Color(sc.r, sc.g, sc.b, 0.06), true, -1.0, true)
-		draw_circle(c, r, UITokens.PAPER_1, true, -1.0, true)
-		draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0, true, -1.0, true)
-		draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-		var s := r * 0.62
+		HudView._glass_disc(self, c, r, UITokens.PLUS)
+		var s := r * 0.58
 		var pts := PackedVector2Array([c + Vector2(-s, -s * 0.8), c + Vector2(s, -s * 0.8), c + Vector2(s * 0.9, s * 0.2), c + Vector2(0, s * 1.05), c + Vector2(-s * 0.9, s * 0.2)])
-		draw_colored_polygon(pts, Color(UITokens.PLUS.r, UITokens.PLUS.g, UITokens.PLUS.b, 0.16))
-		GemDraw.outline(self, pts, UITokens.PLUS, 2.0)
-		draw_line(c + Vector2(0, -s * 0.42), c + Vector2(0, s * 0.5), UITokens.PLUS, 3.0, true)
-		draw_line(c + Vector2(-s * 0.44, s * 0.04), c + Vector2(s * 0.44, s * 0.04), UITokens.PLUS, 3.0, true)
+		draw_colored_polygon(pts, Color(UITokens.PLUS.r, UITokens.PLUS.g, UITokens.PLUS.b, 0.12))
+		var w := clampf(size.x * 0.03, 1.3, 2.0)
+		GemDraw.outline(self, pts, UITokens.PLUS, w)
+		draw_line(c + Vector2(0, -s * 0.4), c + Vector2(0, s * 0.46), UITokens.PLUS, w, true)
+		draw_line(c + Vector2(-s * 0.42, s * 0.03), c + Vector2(s * 0.42, s * 0.03), UITokens.PLUS, w, true)

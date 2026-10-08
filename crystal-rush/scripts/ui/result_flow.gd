@@ -45,6 +45,7 @@ var _sheet: KitSheet
 var _next_soft: Button
 var _drip: HBoxContainer
 var _cache_box: Control
+var _wells := {}
 var _inline: InlineReveal
 var _best: Control
 var _next_btn: KitCTA
@@ -69,6 +70,8 @@ func setup(p_bundle: Dictionary, p_result: Dictionary) -> void:
 ## above "Далі", never the chrome).
 const TITLE_Y := 100.0
 const SHEET_Y := 362.0
+## Drip chip height (two 22 px text lines and the bar).
+const DRIP_H := 80.0
 
 
 func _ready() -> void:
@@ -114,7 +117,7 @@ func _ready() -> void:
 	rib.position = Vector2(0, _ins.y + TITLE_Y)
 	root.add_child(rib)
 	# The reason sits on the amber band in deep amber ink (no gold-on-brown).
-	var why := UIKit.label(Loc.t(str(result.get("reason", "FORTRESS_FALLS"))) if result.has("reason") else Loc.t("FORTRESS_FALLS"), 24, UITokens.NEW_INK, true)
+	var why := UIKit.label(Loc.t(str(result.get("reason", "FORTRESS_FALLS"))) if result.has("reason") else Loc.t("FORTRESS_FALLS"), 24, UITokens.NEW_INK)
 	why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	why.size = Vector2(_vp.x, 32)
 	why.position = Vector2(0, _ins.y + TITLE_Y + 96)
@@ -126,6 +129,9 @@ func _ready() -> void:
 	_sheet.position = Vector2(0, _ins.y + SHEET_Y)
 	_sheet.size = Vector2(_vp.x, _vp.y - _ins.y - SHEET_Y + 24)
 	root.add_child(_sheet)
+	# §4.3 / §7.10: the rows sit on a 94 % cream text bed (flat sheet outside the hub, so the run's
+	# road never prints through the numbers); the world shows only above the sheet and in its rim.
+	UIKit.text_bed(_sheet, 0.0)
 	UIJuice.sheet_in(_sheet, 0.1)
 	_build_coins()
 	_build_stats()
@@ -184,29 +190,46 @@ func _process(delta: float) -> void:
 		(ev[1] as Callable).call()
 
 
-## Cream wells where the rows will land (drip chips, the cache card, the best upgrade), laid
-## out at once so the sheet never looks empty while the sequence plays.
+## Glass wells where the rows will land (drip chips, the cache card, the best upgrade), laid
+## out at once so the sheet never looks empty while the sequence plays. Each well fades out as
+## its row lands (`_land_well`), so a framed row never sits inside a second frame.
 func _build_placeholders() -> void:
-	var ph := Control.new()
-	ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ph.size = _vp
-	var rects: Array[Rect2] = []
+	var rects := {}
 	var drip: Array = bundle.get("drip", [])
 	if not drip.is_empty():
-		rects.append(Rect2(Vector2(24, _ins.y + SHEET_Y + 244 + _gx * 2.5), Vector2(_vp.x - 48, 76)))
+		rects["drip"] = Rect2(Vector2(24, _ins.y + SHEET_Y + 240 + _gx * 2.5), Vector2(_vp.x - 48, DRIP_H))
 	if not (bundle.get("caches", []) as Array).is_empty():
-		rects.append(Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5 + _cache_shift()), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252)))
+		rects["cache"] = Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5 + _cache_shift()), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252))
 	if not (bundle.get("best_upgrade", {}) as Dictionary).is_empty():
-		rects.append(Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84)))
-	ph.draw.connect(func():
-		for r in rects:
-			var pts := GemDraw.chamfer_rect(r, 10.0)
-			ph.draw_colored_polygon(pts, Color(UITokens.PAPER_2.r, UITokens.PAPER_2.g, UITokens.PAPER_2.b, 0.55))
-			GemDraw.outline(ph, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), 1.0))
-	root.add_child(ph)
-	root.move_child(ph, root.get_children().find(_sheet) + 1)
-	ph.modulate.a = 0.0
-	ph.create_tween().tween_property(ph, "modulate:a", 1.0, 0.3)
+		rects["best"] = Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84))
+	var at := root.get_children().find(_sheet) + 1
+	for key: String in rects:
+		var r: Rect2 = rects[key]
+		var w := Control.new()
+		w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		w.position = r.position
+		w.size = r.size
+		w.draw.connect(func():
+			# v3.1 well: glass at 0.4 with one 1 dpx hairline.
+			var pts := GemDraw.chamfer_rect(Rect2(Vector2.ZERO, w.size), 10.0)
+			w.draw_colored_polygon(pts, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.4))
+			GemDraw.outline(w, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), UIKit.line_px(1.0)))
+		root.add_child(w)
+		root.move_child(w, at)
+		w.modulate.a = 0.0
+		w.create_tween().tween_property(w, "modulate:a", 1.0, 0.3)
+		_wells[key] = w
+
+
+## The row `key` landed: its well fades out.
+func _land_well(key: String) -> void:
+	var w: Control = _wells.get(key)
+	if w == null or not is_instance_valid(w):
+		return
+	_wells.erase(key)
+	var tw := w.create_tween()
+	tw.tween_property(w, "modulate:a", 0.0, 0.2)
+	tw.tween_callback(w.queue_free)
 
 
 # ------------------------------------------------------------------ shared builders
@@ -283,12 +306,13 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 	var fs := UIKit.fit_size(text, w - 80.0, 76 if won else 72, 44)
 	var title: Label
 	if won:
-		title = UIKit.number(text, fs, false, UIKit.ON_SCENE)
-		# A soft 0-offset slate glow (3 px), no offset shadow / extrude.
-		title.add_theme_color_override("font_shadow_color", Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.42))
-		title.add_theme_constant_override("shadow_offset_x", 0)
-		title.add_theme_constant_override("shadow_offset_y", 0)
-		title.add_theme_constant_override("shadow_outline_size", 6)
+		# §5: a title is Bold (ExtraBold is kept for the big numbers). v3.1: warm white with a soft
+		# warm-amber glow beneath it (a feathered halo, never a text outline or emboss).
+		title = UIKit.number(text, fs, false, Color("#FFFBF2"))
+		title.add_theme_font_override("font", UIKit.font_w("bold"))
+		title.add_theme_constant_override("outline_size", 0)
+		title.add_theme_constant_override("shadow_outline_size", 0)
+		title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 	else:
 		title = UIKit.gradient_heading(text, fs, UIKit.ON_SCENE, Color("#E9EDF3"), Color("#B9C3D2"))
 		UIKit.soft_shadow(title, fs, 1.4)
@@ -299,6 +323,13 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 	holder.add_child(title)
 	if not won:
 		HudView._halo_behind(title, UIKit.font_w("extrabold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, 0.8)
+	else:
+		# The feathered warm glow under the warm-white title (reads on the amber band; no stroke).
+		var tw := UIKit.font_w("bold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var hg := HudView._halo_behind(title, tw * 0.92, 1.0)
+		hg.modulate = Color(0.62, 0.3, 0.04, 0.42)
+		hg.size.y = title.size.y * 1.1
+		hg.position.y = (title.size.y - hg.size.y) * 0.5 + 4.0
 	var line := _TitleLine.new()
 	line.visible = not won
 	line.won = won
@@ -328,14 +359,9 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 ## Title label for a result Ribbon band (HudView's legacy panel): warm white on the amber band
 ## (win) or ink on the cool cream band (loss); soft shadow, no stroke.
 static func ribbon_title(text: String, won: bool, size := 56) -> Label:
-	var l: Label
-	if won:
-		l = UIKit.number(text, size, false, UIKit.CTA_TEXT)
-		l.add_theme_color_override("font_shadow_color", Color(0.55, 0.27, 0.05, 0.45))
-		l.add_theme_constant_override("shadow_offset_y", 2)
-		l.add_theme_constant_override("shadow_outline_size", 6)
-	else:
-		l = UIKit.number(text, size, false, UIKit.INK)
+	# v3.1: Bold, flat (no emboss / offset shadow, §3.2).
+	var l := UIKit.number(text, size, false, UIKit.CTA_TEXT if won else UIKit.INK)
+	l.add_theme_font_override("font", UIKit.font_w("bold"))
 	return l
 
 
@@ -378,13 +404,13 @@ static func drip_strip(rows: Array, w: float) -> HBoxContainer:
 	hb.alignment = BoxContainer.ALIGNMENT_CENTER
 	hb.add_theme_constant_override("separation", 12)
 	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hb.size = Vector2(w, 84)
+	hb.size = Vector2(w, DRIP_H)
 	for r in rows:
 		if not r is Dictionary or str((r as Dictionary).get("id", "")) == "":
 			continue
 		var c := DripChip.new()
 		c.data = r
-		c.custom_minimum_size = Vector2(minf(312.0, (w - 8.0) / maxf(rows.size(), 1) - 12.0), 76)
+		c.custom_minimum_size = Vector2(minf(312.0, (w - 8.0) / maxf(rows.size(), 1) - 12.0), DRIP_H)
 		hb.add_child(c)
 	return hb
 
@@ -418,12 +444,12 @@ static func best_row(best: Dictionary, w: float, on_tap: Callable) -> Control:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 0)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(UIKit.section(Loc.t("BEST_UPGRADE"), 18))
+	v.add_child(UIKit.section(Loc.t("BEST_UPGRADE"), 20))
 	var lv := int(best.get("to_lvl", 0))
 	var txt := Loc.t(str(best.get("label", "")))
 	if lv > 0:
 		txt += " · " + Loc.f("LV", [lv])
-	var nm := UIKit.label(txt, UIKit.fit_size(txt, w - 330.0, 26, 18), UIKit.INK, true)
+	var nm := UIKit.label(txt, UIKit.fit_size(txt, w - 330.0, 26, 22, false), UIKit.INK)
 	v.add_child(nm)
 	row.add_child(v)
 	var cost := HBoxContainer.new()
@@ -512,10 +538,10 @@ func _build_coins() -> void:
 	_odo.clip_contents = true
 	_coin_block.add_child(_odo)
 	var coins := bundle.get("coins", {}) as Dictionary
-	var parts := UIKit.label("%s %s  ·  %s %s" % [Loc.t("COINS_BASE"), Loc.num(int(coins.get("victory", 0))), Loc.t("COINS_COLLECTED"), Loc.num(int(coins.get("pickups", 0)))], 20, UIKit.INK_DIM)
+	var parts := UIKit.label("%s %s  ·  %s %s" % [Loc.t("COINS_BASE"), Loc.num(int(coins.get("victory", 0))), Loc.t("COINS_COLLECTED"), Loc.num(int(coins.get("pickups", 0)))], 22, UIKit.INK_DIM)
 	parts.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	parts.size = Vector2(_vp.x, 28)
-	parts.position = Vector2(0, 122)
+	parts.size = Vector2(_vp.x, 30)
+	parts.position = Vector2(0, 120)
 	parts.modulate.a = 0.0
 	parts.name = "Parts"
 	_coin_block.add_child(parts)
@@ -641,6 +667,7 @@ func _step_stats() -> void:
 				c.create_tween().tween_property(c, "scale", Vector2.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 				Audio.note(7 + _crowns.find(c) * 2, -9.0)
 				if (c as CrownSlot).fresh:
+					(c as CrownSlot).play()
 					UIJuice.haptic("THUD", 0.6)
 					UIKit.sparkles(root, c.get_global_rect().get_center(), UIKit.GOLD_LIGHT, 14, 120.0)
 			else:
@@ -652,6 +679,7 @@ func _step_stats() -> void:
 func _step_rewards() -> void:
 	step = 5
 	_fly_rewards()
+	_land_well("drip")
 	_drip.create_tween().tween_property(_drip, "modulate:a", 1.0, 0.25)
 	var k := 0
 	for c in _drip.get_children():
@@ -712,6 +740,7 @@ func _step_cache() -> void:
 		return
 	var cd: Dictionary = caches[0]
 	var type := str(cd.get("type", "stone"))
+	_land_well("cache")
 	if bool(cd.get("inline", false)):
 		_inline = InlineReveal.new()
 		_inline.setup(cd.get("reveal", {}))
@@ -723,7 +752,7 @@ func _step_cache() -> void:
 		# The reveal is tall: "Далі" steps aside while it plays (no overlap with its coin line).
 		_next_btn.create_tween().tween_property(_next_btn, "modulate:a", 0.0, 0.15)
 		_next_btn.disabled = true
-		var title := UIKit.label(Loc.f("CACHE_EARNED", [Loc.t(str((EconData.CACHES[type] as Dictionary)["name"]))]), 26, UIKit.INK, true)
+		var title := UIKit.label(Loc.f("CACHE_EARNED", [Loc.t(str((EconData.CACHES[type] as Dictionary)["name"]))]), 26, UIKit.INK)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title.size = Vector2(_vp.x, 34)
 		title.position = Vector2(0, 0)
@@ -780,16 +809,16 @@ func _cache_card(type: String, vault_index: int) -> Control:
 	var x0 := UITokens.GUTTER + 230.0
 	var cw := _vp.x - x0 - UITokens.GUTTER - 18.0
 	var nm := Loc.t(str((EconData.CACHES[type] as Dictionary)["name"]))
-	var t := UIKit.label(nm, UIKit.fit_size(nm, cw, 32, 22), UIKit.INK, true)
+	var t := UIKit.label(nm, UIKit.fit_size(nm, cw, 30, 22, false), UIKit.INK)
 	t.position = Vector2(x0, 36)
 	t.size = Vector2(cw, 40)
 	box.add_child(t)
 	var g := str((EconData.CACHES[type] as Dictionary).get("guaranteed", ""))
 	if g != "" and ArsenalData.RARITIES.has(g):
-		var gl := UIKit.label(Loc.f("ODDS_GUARANTEED", [Loc.t(str((ArsenalData.RARITIES[g] as Dictionary)["name"]))]), 19, UIKit.INK_DIM)
+		var gl := UIKit.label(Loc.f("ODDS_GUARANTEED", [Loc.t(str((ArsenalData.RARITIES[g] as Dictionary)["name"]))]), 22, UIKit.INK_DIM)
 		gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		gl.position = Vector2(x0, 80)
-		gl.size = Vector2(cw, 50)
+		gl.size = Vector2(cw, 56)
 		box.add_child(gl)
 	UIJuice.soft_in(card, Vector2(0, 16))
 	UIJuice.pop(gem, 0.08, UITokens.ENTER, 0.8)
@@ -801,7 +830,7 @@ func _cache_card(type: String, vault_index: int) -> Control:
 		r.add_theme_constant_override("separation", 10)
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		r.add_child(Icons.make("vault", 36.0))
-		var rl := UIKit.label(Loc.t("RF_TO_VAULT"), 24, UIKit.INK, true)
+		var rl := UIKit.label(Loc.t("RF_TO_VAULT"), 24, UIKit.INK)
 		rl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		rl.size_flags_vertical = Control.SIZE_FILL
 		r.add_child(rl)
@@ -830,7 +859,7 @@ func _cache_card(type: String, vault_index: int) -> Control:
 		var tw := open.create_tween()
 		tw.tween_property(open, "modulate:a", 0.0, 0.2)
 		tw.tween_callback(func(): open.visible = false)
-		var note := UIKit.label(Loc.t("RF_IN_VAULT"), 22, UIKit.INK_DIM, true)
+		var note := UIKit.label(Loc.t("RF_IN_VAULT"), 22, UIKit.INK_DIM)
 		note.position = Vector2(x0, 160)
 		note.size = Vector2(cw, 34)
 		box.add_child(note)
@@ -877,6 +906,7 @@ func _show_final() -> void:
 		_left = true
 		_land_all()
 		upgrade.emit(id))
+	_land_well("best")
 	_best.position = Vector2(UITokens.GUTTER, _next_btn.position.y - 102)
 	_best.size = Vector2(_vp.x - UITokens.GUTTER * 2.0, 84)
 	root.add_child(_best)
@@ -919,6 +949,7 @@ func skip_to_final() -> void:
 	for c in _crowns:
 		c.modulate.a = 1.0
 	_drip.modulate.a = 1.0
+	_land_well("drip")
 	for c in _drip.get_children():
 		(c as DripChip).fill()
 	_fly_rewards()
@@ -959,76 +990,90 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ widgets
 
-## The stairs multiplier stamp: an amber chamfered seal (the CTA jewel's colours, a fine rim
-## and an inner light line) with "×3.2" in warm white - no stroke, a soft amber shadow.
+## The stairs multiplier seal (v3.1): a porcelain glass plate with ONE 1 dpx deep-gold frame and
+## a 1 dpx light line inside it, one soft halo shadow, the number in deep amber ink (no emboss) and
+## a small cut-gem diamond on the top edge. It stamps in juicily; it never reads as a second CTA.
 class Stamp extends Control:
-	## The stairs multiplier seal (UI v2 polish): a porcelain plate with a double gold hairline,
-	## an amber number and a topaz keystone on the top edge - it stamps in juicily, but it is
-	## no longer an amber slab that reads as a second button next to the CTA.
 	var text := "×2"
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		draw_texture_rect(UIKit.glow_texture(), r.grow(22), false, Color(1.0, 0.78, 0.36, 0.3))
+		var sc := UITokens.SCRIM
+		var tex := UIKit.glow_texture()
+		draw_texture_rect(tex, r.grow(22), false, Color(1.0, 0.8, 0.42, 0.26))
+		draw_texture_rect(tex, Rect2(r.position + Vector2(-14, -4), r.size + Vector2(28, 22)), false, Color(sc.r, sc.g, sc.b, 0.16))
 		var pts := GemDraw.chamfer_rect(r, 12.0)
-		for i in 4:
-			var sp := PackedVector2Array()
-			for p in pts:
-				sp.append(p + Vector2(0, 2.0 + i * 1.5))
-			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.06))
+		var p0 := UITokens.PAPER_0
+		var p1 := UITokens.PAPER_1
 		var cols := PackedColorArray()
 		for p in pts:
-			cols.append(UITokens.PAPER_0.lerp(UITokens.PAPER_2, clampf(p.y / maxf(size.y, 1.0), 0.0, 1.0)))
+			cols.append(Color(p0.r, p0.g, p0.b, 0.96).lerp(Color(p1.r, p1.g, p1.b, 0.96), clampf(p.y / maxf(size.y, 1.0), 0.0, 1.0)))
 		draw_polygon(pts, cols)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-5.0), 8.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5), 1.0)
+		var lw := UIKit.line_px(1.0)
+		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-lw - UIKit.px(0.5)), 11.0), Color(1, 1, 1, 0.75), UIKit.px(1.0))
+		GemDraw.outline(self, pts, UITokens.LINE_GOLD_DEEP, lw)
 		var f := UIKit.font_w("extrabold")
 		var fs := 46
 		while fs > 26 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 26.0:
 			fs -= 2
 		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var p := Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.36 + 2.0)
-		draw_string(f, p + Vector2(0, 1.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.98, 0.9, 0.9))
-		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.CTA_LO.darkened(0.12))
-		GemDraw.draw_keystone(self, Vector2(size.x * 0.5, 0.0), 16.0, 1.0, Color(1.0, 0.86, 0.5))
+		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS.lerp(UITokens.CTA_LO, 0.4))
+		GemDraw.draw_diamond(self, Vector2(size.x * 0.5, 0.0), 12.0, UITokens.TOPAZ, UITokens.LINE_GOLD_DEEP)
 
 
-## One Crown of the 3 as a gold gem mark: a topaz star-cut gem in its gold bezel (won), or
-## the empty engraved bezel; a new best breathes a warm glow and a glint.
+## One Crown of the 3 (v3.1): a topaz cushion gem set in a gold bezel (a gold gradient, ONE
+## 1 dpx deep-gold edge and a 1 dpx light line inside, one soft halo shadow) under the painted
+## crown; an empty Crown is a whisper of glass with a 1 dpx gold line. A new best gets a warm
+## glow and ONE glint that plays once (nothing breathes).
 class CrownSlot extends Control:
 	var on := false
 	var fresh := false
 	var big := false
 	var _t := 0.0
 
+	func _ready() -> void:
+		set_process(false)
+
+	## The one-shot glint of a new best (called when the Crown stamps in).
+	func play() -> void:
+		_t = 0.0
+		set_process(fresh and on)
+
 	func _process(delta: float) -> void:
-		if fresh and on:
-			_t = fmod(_t + delta, 100.0)
-			queue_redraw()
+		_t += delta
+		if _t > 1.4:
+			set_process(false)
+		queue_redraw()
 
 	func _draw() -> void:
 		var s := minf(size.x, size.y) * 0.66
 		var c := size * 0.5 + Vector2(0, s * 0.14)
-		var bez := GemDraw.chamfer_rect(Rect2(c - Vector2(s * 0.42, s * 0.52), Vector2(s * 0.84, s * 1.04)), s * 0.24)
+		var br := Rect2(c - Vector2(s * 0.42, s * 0.52), Vector2(s * 0.84, s * 1.04))
+		var bez := GemDraw.chamfer_rect(br, s * 0.24)
 		var crown := Rect2(c + Vector2(-s * 0.36, -s * 1.08), Vector2(s * 0.72, s * 0.72))
+		var tex := UIKit.glow_texture()
+		var lw := UIKit.line_px(1.0)
 		if on:
-			var k := 0.5 + 0.18 * sin(_t * 3.0) if fresh else 0.3
-			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(s, s) * 1.3, Vector2(s, s) * 2.6), false, Color(1.0, 0.8, 0.38, k))
-			var sh := PackedVector2Array()
+			draw_texture_rect(tex, Rect2(c - Vector2(s, s) * 1.3, Vector2(s, s) * 2.6), false, Color(1.0, 0.8, 0.38, 0.46 if fresh else 0.28))
+			var sc := UITokens.SCRIM
+			draw_texture_rect(tex, Rect2(br.position + Vector2(-s * 0.3, -s * 0.1), br.size + Vector2(s * 0.6, s * 0.5)), false, Color(sc.r, sc.g, sc.b, 0.22))
+			var cols := PackedColorArray()
 			for p in bez:
-				sh.append(p + Vector2(0, 2.5))
-			draw_colored_polygon(sh, Color(0.2, 0.12, 0.04, 0.3))
-			draw_colored_polygon(bez, UITokens.HAIRLINE)
-			GemDraw.outline(self, bez, Color(0.45, 0.32, 0.12, 0.7), 1.2)
-			GemDraw.draw_gem(self, "cushion", c, s * 0.82, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"))
+				cols.append(Color("#F4E2B4").lerp(Color("#C9A25E"), clampf((p.y - br.position.y) / br.size.y, 0.0, 1.0)))
+			draw_polygon(bez, cols)
+			GemDraw.outline(self, GemDraw.chamfer_rect(br.grow(-lw - UIKit.px(0.5)), s * 0.24 - 1.0), Color(1, 1, 1, 0.6), UIKit.px(1.0))
+			GemDraw.outline(self, bez, UITokens.LINE_GOLD_DEEP, lw)
+			GemDraw.draw_gem(self, "cushion", c, s * 0.8, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"))
 			Icons.draw_icon(self, "crown", crown)
-			if fresh:
-				var g := 0.5 + 0.5 * sin(_t * 2.2)
-				GemDraw.draw_glint(self, c + Vector2(-s * 0.16, -s * 0.2), s * 0.55 * g, Color(1, 1, 1, 0.9 * g))
+			if fresh and _t > 0.0 and _t < 1.4:
+				var g := sin(clampf(_t / 1.4, 0.0, 1.0) * PI)
+				GemDraw.draw_glint(self, c + Vector2(-s * 0.16, -s * 0.2), s * 0.6 * g, Color(1, 1, 1, 0.9 * g))
 		else:
-			draw_colored_polygon(bez, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.1))
-			GemDraw.outline(self, bez, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.55), 1.5)
-			Icons.draw_icon(self, "crown", crown, Color(1, 1, 1, 0.22))
+			draw_colored_polygon(bez, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.14))
+			GemDraw.outline(self, bez, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.7), lw)
+			GemDraw.draw_diamond(self, c, 10.0, Color("#F3E2B8"), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.8), 0.6)
+			Icons.draw_icon(self, "crown", crown, Color(1, 1, 1, 0.24))
 
 
 ## A machine on its rarity's gem ground (a small chamfered square: gradient, light pool, the
@@ -1081,8 +1126,8 @@ class GemThumb extends Control:
 			var k := icon if icon != "" else id
 			Icons.draw_icon(self, k, r.grow(-side * 0.14))
 		var rim: Color = g["rim"]
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-2.5), ch - 1.0), Color(rim.r, rim.g, rim.b, 0.7), 1.0)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-2.5), ch - 1.0), Color(rim.r, rim.g, rim.b, 0.6), UIKit.px(1.0))
+		GemDraw.outline(self, pts, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0))
 
 
 ## One machine's run drip: a cream chip with the machine on its gem square, the name and the
@@ -1129,50 +1174,60 @@ class DripChip extends Control:
 		var r := Rect2(Vector2.ZERO, size)
 		draw_style_box(UIKit.lux("plate"), r)
 		var id := str(data.get("id", ""))
-		var f := UIKit.font_w("bold")
+		var fb := UIKit.font_w("bold")
 		var fm := UIKit.font_w("medium")
 		var x0 := 80.0
 		var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else id
-		var fs := UIKit.fit_size(nm, size.x - x0 - 12.0, 20, 18)
-		draw_string(f, Vector2(x0, 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.INK)
+		var fs := UIKit.fit_size(nm, size.x - x0 - 12.0, 22, 18, false)
+		draw_string(fm, Vector2(x0, 29), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.INK)
 		var need := maxi(int(data.get("bp_need", 1)), 1)
 		var before := float(data.get("bp_before", 0)) + 0.0
 		var after := float(data.get("bp_after", before)) + float(data.get("frac", 0.0)) * (1.0 if k >= 1.0 else k)
 		var shown := lerpf(before, after, k)
-		var br := Rect2(Vector2(x0, 40), Vector2(size.x - x0 - 14.0, 10))
-		var tp := GemDraw.chamfer_rect(br, 3.0)
-		draw_colored_polygon(tp, UITokens.PAPER_3)
+		# §7.5 progress: a 1 dpx hairline frame round a 4 px glass track, a flat amber fill with a
+		# 1 dpx table light; a small diamond lights at the end when the bar is full.
+		var br := Rect2(Vector2(x0, 37), Vector2(size.x - x0 - 16.0, 8))
 		var fk := clampf(shown / need, 0.0, 1.0)
+		var tp := GemDraw.chamfer_rect(br, 3.0)
+		draw_colored_polygon(tp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.55))
+		var tr := br.grow(-2.0)
+		draw_colored_polygon(GemDraw.chamfer_rect(tr, 1.5), Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.5))
 		if fk > 0.0:
-			var fr := Rect2(br.position, Vector2(maxf(br.size.x * fk, 6.0), br.size.y))
-			var fp := GemDraw.chamfer_rect(fr, 3.0)
+			var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * fk, 3.0), tr.size.y))
+			var fp := GemDraw.chamfer_rect(fr, 1.5)
 			var cols := PackedColorArray()
 			for p in fp:
-				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
+				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
 			draw_polygon(fp, cols)
-		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.0)
+			var ty := GemDraw.pixel_y(self, fr.position.y + 0.5)
+			draw_line(Vector2(fr.position.x + 1.0, ty), Vector2(fr.end.x - 1.0, ty), Color(1.0, 0.98, 0.9, 0.85), -1.0)
+		GemDraw.outline(self, tp, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
+		if fk >= 1.0:
+			GemDraw.draw_diamond(self, Vector2(br.end.x, br.get_center().y), 11.0, UITokens.TOPAZ, UITokens.LINE_GOLD_DEEP)
 		var bt := "%d / %d" % [int(floor(shown + 0.001)), need]
-		draw_string(fm, Vector2(x0, size.y - 9.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIKit.INK_DIM)
+		draw_string(fm, Vector2(x0, size.y - 10.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIKit.INK_DIM)
 		var gain := int(data.get("bp_after", 0)) - int(data.get("bp_before", 0))
 		if gain > 0:
 			var gt := "+%d" % gain
-			var gw := f.get_string_size(gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-			draw_string(f, Vector2(size.x - 14.0 - gw, size.y - 9.0), gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIKit.GOLD_TEXT)
+			var gw := fb.get_string_size(gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+			draw_string(fb, Vector2(size.x - 16.0 - gw, size.y - 10.0), gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.GOLD_TEXT_GLASS)
 
 
-## The gold hairline under a result title: marquise terminals, a crystal keystone, fading ends.
+## The gold hairline under a result title (v3.1): ONE device px, marquise terminals, a small
+## cut-gem diamond at the centre, fading ends.
 class _TitleLine extends Control:
 	var won := true
 
 	func _draw() -> void:
-		var y := size.y * 0.5
-		var col := UITokens.GOLD_HI if won else Color(0.86, 0.88, 0.92, 0.85)
-		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), col, 1.5, true, true)
+		var y := GemDraw.pixel_y(self, size.y * 0.5)
+		var col := UITokens.GOLD_HI if won else Color(0.88, 0.9, 0.94, 0.9)
+		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), col, 1.0, true, true)
 
 
-## The victory band (§6.8): an amber band across the width whose alpha fades to 0 over the
-## outer 18 % at each side, 1.5 px gold hairlines top and bottom with crystal keystones; it
-## wipes in from the centre (`reveal` 0..1).
+## The victory band (§6.8, v3.1 §7.10): an amber band across the width whose alpha fades to 0
+## over the outer 18 % at each side, with ONE 1 dpx light-gold rule top and bottom (fading with
+## the band) and a small cut-gem diamond at the centre of each rule; it wipes in from the centre
+## (`reveal` 0..1).
 class _VictoryBand extends Control:
 	var reveal := 0.0:
 		set(v):
@@ -1190,8 +1245,8 @@ class _VictoryBand extends Control:
 		var xs := [x0, lerpf(x0, x1, 0.18), lerpf(x0, x1, 0.82), x1]
 		var ax := [0.0, 1.0, 1.0, 0.0]
 		var ys := [10.0, h * 0.5, h - 10.0]
-		var cs := [Color("#F7C46A"), Color("#EFA445"), Color("#D98632")]
-		var a := 0.94
+		var cs := [Color("#F9CB78"), Color("#F0A84B"), Color("#DD8D36")]
+		var a := 0.92
 		for j in 2:
 			for i in 3:
 				var c00: Color = cs[j]
@@ -1200,13 +1255,16 @@ class _VictoryBand extends Control:
 						PackedColorArray([Color(c00, a * ax[i]), Color(c00, a * ax[i + 1]), Color(c10, a * ax[i + 1]), Color(c10, a * ax[i])]))
 		# Soft light across the top third.
 		draw_polygon(PackedVector2Array([Vector2(xs[1], ys[0]), Vector2(xs[2], ys[0]), Vector2(xs[2], h * 0.36), Vector2(xs[1], h * 0.36)]),
-				PackedColorArray([Color(1, 1, 1, 0.18), Color(1, 1, 1, 0.18), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)]))
-		var gl := UITokens.GOLD_HI
-		for y: float in [6.0, h - 6.0]:
-			for i in 3:
-				draw_polygon(PackedVector2Array([Vector2(xs[i], y - 0.75), Vector2(xs[i + 1], y - 0.75), Vector2(xs[i + 1], y + 0.75), Vector2(xs[i], y + 0.75)]),
-						PackedColorArray([Color(gl, ax[i]), Color(gl, ax[i + 1]), Color(gl, ax[i + 1]), Color(gl, ax[i])]))
-		for x: float in [xs[1], xs[2]]:
-			for y: float in [6.0, h - 6.0]:
-				GemDraw.draw_keystone(self, Vector2(x, y), 14.0, reveal, Color(1.0, 0.92, 0.7))
-		GemDraw.draw_keystone(self, Vector2(w * 0.5, h - 6.0), 20.0, reveal, Color(1.0, 0.92, 0.7))
+				PackedColorArray([Color(1, 1, 1, 0.16), Color(1, 1, 1, 0.16), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)]))
+		# The rules: one device px (1.25 at 540-class), light gold, fading with the band ends;
+		# a gap at the centre holds the diamond.
+		var lw := -1.0 if UIKit.ui_scale() >= 0.9 else UIKit.line_px(1.0)
+		var gl := Color("#FFEFC6")
+		var cx := w * 0.5
+		for yy: float in [5.0, h - 5.0]:
+			var y := GemDraw.pixel_y(self, yy)
+			var l_pts := PackedVector2Array([Vector2(xs[0], y), Vector2(xs[1], y), Vector2(cx - 10.0, y)])
+			var r_pts := PackedVector2Array([Vector2(cx + 10.0, y), Vector2(xs[2], y), Vector2(xs[3], y)])
+			draw_polyline_colors(l_pts, PackedColorArray([Color(gl, 0.0), Color(gl, 0.92), Color(gl, 0.92)]), lw)
+			draw_polyline_colors(r_pts, PackedColorArray([Color(gl, 0.92), Color(gl, 0.92), Color(gl, 0.0)]), lw)
+			GemDraw.draw_diamond(self, Vector2(cx, y), 11.0, Color("#FFF0C2"), UITokens.LINE_GOLD_DEEP, reveal)

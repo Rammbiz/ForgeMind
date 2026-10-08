@@ -64,7 +64,7 @@ func _ready() -> void:
 	_egg.frame_k = 1.45
 	add_child(_egg)
 	# It plays on the cream result sheet: ink / gold text, no strokes.
-	_hint = UIKit.label(Loc.t("TAP_TO_CRACK"), 22, UIKit.GOLD_TEXT, true)
+	_hint = UIKit.label(Loc.t("TAP_TO_CRACK"), 24, UIKit.GOLD_TEXT_GLASS)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
@@ -109,7 +109,7 @@ func _layout() -> void:
 	_rays.size = Vector2(EGG * 2.2, EGG * 2.2)
 	_rays.position = Vector2(w * 0.5, EGG * 0.5) - _rays.size * 0.5
 	_hint.size = Vector2(w, 34)
-	_hint.position = Vector2(0, EGG + 40)
+	_hint.position = Vector2(0, EGG + (52 if compact else 40))
 	for i in _cards.size():
 		_cards[i].position = slot(i)
 	_coins_row.size = Vector2(w, 44)

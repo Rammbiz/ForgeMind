@@ -137,7 +137,7 @@ func _build_top() -> void:
 	var mark := Icons.make("map", 28.0, UIKit.GOLD_TEXT)
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lrow.add_child(mark)
-	_level_lbl = UIKit.label(Loc.f("LEVEL", [level]), 24, UIKit.INK, true)
+	_level_lbl = UIKit.label(Loc.f("LEVEL", [level]), 24, UIKit.INK)
 	_level_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_level_lbl.size_flags_vertical = Control.SIZE_FILL
 	lrow.add_child(_level_lbl)
@@ -238,7 +238,7 @@ func _build_drag_hint() -> void:
 	_drag.add_child(anim)
 	var p := UIKit.pill()
 	p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var l := UIKit.label(Loc.t("DRAG_HINT"), 26, UIKit.INK, true)
+	var l := UIKit.label(Loc.t("DRAG_HINT"), 26, UIKit.INK)
 	p.add_child(l)
 	_drag.add_child(p)
 	_drag.visible = false
@@ -277,7 +277,7 @@ func _build_hint() -> void:
 	_hint_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hint_badge.icon_scale = 0.78
 	row.add_child(_hint_badge)
-	_hint_lbl = UIKit.label("", 26, UIKit.INK, true)
+	_hint_lbl = UIKit.label("", 26, UIKit.INK)
 	_hint_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hint_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(_hint_lbl)
@@ -299,7 +299,7 @@ func _place_hint() -> void:
 
 ## Greedy word wrap of `text` to lines no wider than `max_w` at font size `px`.
 static func _wrap_text(text: String, max_w: float, px: int) -> String:
-	var font := UIKit.font(true)
+	var font := UIKit.font(false)
 	var lines: PackedStringArray = []
 	var line := ""
 	for word in text.split(" ", false):
@@ -431,7 +431,7 @@ func pill_toast(text: String, icon := "", color := UIKit.GOLD) -> void:
 		b.custom_minimum_size = Vector2(48, 48)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(b)
-	var l := UIKit.label(text, 28, UIKit.INK, true)
+	var l := UIKit.label(text, 28, UIKit.INK)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.size_flags_vertical = Control.SIZE_FILL
 	row.add_child(l)
@@ -710,8 +710,9 @@ func _open_modal(kind: String, rays := false, ray_color := Color(1.0, 0.85, 0.45
 	_modal.process_mode = Node.PROCESS_MODE_ALWAYS
 	_modal.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_modal)
-	# Warm translucent scrim + vignette (no blur): the road and its gate numbers recede.
-	var dim := ResultFlow.scrim(get_viewport_rect().size, 0.62, 0.8)
+	# v3.1 (§1.2): the modal dim (0.42, deeper toward the bottom) + vignette, no blur: the road
+	# and its gate numbers recede, the room stays light; the flat 0.97 modal carries the focus.
+	var dim := ResultFlow.scrim(get_viewport_rect().size, UITokens.SCRIM_MODAL, UITokens.SCRIM_MODAL + 0.14)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_modal.add_child(dim)
 	if rays:
@@ -745,7 +746,8 @@ func show_pause() -> void:
 	var cap := UIKit.section(Loc.f("LEVEL", [level]))
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(cap)
-	var t := UIKit.heading(Loc.t("PAUSED"), 52, UIKit.INK)
+	# §7.1: title 40 Bold ink.
+	var t := UIKit.heading(Loc.t("PAUSED"), 40, UIKit.INK)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
 	var div := UIKit.divider(400.0)
@@ -821,7 +823,7 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 	box.add_child(UIKit.gap(34))
 	var anim: Array[Control] = []
 	if reason != "":
-		var why := UIKit.label(Loc.t(reason), 26, UIKit.INK_DIM, true)
+		var why := UIKit.label(Loc.t(reason), 26, UIKit.INK_DIM)
 		why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(why)
 		anim.append(why)
@@ -831,7 +833,7 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 		srow.add_theme_constant_override("separation", 10)
 		srow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		srow.add_child(Icons.make("soldier", 40.0))
-		srow.add_child(UIKit.label(Loc.f("SURVIVORS", [survivors]), 28, UIKit.INK, true))
+		srow.add_child(UIKit.label(Loc.f("SURVIVORS", [survivors]), 28, UIKit.INK))
 		box.add_child(srow)
 		anim.append(srow)
 	var mult_node: Control = null
@@ -976,6 +978,24 @@ func _coin_row(text: String, value: String, value_color := UIKit.INK, coin := tr
 
 # ------------------------------------------------------------------ drawn widgets
 
+## v3.1 porcelain disc (arms chip, hint / toast icon sockets): ONE soft halo shadow, a glass
+## cream disc (no gloss blob), a 1 dpx light arc on the upper left, one 1 dpx gold ring and a
+## 1 dpx accent ring inside it. `glow` > 0 adds a static warm glow in the accent colour.
+static func _glass_disc(ci: CanvasItem, c: Vector2, r: float, accent: Color, glow := 0.0) -> void:
+	var sc := UITokens.SCRIM
+	var tex := UIKit.glow_texture()
+	if glow > 0.0:
+		ci.draw_texture_rect(tex, Rect2(c - Vector2(r, r) * 1.6, Vector2(r, r) * 3.2), false, Color(accent.r, accent.g, accent.b, glow))
+	ci.draw_texture_rect(tex, Rect2(c - Vector2(r * 1.35, r * 1.2) + Vector2(0, 3), Vector2(r * 2.7, r * 2.7)), false, Color(sc.r, sc.g, sc.b, 0.2))
+	var p0 := UITokens.PAPER_0
+	ci.draw_circle(c, r, Color(p0.r, p0.g, p0.b, 0.92), true, -1.0, true)
+	ci.draw_texture_rect(tex, Rect2(c - Vector2(r, r) * 0.8, Vector2(r, r) * 1.6), false, Color(accent.r, accent.g, accent.b, 0.14))
+	var lw := UIKit.line_px(1.0)
+	ci.draw_arc(c, r - UIKit.px(1.5), PI * 1.05, PI * 1.7, 24, Color(1, 1, 1, 0.8), UIKit.px(1.0), true)
+	ci.draw_arc(c, r - lw * 0.5, 0, TAU, 56, UITokens.LINE_GOLD_DEEP, lw, true)
+	ci.draw_arc(c, r - 4.0, 0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.5), UIKit.px(1.0), true)
+
+
 ## Machine slot of the column (§3.7), v2: a small gem-ground card (the rarity's gradient, its
 ## faint light pool, a gold hairline and an inner rim in the gem's light tone, the gem-cut mark
 ## top-left) with the machine render (or its painted icon), the Rank as facet pips on a cream
@@ -1047,19 +1067,17 @@ class WeaponSlot extends Control:
 		var ch := 9.0
 		var pts := GemDraw.chamfer_rect(r, ch)
 		var sc := UITokens.SCRIM
+		var lw := UIKit.line_px(1.0)
 		if kind == "":
-			draw_colored_polygon(pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.26))
-			GemDraw.outline(self, pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.55), 1.5)
-			GemDraw.draw_keystone(self, r.get_center(), 14.0, 0.5)
+			# v3.1: an empty socket = a whisper of glass, one 1 dpx light line, a small diamond.
+			draw_colored_polygon(pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.2))
+			GemDraw.outline(self, pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.62), lw)
+			GemDraw.draw_keystone(self, r.get_center(), 10.0, 0.55)
 			return
-		# Family glow (the machine's accent) round the card, brighter on a flash.
-		draw_texture_rect(UIKit.glow_texture(), r.grow(16), false, Color(color.r, color.g, color.b, 0.2 + _flash * 0.6))
-		for i in 4:
-			var o := Vector2(0, 2.0 + i * 1.5)
-			var sp := PackedVector2Array()
-			for p in pts:
-				sp.append(p + o)
-			draw_colored_polygon(sp, Color(sc.r, sc.g, sc.b, 0.08))
+		# Family glow (the machine's accent) round the card, brighter on a flash; one soft halo
+		# shadow under it (no stacked offset slabs).
+		draw_texture_rect(UIKit.glow_texture(), Rect2(r.position + Vector2(-10, -4), r.size + Vector2(20, 22)), false, Color(sc.r, sc.g, sc.b, 0.22))
+		draw_texture_rect(UIKit.glow_texture(), r.grow(16), false, Color(color.r, color.g, color.b, 0.18 + _flash * 0.6))
 		var g: Dictionary = UITokens.gem(gem)
 		var top: Color = g["top"]
 		var bot: Color = g["bot"]
@@ -1077,40 +1095,34 @@ class WeaponSlot extends Control:
 			Icons.draw_icon(self, kind, Rect2(ir.position + Vector2(4, 6), ir.size - Vector2(8, 8)), Color.WHITE)
 		if _flash > 0.0:
 			draw_colored_polygon(pts, Color(1, 0.98, 0.9, _flash * 0.55))
+		# v3.1 frame: the gem's light rim 1 dpx inside, ONE 1 dpx gold line outside.
 		var rim: Color = g["rim"]
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-3.0), ch - 1.5), Color(rim.r, rim.g, rim.b, 0.7), 1.0)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-2.5), ch - 1.0), Color(rim.r, rim.g, rim.b, 0.6), UIKit.px(1.0))
+		GemDraw.outline(self, pts, UITokens.LINE_GOLD_DEEP, lw)
 		GemDraw.draw_mark(self, gem, r.position + Vector2(ch + 3.0, ch + 3.0), 13.0)
 		if lvl > 0:
-			# Rank I-III: facet pips on a cream bed across the bottom edge.
+			# Rank I-III: facet pips on a glass bed across the bottom edge (1 dpx line).
 			var pw := 52.0
 			var bed := Rect2(Vector2(r.get_center().x - pw * 0.5, r.end.y - 10.0), Vector2(pw, 18.0))
 			var bp := GemDraw.chamfer_rect(bed, 5.0)
-			draw_colored_polygon(bp, UITokens.PAPER_0)
-			GemDraw.outline(self, bp, UITokens.HAIRLINE, 1.2)
+			draw_colored_polygon(bp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.92))
+			GemDraw.outline(self, bp, UITokens.LINE_GOLD, lw)
 			for i in 3:
 				GemDraw.draw_pip(self, Vector2(bed.get_center().x + (i - 1) * 14.0, bed.get_center().y), 13.0, i < lvl, UITokens.TOPAZ)
 		if over > 0:
-			var f := UIKit.font_w("extrabold")
+			var f := UIKit.font_w("bold")
 			var txt := "+%d%%" % int(round(_over_pct(over) * 100.0))
-			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-			var cr := Rect2(Vector2(r.end.x - w - 10.0, r.position.y - 10.0), Vector2(w + 12.0, 25.0))
-			var cp := GemDraw.chamfer_rect(cr, 5.0)
-			draw_colored_polygon(cp, UITokens.PAPER_0)
-			GemDraw.outline(self, cp, UITokens.HAIRLINE, 1.2)
-			draw_string(f, Vector2(cr.position.x + 6.0, cr.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITokens.GOLD_TEXT)
+			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+			var cr := Rect2(Vector2(r.end.x - w - 8.0, r.position.y - 12.0), Vector2(w + 14.0, 30.0))
+			var cp := GemDraw.chamfer_rect(cr, 6.0)
+			draw_colored_polygon(cp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
+			GemDraw.outline(self, cp, UITokens.LINE_GOLD, lw)
+			draw_string(f, Vector2(cr.position.x + 7.0, cr.end.y - 7.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.GOLD_TEXT_GLASS)
 
 	func _draw_arms() -> void:
 		var c := Vector2(size.x * 0.5, 34.0)
 		var rr := 31.0
-		var sc := UITokens.SCRIM
-		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(rr, rr) * 1.6, Vector2(rr, rr) * 3.2), false, Color(color.r, color.g, color.b, 0.25 + _flash * 0.5))
-		for i in 3:
-			draw_circle(c + Vector2(0, 2.0 + i * 1.2), rr + i, Color(sc.r, sc.g, sc.b, 0.07), true, -1.0, true)
-		draw_circle(c, rr, UITokens.PAPER_1, true, -1.0, true)
-		draw_circle(c + Vector2(0, -rr * 0.1), rr * 0.84, UITokens.PAPER_0, true, -1.0, true)
-		draw_arc(c, rr - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-		draw_arc(c, rr - 4.0, 0, TAU, 48, Color(color.r, color.g, color.b, 0.55), 1.5, true)
+		HudView._glass_disc(self, c, rr, color, 0.25 + _flash * 0.5)
 		if kind != "":
 			var isz := rr * 1.3
 			Icons.draw_icon(self, kind, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)))
@@ -1150,7 +1162,6 @@ class IconBadge extends Control:
 	var big := false
 	var icon := ""
 	var icon_scale := 0.66
-	var _t := 0.0
 
 	func set_icon(k: String) -> void:
 		icon = k
@@ -1159,25 +1170,12 @@ class IconBadge extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	func _process(delta: float) -> void:
-		if big:
-			_t += delta
-			queue_redraw()
-
 	func _draw() -> void:
 		var c := size * 0.5
 		var r := minf(size.x, size.y) * 0.5 - 2.0
-		var sc := UITokens.SCRIM
-		if big:
-			var k := 0.75 + 0.25 * sin(_t * 3.0)
-			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.5, Vector2(r, r) * 3.0), false, Color(ring.r, ring.g, ring.b, 0.45 * k))
-		for i in 3:
-			draw_circle(c + Vector2(0, 1.5 + i), r - 1.0 + i, Color(sc.r, sc.g, sc.b, 0.06), true, -1.0, true)
-		draw_circle(c, r, UITokens.PAPER_1, true, -1.0, true)
-		draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0, true, -1.0, true)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 0.8, Vector2(r, r) * 1.6), false, Color(ring.r, ring.g, ring.b, 0.22))
-		draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-		draw_arc(c, r - 4.0, 0, TAU, 48, Color(ring.r, ring.g, ring.b, 0.6), 1.2, true)
+		# v3.1: a glass disc, one 1 dpx gold ring, a 1 dpx accent ring inside, one halo (a "big"
+		# badge adds a static warm glow: nothing breathes).
+		HudView._glass_disc(self, c, r, ring, 0.4 if big else 0.0)
 		if icon != "":
 			var isz := (r - 4.0) * 2.0 * icon_scale
 			Icons.draw_icon(self, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)))
@@ -1214,13 +1212,11 @@ class DragHand extends Control:
 				draw_circle(p + Vector2(0, 1.5), 3.4, Color(sc.r, sc.g, sc.b, 0.3 * a))
 				draw_circle(p, 2.8, Color(ws.r, ws.g, ws.b, a))
 		for sgn: float in [-1.0, 1.0]:
+			# v3.1: fine chevrons (1.5 dpx warm gold-white) on a soft slate halo, no thick stroke.
 			var tip := Vector2(cx + sgn * (span + 34.0), cy)
-			var arm := PackedVector2Array([tip + Vector2(-sgn * 18.0, -16.0), tip, tip + Vector2(-sgn * 18.0, 16.0)])
-			var sh := PackedVector2Array()
-			for q in arm:
-				sh.append(q + Vector2(0, 2.0))
-			draw_polyline(sh, Color(sc.r, sc.g, sc.b, 0.35), 5.0, true)
-			draw_polyline(arm, Color(1.0, 0.9, 0.62), 3.5, true)
+			var arm := PackedVector2Array([tip + Vector2(-sgn * 16.0, -16.0), tip, tip + Vector2(-sgn * 16.0, 16.0)])
+			draw_texture_rect(UIKit.glow_texture(), Rect2(tip - Vector2(28 + sgn * 6.0, 26), Vector2(56, 52)), false, Color(sc.r, sc.g, sc.b, 0.3))
+			draw_polyline(arm, Color(1.0, 0.93, 0.74), UIKit.px(1.5) + 0.5, true)
 		var s := sin(_t * 2.4)
 		var x := cx + s * span
 		# The fingertip: a porcelain touch disc in a fine gold ring with a gold dot, a soft trail
@@ -1230,9 +1226,10 @@ class DragHand extends Control:
 			var xk := cx + sk * span
 			draw_circle(Vector2(xk, cy), 16.0, Color(ws.r, ws.g, ws.b, 0.12 / k), true, -1.0, true)
 		var ph := fmod(_t * 1.6, 1.0)
-		draw_arc(Vector2(x, cy), 22.0 + ph * 22.0, 0, TAU, 40, Color(1.0, 0.92, 0.7, 0.6 * (1.0 - ph)), 2.0, true)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(40, 40), Vector2(80, 80)), false, Color(1.0, 0.86, 0.5, 0.55))
-		draw_circle(Vector2(x, cy + 3.0), 21.0, Color(sc.r, sc.g, sc.b, 0.22), true, -1.0, true)
-		draw_circle(Vector2(x, cy), 20.0, Color(ws.r, ws.g, ws.b, 0.96), true, -1.0, true)
-		draw_arc(Vector2(x, cy), 20.0, 0, TAU, 40, UITokens.HAIRLINE, 2.0, true)
-		draw_circle(Vector2(x, cy), 6.0, UITokens.CTA, true, -1.0, true)
+		draw_arc(Vector2(x, cy), 22.0 + ph * 22.0, 0, TAU, 40, Color(1.0, 0.92, 0.7, 0.6 * (1.0 - ph)), UIKit.px(1.0), true)
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(40, 40), Vector2(80, 80)), false, Color(1.0, 0.86, 0.5, 0.45))
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(30, 26), Vector2(60, 60)), false, Color(sc.r, sc.g, sc.b, 0.24))
+		draw_circle(Vector2(x, cy), 20.0, Color(ws.r, ws.g, ws.b, 0.94), true, -1.0, true)
+		draw_arc(Vector2(x, cy), 20.0 - UIKit.px(0.5), 0, TAU, 48, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0), true)
+		draw_arc(Vector2(x, cy), 16.0, 0, TAU, 40, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.4), UIKit.px(1.0), true)
+		GemDraw.draw_diamond(self, Vector2(x, cy), 11.0, UITokens.TOPAZ)
