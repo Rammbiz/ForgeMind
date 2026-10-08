@@ -24,6 +24,7 @@ void fragment() {
 	bg *= warm.rgb * page_tint.rgb;
 	float t = alpha_is_tint ? p.a : tint;
 	// Where the strip is most transparent (low t) a little of the sharp scene also shows.
-	float a = alpha_is_tint ? clamp(0.55 + t * 0.5, 0.0, 1.0) : p.a;
+	// (v3.1 fix: 0.30 + 0.8 t: ~54 % of the sharp world at the hairline, ~6 % at the labels.)
+	float a = alpha_is_tint ? clamp(0.30 + t * 0.8, 0.0, 1.0) : p.a;
 	COLOR = vec4(mix(bg, p.rgb, t), a);
 }

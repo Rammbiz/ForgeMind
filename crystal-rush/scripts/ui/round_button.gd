@@ -14,26 +14,86 @@ extends Control
 
 signal pressed
 
-var icon_texture: Texture2D
-var icon_kind := ""
-var icon_tint := Color.WHITE
-var caption := ""
-var caption_color := UIKit.TEXT
-var caption_icon := ""          # e.g. "coin" drawn before caption text
-var badge := ""                 # small text in the top-right corner
-var badge_icon := ""            # small vector icon in a gold coin at the top-right (ult style)
-var radius := 44.0
-var base_color := Color(0.1, 0.12, 0.2, 0.92)
-var ring_color := UIKit.GOLD
-var glow_color := Color(1.0, 0.6, 0.95)
-var ready_color := Color(1.0, 0.78, 0.3)   # ult style: halo and ring once charged (gold reads on any world)
-var disabled := false
-var armed := false              # waiting for a confirming second tap
-var highlight := false          # pulsing outer glow in the ring colour (keeps the icon)
-var progress := -1.0            # 0..1 draws an arc around the button
-var progress_color := UIKit.GOLD
-var pulse := false
-var ult_style := false
+var icon_texture: Texture2D:
+	set(v):
+		icon_texture = v
+		_wake()
+var icon_kind := "":
+	set(v):
+		icon_kind = v
+		_wake()
+var icon_tint := Color.WHITE:
+	set(v):
+		icon_tint = v
+		_wake()
+var caption := "":
+	set(v):
+		caption = v
+		_wake()
+var caption_color := UIKit.TEXT:
+	set(v):
+		caption_color = v
+		_wake()
+var caption_icon := "":  # e.g. "coin" drawn before caption text
+	set(v):
+		caption_icon = v
+		_wake()
+var badge := "":  # small text in the top-right corner
+	set(v):
+		badge = v
+		_wake()
+var badge_icon := "":  # small vector icon in a gold coin at the top-right (ult style)
+	set(v):
+		badge_icon = v
+		_wake()
+var radius := 44.0:
+	set(v):
+		radius = v
+		_wake()
+var base_color := Color(0.1, 0.12, 0.2, 0.92):
+	set(v):
+		base_color = v
+		_wake()
+var ring_color := UIKit.GOLD:
+	set(v):
+		ring_color = v
+		_wake()
+var glow_color := Color(1.0, 0.6, 0.95):
+	set(v):
+		glow_color = v
+		_wake()
+var ready_color := Color(1.0, 0.78, 0.3):  # ult style: halo and ring once charged (gold reads on any world)
+	set(v):
+		ready_color = v
+		_wake()
+var disabled := false:
+	set(v):
+		disabled = v
+		_wake()
+var armed := false:  # waiting for a confirming second tap
+	set(v):
+		armed = v
+		_wake()
+var highlight := false:  # pulsing outer glow in the ring colour (keeps the icon)
+	set(v):
+		highlight = v
+		_wake()
+var progress := -1.0:  # 0..1 draws an arc around the button
+	set(v):
+		progress = v
+		_wake()
+var progress_color := UIKit.GOLD:
+	set(v):
+		progress_color = v
+		_wake()
+var pulse := false:
+	set(v):
+		pulse = v
+		_wake()
+var ult_style := false:
+	set(v):
+		ult_style = v
+		_wake()
 var _press_scale := 1.0
 var _down := false
 var _touch := -1                # finger index holding the button, -1 none
@@ -52,20 +112,46 @@ func _init(p_radius := 44.0) -> void:
 
 func _ready() -> void:
 	size = custom_minimum_size
+	_wake()
+
+
+## Redraw now and run _process until the press scale, the progress lerp and the pop settle
+## (v3.1: nothing pulses, so a settled button costs no per-frame redraw). The ult keeps
+## processing while its ready juice or its charging liquid moves.
+func _wake() -> void:
+	queue_redraw()
+	if is_inside_tree():
+		set_process(true)
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	var target := 0.9 if _down else 1.0
 	_press_scale = lerpf(_press_scale, target, minf(1.0, delta * 18.0))
-	_shown_progress = lerpf(_shown_progress, clampf(progress, 0.0, 1.0), minf(1.0, delta * 8.0))
+	var want := clampf(progress, 0.0, 1.0)
+	_shown_progress = lerpf(_shown_progress, want, minf(1.0, delta * 8.0))
 	_pop = maxf(0.0, _pop - delta * 1.6)
 	queue_redraw()
+	var settled := absf(_press_scale - target) < 0.002 and absf(_shown_progress - want) < 0.002 and _pop <= 0.0
+	if settled and not _ult_moving():
+		_press_scale = target
+		_shown_progress = want
+		set_process(false)
+
+
+## The ult's own motion: the ready halo / waves / glints, or the charging liquid surface.
+func _ult_moving() -> bool:
+	if not ult_style or not is_visible_in_tree():
+		return false
+	if highlight and not disabled:
+		return true
+	return progress >= 0.0 and _shown_progress > 0.02 and _shown_progress < 0.985
 
 
 ## Plays the "just became ready" burst (ult style).
 func burst() -> void:
 	_pop = 1.0
+	_wake()
 
 
 func _has_point(point: Vector2) -> bool:
@@ -92,6 +178,7 @@ func _gui_input(event: InputEvent) -> void:
 			if _touch == -1:
 				_touch = st.index
 				_down = true
+				_wake()
 			accept_event()
 		elif st.index == _touch:
 			_touch = -1
@@ -103,6 +190,7 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		if mb.pressed:
 			_down = true
+			_wake()
 			accept_event()
 		elif _down and _touch == -1:
 			_release(mb.position, false)
@@ -113,6 +201,7 @@ func _release(pos: Vector2, canceled: bool) -> void:
 	if not _down:
 		return
 	_down = false
+	_wake()
 	if canceled or not _has_point(pos):
 		return
 	# Debounce: never fire twice for one physical tap, whatever the platform emulates.
@@ -126,9 +215,12 @@ func _release(pos: Vector2, canceled: bool) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_EXIT and _touch == -1:
 		_down = false
-	elif what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
-		_down = false
-		_touch = -1
+		_wake()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED:
+		if not is_visible_in_tree():
+			_down = false
+			_touch = -1
+		_wake()
 
 
 func _draw() -> void:

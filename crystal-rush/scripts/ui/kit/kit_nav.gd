@@ -1,7 +1,7 @@
 class_name KitNav
 ## UI v3.1 "porcelain glass" bottom-navigation drawing helpers (spec §6; tab_bar.gd, KitSheet):
 ## - Strip: the frosted strip body (KitGlass.frost_nav(): vertex alpha carries the tint ramp
-##   0.40 at the hairline -> 0.80 at the label cap height -> 0.88 at the bottom, so the world
+##   0.20 at the hairline -> 0.38 at the glyph middle -> 0.80 at the label cap height -> 0.88 at the bottom, so the world
 ##   ghosts through the upper third on Play), its top following the hairline's gentle arch, and
 ##   the Play disc (frosted cream, only while Play is active). Flat cream 0.84 -> 0.92 fallback.
 ## - draw_top_line(): the strip's ONLY line: an engraved pair (1 dpx LINE_GOLD_DEEP @ 0.85 + 1 dpx
@@ -76,6 +76,9 @@ static func draw_bar(ci: CanvasItem, r: Rect2, _sag := 0.0) -> void:
 ## outer 22 % on each side; `gap` = [x0, x1] left open (the Play ring); `sag` = how much lower
 ## the ends sit (0 = straight; then primitive 1 dpx lines on a pixel row).
 static func draw_top_line(ci: CanvasItem, y: float, x0: float, x1: float, gap := Vector2.ZERO, sag := 0.0) -> void:
+	if sag > 0.0 and UIKit.ui_scale() < 0.9:
+		_draw_top_line_rows(ci, y, x0, x1, gap, sag)
+		return
 	var w := x1 - x0
 	var g := UITokens.LINE_GOLD_DEEP
 	var gold := Color(g.r, g.g, g.b, 0.85)
@@ -115,22 +118,59 @@ static func draw_top_line(ci: CanvasItem, y: float, x0: float, x1: float, gap :=
 			ci.draw_polyline_colors(pts, cols, lw, not straight)
 
 
+## Low-density (s < 0.9) hairline (MF-12): the arch as horizontal runs snapped to whole device
+## rows, drawn without AA at UIKit.line_px(1) (one solid row, peak alpha = the line's own 0.85);
+## the NAV_SAG arch shows as a few 1 px steps. One multiline per pass (2 canvas commands).
+static func _draw_top_line_rows(ci: CanvasItem, y: float, x0: float, x1: float, gap: Vector2, sag: float) -> void:
+	var w := x1 - x0
+	var g := UITokens.LINE_GOLD_DEEP
+	var gold := Color(g.r, g.g, g.b, 0.9)
+	var light := Color(1, 1, 1, UITokens.LINE_LIGHT.a)
+	var lw := UIKit.line_px(1.0)
+	var step := 6.0
+	for pass_i in 2:
+		var col := light if pass_i == 1 else gold
+		var pts := PackedVector2Array()
+		var cols := PackedColorArray()
+		var x := x0
+		while x < x1 - 0.01:
+			var xb := minf(x + step, x1)
+			if gap != Vector2.ZERO:
+				if x >= gap.x and x < gap.y:
+					x = gap.y
+					continue
+				if x < gap.x and xb > gap.x:
+					xb = gap.x
+			var xm := (x + xb) * 0.5
+			var e := minf(xm - x0, x1 - xm) / maxf(w * 0.22, 1.0)
+			var k := clampf(e, 0.0, 1.0)
+			k = k * k * (3.0 - 2.0 * k)
+			if k > 0.02:
+				var row := GemDraw.pixel_y(ci, arch_y(xm - x0, w, y, sag)) + UIKit.px(1.0) * pass_i
+				pts.append_array([Vector2(x, row), Vector2(xb, row)])
+				cols.append(Color(col.r, col.g, col.b, col.a * k))
+			x = xb
+		if pts.size() >= 2:
+			ci.draw_multiline_colors(pts, cols, lw)
+
+
 ## The slender Play key centred on `c` (§6.6). `on` 0..1 (bool accepted): inactive = an
-## outline-only double ring (1 dpx LINE_GOLD_DEEP @ 0.85 + an inner 1 dpx @ 0.40 at r - 3), a
-## 1 dpx white arc upper left, the faceted topaz at 85 % value (lit but quiet, never grey);
+## outline-only double ring (1 dpx LINE_GOLD_DEEP @ 0.70 + an inner 1 dpx @ 0.40 at r - 3), a
+## 1 dpx white arc upper left, the faceted topaz at 72 % value, 0.85 alpha (lit but quiet, never grey);
 ## active = the ring warms to #D29A45 at 1.5 dpx and the crystal lights fully with a soft glow.
 ## (The frosted disc fill of the active state is drawn by the Strip, under the glass material.)
 static func draw_play_ring(ci: CanvasItem, c: Vector2, rad: float, on = 0.0, alpha := 1.0) -> void:
 	var k := clampf(float(on), 0.0, 1.0)
 	var deep := UITokens.LINE_GOLD_DEEP
 	var warm := Color("#D29A45")
-	var ring := Color(deep.r, deep.g, deep.b, 0.85).lerp(Color(warm.r, warm.g, warm.b, 1.0), k)
+	var ring := Color(deep.r, deep.g, deep.b, 0.70).lerp(Color(warm.r, warm.g, warm.b, 1.0), k)
 	ring.a *= alpha
 	var w := lerpf(UIKit.line_px(1.0), UIKit.line_px(UITokens.SELECT_PX), k)
 	ci.draw_arc(c, rad - w * 0.5, 0, TAU, 96, ring, w, true)
 	ci.draw_arc(c, rad - 3.0, 0, TAU, 80, Color(deep.r, deep.g, deep.b, 0.40 * alpha), UIKit.line_px(1.0), true)
 	ci.draw_arc(c, rad - 1.5 - w, PI * 1.08, PI * 1.6, 24, Color(1, 1, 1, 0.75 * alpha), UIKit.px(1.0), true)
-	KitIcons.topaz_crystal(ci, c + Vector2(0, 0.5), 32.0, alpha, k, lerpf(0.85, 1.0, k))
+	# Inactive: the crystal is quiet (72 % value, 0.85 alpha) so the active tab outweighs it (MF-2).
+	KitIcons.topaz_crystal(ci, c + Vector2(0, 0.5), 32.0, alpha * lerpf(UITokens.NAV_PLAY_QUIET_A, 1.0, k), k, lerpf(UITokens.NAV_PLAY_QUIET, 1.0, k))
 
 
 ## Legacy: the v2 raised amber medallion. v3.1 draws the slender Play ring instead (active look,
@@ -148,14 +188,14 @@ static func draw_medallion(ci: CanvasItem, c: Vector2, rad: float, glow := 0.0) 
 
 
 ## The soft gold-leaf wash behind an active glyph centred on `c` (a feathered glow, never a tile):
-## 120 x 80 NAV_WASH @ 0.32 + a white core 56 x 40 @ 0.30, both x `k`.
+## 120 x 80 NAV_WASH @ NAV_WASH_A (0.5) + a white core 56 x 40 @ NAV_WASH_CORE_A (0.4), both x `k`.
 static func draw_wash(ci: CanvasItem, c: Vector2, k := 1.0) -> void:
 	if k <= 0.01:
 		return
 	var g := UIKit.glow_texture()
 	var wc := UITokens.NAV_WASH
-	ci.draw_texture_rect(g, Rect2(c - Vector2(60, 40), Vector2(120, 80)), false, Color(wc.r, wc.g, wc.b, 0.32 * k))
-	ci.draw_texture_rect(g, Rect2(c - Vector2(28, 20), Vector2(56, 40)), false, Color(1, 1, 1, 0.30 * k))
+	ci.draw_texture_rect(g, Rect2(c - Vector2(60, 40), Vector2(120, 80)), false, Color(wc.r, wc.g, wc.b, minf(UITokens.NAV_WASH_A * k, 1.0)))
+	ci.draw_texture_rect(g, Rect2(c - Vector2(28, 20), Vector2(56, 40)), false, Color(1, 1, 1, minf(UITokens.NAV_WASH_CORE_A * k, 1.0)))
 
 
 ## The topaz cut-gem diamond riding the hairline at `c`, with a 52 px 1.5 dpx amber glint along
@@ -187,7 +227,7 @@ static func draw_indicator(ci: CanvasItem, c: Vector2, w: float, k := 1.0, glyph
 	var x1 := c.x + w * 0.5 - 6.0
 	var f := (x1 - x0) * 0.24
 	ci.draw_polyline_colors(PackedVector2Array([Vector2(x0, y), Vector2(x0 + f, y), Vector2(x1 - f, y), Vector2(x1, y)]),
-			PackedColorArray([Color(amber.r, amber.g, amber.b, 0.35 * k), amber, amber, Color(amber.r, amber.g, amber.b, 0.35 * k)]), UIKit.line_px(UITokens.SELECT_PX))
+			PackedColorArray([Color(amber.r, amber.g, amber.b, 0.6 * k), amber, amber, Color(amber.r, amber.g, amber.b, 0.6 * k)]), UIKit.line_px(UITokens.SELECT_PX))
 	_facet(ci, Vector2(c.x - w * 0.5 + 3.0, y), 7.0, amber)
 	_facet(ci, Vector2(c.x + w * 0.5 - 3.0, y), 7.0, amber)
 	if line_c != Vector2.INF:
@@ -249,12 +289,17 @@ class Strip extends Control:
 		for i in n + 1:
 			var x := w * float(i) / n
 			var yt := KitNav.arch_y(x, w, top, sag)
-			pts.append_array([Vector2(x, yt), Vector2(x, ym), Vector2(x, h)])
-			cols.append_array([Color(p0.r, p0.g, p0.b, t_top), Color(p0.r, p0.g, p0.b, t_mid), Color(p1.r, p1.g, p1.b, t_bot)])
+			# 4 knots: the hairline, the glyph middle (the ramp stays thin through the upper third),
+			# the label cap height, the bottom.
+			var yg := lerpf(yt, ym, 0.5)
+			pts.append_array([Vector2(x, yt), Vector2(x, yg), Vector2(x, ym), Vector2(x, h)])
+			cols.append_array([Color(p0.r, p0.g, p0.b, t_top), Color(p0.r, p0.g, p0.b, lerpf(t_top, t_mid, 0.3)),
+					Color(p0.r, p0.g, p0.b, t_mid), Color(p1.r, p1.g, p1.b, t_bot)])
 			if i > 0:
-				var a := (i - 1) * 3
-				var b := i * 3
-				idx.append_array([a, b, a + 1, b, b + 1, a + 1, a + 1, b + 1, a + 2, b + 1, b + 2, a + 2])
+				var a := (i - 1) * 4
+				var b := i * 4
+				for r in 3:
+					idx.append_array([a + r, b + r, a + r + 1, b + r, b + r + 1, a + r + 1])
 		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), idx, pts, cols)
 		if ring_c.x >= 0.0 and ring_r > 0.0 and ring_on > 0.01:
 			# The active Play disc: frosted cream @ 0.85 (flat 0.88 without a snapshot).

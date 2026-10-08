@@ -1,16 +1,16 @@
 class_name HubTabBar
 extends Control
 ## Hub bottom navigation, UI v3.1 "porcelain glass" (binding spec ui_v3_spec.md §6): one frosted
-## cream strip (KitNav.Strip under KitGlass.frost_nav(): its tint ramps 0.40 -> 0.80 -> 0.88 from
+## cream strip (KitNav.Strip under KitGlass.frost_nav(): its tint ramps 0.20 -> 0.38 -> 0.80 -> 0.88 from
 ## the hairline down, so the world ghosts through the upper third on Play) whose ONLY line is a
 ## gently arched engraved hairline (1 dpx deep gold + 1 dpx light, fading to the sides); five
 ## monoline gold glyphs of one family (KitIcons.nav, 48 px, 2.0 px) with 22 px Medium labels:
 ## Магазин · Арсенал · Грати · Герої · Казарми. Грати is a topaz set into the hairline inside a
-## slender double ring, always lit (quiet at 85 % when another tab is active).
+## slender double ring, always lit (quiet at 72 % value, 0.85 alpha, ring 0.70 when another tab is active).
 ## The active tab (§6.4) wins at arm's length: a 1.5 dpx amber underline with facet ends under
 ## the label, a topaz diamond riding the hairline with a 52 px amber glint, a soft gold-leaf wash
-## behind the glyph (a glow, never a tile), the glyph in deep gold with a 28 % duotone, the label
-## in amber ink. Same label size and weight in both states. No medallion, nothing breathes.
+## behind the glyph (a glow, never a tile), the glyph in deep gold with a 40 % duotone, the label
+## in clear burnt amber (NAV_LABEL_ON). Same label size and weight in both states. No medallion, nothing breathes.
 ## Motion (§6.7): the marker glides 180 ms cubic ease-out, glyph colours cross-fade in 120 ms, a
 ## press flashes the wash (no scale); Reduce Motion snaps. The bar redraws only while moving.
 ## Locked tabs (UnlockQueue) keep their name, fade (glyph 36 %, label 50 %) and carry a 16 px line
@@ -294,10 +294,10 @@ func _draw() -> void:
 			if ov:
 				draw_texture_rect(ov, gr, false, Color(1, 1, 1, dim))
 			else:
-				KitIcons.nav(self, id, gr, col, 0.28 * on, UITokens.CTA_HI)
+				KitIcons.nav(self, id, gr, col, UITokens.NAV_DUOTONE * on, UITokens.CTA_HI)
 		var label := HomeText.t(LABELS[id])
 		var lw := _label_w(id, r)
-		var lc := UITokens.INK_DIM_GLASS.lerp(UITokens.GOLD_TEXT_GLASS, on)
+		var lc := UITokens.INK_DIM_GLASS.lerp(UITokens.NAV_LABEL_ON, on)
 		lc.a = 0.5 if locked else 1.0
 		draw_string(_lfont(), Vector2(roundf(cx - lw.x * 0.5), roundf(label_y)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lw.y), lc)
 		if locked:
@@ -308,7 +308,9 @@ func _draw() -> void:
 		var bpos := Vector2(gr.end.x + 7.0, gr.position.y + 3.0)
 		if id == "play":
 			bpos = pc + Vector2(MED_R * 0.74, -MED_R * 0.62)
-		_draw_badge(id, bpos)
+		# The active tab already carries the amber diamond on the hairline: no badge beside it.
+		if on < 0.5:
+			_draw_badge(id, bpos)
 	if sel_i < 0:
 		return
 	# Underline width = the label width (interpolated while gliding) + 16, clamped 56..120.

@@ -398,6 +398,12 @@ static func _spec(kind: String) -> Dictionary:
 			return {"cham": 12.0, "blur": 0.0, "feather": 28.0, "pad": Vector2.ZERO, "layers": [
 				{"top": _a(PAPER_0, TA), "bot": _a(PAPER_0, TA)},
 			]}
+		"text_bed_modal":
+			# Modals / panels: a short 12 px feather, so the frost band around the bed reads as a
+			# crisp rim of glass instead of a milky grey inner shadow.
+			return {"cham": 10.0, "blur": 0.0, "feather": UITokens.BED_FEATHER_MODAL, "pad": Vector2.ZERO, "layers": [
+				{"top": _a(PAPER_0, TA), "bot": _a(PAPER_0, TA)},
+			]}
 		"cream_glass", "glass":
 			return _glass(10.0, _a(G0, 0.62), _a(G1, 0.7), 0.72, 0.6, 16.0, sa * 0.7, 4.0, Vector2(22, 14))
 		"sheet":
@@ -828,13 +834,23 @@ static func heading(text: String, size := 40, color := TEXT, outline := 0) -> La
 	return l
 
 
-## Soft shadow for text on a scene (no stroke): slate 40 %, 2-3 px down, a little spread.
+## Soft shadow for text on a scene: v3.1 a FEATHERED slate halo behind the glyphs (scene_halo),
+## never a font shadow (its hard outline at fs/7 read as a 2010 text outline at 1080). Calling it
+## again on the same label only re-tunes the halo. Big text (>= 60 px) gets a lighter, tighter halo.
 static func soft_shadow(l: Label, size := 0, strength := 1.0) -> Label:
 	var fs := size if size > 0 else l.get_theme_font_size("font_size")
-	l.add_theme_color_override("font_shadow_color", Color(SCRIM.r, SCRIM.g, SCRIM.b, 0.3 * strength))
+	l.add_theme_color_override("font_shadow_color", Color(SCRIM.r, SCRIM.g, SCRIM.b, 0.0))
 	l.add_theme_constant_override("shadow_offset_x", 0)
-	l.add_theme_constant_override("shadow_offset_y", clampi(fs / 28, 1, 3))
-	l.add_theme_constant_override("shadow_outline_size", clampi(fs / 7, 3, 12))
+	l.add_theme_constant_override("shadow_offset_y", 0)
+	l.add_theme_constant_override("shadow_outline_size", 0)
+	var big := fs >= 60
+	var k := strength * (0.42 if big else 0.75)
+	var g: TextureRect = l.get_meta("_soft_halo") if l.has_meta("_soft_halo") else null
+	if g != null and is_instance_valid(g):
+		g.modulate = Color(SCRIM.r, SCRIM.g, SCRIM.b, 0.3 * k)
+		return l
+	g = scene_halo(l, k, 1.12 if big else 1.35)
+	l.set_meta("_soft_halo", g)
 	return l
 
 
@@ -1122,11 +1138,11 @@ static func panel(kind := "panel", pad := Vector2(-1, -1)) -> PanelContainer:
 
 
 ## Gives an existing PanelContainer the frosted `kind` body ("modal" | "panel"): the opaque-painted
-## `<kind>_frost` style + the KitGlass frost material at UITokens.FROST_RIM_TINT, and the 94 %
+## `<kind>_frost` style + the KitGlass frost material at UITokens.FROST_MODAL_TINT (0.72), and the 94 %
 ## cream text bed under its content (§4.3: frost shows only in the rim band and the margins).
 ## Returns false (and sets the flat `kind`) when there is no world snapshot.
 static func frost_into(p: PanelContainer, kind := "modal", pad := Vector2(-1, -1)) -> bool:
-	var m := KitGlass.frost(UITokens.FROST_RIM_TINT)
+	var m := KitGlass.frost(UITokens.FROST_MODAL_TINT)
 	if m == null:
 		p.add_theme_stylebox_override("panel", lux(kind, pad))
 		return false
@@ -1166,7 +1182,7 @@ static func glass_panel(pad := Vector2(-1, -1)) -> PanelContainer:
 
 
 ## v3 frosted panel: with the hub's world snapshot (KitGlass) the body is frosted cream glass
-## (the blurred world glows through the rim at UITokens.FROST_RIM_TINT, body text sits on the
+## (the blurred world glows through the rim at UITokens.FROST_MODAL_TINT, body text sits on the
 ## text bed); without it, the flat translucent `kind` ("modal" | "panel").
 static func frost_panel(kind := "modal", pad := Vector2(-1, -1)) -> PanelContainer:
 	var p := PanelContainer.new()
@@ -1210,6 +1226,7 @@ static func modal(title: String, on_close := Callable(), width := 600.0) -> Pane
 		x.pressed.connect(on_close)
 		head.add_child(x)
 	v.add_child(divider(width - 72.0))
+	# The bed starts under the header rule (TextBed finds the Divider after the header row).
 	for c in p.get_children(true):
 		if c is TextBed:
 			(c as TextBed).header = head
@@ -1666,24 +1683,66 @@ class TextBed extends Control:
 		var m := Vector4(24, 24, 24, 24)
 		if sb:
 			m = Vector4(sb.content_margin_left, sb.content_margin_top, sb.content_margin_right, sb.content_margin_bottom)
-		var g := GROW
-		var r := Rect2(Vector2(m.x - g, m.y - g), ps - Vector2(m.x + m.z - g * 2.0, m.y + m.w - g * 2.0))
-		# Keep a frost rim of at least 8 px inside the frame.
-		r = r.intersection(Rect2(Vector2(8, 8), ps - Vector2(16, 16)))
+		var framed := frame_kind != ""
+		var r: Rect2
+		if framed:
+			# Modal / panel: the bed's full-strength edge meets the content margin, its 12 px
+			# feather runs outward, and a clean band of frost (>= 16 px, 24-32 px on modal()) stays
+			# between it and the frame: the glass reads as glass, the text column stays even.
+			var fe := UITokens.BED_FEATHER_MODAL
+			var ix := clampf(minf(m.x, m.z) - fe, 16.0, 32.0)
+			var iy := clampf(m.w - fe, 14.0, 32.0)
+			r = Rect2(Vector2(ix, iy), ps - Vector2(ix * 2.0, iy * 2.0))
+		else:
+			var g := GROW
+			r = Rect2(Vector2(m.x - g, m.y - g), ps - Vector2(m.x + m.z - g * 2.0, m.y + m.w - g * 2.0))
+			# Keep a frost rim of at least 8 px inside the frame.
+			r = r.intersection(Rect2(Vector2(8, 8), ps - Vector2(16, 16)))
 		var t := r.position.y
 		if top_frac > 0.0:
 			t = maxf(t, ps.y * top_frac)
-		if header and is_instance_valid(header) and header.is_visible_in_tree():
-			var hb := p.get_global_transform().affine_inverse() * header.get_global_rect().end
-			t = maxf(t, hb.y + 4.0)
+		var hdr := _header_end()
+		if hdr and is_instance_valid(hdr) and hdr.is_visible_in_tree():
+			var hb := p.get_global_transform().affine_inverse() * hdr.get_global_rect().end
+			t = maxf(t, hb.y + (2.0 if framed else 4.0))
 		if t > r.position.y:
 			r = Rect2(Vector2(r.position.x, t), Vector2(r.size.x, r.end.y - t))
 		if bed and r.size.x >= 8.0 and r.size.y >= 8.0:
-			draw_style_box(UIKit.lux("text_bed"), Rect2(r.position + o, r.size))
-		if frame_kind != "":
+			draw_style_box(UIKit.lux("text_bed_modal" if framed else "text_bed"), Rect2(r.position + o, r.size))
+		if framed:
 			draw_style_box(UIKit.lux(frame_kind), Rect2(o, ps))
+			_specular(o, ps)
 		if sheet_top:
 			KitNav.draw_arch_top(self, Rect2(o, ps), 0.0, UITokens.CHAMFER_L, UITokens.SHEET_FILL, true)
+
+	## The header band's last control: the header row, or the divider right under it (the bed
+	## starts below the header rule, so the title AND its rule sit on the frost).
+	func _header_end() -> Control:
+		if header == null or not is_instance_valid(header):
+			return null
+		var hp := header.get_parent()
+		if hp is BoxContainer:
+			var i := header.get_index()
+			if i + 1 < hp.get_child_count():
+				var nx := hp.get_child(i + 1)
+				if nx is Divider and (nx as Control).visible:
+					return nx
+		return header
+
+	## A 1 dpx white specular line along the inside top edge (glass catching the light), between
+	## the top-corner flourishes, fading out at both ends.
+	func _specular(o: Vector2, ps: Vector2) -> void:
+		var cham := 12.0
+		var y := GemDraw.pixel_y(self, o.y + 3.0)
+		var x0 := o.x + cham + 34.0
+		var x1 := o.x + ps.x - cham - 34.0
+		if x1 - x0 < 40.0:
+			return
+		var w := x1 - x0
+		var c := Color(1, 1, 1, 0.9)
+		var c0 := Color(1, 1, 1, 0.0)
+		draw_polyline_colors(PackedVector2Array([Vector2(x0, y), Vector2(x0 + w * 0.25, y), Vector2(x1 - w * 0.25, y), Vector2(x1, y)]),
+				PackedColorArray([c0, c, c, c0]), -1.0 if UIKit.ui_scale() >= 0.9 else UIKit.px(1.0))
 
 
 ## Slowly rotating light rays (victory sunburst / reward halo). Soft and warm in v2.

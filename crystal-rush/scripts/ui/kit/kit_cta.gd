@@ -196,7 +196,8 @@ func _draw() -> void:
 			elif dis:
 				GemDraw.draw_gem(self, "cushion", gc, gs, Color("#D9CDB8"), Color("#F2EDE4"), Color("#AFA28B"), false)
 			else:
-				GemDraw.draw_gem(self, "cushion", gc, gs, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"), true)
+				# No white star glint (the toy sparkle §6.5 removed): facets + the lit table only.
+				GemDraw.draw_gem(self, "cushion", gc, gs, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"), false)
 		if _flash > 0.0:
 			var fr := gs * (0.9 + 0.8 * (1.0 - _flash))
 			draw_texture_rect(UIKit.glow_texture(), Rect2(gc - Vector2(fr, fr), Vector2(fr, fr) * 2.0), false, Color(1, 0.95, 0.75, _flash * 0.8))
@@ -240,7 +241,7 @@ func _draw() -> void:
 		var sw := fsub.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
 		var sx := area_x0 + (avail - sw) * 0.5
 		var sy := base_y + desc + fsub.get_ascent(ss) - 2.0
-		draw_string(fsub, Vector2(roundf(sx), roundf(sy)), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, Color("#6E3A0F") if not dis else UIKit.INK_DIM)
+		draw_string(fsub, Vector2(roundf(sx), roundf(sy)), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UIKit.CTA_TEXT if not dis else UIKit.INK_DIM)
 
 
 ## The vector cut-gem body: warm glow, 3-stop flat amber, the 1 dpx table light, the 1 dpx rim.

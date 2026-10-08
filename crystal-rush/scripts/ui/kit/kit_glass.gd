@@ -25,6 +25,7 @@ const SNAP_HIDDEN_LAYER := 1 << 19
 const FADE_TIME := 0.18
 ## Frost parameters (shader defaults, §4.2) and the flat "not ready" values they fade from.
 const FROST := {"frost_contrast": 0.55, "frost_mid": 0.80}
+const FROST_NAV := {"frost_contrast": UITokens.NAV_FROST_CONTRAST, "frost_mid": 0.80}
 const FLAT := {"frost_contrast": 0.0, "frost_mid": 0.93}
 
 static var _snap: WorldSnap
@@ -116,6 +117,9 @@ static func frost(tint := UITokens.FROST_RIM_TINT) -> ShaderMaterial:
 		return _mats[key]
 	var m := _make()
 	m.set_shader_parameter("tint", tint)
+	# v3.1 fix: modal / sheet frost keeps a faint sky hue and is bright (glass, not a grey rim).
+	m.set_shader_parameter("frost_desat", UITokens.FROST_DESAT)
+	m.set_shader_parameter("frost_lift", UITokens.FROST_LIFT)
 	_mats[key] = m
 	return m
 
@@ -125,8 +129,15 @@ static func frost_nav() -> ShaderMaterial:
 	if not attached():
 		return null
 	if _nav_mat == null:
-		_nav_mat = _make()
+		_nav_mat = ShaderMaterial.new()
+		_nav_mat.shader = FROST_SHADER
+		_nav_mat.set_meta("frost", FROST_NAV)
+		_nav_mat.set_shader_parameter("snap_tex", _snap.texture())
+		_fade_mat(_nav_mat, _fade if has_world() else 0.0)
 		_nav_mat.set_shader_parameter("alpha_is_tint", true)
+		# v3.1 fix: more of the world (contrast 0.75, desat 0.30) so the floor's gold ring and the
+		# map lines visibly ghost through the strip's upper third on Play.
+		_nav_mat.set_shader_parameter("frost_desat", UITokens.NAV_FROST_DESAT)
 		# The nav keeps a white page tint (it sits on Play's sky as well as on the cream tabs).
 		_nav_mat.set_shader_parameter("page_tint", Color.WHITE)
 	return _nav_mat
@@ -135,7 +146,11 @@ static func frost_nav() -> ShaderMaterial:
 ## §4.6 frost coherence: the frost behind a modal leans toward the page colour (`col` mixed
 ## `k` toward white; Color.WHITE on Play). The nav keeps white.
 static func set_page_tint(col: Color, k := 0.75) -> void:
-	_page_tint = Color.WHITE if col == Color.WHITE else col.lerp(Color.WHITE, k)
+	# Hue only: scale the colour so its brightest channel is 1 (amethyst x warm cream used to
+	# darken the frost to a dirty neutral grey), then lean it toward white by `k`.
+	var mx := maxf(col.r, maxf(col.g, col.b))
+	var hue := Color(col.r / mx, col.g / mx, col.b / mx, 1.0) if mx > 0.001 else Color.WHITE
+	_page_tint = Color.WHITE if col == Color.WHITE else hue.lerp(Color.WHITE, k)
 	_page_tint.a = 1.0
 	for m: ShaderMaterial in _mats.values():
 		m.set_shader_parameter("page_tint", _page_tint)
@@ -158,8 +173,9 @@ static func _all_mats() -> Array:
 
 
 static func _fade_mat(m: ShaderMaterial, k: float) -> void:
-	for p: String in FROST.keys():
-		m.set_shader_parameter(p, lerpf(float(FLAT[p]), float(FROST[p]), k))
+	var target: Dictionary = m.get_meta("frost", FROST)
+	for p: String in target.keys():
+		m.set_shader_parameter(p, lerpf(float(FLAT[p]), float(target[p]), k))
 
 
 static func _apply_fade() -> void:

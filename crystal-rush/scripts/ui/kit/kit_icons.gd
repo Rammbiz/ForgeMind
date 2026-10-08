@@ -922,7 +922,9 @@ static func topaz_crystal(ci: CanvasItem, c: Vector2, h: float, alpha := 1.0, gl
 	var fp := PackedVector2Array([t, tm, ul, t, ur, tm, ul, tm, bm, ul, bm, ll, tm, ur, lr, tm, lr, bm, ll, bm, b, bm, lr, b])
 	var fcs := PackedColorArray()
 	for fcol: Color in [Color("#FFF1C9"), Color("#FFD27A"), Color("#FFC560"), Color("#FFC560"), Color("#F0A23C"), Color("#F0A23C"), Color("#E89434"), Color("#C9772A")]:
-		var cc := _ca(fcol.lerp(Color("#D08A35"), quiet), alpha)
+		# (v3.1 fix: toward a muted honey, so the quiet stone is not the most saturated thing in
+		# the strip; MF-2.)
+		var cc := _ca(fcol.lerp(Color("#C99A5E"), quiet), alpha)
 		fcs.append_array([cc, cc, cc])
 	var fi := PackedInt32Array()
 	for i in fp.size():
