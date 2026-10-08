@@ -62,6 +62,16 @@ static func slot_layout(team: Dictionary) -> Array[Dictionary]:
 	return out
 
 
+## Player level at which champion seat `index` (0-based) opens: the lowest ChampionData.SLOTS_AT
+## level that gives more than `index` slots (seats 1-2 at L14, seat 3 at L40 in the shipped data).
+static func seat_unlock_level(index: int) -> int:
+	var best := -1
+	for k: String in ChampionData.SLOTS_AT:
+		if int(ChampionData.SLOTS_AT[k]) > index and (best < 0 or int(k) < best):
+			best = int(k)
+	return best if best >= 0 else int(HeroData.UNLOCK_AT["slot3"])
+
+
 static func slot_label(slot: StringName) -> String:
 	return HeroesText.t("TEAM_SLOT_" + str(slot).to_upper())
 
@@ -141,8 +151,16 @@ static func delta(team: Dictionary, cand: String, slot_index: int) -> Array[Dict
 	return out
 
 
-## The strongest team from owned characters: power (gem, facets, level) + synergy. Returns
-## {hero, champions, score} (never applied by itself: the screen shows it as ghosts first).
+## Power gain (in _power units: one gem step = 1.0) that may justify a suggestion with LESS
+## synergy than the current team; below it Auto-team never suggests a synergy drop.
+const POWER_OVERRIDE := 1.0
+
+
+## The strongest team from owned characters: power (gem, facets, level) + synergy. Never suggests
+## a team with less synergy than the current one unless its power rises by POWER_OVERRIDE (then
+## `reason` = "power_over_synergy" and the screen says why). Returns {hero, champions, score,
+## syn_now, syn, power_now, power, reason "synergy" | "power" | "power_over_synergy" | "same"}
+## (never applied by itself: the screen shows it as ghosts first).
 static func auto_team() -> Dictionary:
 	var team := HeroesUIModel.team()
 	var slots := int(team["slots"])
@@ -154,20 +172,39 @@ static func auto_team() -> Dictionary:
 	for c: Dictionary in HeroesUIModel.champions():
 		if bool(c["owned"]):
 			champs.append(c)
-	var best := {"hero": str(team["hero"]), "champions": team["champions"], "score": -1.0}
+	var syn_now := int(score(str(team["hero"]), team["champions"])["total"])
+	var pow_now := team_power(str(team["hero"]), team["champions"])
+	var best := {"hero": str(team["hero"]), "champions": team["champions"], "score": -1.0,
+			"syn_now": syn_now, "syn": syn_now, "power_now": pow_now, "power": pow_now, "reason": "same"}
 	var combos := _combos(champs.size(), mini(slots, champs.size()))
 	for h in heroes:
-		var hp := _power(h) * 1.6
 		for combo: Array in combos:
 			var ids: Array = []
-			var cp := 0.0
 			for i: int in combo:
 				ids.append(champs[i]["id"])
-				cp += _power(champs[i])
-			var s := hp + cp + float(score(str(h["id"]), ids)["total"]) * 0.9
+			var syn := int(score(str(h["id"]), ids)["total"])
+			var pw := team_power(str(h["id"]), ids)
+			if syn < syn_now and pw - pow_now < POWER_OVERRIDE - 1e-6:
+				continue
+			if syn <= syn_now and pw <= pow_now + 1e-6:
+				continue
+			var s := pw + float(syn) * 0.9
 			if s > float(best["score"]) + 1e-6:
-				best = {"hero": str(h["id"]), "champions": ids, "score": s}
+				var why := "synergy" if syn > syn_now else ("power" if syn == syn_now else "power_over_synergy")
+				best = {"hero": str(h["id"]), "champions": ids, "score": s, "syn_now": syn_now, "syn": syn,
+						"power_now": pow_now, "power": pw, "reason": why}
 	return best
+
+
+## Power of a team for Auto-team: the hero counts 1.6x (it leads and ults), champions 1x.
+static func team_power(hero_id: String, champs: Array) -> float:
+	var p := 0.0
+	if hero_id != "":
+		p += _power(HeroesUIModel.hero(hero_id)) * 1.6
+	for c in champs:
+		if str(c) != "":
+			p += _power(HeroesUIModel.champion(str(c)))
+	return p
 
 
 static func _power(d: Dictionary) -> float:

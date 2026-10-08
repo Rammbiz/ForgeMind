@@ -102,15 +102,29 @@ func _cell(d: Dictionary) -> Control:
 	if here or member:
 		v.add_child(_badge(HeroesText.t("TEAM_HERE" if here else "TEAM_IN_SLOT"), "here"))
 	else:
+		# Inline tags (a rhombus + 20 px text, no boxes, so they never read as buttons): gains
+		# in PLUS, losses in INK_DIM, side by side, wrapping under the card when both are long.
 		var ds := HeroesTeamLogic.delta(_team, id, slot_index)
 		if ds.is_empty():
 			v.add_child(_badge(HeroesText.t("TEAM_DELTA_NONE"), "none"))
-		for b: Dictionary in ds.slice(0, 2):
-			v.add_child(_badge(HeroesText.t(str(b["key"])), "gain" if bool(b["gain"]) else "loss"))
+		else:
+			var flow := HFlowContainer.new()
+			flow.add_theme_constant_override("h_separation", 8)
+			flow.add_theme_constant_override("v_separation", 0)
+			flow.custom_minimum_size = Vector2(card.custom_minimum_size.x, 0)
+			flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			for b: Dictionary in ds.slice(0, 2):
+				flow.add_child(HeroesTeamScreen._delta_tag(HeroesText.t(str(b["key"])), bool(b["gain"])))
+			v.add_child(flow)
 	return v
 
 
 func _badge(text: String, kind: String) -> Control:
+	if kind == "none" or kind == "here":
+		# Plain 20 px status lines (no box).
+		var t := UIKit.label(text, 20, UITokens.GOLD_TEXT if kind == "here" else UITokens.INK_SOFT, kind == "here")
+		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		return t
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var fill := UITokens.PAPER_0

@@ -23,6 +23,8 @@ const T := {
 	"TEAM_AUTO_CANCEL": ["Скасувати", "Cancel"],
 	"TEAM_AUTO_SAME": ["Твоя команда вже найсильніша з наявних", "Your team is already the strongest you have"],
 	"TEAM_AUTO_GAINS": ["Синергія: %d → %d", "Synergy: %d → %d"],
+	"TEAM_AUTO_WHY_POWER": ["Сильніше: вищі самоцвіти й грані, синергія та сама", "Stronger: higher gems and facets, the same synergy"],
+	"TEAM_AUTO_WHY_POWER_OVER": ["Сильніше попри нижчу синергію: значно вищі самоцвіти й грані", "Stronger despite less synergy: much higher gems and facets"],
 	"TEAM_ROSTER_CHAMP": ["Чемпіон · %s", "Champion · %s"],
 	"TEAM_ROSTER_HERO": ["Герой команди", "Team hero"],
 	"TEAM_ROSTER_HINT": ["Торкнись картку — вона стане в стрій. Значки показують зміну синергії.", "Tap a card to place it. Badges show how the synergy changes."],

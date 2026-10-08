@@ -32,7 +32,7 @@ var _header: HBoxContainer
 var _presets: HBoxContainer
 var _sheet: KitSheet
 var _sheet_box: VBoxContainer
-var _auto_slip: PanelContainer
+var _auto_info: Dictionary = {}    ## auto_team() result while the preview is open
 var _overlay: Control
 var _member_nodes: Array[Control] = []
 var _press_ms := {}
@@ -120,6 +120,7 @@ func _rebuild(entrance: bool) -> void:
 	var h := HeroesUIModel.hero(str(shown["hero"]))
 	_bg.gem = str(h.get("gem", "L"))
 	_bg.element = str(h.get("element", ""))
+	_stage.gem = str(h.get("gem", "C"))
 	_fill_presets()
 	# Stage members.
 	for n in _member_nodes:
@@ -150,7 +151,15 @@ func _rebuild(entrance: bool) -> void:
 	# Sheet: synergy + dock.
 	_clear(_sheet_box)
 	var inner := _vp().x - UITokens.GUTTER * 2.0 - 4.0
-	_sheet_box.add_child(HeroesTeamSynergy.make(shown if ghost else _team, inner))
+	if ghost:
+		# The suggestion REPLACES the synergy block (never laid over it): what changes, why, and
+		# the two choices; the dock stays below.
+		var blk := _auto_block(inner)
+		_sheet_box.add_child(blk)
+		if not UITokens.reduce_motion():
+			UIJuice.soft_in(blk, Vector2(0, 16))
+	else:
+		_sheet_box.add_child(HeroesTeamSynergy.make(_team, inner))
 	_sheet_box.add_child(_dock())
 	_layout()
 	(func(): _layout()).call_deferred()
@@ -195,6 +204,8 @@ func _member(it: Dictionary, ghost: bool) -> Control:
 		"champion":
 			var cd := HeroesUIModel.champion(str(it["id"]))
 			var card := HeroCard.make(cd, "S")
+			card.show_role = false
+			card.footer_mode = "name"
 			var idx := int(it["index"])
 			card.pressed.connect(func(_i): _open_roster(idx))
 			holder.add_child(card)
@@ -215,7 +226,7 @@ func _member(it: Dictionary, ghost: bool) -> Control:
 		"locked":
 			var g2 := _Seat.new()
 			g2.locked = true
-			g2.text = HeroesText.t("TEAM_SLOT_LOCKED", [int(_team["slot3_at"])])
+			g2.text = HeroesText.t("TEAM_SLOT_LOCKED", [HeroesTeamLogic.seat_unlock_level(int(it["index"]))])
 			g2.size = sz
 			holder.add_child(g2)
 		_:
@@ -255,15 +266,27 @@ func _dock() -> Control:
 	var back := UIKit.secondary_button("", "back", Vector2(96, 88))
 	back.pressed.connect(_back)
 	d.add_child(back)
-	var auto := UIKit.secondary_button(HeroesText.t("TEAM_AUTO"), "auto", Vector2(196, 88), 24)
-	auto.pressed.connect(_auto)
-	d.add_child(auto)
+	if _has_champions():
+		var auto := UIKit.secondary_button(HeroesText.t("TEAM_AUTO"), "auto", Vector2(196, 88), 24)
+		auto.pressed.connect(_auto)
+		d.add_child(auto)
 	var lvl := int(HeroesUIModel.unlocks()["level"]) + 1
 	var play := UIKit.cta_button(HeroesText.t("TEAM_PLAY"), HeroesText.t("TEAM_PLAY_SUB", [lvl]), Vector2(0, 88), 32)
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	play.pressed.connect(_play)
 	d.add_child(play)
 	return d
+
+
+## Auto-team needs at least one open seat and one owned champion (before L14 there is nothing
+## to pick, so «Підібрати» is not shown).
+func _has_champions() -> bool:
+	if int(_team["slots"]) <= 0:
+		return false
+	for c: Dictionary in HeroesUIModel.champions():
+		if bool(c["owned"]):
+			return true
+	return false
 
 
 # ------------------------------------------------------------------ layout
@@ -307,10 +330,6 @@ func _layout() -> void:
 		n.scale = Vector2(k, k)
 		n.pivot_offset = Vector2(n.size.x * 0.5, n.size.y)
 		n.position = fp - Vector2(n.size.x * 0.5, n.size.y - 8.0)
-	if _auto_slip and is_instance_valid(_auto_slip):
-		_auto_slip.size = Vector2(W - UITokens.GUTTER * 2.0, _auto_slip.get_combined_minimum_size().y)
-		# Over the synergy block (it shows the current team), above the dock.
-		_auto_slip.position = Vector2(UITokens.GUTTER, H - _ins.w - 22.0 - 88.0 - 14.0 - _auto_slip.size.y)
 
 
 # ------------------------------------------------------------------ actions
@@ -370,39 +389,44 @@ func _auto() -> void:
 		_close_auto()
 		return
 	var best := HeroesTeamLogic.auto_team()
-	var cur := HeroesTeamLogic.score(str(_team["hero"]), _team["champions"])
-	var nxt := HeroesTeamLogic.score(str(best["hero"]), best["champions"])
-	if str(best["hero"]) == str(_team["hero"]) and HeroesTeamLogic._same(best["champions"], _team["champions"]):
+	if str(best["reason"]) == "same" or (str(best["hero"]) == str(_team["hero"]) and HeroesTeamLogic._same(best["champions"], _team["champions"])):
 		UIKit.toast(self, HeroesText.t("TEAM_AUTO_SAME"), "check")
 		return
+	_auto_info = best
 	_preview = best
 	_rebuild(false)
-	_auto_slip = UIKit.panel("card")
-	_auto_slip.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+## The suggestion block shown in the sheet in place of the synergy panel.
+func _auto_block(inner: float) -> Control:
+	var best := _auto_info
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
-	_auto_slip.add_child(v)
 	v.add_child(UIKit.section(HeroesText.t("TEAM_AUTO_TITLE")))
 	var names: Array[String] = [HeroesText.hero_name(str(best["hero"]))]
 	for c in best["champions"]:
 		names.append(HeroesText.champ_name(str(c)))
-	var tw := _vp().x - UITokens.GUTTER * 2.0 - 48.0
 	var l := UIKit.label(" · ".join(names), 24, UITokens.INK, true)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size = Vector2(tw, 0)
+	l.custom_minimum_size = Vector2(inner, 0)
 	v.add_child(l)
-	v.add_child(UIKit.label(HeroesText.t("TEAM_AUTO_GAINS", [int(cur["total"]), int(nxt["total"])]), 22, UITokens.INK_DIM))
-	var badges := HBoxContainer.new()
-	badges.add_theme_constant_override("separation", 8)
+	# Why: the synergy change, then (when the synergy does not rise) the power reason.
+	var why := HBoxContainer.new()
+	why.add_theme_constant_override("separation", 14)
+	why.add_child(UIKit.label(HeroesText.t("TEAM_AUTO_GAINS", [int(best["syn_now"]), int(best["syn"])]), 22, UITokens.INK_DIM))
+	var cur := HeroesTeamLogic.score(str(_team["hero"]), _team["champions"])
+	var nxt := HeroesTeamLogic.score(str(best["hero"]), best["champions"])
 	for k: String in ["faction", "class", "element"]:
 		var d := int(nxt[k]) - int(cur[k])
 		if d != 0:
-			var b := PanelContainer.new()
-			b.add_theme_stylebox_override("panel", UIKit.cbox(UITokens.CTA_HI if d > 0 else UITokens.PAPER_2, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, 1, Vector2(8, 2)))
-			b.add_child(UIKit.label(HeroesText.t("TEAM_DELTA_" + k.to_upper() + ("" if d > 0 else "_LOSS")), 22, UIKit.BROWN if d > 0 else UITokens.INK_DIM, d > 0))
-			badges.add_child(b)
-	if badges.get_child_count() > 0:
-		v.add_child(badges)
+			why.add_child(_delta_tag(HeroesText.t("TEAM_DELTA_" + k.to_upper() + ("" if d > 0 else "_LOSS")), d > 0))
+	v.add_child(why)
+	var reason := str(best["reason"])
+	if reason != "synergy":
+		var r := UIKit.label(HeroesText.t("TEAM_AUTO_WHY_POWER" if reason == "power" else "TEAM_AUTO_WHY_POWER_OVER"), 22, UITokens.INK)
+		r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		r.custom_minimum_size = Vector2(inner, 0)
+		v.add_child(r)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	var no := UIKit.secondary_button(HeroesText.t("TEAM_AUTO_CANCEL"), "close", Vector2(0, 88), 24)
@@ -413,21 +437,32 @@ func _auto() -> void:
 	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	yes.pressed.connect(func():
 		var b := _preview
-		_close_auto()
+		_preview = {}
+		_auto_info = {}
 		HeroesUIModel.set_team(str(b["hero"]), b["champions"]))
 	row.add_child(yes)
 	v.add_child(row)
-	add_child(_auto_slip)
-	_layout()
-	if not UITokens.reduce_motion():
-		UIJuice.soft_in(_auto_slip, Vector2(0, 24))
+	return v
+
+
+## An inline synergy delta tag (no box, so it never reads as a button): a small gem-tinted
+## rhombus + 20 px text, gains in PLUS, losses in INK_DIM.
+static func _delta_tag(text: String, gain: bool) -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dot := _Dot.new()
+	dot.gain = gain
+	dot.custom_minimum_size = Vector2(12, 12)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(dot)
+	h.add_child(UIKit.label(text, 20, UITokens.PLUS if gain else UITokens.INK_DIM, gain))
+	return h
 
 
 func _close_auto() -> void:
 	_preview = {}
-	if _auto_slip and is_instance_valid(_auto_slip):
-		_auto_slip.queue_free()
-	_auto_slip = null
+	_auto_info = {}
 	_rebuild(false)
 
 
@@ -552,10 +587,27 @@ class _PresetKey extends Button:
 		var f := UIKit.font_w("extrabold")
 		var ink := UIKit.BROWN if active else (UITokens.INK if gem != "" else UITokens.INK_DIM)
 		if gem != "":
-			GemDraw.draw_mark(self, gem, Vector2(size.x * 0.5, r.position.y + 22.0), 15.0)
-			draw_string(f, Vector2(0, r.end.y - 10.0), str(num), HORIZONTAL_ALIGNMENT_CENTER, size.x, 26, ink)
+			# The preset hero's gem (22 px) left of the numeral, on one line.
+			var cy := r.get_center().y
+			GemDraw.draw_mark(self, gem, Vector2(size.x * 0.5 - 15.0, cy), 22.0)
+			draw_string(f, Vector2(size.x * 0.5 + 2.0, cy + 10.0), str(num), HORIZONTAL_ALIGNMENT_LEFT, -1, 28, ink)
 		else:
 			draw_string(f, Vector2(0, r.get_center().y + 10.0), str(num), HORIZONTAL_ALIGNMENT_CENTER, size.x, 28, ink)
+
+
+## The rhombus of an inline delta tag: gold for a gain, an engraved outline for a loss.
+class _Dot extends Control:
+	var gain := true
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5
+		var pts := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.72, 0), c + Vector2(0, r), c + Vector2(-r * 0.72, 0)])
+		if gain:
+			draw_colored_polygon(pts, UITokens.GOLD_HI)
+			GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.0)
+		else:
+			GemDraw.outline(self, pts, UITokens.INK_DIM, 1.2)
 
 
 ## Removes every child at once (queue_free alone leaves them in the layout until the frame ends).
