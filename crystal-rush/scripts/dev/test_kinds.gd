@@ -50,6 +50,12 @@ func _test_table() -> void:
 			_ok(u.has("waves") and u.has("spacing") and u.has("gap"), "%s waves ult has waves / spacing / gap" % id)
 		_ok(u.has("kills") and u.has("breaks") and u.has("charge"), "%s ult has kills / breaks / charge" % id)
 	_ok(HeroKinds.phase() == 0, "heroes phase is 0 at H0 (got %d)" % HeroKinds.phase())
+	# The kind names agree with WS-A's generated HeroData roster (when it is in the tree).
+	if ResourceLoader.exists("res://scripts/core/hero_data.gd"):
+		var roster: Dictionary = (load("res://scripts/core/hero_data.gd") as Script).get_script_constant_map().get("HEROES", {})
+		for id: String in HeroKinds.KINDS:
+			_ok(roster.has(id) and StringName(str(roster[id].get("ult", ""))) == HeroKinds.ult_kind(id),
+					"%s ult kind matches HeroData (%s)" % [id, str((roster.get(id, {}) as Dictionary).get("ult", "?"))])
 
 
 # ------------------------------------------------------------------ rule order on a mock view
