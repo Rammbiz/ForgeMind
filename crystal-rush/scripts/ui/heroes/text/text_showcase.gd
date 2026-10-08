@@ -1,0 +1,52 @@
+extends RefCounted
+## Hero Showcase + Manage sheet copy (owner: scripts/ui/heroes/showcase/*). Loaded by HeroesText
+## (EXTRA_TABLES) after Loc and before the foundation fallback. Key families follow §12.4
+## (SHOW_*, MANAGE_*, SYNC_*); WS-Loc moves these rows into Loc in H3b and deletes this file.
+## No literal numbers: every number is a %d / %s placeholder filled from data.
+
+const T := {
+	"SHOW_TAGS": ["%s · %s", "%s · %s"],
+	"SHOW_NOT_OWNED": ["Ще не в колекції", "Not in your collection yet"],
+	"SHOW_FROM_PORTAL": ["Портал: %s за призов зараз", "Portal: %s per summon right now"],
+	"SHOW_FROM_PORTAL_SOON": ["Портал: відкриється після рівня %d", "Portal: opens after level %d"],
+	"SHOW_FROM_SEALS": ["Або %s — обери сам", "Or %s — pick yourself"],
+	"SHOW_FROM_LEVEL": ["Приєднається після рівня %d", "Joins after level %d"],
+	"SHOW_FROM_CHEST": ["Скриня героїв: за перемоги", "Hero Chest: from wins"],
+	"SHOW_TO_PORTAL": ["До Порталу", "To the Portal"],
+	"SHOW_3D_NONE": ["3D-вигляд з’явиться разом із моделлю героя", "The 3D view arrives with the hero’s model"],
+	"SHOW_3D_NONE_SUB": ["Поки що — мальований портрет", "For now: the painted portrait"],
+	"SHOW_3D_HINT": ["Тягни, щоб обернути", "Drag to turn"],
+	"SHOW_CEILING": ["Показники: %s від корінного %s", "Stats: %s of a native %s"],
+	"SHOW_NATIVE_GEM": ["Корінний: %s", "Native: %s"],
+	"SHOW_SKILLS_SOON": ["Ранги навичок — після рівня %d", "Skill ranks open after level %d"],
+	"SHOW_AWAKEN_LOCKED": ["Пробудження: Повні грані в Аметисті або вище", "Awakening: Full facets in Amethyst or higher"],
+	"SHOW_FACETS_NONE": ["Фрагменти дають дублікати героя", "Fragments come from duplicates"],
+	"SHOW_SWIPE": ["Свайп — наступний герой", "Swipe for the next hero"],
+	# Manage sheet «Покращення» (§9.2, §9.3)
+	"MANAGE_TITLE": ["Покращення", "Upgrade"],
+	"MANAGE_LEVEL_TO": ["Рів. %d → %d", "Lv %d → %d"],
+	"MANAGE_LEVEL_GIVES": ["За рівень: +%s шкоди · +%s здоров’я · +%s швидкості заряду", "Per level: +%s damage · +%s HP · +%s charge rate"],
+	"MANAGE_LEVEL_ULT": ["Сила ульти на цьому рівні: ×%s", "Ult power at this level: ×%s"],
+	"MANAGE_LEVEL_AT_CAP": ["Межа світу — більше в Світі %d", "World cap — more in World %d"],
+	"MANAGE_LEVEL_SYNC_NOTE": ["Новий герой одразу на рівні, близькому до найкращого", "A new hero arrives close to your best hero’s level"],
+	"MANAGE_FACET_ADD": ["Додати грань", "Add a facet"],
+	"MANAGE_FACET_NEED": ["Ще %s до наступної грані", "%s more to the next facet"],
+	"MANAGE_FACET_SOURCES": ["Фрагменти: дублікати з Порталу, скрині героїв, вибір за печатками", "Fragments: Portal duplicates, Hero Chests, Seal picks"],
+	"MANAGE_RECUT_READY": ["Повні грані: можна огранити до %s", "Full facets: ready to recut to %s"],
+	"MANAGE_RECUT_NEED": ["Огранка до %s: %s", "Recut to %s: %s"],
+	"MANAGE_SKILL_ULT": ["+%s сили ульти за ранг", "+%s ult effect per rank"],
+	"MANAGE_SKILL_ATTACK": ["+%s шкоди героя за ранг", "+%s hero damage per rank"],
+	"MANAGE_SKILL_RALLY": ["+%s сили кличу за ранг", "+%s Rally value per rank"],
+	"MANAGE_SKILL_AWAKEN": ["Кожен ранг додає правило", "Every rank adds a rule"],
+	"MANAGE_SKILL_NEXT": ["Наступний ранг: %s", "Next rank: %s"],
+	"MANAGE_SKILL_CAP_NOTE": ["Межа рангу росте з гранями та огранкою", "The rank cap grows with facets and recuts"],
+	"MANAGE_GEAR_WEAPON": ["Зброя", "Weapon"],
+	"MANAGE_GEAR_ARMOUR": ["Обладунок", "Armour"],
+	"MANAGE_GEAR_CHARM": ["Оберіг", "Charm"],
+	"MANAGE_GEAR_RELIC": ["Реліквія", "Relic"],
+	"MANAGE_GEAR_EMPTY": ["Порожньо · Майстерня", "Empty · Workshop"],
+	"MANAGE_GEAR_AT": ["Рів. героя %d", "Hero Lv %d"],
+	"MANAGE_GEAR_NOTE": ["Спорядження кується в Майстерні з Зоряної руди, без випадковостей", "Gear is forged in the Workshop from Star Ore, with no randomness"],
+	"MANAGE_TEASER": ["%s — після рівня %d", "%s — after level %d"],
+	"MANAGE_TRUE_VALUE": ["Точне значення", "Exact value"],
+}
