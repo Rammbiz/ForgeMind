@@ -38,6 +38,7 @@ var _ring: MeshInstance3D
 var _hero_y := 0.0
 var _t := 0.0
 var _poke := 0.0
+var _dolly := 0.0
 ## Camera framing (kept as fields; the dev skins tune them): look target height, camera height
 ## and distance from the hero.
 var look_y := 0.8
@@ -246,14 +247,27 @@ func _process(delta: float) -> void:
 func _place_camera(t: float) -> void:
 	var a := deg_to_rad(2.0) * sin(fmod(t, 1200.0) * TAU / 12.0)
 	_cam.fov = fov
-	_cam.position = Vector3(sin(a) * cam_d, cam_h, cos(a) * cam_d)
-	_cam.look_at(Vector3(0, look_y, 0))
+	var pos := Vector3(sin(a) * cam_d, cam_h, cos(a) * cam_d)
+	var target := Vector3(0, look_y, 0)
+	if _dolly > 0.0:
+		# Rise over the hero's shoulder and glide down the bridge.
+		pos = pos.lerp(Vector3(0.55, 1.55, -2.4), _dolly)
+		target = target.lerp(Vector3(0, 1.0, -14.0), _dolly)
+	_cam.position = pos
+	_cam.look_at(target)
 	# Taller phones: the art band grows, so lift the view a little (the hero sits lower, nearer
 	# PLAY, and the sky grows above) instead of growing both ends evenly.
 	var vs := get_viewport().get_visible_rect().size
 	var extra := maxf(0.0, vs.y / maxf(vs.x, 1.0) - 1280.0 / 720.0)
 	var d := Vector3(0, cam_h - look_y, cam_d).length()
 	_cam.v_offset = extra * 2.0 * d * tan(deg_to_rad(fov * 0.5)) * 0.32
+
+
+## PLAY: the camera dollies past the hero onto the bridge (the run loads right after).
+func dolly(dur := 0.5) -> void:
+	_dolly = 0.0
+	var tw := create_tween()
+	tw.tween_property(self, "_dolly", 1.0, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 
 
 ## The hero turns to the camera with a full spin (a tap on the hero).

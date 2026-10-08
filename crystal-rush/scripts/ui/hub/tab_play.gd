@@ -29,6 +29,7 @@ var _quests_btn: RoundButton
 var _tags: Array[DeckTag] = []
 var _hero_hit: Control
 var _shown_once := false
+var _launching := false
 
 
 func setup(p_hub: Hub) -> void:
@@ -223,8 +224,19 @@ func _process(_delta: float) -> void:
 
 
 func _play() -> void:
+	if _launching:
+		return
 	UIJuice.haptic("THUD", 0.7)
-	hub.play.emit()
+	if UITokens.reduce_motion() or hub.stage == null:
+		hub.play.emit()
+		return
+	# The camera dollies onto the bridge, then the run loads.
+	_launching = true
+	hub.stage.dolly(0.45)
+	get_tree().create_timer(0.4).timeout.connect(func():
+		_launching = false
+		if is_instance_valid(hub):
+			hub.play.emit())
 
 
 func _on_node(level: int) -> void:
