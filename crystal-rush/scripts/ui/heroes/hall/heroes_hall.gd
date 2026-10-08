@@ -521,28 +521,50 @@ func _feat_row(fid: String, f: Dictionary, value: int) -> Control:
 	var tier := 0
 	while tier < tiers.size() and value >= int(tiers[tier]):
 		tier += 1
+	var done := tier >= tiers.size()
+	var next := int(tiers[mini(tier, tiers.size() - 1)])
+	# [medallion: the gem cut of the reached tier] [name · tier pips · bar] [reward: tome + N]
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 10)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	box.add_child(row)
+	var med := _FeatMedal.new()
+	med.tier = tier
+	med.custom_minimum_size = Vector2(56, 56)
+	med.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(med)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 6)
+	row.add_child(col)
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 12)
-	box.add_child(top)
-	var pips := HeroFacetPips.make("L", tier, 22, tiers.size())
-	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top.add_child(pips)
+	top.add_theme_constant_override("separation", 10)
+	col.add_child(top)
 	var nm := UIKit.label(HeroesText.t("FEAT_" + fid), 24, UITokens.INK, true)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(nm)
-	var done := tier >= tiers.size()
-	var next := int(tiers[mini(tier, tiers.size() - 1)])
-	top.add_child(UIKit.label(HeroesText.t("SKL_RANK_SHORT", [mini(value, next), next]), 24, UITokens.INK, true))
-	var bar := HeroEngravedBar.make("L", mini(value, next), next, 600)
+	top.add_child(UIKit.label(HeroesText.t("SKL_RANK_SHORT", [mini(value, next), next]), 22, UITokens.INK_SOFT, true))
+	var bar := HeroEngravedBar.make(_FeatMedal.gem_of(tier + (0 if done else 1)), mini(value, next), next, 420)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_child(bar)
-	var amounts: Array = reward[1]
-	var word := "tome" if str(reward[0]) == "tomes" else "ore"
-	var rl := HeroesText.t("HALL_FEAT_DONE") if done else \
-			HeroesText.t("HALL_FEAT_TIER", [HeroesText.roman(tier + 1)]) + " · " + HeroesText.t("HALL_FEAT_REWARD", [HeroesText.count(int(amounts[tier]), word)])
-	box.add_child(UIKit.label(rl, 22, UITokens.INK_DIM))
+	col.add_child(bar)
+	var pips := HeroFacetPips.make("L", tier, 18, tiers.size())
+	pips.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	col.add_child(pips)
+	# Reward of the next tier: a tome and the number (a quiet tick once every tier is done).
+	var rw := HBoxContainer.new()
+	rw.add_theme_constant_override("separation", 6)
+	rw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(rw)
+	if done:
+		rw.add_child(Icons.make("check", 30.0, UITokens.GOLD_TEXT))
+	else:
+		var amounts: Array = reward[1]
+		var icon := "tome" if str(reward[0]) == "tomes" else "ore"
+		rw.add_child(HeroIcons.make(icon, 36.0, Color.WHITE))
+		var n := UIKit.label("+" + HeroesText.num(int(amounts[tier])), 26, UITokens.INK, true)
+		n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		rw.add_child(n)
 	box.add_child(UIKit.hairline())
 	return box
 
@@ -619,3 +641,25 @@ class _ChipGap extends Control:
 	func _draw() -> void:
 		var x := size.x * 0.5
 		draw_line(Vector2(x, size.y * 0.3), Vector2(x, size.y * 0.7), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), 1.5)
+
+
+## A feat medallion: an engraved cream socket holding the gem cut of the reached tier
+## (tier 1 Сапфір, 2 Аметист, 3 Топаз); an empty engraved cut before the first tier.
+class _FeatMedal extends Control:
+	var tier := 0
+
+	static func gem_of(t: int) -> String:
+		return ["quartz", "sapphire", "amethyst", "topaz"][clampi(t, 0, 3)]
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var R := minf(size.x, size.y) * 0.5
+		draw_circle(c + Vector2(0, 2), R - 1.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
+		draw_circle(c, R - 1.0, UITokens.PAPER_0)
+		draw_arc(c, R - 1.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+		draw_arc(c, R - 6.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), 1.0, true)
+		if tier <= 0:
+			var pts := GemDraw.cut_points("round", c, R * 0.9)
+			GemDraw.outline(self, pts, Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.45), 1.4)
+		else:
+			GemDraw.draw_mark(self, gem_of(tier), c, R * 0.95)

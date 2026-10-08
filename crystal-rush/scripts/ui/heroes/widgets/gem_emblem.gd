@@ -100,6 +100,13 @@ static func draw_emblem(ci: CanvasItem, g: String, nat: String, c: Vector2, s: f
 		_draw_opal_fire(ci, c, s, t)
 	if nat != "" and nat != g:
 		_draw_doublet(ci, g, nat, cut, c, s)
+	if s >= 60.0:
+		# Large stones: the kit's dark girdle rim reads as a clip-art outline at this size. Cover
+		# it with the setting's metal and let a fine gold hairline carry the edge.
+		var outer := GemDraw.cut_points(cut, c, s)
+		var cover: Color = metal if setting else Color(spec["rim"]).lerp(Color.WHITE, 0.3)
+		GemDraw.outline(ci, outer, cover, s * 0.032)
+		GemDraw.outline(ci, outer, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.95), maxf(1.5, s * 0.008))
 	_draw_girdle_light(ci, cut, c, s)
 
 
@@ -110,7 +117,7 @@ static func _draw_setting(ci: CanvasItem, g: String, cut: String, c: Vector2, s:
 	for p in bez:
 		cols.append(metal.lightened(0.25).lerp(metal.darkened(0.12), clampf((p.y - c.y + s * 0.6) / (s * 1.2), 0.0, 1.0)))
 	ci.draw_polygon(bez, cols)
-	GemDraw.outline(ci, bez, Color(dark.r, dark.g, dark.b, 0.75), maxf(1.0, s * 0.018))
+	GemDraw.outline(ci, bez, Color(dark.r, dark.g, dark.b, 0.5), clampf(s * 0.01, 1.0, 1.8))
 	var outer := GemDraw.cut_points(cut, c, s * 1.0)
 	var n := int(PRONGS.get(g, 4))
 	var tips := _prong_points(cut, outer, n, c)
@@ -213,7 +220,8 @@ static func _draw_doublet(ci: CanvasItem, g: String, nat: String, cut: String, c
 			ci.draw_line(line[0] + Vector2(0, 1.2), line[line.size() - 1] + Vector2(0, 1.2), Color(0.45, 0.3, 0.1, 0.5), 1.0, true)
 	# Chip of the native cut on the bottom prong.
 	var bottom := c + Vector2(0, s * 0.56)
-	GemDraw.draw_mark(ci, UITokens.gem_of(nat), bottom, maxf(10.0, s * 0.2))
+	# The native chip reads at a glance: 30 px on large emblems, in its own gold bezel.
+	GemDraw.draw_mark(ci, UITokens.gem_of(nat), bottom, maxf(s * 0.2, minf(30.0, s * 0.3)))
 
 
 ## A thin light rim along the lit (upper-left) girdle edges.

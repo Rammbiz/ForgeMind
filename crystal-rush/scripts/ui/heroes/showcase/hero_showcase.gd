@@ -340,9 +340,16 @@ func _fill_where() -> void:
 		var ic := HeroIcons.make(str(l[0]), 30.0, UITokens.INK)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		row.add_child(ic)
+		if str(l[0]) == "portal":
+			# The gem-cut mark before the per-summon %: the rarity reads at a glance.
+			var gm := _GemMark.new()
+			gm.gem = str(h["gem"])
+			gm.custom_minimum_size = Vector2(28, 30)
+			gm.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			row.add_child(gm)
 		var lb := UIKit.label(str(l[1]), 22, UITokens.INK)
 		lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lb.custom_minimum_size = Vector2(COL_W - 44.0, 0)
+		lb.custom_minimum_size = Vector2(COL_W - (82.0 if str(l[0]) == "portal" else 44.0), 0)
 		row.add_child(lb)
 		_info.add_child(row)
 
@@ -798,3 +805,11 @@ class _ReliefArt extends Control:
 		draw_set_transform(c + Vector2(0, -3.0 * k), 0.0, Vector2.ONE * (1.0 + 0.008 * k))
 		HeroArt.draw_relief(self, Vector2.ZERO, glyph_px(), cls, gem, a, -1.0 if reduce else _t, 0.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## A small gem-cut rarity mark (GemDraw.draw_mark) as a row glyph.
+class _GemMark extends Control:
+	var gem := "L"
+
+	func _draw() -> void:
+		GemDraw.draw_mark(self, UITokens.gem_of(gem), size * 0.5, minf(size.x, size.y) * 0.78)

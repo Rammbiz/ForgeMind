@@ -138,7 +138,9 @@ func _frame() -> void:
 	_cam.h_offset = (0.5 - focus_x) * vis_w
 	# A wide hero framed by width leaves spare height: stand it lower (on the skill band's
 	# horizon) instead of floating in the middle of the art column.
-	_cam.v_offset = maxf(0.0, (vis_h - region.y) * 0.4) if focus_x > 0.5 else 0.0
+	# (The dais keeps ~150 px above the stage's bottom edge, which the Showcase sets 40 px under
+	# the top of its skill band.)
+	_cam.v_offset = maxf(0.0, (vis_h - region.y) * 0.5 - 150.0 * vis_h / size.y) if focus_x > 0.5 else 0.0
 
 
 func _process(delta: float) -> void:

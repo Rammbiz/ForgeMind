@@ -216,4 +216,21 @@ func _test_widgets() -> void:
 	await get_tree().process_frame
 	_check(p != null, "HeroesNav opens a (placeholder) screen")
 	HeroesNav.close_all()
+	# Route gates (§9.2): Team / Portal are locked at L4, open at L40; force skips the gate.
+	HeroesUIModel.set_state("fresh")
+	_check(HeroesNav.locked_reason("team") != "" and HeroesNav.locked_reason("portal/odds") != "", "fresh: team + portal locked")
+	_check(HeroesNav.locked_reason("hero/bolt") == "", "fresh: the Showcase is open")
+	_check(HeroesNav.open(null, "portal", self) == null, "a locked route does not open")
+	var forced := HeroesNav.open(null, "codex", self, true)
+	_check(forced != null, "codex route opens (modal layer without a hub)")
+	HeroesNav.close_all()
+	HeroesUIModel.set_state("late")
+	_check(HeroesNav.locked_reason("team") == "" and HeroesNav.locked_reason("workshop") == "", "late: team + workshop open")
+	# Level price: the shipped curve, paid by level_up, 0 at the cap.
+	HeroesUIModel.set_state("mid")
+	var cost := HeroesUIModel.level_cost("vesta")
+	var coins0 := int(HeroesUIModel.currencies()["coins"])
+	_check(cost == EconData.hero_cost(int(HeroesUIModel.hero("vesta")["level"])) and cost > 0, "level_cost = EconData.hero_cost")
+	_check(HeroesUIModel.level_up("vesta") and int(HeroesUIModel.currencies()["coins"]) == coins0 - cost, "level_up pays level_cost")
+	HeroesUIModel.set_state("mid")
 	host.queue_free()

@@ -87,7 +87,15 @@ class _Glyph extends Control:
 		var R := minf(size.x, size.y) * 0.5
 		match kind:
 			"GEM":
-				GemDraw.draw_mark(self, "topaz", c, R * 1.3)
+				# The same ring socket as the other rows, with the five-cut idea as a line glyph:
+				# the topaz star cut engraved in ink.
+				draw_circle(c + Vector2(0, 2), R - 2.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
+				draw_circle(c, R - 2.0, UITokens.PAPER_0)
+				draw_arc(c, R - 2.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+				var star := GemDraw.cut_points("star", c + Vector2(0, 1), R * 1.05)
+				GemDraw.outline(self, star, UITokens.INK, 2.4)
+				var inner := GemDraw.cut_points("star", c + Vector2(0, 1), R * 0.45)
+				GemDraw.outline(self, inner, Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.6), 1.4)
 			"RECUT":
 				HeroGemEmblem.draw_emblem(self, "R", "C", c, R * 1.2, true)
 			_:
