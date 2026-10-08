@@ -43,7 +43,7 @@ var picked := false:            ## deck list: already in the deck (dimmed + chec
 	set(v):
 		picked = v
 		_sync()
-static var _premult: CanvasItemMaterial
+static var _premult: ShaderMaterial
 var _vp: SubViewport                ## the bake (static layers), rendered on change only
 var _root: Control                  ## the card's static layers inside the bake, at PAD
 var _img: _Baked                    ## the baked texture, drawn in the grid
@@ -81,8 +81,8 @@ func _init(p_card := {}) -> void:
 	_img.mc = self
 	_img.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if _premult == null:
-		_premult = CanvasItemMaterial.new()
-		_premult.blend_mode = CanvasItemMaterial.BLEND_MODE_PREMULT_ALPHA
+		_premult = ShaderMaterial.new()
+		_premult.shader = load("res://shaders/ui/baked_premult.gdshader") as Shader
 	_img.material = _premult
 	add_child(_img)
 	_gem = KitGemCard.new()

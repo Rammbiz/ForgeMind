@@ -424,7 +424,7 @@ func _grid_slot(rank: int) -> Vector2:
 	# Anchored to the bottom buttons (not to a share of the height): on tall phones the extra
 	# height goes to the altar scene above, never to a gap between the cards and the buttons.
 	var ins := UIKit.safe_insets(get_viewport())
-	var top := minf(vp.y * 0.74, vp.y - ins.w - 333.0) - rows * (cs.y + gap) + 10.0
+	var top := (vp.y - ins.w - 333.0) - rows * (cs.y + gap) + 10.0
 	return Vector2((vp.x - w) * 0.5 + col * (cs.x + gap), top + row * (cs.y + gap))
 
 
@@ -738,6 +738,7 @@ func _summary() -> void:
 	var order: Array[AltarCard] = _cards.duplicate()
 	order.sort_custom(func(a: AltarCard, b: AltarCard) -> bool:
 		return CacheModels.tier(a.rarity()) > CacheModels.tier(b.rarity()))
+	var last_tw: Tween = null
 	for i in order.size():
 		var c := order[i]
 		c.visible = true
@@ -749,12 +750,13 @@ func _summary() -> void:
 		tw.tween_property(c, "position", _grid_slot(i), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(i * 0.04)
 		tw.tween_property(c, "rotation", 0.0, 0.3).set_delay(i * 0.04)
 		tw.tween_property(c, "scale", Vector2.ONE, 0.3).set_delay(i * 0.04)
+		last_tw = tw
 	var vp := get_viewport().get_visible_rect().size
 	_rays.position = Vector2(vp.x * 0.5, _grid_slot(0).y + _card_size().y) - _rays.size * 0.5
-	# The cards settle first (last one lands at `settle` s); then the cream sheet slides in
-	# under them, then the coins and the buttons (nothing fades in under moving cards).
-	var settle := 0.4 + maxf(order.size() - 1, 0) * 0.04
-	# The summary lands on a cream sheet (arched top + keystone) behind the card grid.
+	# The summary lands on a cream sheet (arched top + keystone) behind the card grid. The cards
+	# settle first: the sheet, the coins and the buttons start when the last card's own tween
+	# has finished (not after a fixed delay, so slow frames never show the sheet under moving
+	# cards).
 	if _sum_sheet == null:
 		_sum_sheet = UIKit.sheet()
 		_sum_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -763,13 +765,29 @@ func _summary() -> void:
 		_root_ui.add_child(_sum_sheet)
 		_root_ui.move_child(_sum_sheet, _cards[0].get_index() if not _cards.is_empty() else _coins_row.get_index())
 		_sum_sheet.modulate.a = 0.0
-		UIJuice.sheet_in(_sum_sheet, maxf(settle - 0.08, 0.0))
+	if _coins_row.get_child_count() > 0:
+		_coins_row.position.y = _grid_slot(order.size() - 1).y + _card_size().y + 8
+	_coins_row.modulate.a = 0.0
+	_done_btn.visible = false
+	_up_btn.visible = false
+	if last_tw != null and last_tw.is_valid():
+		last_tw.finished.connect(_summary_settled, CONNECT_ONE_SHOT)
+	else:
+		_summary_settled()
+
+
+## The summary's second beat, once every card has landed: the sheet slides in under the grid,
+## then the coins pop and fly to the chip, then «Готово» and «Покращити <machine>».
+func _summary_settled() -> void:
+	if not is_inside_tree() or state == "leaving":
+		return
+	if _sum_sheet and _sum_sheet.modulate.a < 0.99:
+		UIJuice.sheet_in(_sum_sheet)
 	var coins := int(rev.get("coins", 0))
 	if coins > 0:
-		_coins_row.position.y = _grid_slot(order.size() - 1).y + _card_size().y + 8
 		_coins_row.modulate.a = 1.0
-		UIJuice.pop(_coins_row, settle + 0.12)
-		get_tree().create_timer(settle + 0.5).timeout.connect(func():
+		UIJuice.pop(_coins_row, 0.12)
+		get_tree().create_timer(0.45).timeout.connect(func():
 			if not is_inside_tree():
 				return
 			_chip.expect_fly()
@@ -784,7 +802,7 @@ func _summary() -> void:
 			best_t = CacheModels.tier(c.rarity())
 			up_id = id
 	_done_btn.visible = true
-	UIJuice.pop(_done_btn, settle + 0.2)
+	UIJuice.pop(_done_btn, 0.16)
 	if up_id != "":
 		_up_btn.text = Loc.f("UPGRADE_MACHINE", [Loc.t(str((ArsenalData.MACHINES[up_id] as Dictionary)["name"]))])
 		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 18))
@@ -792,7 +810,7 @@ func _summary() -> void:
 		for cn in _up_btn.pressed.get_connections():
 			_up_btn.pressed.disconnect(cn["callable"])
 		_up_btn.pressed.connect(func(): _leave("upgrade", up_id))
-		UIJuice.pop(_up_btn, settle + 0.28)
+		UIJuice.pop(_up_btn, 0.24)
 	Audio.chord(5, true, -9.0)
 
 
