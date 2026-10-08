@@ -15,7 +15,7 @@ const BANNER := Vector2(672, 300)
 const CARD := Vector2(216, 296)
 
 var hub: Hub
-var _vault_card: KitGemCard
+var _vault_card: _VaultSlab
 var _banner_host: Control
 var _sc: ScrollContainer
 var _col: VBoxContainer
@@ -83,29 +83,29 @@ func _ready() -> void:
 	# Odds row
 	col.add_child(_odds_row())
 	# Coming products and the no-random promise are notes, not cards: a framed row on this page
-	# means "tap me", so these sit as quiet engraved lines under a hairline.
-	var notes := VBoxContainer.new()
-	notes.add_theme_constant_override("separation", 10)
+	# means "tap me", so they sit on a frameless 94 % cream row (lux "row", §4.3: no body text
+	# straight on the veiled world), with the restore link anchored right under them (no empty band).
+	var notes := PanelContainer.new()
+	notes.add_theme_stylebox_override("panel", UIKit.lux("row", Vector2(8, 12)))
 	notes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var nv := VBoxContainer.new()
+	nv.add_theme_constant_override("separation", 10)
+	nv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	notes.add_child(nv)
 	var hl := UIKit.divider(560.0)
 	hl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	notes.add_child(hl)
-	notes.add_child(_note("lock", Loc.t("SHOP_SOON_ROW"), UIKit.INK_DIM))
-	notes.add_child(_note("check", Loc.t("NO_RANDOM"), UIKit.GOLD_TEXT))
-	col.add_child(notes)
-	var cards: Array = [notes]
-	# The restore link sits at the foot of the page (the spare height above it reads as air).
-	var foot_gap := Control.new()
-	foot_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	foot_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.add_child(foot_gap)
+	nv.add_child(hl)
+	nv.add_child(_note("lock", Loc.t("SHOP_SOON_ROW"), UITokens.INK_DIM_GLASS))
+	nv.add_child(_note("check", Loc.t("NO_RANDOM"), UITokens.GOLD_TEXT_GLASS))
 	var rrow := HBoxContainer.new()
 	rrow.alignment = BoxContainer.ALIGNMENT_CENTER
 	var restore := UIKit.text_button(Loc.t("RESTORE"), Vector2(0, 72), 22)
 	restore.disabled = true
-	restore.add_theme_color_override("font_disabled_color", UIKit.INK_SOFT)
+	restore.add_theme_color_override("font_disabled_color", UITokens.INK_DIM_GLASS)
 	rrow.add_child(restore)
-	col.add_child(rrow)
+	nv.add_child(rrow)
+	col.add_child(notes)
+	var cards: Array = [notes]
 	refresh()
 	UIJuice.soft_in(head, Vector2(0, 12))
 	UIJuice.cards_in(cards, 0.12)
@@ -152,16 +152,15 @@ func refresh() -> void:
 ## The Vault as a wide gem-ground banner: the eggs on the left, the amber «Відкрити» on the
 ## right (a cream «Відкрити» when the Vault is empty), the name and count on the cream footer.
 func _vault_banner() -> Control:
-	_vault_card = UIKit.gem_card("amethyst", BANNER)
-	_vault_card.footer_ratio = 0.0
-	_vault_card.pips = -1
+	_vault_card = _VaultSlab.new()
+	_vault_card.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 26
 	row.offset_right = -24
 	row.add_theme_constant_override("separation", 0)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_vault_card.content.add_child(row)
+	_vault_card.add_child(row)
 	_vault_eggs = HBoxContainer.new()
 	_vault_eggs.add_theme_constant_override("separation", -28)
 	_vault_eggs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -172,10 +171,13 @@ func _vault_banner() -> Control:
 	bcol.add_theme_constant_override("separation", 2)
 	bcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bcol)
-	var vt := UIKit.scene_label(Loc.t("VAULT"), 40)
+	# Warm white on the amethyst ground, no shadow (a hard text shadow reads as an outline).
+	var vt := UIKit.label(Loc.t("VAULT"), 40, UIKit.ON_SCENE, true)
+	vt.add_theme_font_override("font", UIKit.font_w("bold"))
 	bcol.add_child(vt)
-	_vault_count = UIKit.scene_label("", 22, false)
-	_vault_count.add_theme_color_override("font_color", UIKit.GOLD_HI)
+	# Lilac-white at 0.95 (>= 4.5:1 on the slab; the gold ink was 2.6:1 on purple).
+	_vault_count = UIKit.label("", 22, Color("#F3E9FF", 0.95))
+	_vault_count.add_theme_font_override("font", UIKit.font_w("medium"))
 	bcol.add_child(_vault_count)
 	bcol.add_child(UIKit.gap(8))
 	_vault_cta = UIKit.cta_button(Loc.t("OPEN"), "", Vector2(250, 78), 30)
@@ -185,8 +187,10 @@ func _vault_banner() -> Control:
 	_vault_btn.custom_minimum_size.y = 68
 	_vault_btn.pressed.connect(func(): hub.open_vault())
 	bcol.add_child(_vault_btn)
-	var host := VaultView.clipped(_vault_card, BANNER)
+	var host := Control.new()
+	host.custom_minimum_size = BANNER
 	host.mouse_filter = Control.MOUSE_FILTER_PASS
+	host.add_child(_vault_card)
 	_banner_host = host
 	return host
 
@@ -218,7 +222,7 @@ func _fit() -> void:
 		_col.add_theme_constant_override("separation", want)
 
 
-## Tall phones: the banner (host, its clip and the card) grows by `extra` px.
+## Tall phones: the banner (host and the slab) grows by `extra` px.
 func _grow_banner(extra: float) -> void:
 	if _banner_host == null:
 		return
@@ -226,9 +230,6 @@ func _grow_banner(extra: float) -> void:
 	if _banner_host.custom_minimum_size == sz:
 		return
 	_banner_host.custom_minimum_size = sz
-	var clip := _banner_host.get_child(0) as Control
-	clip.size = sz + Vector2(20, 20)
-	_vault_card.size = sz
 
 
 ## One quiet note line: a small line icon in a thin ring and an engraved caption (no panel).
@@ -271,7 +272,7 @@ func _odds_row() -> Control:
 	_pity_lbl = UIKit.label("", 22, UIKit.INK_DIM)
 	v.add_child(_pity_lbl)
 	row.add_child(v)
-	var ch := Icons.make("chevron", 28.0, UIKit.GOLD_TEXT)
+	var ch := Icons.make("chevron", 28.0, UITokens.GOLD_TEXT_GLASS)
 	ch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(ch)
 	p.gui_input.connect(func(e: InputEvent):
@@ -321,3 +322,79 @@ class _SealedArt extends Control:
 		draw_circle(lc2, 16.0, UITokens.PAPER_0)
 		draw_arc(lc2, 15.25, 0, TAU, 40, UITokens.HAIRLINE, 1.5, true)
 		Icons.line(self, "lock", Rect2(lc2 - Vector2(10, 10), Vector2(20, 20)), UITokens.INK)
+
+
+## The Vault banner (UI v3.1): an amethyst cut-stone slab, not a generic card grid. The gem's
+## own vertical gradient, a soft vertical light column and a light pool behind the eggs, a 1 dpx
+## light line inside the edge and the 1 dpx gold frame; every fill is cut to the same 45-degree
+## chamfer polygon as the frame (no cream corner wedges). The gem mark sits top-left.
+class _VaultSlab extends Control:
+	const GEM := "amethyst"
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		resized.connect(queue_redraw)
+
+	func _cham() -> float:
+		return float(UITokens.CHAMFER_L)
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		var pts := GemDraw.chamfer_rect(r, _cham())
+		var g: Dictionary = UITokens.gem(GEM)
+		var top: Color = (g["top"] as Color).lerp(g["bot"], 0.12)
+		# The low end a little deeper than the gem's light bottom, so the warm-white title and
+		# the lilac count keep >= 4.5:1 down the whole right column.
+		var bot: Color = (g["bot"] as Color).lerp(g["top"], 0.3)
+		var lc: Color = g["light"]
+		# Two faint shadow layers.
+		for i in 2:
+			var o := Vector2(0, 2.0 + i * 2.4)
+			var sp := PackedVector2Array()
+			for p in pts:
+				sp.append(p + o)
+			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.06))
+		# Body: the gem's vertical gradient.
+		var cols := PackedColorArray()
+		for p in pts:
+			cols.append(top.lerp(bot, p.y / maxf(size.y, 1.0)))
+		draw_polygon(pts, cols)
+		# Soft vertical light column behind the eggs (peaks at x 30 %, fades to both sides and
+		# toward the bottom), cut to the chamfer.
+		var cx := size.x * 0.3
+		var hw := size.x * 0.2
+		var a_top := 0.26
+		var a_bot := 0.06
+		var lcol := func(p: Vector2) -> Color:
+			var fx := 1.0 - clampf(absf(p.x - cx) / hw, 0.0, 1.0)
+			var fy := lerpf(a_top, a_bot, clampf(p.y / maxf(size.y, 1.0), 0.0, 1.0))
+			return Color(lc.r, lc.g, lc.b, fx * fy)
+		_fill_clipped(PackedVector2Array([Vector2(cx - hw, 0), Vector2(cx, 0), Vector2(cx, size.y), Vector2(cx - hw, size.y)]), pts, lcol)
+		_fill_clipped(PackedVector2Array([Vector2(cx, 0), Vector2(cx + hw, 0), Vector2(cx + hw, size.y), Vector2(cx, size.y)]), pts, lcol)
+		# Light pool behind the eggs and a faint lift behind the title column.
+		var R := size.y * 0.55
+		KitGemCard.glow_in(self, Rect2(Vector2(cx - R, size.y * 0.52 - R), Vector2(R, R) * 2.0), r.grow(-_cham()), Color(lc.r, lc.g, lc.b, 0.30))
+		# A 1 dpx light line inside the edge (bright on top, fading down the sides).
+		var ins := GemDraw.chamfer_rect(r.grow(-UIKit.px(1.5)), maxf(_cham() - 0.6, 1.0))
+		var loop := ins.duplicate()
+		loop.append(ins[0])
+		var lcs := PackedColorArray()
+		for p in loop:
+			var k := clampf(p.y / maxf(size.y, 1.0), 0.0, 1.0)
+			lcs.append(Color(1.0, 0.97, 1.0, lerpf(0.55, 0.12, k)))
+		draw_polyline_colors(loop, lcs, UIKit.px(1.0), true)
+		# The 1 dpx gold frame on the same polygon.
+		GemDraw.outline(self, pts, UITokens.HAIRLINE, UIKit.line_px(1.0))
+		# Gem-cut mark top-left.
+		var ms := 30.0
+		GemDraw.draw_mark(self, GEM, Vector2(_cham() + ms * 0.5 + 6.0, _cham() + ms * 0.5 + 6.0), ms)
+
+	## Draws `band` cut to `shape` (convex), each vertex coloured by `fn` (linear within a band).
+	func _fill_clipped(band: PackedVector2Array, shape: PackedVector2Array, fn: Callable) -> void:
+		for poly: PackedVector2Array in Geometry2D.intersect_polygons(band, shape):
+			if poly.size() < 3:
+				continue
+			var cs := PackedColorArray()
+			for p in poly:
+				cs.append(fn.call(p))
+			draw_polygon(poly, cs)

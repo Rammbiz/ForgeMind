@@ -42,6 +42,7 @@ var _best_wrap: MarginContainer
 var _cards := {}             ## id -> MachineCard
 var _info: VBoxContainer
 var _first_fill := true
+var _fade: KitScrollFade
 
 
 func setup(p_hub: Hub) -> void:
@@ -155,7 +156,11 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_machines_view.add_child(_scroll)
-	UIKit.scroll_fade(_scroll, Color("#F2EBDF"), 30.0, 16.0)
+	# The bottom fade melts the partly visible row into the Best-upgrade bed instead of slicing
+	# it through its caption: its height follows that row (_fit_fade), so the full rows above it
+	# keep their footers crisp (720) and a half row under the dock dissolves whole (540 class).
+	_fade = UIKit.scroll_fade(_scroll, Color("#F2EBDF"), 30.0, 16.0)
+	_scroll.resized.connect(_fit_fade)
 	var cc := CenterContainer.new()
 	cc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(cc)
@@ -291,6 +296,24 @@ func _place_milestone() -> void:
 		_milestone.position = Vector2((size.x - _milestone.size.x) * 0.5, _strip.custom_minimum_size.y - _milestone.size.y - 14.0)
 
 
+## At rest the grid shows N full rows and maybe part of the next one: the fade then starts just
+## under the last full row and covers the partial one (at least 30 px, the normal edge fade).
+func _fit_fade() -> void:
+	if _fade == null or _grid == null:
+		return
+	var h := _scroll.size.y
+	var pitch := CARD.y + 26.0
+	var full := floori((h - 26.0 + 26.0) / pitch)
+	var rows := ceili(float(_cards.size()) / COLS)
+	var fh := 30.0
+	if full < rows:
+		var bottom := 26.0 + full * pitch - 26.0
+		fh = clampf(h - bottom - 4.0, 30.0, 220.0)
+	if not is_equal_approx(fh, _fade.bottom_h):
+		_fade.bottom_h = fh
+		_fade.queue_redraw()
+
+
 func _fill_grid() -> void:
 	var list := Meta.machine_cards(_filter)
 	# Deck first, then owned, then the ones to find, then Meta-2 ("Скоро").
@@ -335,6 +358,7 @@ func _fill_grid() -> void:
 	_first_fill = false
 	var owned := Meta.owned_ids().size()
 	_count_lbl.text = Loc.f("OWNED_COUNT", [owned, ArsenalData.live_ids().size()])
+	_fit_fade()
 
 
 func _fill_best() -> void:
@@ -438,6 +462,10 @@ class _BestMedal extends Control:
 ## the frosted KitSheet (`_sheet`).
 class _Stage extends Control:
 	const HAZE := 0.55
+	## v3.1 MF-8: the top of the band keeps less haze, so the frosted islands and clouds read
+	## through the glass above the sheet (also at thumbnail size).
+	const HAZE_TOP := 0.26
+	const HAZE_MID := 0.40
 	var page: Control
 	var gem := "quartz"
 
@@ -457,8 +485,8 @@ class _Stage extends Control:
 		var top := UITokens.PAPER_0.lerp(Color("#F3E6CF"), 0.5)
 		var mid := Color("#EADBC0").lerp(gt, 0.12)
 		var low := UITokens.STAGE_TOP.lerp(gt, 0.1)
-		top.a = HAZE
-		mid.a = HAZE
+		top.a = HAZE_TOP
+		mid.a = HAZE_MID
 		low.a = HAZE
 		var y0 := full.position.y
 		var y1 := floor_y

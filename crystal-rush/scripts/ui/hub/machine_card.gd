@@ -372,11 +372,11 @@ func draw_over(ci: CanvasItem) -> void:
 	elif locked == "phase":
 		_center_text(ci, Loc.t("LOCKED_SOON"), w * 0.5, y2, ss, UIKit.INK_DIM, w - 12.0)
 	elif compact:
-		_center_text(ci, Loc.f("LV", [lvl]), w * 0.5, y2, ss, UITokens.GOLD_TEXT, w - 12.0)
+		_center_text(ci, Loc.f("LV", [lvl]), w * 0.5, y2, ss, UITokens.GOLD_TEXT_GLASS, w - 12.0)
 	else:
 		var maxed := lvl >= ArsenalData.MAX_LEVEL
 		var lt := Loc.f("LV", [lvl])
-		ci.draw_string(fm, Vector2(10.0, y2), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.GOLD_TEXT)
+		ci.draw_string(fm, Vector2(10.0, y2), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.GOLD_TEXT_GLASS)
 		var bt := Loc.t("LV_MAX") if maxed else "%d/%d" % [maxi(int(card.get("bp", 0)), 0), int(card.get("bp_need", 0))]
 		var bw := fm.get_string_size(bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
 		ci.draw_string(fm, Vector2(w - 10.0 - bw, y2), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK if bool(card.get("can_upgrade", false)) else UIKit.INK_DIM)

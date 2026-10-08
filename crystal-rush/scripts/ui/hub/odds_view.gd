@@ -63,7 +63,9 @@ func _ready() -> void:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	col.add_child(sc)
-	UIKit.scroll_fade(sc, Color("#F8F3E9"), 40.0, 18.0)
+	# When the table does not fit (short phones) a tall 56 px fade melts the last lines into the
+	# bed; the body also ends with 24 px of air, so at the end of travel no line is sliced.
+	UIKit.scroll_fade(sc, Color("#F8F3E9"), 56.0, 18.0)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", 0)
@@ -139,7 +141,7 @@ func _fill() -> void:
 			continue
 		var row := _TintRow.new()
 		row.gem = UITokens.gem_of(r)
-		row.custom_minimum_size = Vector2(0, 62)
+		row.custom_minimum_size = Vector2(0, 56)
 		row.add_theme_constant_override("separation", 8)
 		var mark := _Mark.new()
 		mark.gem = UITokens.gem_of(r)
@@ -184,14 +186,14 @@ func _fill() -> void:
 	rules.append(["swap", Loc.t("ODDS_DUPES")])
 	rules.append(["trophy", Loc.t("PITY_EPIC")])
 	rules.append(["coin", "%s %s" % [Loc.f("ODDS_SLOTS", [int(o.get("slots", 3))]), Loc.t("ODDS_COINS")]])
-	_body.add_child(UIKit.gap(18))
+	_body.add_child(UIKit.gap(14))
 	var sec := UIKit.section("Гарантії та правила" if Loc.lang == "uk" else "Guarantees and rules", 20)
 	_body.add_child(sec)
 	_body.add_child(UIKit.gap(4))
 	for rr: Array in rules:
 		var row2 := HBoxContainer.new()
 		row2.add_theme_constant_override("separation", 14)
-		row2.custom_minimum_size.y = 44
+		row2.custom_minimum_size.y = 40
 		var ik := str(rr[0])
 		var ic := Icons.make(ik, 28.0, Color.WHITE if KitIcons.has_painted(ik) else UIKit.INK_DIM)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -203,10 +205,11 @@ func _fill() -> void:
 		l2.custom_minimum_size.x = 420.0
 		row2.add_child(l2)
 		_body.add_child(row2)
-	_body.add_child(UIKit.gap(14))
+	_body.add_child(UIKit.gap(10))
 	_body.add_child(UIKit.hairline())
-	_body.add_child(UIKit.gap(12))
+	_body.add_child(UIKit.gap(10))
 	_body.add_child(VaultView.PityBar.make())
+	_body.add_child(UIKit.gap(24))
 
 
 ## A table row: a faint wash of the gem's light from the left (Genshin rarity tint, no box)

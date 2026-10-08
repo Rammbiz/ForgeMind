@@ -572,7 +572,7 @@ func _stats_page(c: Dictionary) -> Control:
 			fmt = "+%.0f%%"
 			val *= 100.0
 		var row := UIKit.list_row(Loc.t(str(r[1])), fmt % val, str(r[2]))
-		row.custom_minimum_size.y = 54
+		row.custom_minimum_size.y = 50
 		var vl: Label = row.get_meta("value")
 		vl.add_theme_font_override("font", UIKit.font_w("extrabold"))
 		vl.add_theme_font_size_override("font_size", 26)
@@ -600,21 +600,23 @@ func _stats_page(c: Dictionary) -> Control:
 	chips.add_theme_constant_override("v_separation", 8)
 	var st := str(ms.get("status", ""))
 	if st != "" and ArsenalData.STATUSES.has(st):
-		chips.add_child(text_chip(Loc.t(str((ArsenalData.STATUSES[st] as Dictionary)["name"])), "el_" + str(c["family"])))
+		chips.add_child(flat_chip(Loc.t(str((ArsenalData.STATUSES[st] as Dictionary)["name"])), "el_" + str(c["family"])))
 	var flags: Dictionary = c.get("flags", {})
 	if bool(flags.get("hits_flying", false)):
-		chips.add_child(text_chip(Loc.t("FLAG_FLYING"), "arrow_up"))
+		chips.add_child(flat_chip(Loc.t("FLAG_FLYING"), "arrow_up"))
 	if bool(flags.get("bypass_shield", false)):
-		chips.add_child(text_chip(Loc.t("FLAG_BEAM"), "cls_guardian"))
+		chips.add_child(flat_chip(Loc.t("FLAG_BEAM"), "cls_guardian"))
 	if bool(flags.get("ground_only", false)):
-		chips.add_child(text_chip(Loc.t("FLAG_GROUND"), "chevron_down"))
+		chips.add_child(flat_chip(Loc.t("FLAG_GROUND"), "chevron_down"))
 	if chips.get_child_count() > 0:
-		v.add_child(UIKit.gap(10))
+		v.add_child(UIKit.gap(8))
 		v.add_child(chips)
 	if bool(c["owned"]) and str(c["locked"]) == "":
-		v.add_child(UIKit.gap(10))
+		v.add_child(UIKit.gap(8))
 		v.add_child(_focus_row(c))
-	v.add_child(UIKit.gap(12))
+	# Rows at 50 and short gaps: the page fits the sheet at 720, so the Focus row's second line
+	# ends above the scroll fade's zone (the fade only shows when the page really overflows).
+	v.add_child(UIKit.gap(8))
 	return v
 
 
@@ -742,10 +744,13 @@ func _focus_row(c: Dictionary) -> Control:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 0)
 	v.add_child(UIKit.label(Loc.t("FOCUS_ON"), 24, UIKit.INK))
-	var d := UIKit.label(Loc.t("FOCUS_DESC"), 22, UIKit.INK_DIM)
+	var d := UIKit.label(Loc.t("FOCUS_DESC"), 22, UITokens.INK_DIM_GLASS)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Wraps inside its column with air before the toggle (never runs into it).
+	d.custom_minimum_size.x = 300.0
 	v.add_child(d)
 	row.add_child(v)
+	row.add_child(UIKit.gap(6))
 	var t := SettingsPanel.Toggle.new()
 	t.on = bool(c["is_focus"])
 	t.custom_minimum_size = Vector2(86, 46)
@@ -802,6 +807,35 @@ static func family_chip(fam: String) -> Control:
 	row.add_child(UIKit.gap(4))
 	p.add_child(row)
 	return p
+
+
+## §3.2: a chip INSIDE a card or sheet has no frame: a flat 45-degree chamfered tint (gold-leaf
+## wash on the bed) with an optional line icon and Medium ink.
+static func flat_chip(text: String, icon := "") -> Control:
+	var p := _FlatChip.new()
+	var sb := StyleBoxEmpty.new()
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if icon != "":
+		var ic := Icons.make(icon, 22.0, UITokens.INK_DIM_GLASS)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(ic)
+	row.add_child(UIKit.label(text, 22, UIKit.INK))
+	p.add_child(row)
+	return p
+
+
+class _FlatChip extends PanelContainer:
+	func _draw() -> void:
+		var h := UITokens.HAIRLINE
+		draw_colored_polygon(GemDraw.chamfer_rect(Rect2(Vector2.ZERO, size), UITokens.CHAMFER_XS), Color(h.r, h.g, h.b, 0.2))
 
 
 ## Plain porcelain chip with an optional line icon.

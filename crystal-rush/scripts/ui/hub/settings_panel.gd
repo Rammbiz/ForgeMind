@@ -173,11 +173,11 @@ func _row(key: String, icon: String, get_on: Callable, set_on: Callable, on_key 
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(l)
 	if on_key != "":
-		var val := UIKit.label("", 22, UITokens.GOLD_TEXT)
+		var val := UIKit.label("", 22, UITokens.GOLD_TEXT_GLASS)
 		val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		val.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(val)
-		var chev := Icons.make("chevron", 22.0, UITokens.GOLD_TEXT)
+		var chev := Icons.make("chevron", 22.0, UITokens.GOLD_TEXT_GLASS)
 		chev.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		chev.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(chev)

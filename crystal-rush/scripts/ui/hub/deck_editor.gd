@@ -289,7 +289,7 @@ class EmptySlot extends Control:
 			var p1 := c + d * (R + 14.0) + Vector2(-d.y, d.x) * 3.0
 			draw_line(p0, p1, UITokens.HAIRLINE, UIKit.line_px(1.5), true)
 			draw_circle(p1, 2.0, UITokens.GOLD_HI)
-		Icons.line(self, "plus", Rect2(c - Vector2(16, 16), Vector2(32, 32)), UITokens.GOLD_TEXT)
+		Icons.line(self, "plus", Rect2(c - Vector2(16, 16), Vector2(32, 32)), UITokens.GOLD_TEXT_GLASS)
 		var f := UIKit.font_w("medium")
 		var t := Loc.t("DECK_EMPTY_SLOT")
 		var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x

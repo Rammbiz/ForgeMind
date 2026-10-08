@@ -403,7 +403,7 @@ class PityBar extends VBoxContainer:
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(l)
-		var n := UIKit.label(Loc.f("PITY_SHORT", [left]), 22, UIKit.GOLD_HI if on_scene else UIKit.GOLD_TEXT, true)
+		var n := UIKit.label(Loc.f("PITY_SHORT", [left]), 22, UIKit.GOLD_HI if on_scene else UITokens.GOLD_TEXT_GLASS, true)
 		if on_scene:
 			UIKit.soft_shadow(n, 22, 1.6)
 		row.add_child(n)

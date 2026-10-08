@@ -603,27 +603,48 @@ class Backdrop extends Control:
 	var _k := 1.0
 	var _t := 0.0
 	var _shafts: Shafts
+	var _world: _WorldLayer
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_to = _look("play")
 		_from = _to
+		# The frosted world sits BEHIND this control's own veil draw (show_behind_parent), drawn
+		# through the frost's milk transform so the floor never reads as a dark blotch.
+		_world = _WorldLayer.new()
+		_world.owner_bd = self
+		_world.show_behind_parent = true
+		_world.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(_world)
 		_shafts = Shafts.new()
 		_shafts.set_anchors_preset(Control.PRESET_FULL_RECT)
 		add_child(_shafts)
 
+	## v0/v1/v2 = the cream veil over the world (top / mid / bottom alpha; §1.2 BACKDROP_VEIL),
+	## milk = how much of the frost's milk transform the world gets (1 = the modal frost recipe).
+	## Arsenal / Heroes open the top band (veil 0.30, a lighter milk) so the islands and clouds
+	## read through the glass above their sheets; Shop / Barracks keep a full milk and a denser
+	## mid / low veil where their rows and notes sit (no "dirty window" floor).
 	static func _look(tab: String) -> Dictionary:
 		var sc := UITokens.SCRIM
+		var v: Array = UITokens.BACKDROP_VEIL
 		match tab:
 			"play":
 				return {"top": Color(sc.r, sc.g, sc.b, 0.16), "mid": Color(sc.r, sc.g, sc.b, 0.0), "bot": Color(0.55, 0.42, 0.3, 0.22),
-						"spot": Color(1, 1, 1, 0.0), "spot_y": 0.3, "vig": 0.0, "shafts": 1.0, "world": 0.0}
+						"spot": Color(1, 1, 1, 0.0), "spot_y": 0.3, "vig": 0.0, "shafts": 1.0, "world": 0.0,
+						"v0": float(v[0]), "v1": float(v[1]), "v2": float(v[2]), "milk": 1.0}
 			"arsenal":
 				return {"top": Color("#F1ECE2"), "mid": Color("#E4DDD0"), "bot": Color("#CFC5B4"), "spot": Color(1.0, 0.99, 0.96, 0.75),
-						"spot_y": 0.22, "vig": 0.16, "shafts": 0.0, "world": 1.0}
+						"spot_y": 0.22, "vig": 0.16, "shafts": 0.0, "world": 1.0,
+						"v0": 0.30, "v1": 0.40, "v2": float(v[2]), "milk": 0.45}
+			"heroes":
+				return {"top": Color("#F4ECDD"), "mid": UITokens.STAGE_TOP, "bot": UITokens.STAGE_BOTTOM, "spot": Color(1.0, 0.93, 0.78, 0.7),
+						"spot_y": 0.2, "vig": 0.18, "shafts": 0.0, "world": 1.0,
+						"v0": 0.30, "v1": 0.40, "v2": float(v[2]), "milk": 0.45}
 			_:
 				return {"top": Color("#F4ECDD"), "mid": UITokens.STAGE_TOP, "bot": UITokens.STAGE_BOTTOM, "spot": Color(1.0, 0.93, 0.78, 0.7),
-						"spot_y": 0.2, "vig": 0.18, "shafts": 0.0, "world": 1.0}
+						"spot_y": 0.2, "vig": 0.18, "shafts": 0.0, "world": 1.0,
+						"v0": float(v[0]), "v1": 0.62, "v2": 0.70, "milk": 1.0}
 
 	func set_tab(tab: String, animate := true) -> void:
 		_from = _cur()
@@ -660,19 +681,20 @@ class Backdrop extends Control:
 		# glass surface has a world behind; no spot, rays or vignette. Until the still exists the
 		# tab draws flat cream, and the world cross-fades in over 180 ms (never a one-frame pop).
 		var wk := float(L.get("world", 0.0))
+		_world.alpha = 0.0
 		if wk > 0.01 and KitGlass.attached():
 			var wt := KitGlass.world_texture()
 			var wa := KitGlass.world_alpha() if wt else 0.0
-			if wa > 0.0:
-				draw_texture_rect(wt, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, wk * wa))
+			_world.alpha = wk * wa
+			_world.milk = float(L["milk"])
+			_world.queue_redraw()
 			var p0 := UITokens.PAPER_0
 			var p1 := UITokens.PAPER_1
-			var v: Array = UITokens.BACKDROP_VEIL
 			# Flat cream before the still (opaque), the veil once it is in.
 			var k := wk * wa
-			top = top.lerp(Color(p0.r, p0.g, p0.b, lerpf(1.0, float(v[0]), k)), wk)
-			mid = mid.lerp(Color(p0.r, p0.g, p0.b, lerpf(1.0, float(v[1]), k)), wk)
-			bot = bot.lerp(Color(p1.r, p1.g, p1.b, lerpf(1.0, float(v[2]), k)), wk)
+			top = top.lerp(Color(p0.r, p0.g, p0.b, lerpf(1.0, float(L["v0"]), k)), wk)
+			mid = mid.lerp(Color(p0.r, p0.g, p0.b, lerpf(1.0, float(L["v1"]), k)), wk)
+			bot = bot.lerp(Color(p1.r, p1.g, p1.b, lerpf(1.0, float(L["v2"]), k)), wk)
 			L["spot"] = Color(1, 1, 1, 0.0)
 			L["vig"] = 0.0
 		# Play: the slate whisper only covers the top band and the warm fade the bottom band.
@@ -699,6 +721,48 @@ class Backdrop extends Control:
 			var clear := Color(0.45, 0.36, 0.28, 0.0)
 			draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(70, 0), Vector2(70, h), Vector2(0, h)]), PackedColorArray([vg, clear, clear, vg]))
 			draw_polygon(PackedVector2Array([Vector2(w - 70, 0), Vector2(w, 0), Vector2(w, h), Vector2(w - 70, h)]), PackedColorArray([clear, vg, vg, clear]))
+
+
+## The frosted world still behind the Backdrop's veil, through the frost's milk transform
+## (§4.2: desat 0.45, contrast 0.55 toward 0.80, lift 0.14, warm), `milk` 0..1 of it. One quad.
+class _WorldLayer extends Control:
+	const MILK := """shader_type canvas_item;
+uniform float milk = 1.0;
+void fragment() {
+	vec4 c = texture(TEXTURE, UV);
+	float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+	vec3 b = mix(c.rgb, vec3(l), 0.45);
+	b = vec3(0.80) + (b - vec3(0.80)) * 0.55;
+	b = b * 0.86 + 0.14;
+	b *= vec3(1.0, 0.976, 0.93);
+	COLOR = vec4(mix(c.rgb, b, milk), c.a) * COLOR;
+}"""
+	static var _shader: Shader
+	var owner_bd: Control
+	var alpha := 0.0:
+		set(v):
+			if not is_equal_approx(v, alpha):
+				alpha = v
+				queue_redraw()
+	var milk := 1.0:
+		set(v):
+			if not is_equal_approx(v, milk):
+				milk = v
+				(material as ShaderMaterial).set_shader_parameter("milk", v)
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if _shader == null:
+			_shader = Shader.new()
+			_shader.code = MILK
+		var m := ShaderMaterial.new()
+		m.shader = _shader
+		material = m
+
+	func _draw() -> void:
+		var wt := KitGlass.world_texture()
+		if wt and alpha > 0.0:
+			draw_texture_rect(wt, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, alpha))
 
 
 ## Soft additive light shafts from the sun (upper right) over the Home stage; they drift a
@@ -773,7 +837,11 @@ class UnlockCard extends PanelContainer:
 		var t := UIKit.gradient_heading(_title(), 46)
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(t)
-		var line := UIKit.label(Loc.t(str(entry.get("line", ""))), 26, UIKit.INK)
+		# The real unlock path passes EconData.UNLOCKS "line" keys (UNL_*, all in Loc; test_loc
+		# checks them). A key Loc does not know is never shown raw: the line is left out.
+		var lk := str(entry.get("line", ""))
+		var line := UIKit.label(Loc.t(lk) if Loc.STRINGS.has(lk) else "", 26, UIKit.INK)
+		line.visible = line.text != ""
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size = Vector2(440, 0)

@@ -221,7 +221,7 @@ func _row(track: String, cap: int) -> Control:
 		nx.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		name_row.add_child(nx)
 	v.add_child(name_row)
-	var bar := UIKit.progress(lvl, cap, 300.0, 7.0, cap)
+	var bar := ProfileCard.seamed_progress(lvl, cap, 300.0, 10.0)
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	v.add_child(bar)
 	var eff := UIKit.label(value_text(track, maxi(lvl, 1)), 22, UIKit.INK_DIM)

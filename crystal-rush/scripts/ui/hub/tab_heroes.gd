@@ -112,18 +112,19 @@ func _ready() -> void:
 	_head.add_theme_constant_override("separation", 4)
 	_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_head)
+	_head.item_rect_changed.connect(func(): _stage.queue_redraw())
 	_gem_chip = PanelContainer.new()
 	_gem_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gem_chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_head.add_child(_gem_chip)
-	_name = UIKit.scene_label("", 56)
-	UIKit.scene_halo(_name, 0.45, 1.15)
+	# v3.1: the stage is a pale frosted sky now (not the dark 3D), so the name is the screen
+	# title in INK Bold and the hero's title INK_DIM_GLASS caps, on the stage's local cream veil
+	# (_HeroStage) - no shadow, no halo, no outline (warm white measured 2.05-2.35:1 here).
+	_name = UIKit.label("", 56, UIKit.INK, true)
+	_name.add_theme_font_override("font", UIKit.font_w("bold"))
 	_head.add_child(_name)
-	# The title in warm white on the scene (gold caps were 1.2-2.2:1 on quartz / sapphire).
-	_title = UIKit.label("", 22, UIKit.ON_SCENE, true)
+	_title = UIKit.label("", 22, UITokens.INK_DIM_GLASS)
 	_title.add_theme_font_override("font", UIKit.font_caps(22))
-	UIKit.soft_shadow(_title, 22, 1.6)
-	UIKit.scene_halo(_title, 0.7, 1.1)
 	_head.add_child(_title)
 	_head.add_child(UIKit.gap(6))
 	_sockets = HBoxContainer.new()
@@ -185,7 +186,11 @@ func _layout() -> void:
 	var foot := _sheet.get_child(0).get_node_or_null("Foot") as Control
 	if foot:
 		foot.custom_minimum_size.y = maxf(0.0, below - 12.0)
-	_show.offset_bottom = -SHEET_H + 78.0
+	# The dais rim stays above the sheet top (the feet and the crystal ring read), and the
+	# region is wide enough that a tall phone (width-limited fit) never cuts the dais at the
+	# viewport's left edge.
+	_show.offset_bottom = -SHEET_H + 12.0
+	_show.hero_region = Vector2(1.95, 2.2)
 	# Tall phones: the art band grows and the hero (framed by height) grows with it.
 	_show.offset_top = 60.0
 	_stage.queue_redraw()
@@ -640,6 +645,10 @@ static func _roman(n: int) -> String:
 ## page; the cream sheet (KitSheet) covers the lower part.
 class _HeroStage extends Control:
 	const HAZE := 0.55
+	## v3.1 MF-8: the band above the hero (y < the name block's foot) keeps less haze so the
+	## frosted islands and clouds read through the glass, even at thumbnail size.
+	const HAZE_TOP := 0.28
+	const HAZE_MID := 0.45
 	var page: Control
 	var gem := "sapphire"
 
@@ -672,8 +681,8 @@ class _HeroStage extends Control:
 			c_mid = bot
 			c_low = bot.lerp(Color("#6B5AA6"), 0.4)
 		# v3.1 (§4.5): the haze alphas x 0.55, so the hub's frosted world shows through the stage.
-		c_top.a *= HAZE
-		c_mid.a *= HAZE
+		c_top.a *= HAZE_TOP
+		c_mid.a *= HAZE_MID
 		c_low.a *= HAZE
 		var ym := lerpf(y0, sheet_y, 0.5)
 		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + w, y0), Vector2(x0 + w, ym), Vector2(x0, ym)]), PackedColorArray([c_top, c_top, c_mid, c_mid]))
@@ -697,14 +706,43 @@ class _HeroStage extends Control:
 		# A warm floor glow where the dais stands.
 		var fy := sheet_y - 40.0
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - w * 0.42, fy - 70.0), Vector2(w * 0.84, 140.0)), false, Color(1.0, 0.96, 0.86, 0.35))
-		# Soft side vignette and a slate whisper under the top plates (header text sits there).
-		var vg := Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14)
-		var cl := Color(vg.r, vg.g, vg.b, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + 70, y0), Vector2(x0 + 70, size.y), Vector2(x0, size.y)]), PackedColorArray([vg, cl, cl, vg]))
-		draw_polygon(PackedVector2Array([Vector2(x0 + w - 70, y0), Vector2(x0 + w, y0), Vector2(x0 + w, size.y), Vector2(x0 + w - 70, size.y)]), PackedColorArray([cl, vg, vg, cl]))
-		var sc := Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.2)
-		var sc0 := Color(sc.r, sc.g, sc.b, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + w, y0), Vector2(x0 + w, 200.0), Vector2(x0, 200.0)]), PackedColorArray([sc, sc, sc0, sc0]))
+		# v3.1: the header is INK on the pale frost now, so no slate whisper or side vignette;
+		# instead a local cream veil (light falling from the upper left) under the name block
+		# keeps the name >= 3:1 and the caps >= 4.5:1 on every gem ground. It fades out to
+		# the right and below, so the world still reads through the rest of the band.
+		_header_veil(x0)
+
+	func _header_veil(x0: float) -> void:
+		var head := page.get("_head") as Control
+		if head == null:
+			return
+		var r := head.get_rect()
+		var p0 := UITokens.PAPER_0
+		var a := 0.72
+		var solid := Color(p0.r, p0.g, p0.b, a)
+		var clear := Color(p0.r, p0.g, p0.b, 0.0)
+		# Covers the chip, the name and the title (the sockets and the pick row are glass).
+		var name_l := page.get("_name") as Control
+		var title_l := page.get("_title") as Control
+		var foot := r.position.y + (title_l.position.y + title_l.size.y if title_l.visible else name_l.position.y + name_l.size.y)
+		var right := r.position.x + maxf(_text_w(name_l), _text_w(title_l)) + 40.0
+		var top := -get_global_rect().position.y
+		var y1 := foot + 18.0
+		var y2 := y1 + 90.0
+		var x1 := maxf(right, 260.0)
+		var x2 := x1 + 200.0
+		# Solid core, a soft right fade, a soft bottom fade and the corner between them.
+		draw_rect(Rect2(Vector2(x0, top), Vector2(x1 - x0, y1 - top)), solid)
+		draw_polygon(PackedVector2Array([Vector2(x1, top), Vector2(x2, top), Vector2(x2, y1), Vector2(x1, y1)]), PackedColorArray([solid, clear, clear, solid]))
+		draw_polygon(PackedVector2Array([Vector2(x0, y1), Vector2(x1, y1), Vector2(x1, y2), Vector2(x0, y2)]), PackedColorArray([solid, solid, clear, clear]))
+		draw_polygon(PackedVector2Array([Vector2(x1, y1), Vector2(x2, y1), Vector2(x1, y2)]), PackedColorArray([solid, clear, clear]))
+
+	static func _text_w(l: Control) -> float:
+		if not (l is Label) or not l.visible:
+			return 0.0
+		var lb := l as Label
+		var fs := lb.get_theme_font_size("font_size")
+		return lb.get_theme_font("font").get_string_size(lb.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 
 ## A portrait on the right rail: the hero's painted close-up in a disc on its gem ground, a

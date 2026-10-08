@@ -388,7 +388,7 @@ class LevelPath extends Control:
 				var lit := l <= level
 				draw_circle(p, 15.0, UITokens.PAPER_0)
 				draw_arc(p, 15.0 - UIKit.px(0.5), 0, TAU, 48, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0), true)
-				Icons.line(self, "trophy", Rect2(p - Vector2(10, 10), Vector2(20, 20)), UITokens.GOLD_TEXT if lit else UIKit.INK_DIM)
+				Icons.line(self, "trophy", Rect2(p - Vector2(10, 10), Vector2(20, 20)), UITokens.GOLD_TEXT_GLASS if lit else UITokens.INK_DIM_GLASS)
 				if l == level:
 					# The boss is up: a static 1.5 dpx amber ring (nothing pulses).
 					draw_arc(p, 19.0, 0, TAU, 48, Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5), true)

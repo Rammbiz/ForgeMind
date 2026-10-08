@@ -65,7 +65,7 @@ func _ready() -> void:
 	var name_l := UIKit.heading(nm, 32, UIKit.INK)
 	nv.add_child(name_l)
 	var w := ArsenalData.world_of(lv)
-	var wl := UIKit.label(tr2("PROFILE_WORLD") % [w, TabPlay.world_name(w)], 22, UITokens.GOLD_TEXT)
+	var wl := UIKit.label(tr2("PROFILE_WORLD") % [w, TabPlay.world_name(w)], 22, UITokens.GOLD_TEXT_GLASS)
 	nv.add_child(wl)
 	nv.add_child(UIKit.label(Loc.f("LEVEL", [lv]), 22, UIKit.INK_DIM))
 	head.add_child(nv)
@@ -79,7 +79,7 @@ func _ready() -> void:
 	var done := ArsenalData.level_in_world(lv) - 1
 	pr.add_child(UIKit.label("%d / %d" % [done, ArsenalData.LEVELS_PER_WORLD], 22, UIKit.INK))
 	col.add_child(pr)
-	var bar := UIKit.progress(done, ArsenalData.LEVELS_PER_WORLD, W - 48.0, 12, ArsenalData.LEVELS_PER_WORLD)
+	var bar := seamed_progress(done, ArsenalData.LEVELS_PER_WORLD, W - 48.0, 12.0)
 	col.add_child(bar)
 	# A plain hairline like the rows' own (a keystone divider right under the bar read as a
 	# second slider).
@@ -123,11 +123,11 @@ func _row(icon: String, text: String, value: String, act: Callable, line := true
 	l.size_flags_vertical = Control.SIZE_FILL
 	r.add_child(l)
 	if value != "":
-		var vl := UIKit.label(value, 22, UITokens.GOLD_TEXT)
+		var vl := UIKit.label(value, 22, UITokens.GOLD_TEXT_GLASS)
 		vl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		vl.size_flags_vertical = Control.SIZE_FILL
 		r.add_child(vl)
-	var ch := Icons.make("chevron", 24.0, UITokens.GOLD_TEXT)
+	var ch := Icons.make("chevron", 24.0, UITokens.GOLD_TEXT_GLASS)
 	ch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	r.add_child(ch)
 	v.add_child(r)
@@ -139,3 +139,43 @@ func _row(icon: String, text: String, value: String, act: Callable, line := true
 			UIJuice.haptic("CLICK", 0.5)
 			act.call())
 	return v
+
+
+## §7.5 progress with step seams (Barracks tracks, world progress): ONE chamfered track and
+## amber fill (KitProgress, no tiles: segmented tiles read as small pills), cut into `max_value`
+## steps by 1 dpx light seams.
+static func seamed_progress(value: float, max_value: int, width: float, height: float) -> KitProgress:
+	var bar := UIKit.progress(value, max_value, width, height, 0)
+	var s := _Seams.new()
+	s.steps = max_value
+	s.bar_h = height
+	s.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bar.add_child(s)
+	return bar
+
+
+class _Seams extends Control:
+	var steps := 1
+	var bar_h := 12.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _ready() -> void:
+		resized.connect(queue_redraw)
+
+	func _draw() -> void:
+		if steps < 2:
+			return
+		# Same track rect as KitProgress (no text): the end-tick margin, then 2 px inside.
+		var tick := bar_h * 1.15
+		var r := Rect2(Vector2(tick * 0.5, (size.y - bar_h) * 0.5), Vector2(size.x - tick, bar_h)).grow(-2.0)
+		var w := UIKit.px(1.0)
+		var c := Color(1.0, 0.99, 0.96, 0.95)
+		var sc := UIKit.ui_scale()
+		var gx := get_global_transform_with_canvas().origin.x
+		for i in range(1, steps):
+			var x := r.position.x + r.size.x * float(i) / float(steps)
+			# On a whole device column, so the seam is one crisp dpx.
+			x = (floorf((gx + x) * sc) + 0.5) / sc - gx
+			draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), c, w)
