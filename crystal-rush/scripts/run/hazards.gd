@@ -312,8 +312,7 @@ func squad_state(it: Dictionary) -> Squad:
 		sq.anim.seek(_rng.randf() * sq.anim.length("idle"))
 		_size_squad(sq)
 	var l := Models.label(str(ceili(float(it["hp"]))), 120, Color(1.0, 0.93, 0.9), true)
-	l.outline_modulate = Color(0.35, 0.03, 0.02)
-	l.outline_size = 24
+	Models.soft_outline(l, Color("#5A1410"), 0.0)
 	l.render_priority = 4
 	add_child(l)
 	it["label"] = l
@@ -541,7 +540,8 @@ func _crate_node(it: Dictionary) -> Node3D:
 		l.no_depth_test = true
 		l.render_priority = 7
 		l.outline_render_priority = 6
-		l.outline_size = 22
+		l.outline_size = 4
+		l.outline_modulate.a = 0.38
 	return c
 
 
@@ -585,8 +585,8 @@ func style_crate(it: Dictionary, text: String) -> void:
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.width = 300.0
 		b.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-		b.outline_size = 18
-		b.outline_modulate = Color(0.12, 0.06, 0.0)
+		b.outline_size = 4
+		b.outline_modulate = Color(0.35, 0.2, 0.04, 0.4)
 		b.modulate = Color(1.0, 0.86, 0.4)
 		b.no_depth_test = true
 		# Above the gate labels (3) with its own outline too, so a gate row behind the crate
@@ -599,8 +599,8 @@ func style_crate(it: Dictionary, text: String) -> void:
 	if bool(it.get("new", false)):
 		# Platinum text with a deep navy outline: readable against the NEW crate's white beam.
 		b.modulate = Color(0.8, 0.93, 1.0)
-		b.outline_modulate = Color(0.01, 0.03, 0.16)
-		b.outline_size = 24
+		b.outline_modulate = Color(0.118, 0.141, 0.2, 0.4)
+		b.outline_size = 4
 		b.font_size = 54
 	b.text = text
 	var cl := it.get("label") as Label3D

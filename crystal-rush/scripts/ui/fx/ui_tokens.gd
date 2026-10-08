@@ -73,8 +73,8 @@ const GOLD_HI := Color("#E3CB94")  ## lines and labels over art
 const GOLD_TEXT := Color("#8A6A2F") ## engraved section titles on cream (4.5:1)
 ## Text.
 const INK := Color("#4B5669")      ## text on cream (6.6:1)
-const INK_DIM := Color("#8C8079")  ## taupe labels on cream (>= 20 px)
-const INK_SOFT := Color("#7A6F69") ## small labels that need more contrast (18 px)
+const INK_DIM := Color("#6E625B")  ## taupe labels on cream (4.9:1 on PAPER_1)
+const INK_SOFT := Color("#675C56") ## small labels that need more contrast (18 px, 5.5:1)
 const ON_SCENE := Color("#FFF8EC") ## warm white on 3D / art, always with a soft shadow
 const SCRIM := Color("#1E2433")    ## shadows, scrims (never a flat dark panel)
 ## Key action (amber jewel CTA).
@@ -85,7 +85,7 @@ const CTA_RIM := Color("#9C5A1F")
 const TOPAZ := Color("#FFB52E")
 const TOPAZ_HI := Color("#FFC860")
 ## States.
-const PLUS := Color("#3E8A2C")     ## stat increase on cream
+const PLUS := Color("#2F7322")     ## stat increase on cream (5:1)
 const PLUS_ON_SCENE := Color("#8DE302")
 const ALERT := Color("#C0392B")    ## alert text
 const ALERT_FILL := Color("#D4515B")

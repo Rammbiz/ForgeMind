@@ -57,8 +57,7 @@ func _ready() -> void:
 	_rays = UIKit.Rays.new()
 	bc = Color(UITokens.gem(best)["rim"])
 	_rays.color = Color(bc.r, bc.g, bc.b, 0.0)
-	_rays.count = 16
-	_rays.inner = 0.1
+	_rays.on_light = true
 	_rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_rays)
 	_egg = EggView.new(str(rev.get("type", "stone")))

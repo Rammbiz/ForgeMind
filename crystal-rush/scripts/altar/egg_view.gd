@@ -60,7 +60,7 @@ func _init(p_type := "stone") -> void:
 	_lamp.omni_range = 4.0
 	_lamp.light_energy = 0.0
 	_root.add_child(_lamp)
-	var d := HubShowcase.owner_dais(1.5)
+	var d := HubShowcase.ivory_dais(1.5)
 	if not d.is_empty():
 		_root.add_child(d["node"])
 		_dais_mat = d["mat"]

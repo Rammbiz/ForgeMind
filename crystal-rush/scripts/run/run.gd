@@ -321,11 +321,10 @@ func _ready() -> void:
 	if lead != "" and ArsenalData.is_live(lead) and bool(ArsenalData.FEATURES["lead"]):
 		arsenal.field(lead, 1, Vector3.INF, true)
 		weapons = arsenal.summary()
-	_army_label = Models.label(str(army), 110, ARMY_LABEL_COLOR, true)
-	_army_label.outline_modulate = Color(0.04, 0.14, 0.42)
-	_army_label.outline_size = 26
+	_army_label = Models.label(str(army), 110, Color("#FFF8EC"), true)
 	_army_label.render_priority = 6
 	_army_label.no_depth_test = true
+	Models.soft_outline(_army_label, Color("#1E2433"), 0.34)
 	add_child(_army_label)
 	_peak = army
 	cam = Camera3D.new()

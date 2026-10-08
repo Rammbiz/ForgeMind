@@ -32,8 +32,10 @@ static func cut_points(cut: String, c: Vector2, s: float) -> PackedVector2Array:
 	var R := s * 0.5
 	match cut:
 		"round":
-			for i in 16:
-				var a := -PI / 2.0 + TAU * i / 16.0
+			# Round brilliant read as a cut stone: a 10-sided girdle (broad facets + table), never
+			# a smooth sphere.
+			for i in 10:
+				var a := -PI / 2.0 + TAU * i / 10.0 + PI / 10.0
 				pts.append(c + Vector2(cos(a), sin(a)) * R)
 		"square":
 			pts = chamfer_rect(Rect2(c - Vector2(R, R) * 0.86, Vector2(R, R) * 1.72), R * 0.36)

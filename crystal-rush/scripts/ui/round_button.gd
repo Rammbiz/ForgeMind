@@ -70,7 +70,7 @@ func burst() -> void:
 
 func _has_point(point: Vector2) -> bool:
 	var c := _circle_center()
-	if point.distance_to(c) <= radius + 12.0:
+	if point.distance_to(c) <= maxf(radius + 12.0, 44.0):  # >= 88 px touch target
 		return true
 	# The caption pill under the circle is part of the button too.
 	if caption != "":
@@ -278,9 +278,10 @@ func _draw_ult() -> void:
 	for i in 5:
 		draw_circle(c + Vector2(0, 3.0 + i * 1.4), r + 9.0 + i, Color(sc.r, sc.g, sc.b, 0.05), true, -1.0, true)
 	# Charge track (cream) with hairline edges and an amber fill.
-	var ring_r := r + 6.0
-	draw_arc(c, ring_r, 0, TAU, 72, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.96), 11.0, true)
-	draw_arc(c, ring_r + 5.5, 0, TAU, 72, UITokens.HAIRLINE, 1.2, true)
+	# A fine 3 px gold ring with a 6 px charge arc just inside it (no thick casual band).
+	var ring_r := r + 5.0
+	draw_arc(c, ring_r, 0, TAU, 72, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.85), 6.0, true)
+	draw_arc(c, ring_r + 4.5, 0, TAU, 72, UITokens.HAIRLINE, 3.0, true)
 	var p := 1.0 if ready else _shown_progress
 	if p > 0.002:
 		var segs := maxi(3, int(72 * p))
@@ -292,7 +293,7 @@ func _draw_ult() -> void:
 			if ready:
 				var ang := fposmod(t0 * TAU - _t * 2.6, TAU)
 				col = UITokens.CTA.lerp(Color(1, 0.98, 0.9), clampf(1.0 - ang / 1.3, 0.0, 1.0) * 0.8)
-			draw_arc(c, ring_r, a0 + TAU * p * t0, a0 + TAU * p * t1 + 0.012, 3, col, 7.0, true)
+			draw_arc(c, ring_r, a0 + TAU * p * t0, a0 + TAU * p * t1 + 0.012, 3, col, 6.0, true)
 		if not ready:
 			var head := c + Vector2(cos(a0 + TAU * p), sin(a0 + TAU * p)) * ring_r
 			draw_texture_rect(UIKit.glow_texture(), Rect2(head - Vector2(14, 14), Vector2(28, 28)), false, Color(1, 0.95, 0.8, 0.9))
@@ -342,7 +343,8 @@ func _draw_ult() -> void:
 		draw_circle(bc, br + 2.0, Color("#C9A86A"), true, -1.0, true)
 		draw_circle(bc, br, UITokens.PAPER_0, true, -1.0, true)
 		var isz2 := br * 1.5
-		Icons.draw_icon(self, badge_icon, Rect2(bc - Vector2(isz2, isz2) * 0.5, Vector2(isz2, isz2)), Color.WHITE if ready else Color(0.75, 0.75, 0.78))
+		# Ink glyph on cream (CTA rim amber when ready), never white on cream.
+		Icons.draw_icon(self, badge_icon, Rect2(bc - Vector2(isz2, isz2) * 0.5, Vector2(isz2, isz2)), UITokens.CTA_RIM if ready else Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.75))
 	# Caption chip under the button: amber when ready, porcelain while charging.
 	if caption != "":
 		var f := UIKit.font_w("extrabold")
@@ -355,5 +357,5 @@ func _draw_ult() -> void:
 			draw_style_box(UIKit.lux("chip", Vector2.ZERO), chip)
 		var tc := UIKit.CTA_TEXT if ready else UITokens.INK
 		if ready:
-			draw_string(f, Vector2(c.x - tw * 0.5, chip.position.y + 21.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.5, 0.22, 0.02, 0.45))
+			draw_string(f, Vector2(c.x - tw * 0.5, chip.position.y + 21.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.9, 0.64, 0.5))
 		draw_string(f, Vector2(c.x - tw * 0.5, chip.position.y + 20.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, tc)

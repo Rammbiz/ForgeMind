@@ -44,6 +44,8 @@ var _modals: Array[Control] = []
 var _toast: Control
 var _insets := Vector4.ZERO
 var _unlock_shown := false
+var _last_pop_ms := -10000
+var _back_ms := -10000
 
 
 func _init(p_start_tab := "play") -> void:
@@ -263,7 +265,10 @@ func _refresh_badges() -> void:
 # ------------------------------------------------------------------ modals
 
 ## Puts `c` on the modal layer above a dimmer; tapping the dimmer closes it (unless `sticky`).
-func push_modal(c: Control, sticky := false) -> void:
+## `centered` wraps `c` in a full-screen CenterContainer (cards that size themselves), and
+## `ceremony` (reveals) uses a deeper scrim and also fades the nav out. While any modal is up the
+## Home chrome (PLAY, level path, rails, tags) fades out so only the modal's jewel shows.
+func push_modal(c: Control, sticky := false, centered := false, ceremony := false) -> void:
 	var holder := Control.new()
 	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal_host.add_child(holder)
@@ -271,20 +276,55 @@ func push_modal(c: Control, sticky := false) -> void:
 	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(dim)
-	dim.create_tween().tween_property(dim, "color:a", 0.38, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	dim.create_tween().tween_property(dim, "color:a", 0.56 if ceremony else 0.5, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if not sticky:
 		dim.gui_input.connect(func(e: InputEvent):
 			if UIJuice.is_tap(e):
-				pop_modal())
-	holder.add_child(c)
+				pop_modal(holder))
+	if centered:
+		var cc := CenterContainer.new()
+		cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+		cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(cc)
+		cc.add_child(c)
+	else:
+		holder.add_child(c)
 	holder.set_meta("content", c)
+	holder.set_meta("ceremony", ceremony)
 	_modals.append(holder)
+	_chrome_for_modals()
+
+
+## Fades the page chrome under the modal stack: the Home page (and the nav for ceremonies)
+## goes to 0 so two amber jewels never show at once; other pages stay (the scrim covers them).
+func _chrome_for_modals() -> void:
+	var any := not _modals.is_empty()
+	var cer := false
+	for h in _modals:
+		if bool(h.get_meta("ceremony", false)):
+			cer = true
+	var page_a := 0.0 if (any and current == "play") else 1.0
+	var nav_a := 0.0 if cer else 1.0
+	for pair: Array in [[_page_host, page_a], [tab_bar, nav_a]]:
+		var n := pair[0] as Control
+		if n == null or not is_instance_valid(n):
+			continue
+		var tw := n.create_tween()
+		tw.tween_property(n, "modulate:a", float(pair[1]), 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if stage:
+		stage.set_meta("covered", any and _modals.back().get_meta("content") is MachineDetail)
 
 
 ## Closes the top modal (exit animation is the content's own: it may implement `play_exit()`
-## returning a Tween).
-func pop_modal() -> void:
+## returning a Tween). With `only` set, closes only when that holder is still the top one (a
+## scrim tap never closes the modal underneath). A closing modal stops taking input at once.
+func pop_modal(only: Control = null) -> void:
 	if _modals.is_empty():
+		return
+	if only != null and _modals.back() != only:
+		return
+	# Double taps: a second tap within 250 ms of a close never closes the next modal down.
+	if only != null and Time.get_ticks_msec() - _last_pop_ms < 250:
 		return
 	var top: Control = _modals.back()
 	var top_c: Control = top.get_meta("content")
@@ -294,6 +334,10 @@ func pop_modal() -> void:
 		(top_c as UnlockCard).done.emit()
 		return
 	var holder: Control = _modals.pop_back()
+	_last_pop_ms = Time.get_ticks_msec()
+	holder.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
+	(holder.get_child(0) as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chrome_for_modals()
 	var c: Control = holder.get_meta("content")
 	var tw: Tween = null
 	if c.has_method("play_exit"):
@@ -305,6 +349,13 @@ func pop_modal() -> void:
 	else:
 		holder.queue_free()
 	Audio.play("click", -12.0)
+
+
+## Closes the modal whose content is `c`, only while it is the top one (close buttons).
+func close_modal(c: Control) -> void:
+	if _modals.is_empty() or _modals.back().get_meta("content") != c:
+		return
+	pop_modal(_modals.back())
 
 
 func has_modal() -> bool:
@@ -356,7 +407,7 @@ func open_cache(index: int) -> void:
 		return
 	var r := VaultView.Reveal.new()
 	r.setup(self, rev)
-	push_modal(r, true)
+	push_modal(r, true, false, true)
 
 
 ## Shows the Deck editor (Arsenal tab, Колода).
@@ -405,7 +456,15 @@ func toast(text: String, icon := "", _color := UIKit.GOLD_LIGHT) -> void:
 func _show_pending_unlocks() -> void:
 	if not is_inside_tree() or _unlock_shown:
 		return
+	# Let the coins from the result / altar land first: the card never sits under a reward fly.
+	if RewardFly.layer(get_tree()).is_busy() or has_modal():
+		get_tree().create_timer(0.3).timeout.connect(_show_pending_unlocks)
+		return
 	var list := Meta.pending_unlocks()
+	# A feature the player already used needs no tutorial card: ack it quietly.
+	while not list.is_empty() and _already_used(str(list[0].get("id", ""))):
+		Meta.ack_unlock(str(list[0].get("id", "")))
+		list = Meta.pending_unlocks()
 	if list.is_empty():
 		return
 	_unlock_shown = true
@@ -422,7 +481,16 @@ func _show_pending_unlocks() -> void:
 			select_tab(tab)
 		_unlock_shown = false
 		get_tree().create_timer(0.5).timeout.connect(_show_pending_unlocks))
-	push_modal(card, true)
+	push_modal(card, true, true)
+
+
+## True when the player already met the unlocked feature before its card could show (the
+## altar after a boss cache was cracked on it).
+func _already_used(id: String) -> bool:
+	match id:
+		"altar":
+			return int((Meta.account.get("counters", {}) as Dictionary).get("caches_opened", 0)) > 0
+	return false
 
 
 func _tab_of(unlock_id: String) -> String:
@@ -441,8 +509,11 @@ func _notification(what: int) -> void:
 			pop_modal()
 		elif current != "play":
 			select_tab("play")
-		else:
+		elif Time.get_ticks_msec() - _back_ms < 2000:
 			get_tree().quit()
+		else:
+			_back_ms = Time.get_ticks_msec()
+			toast(Loc.t("BACK_TO_QUIT"), "")
 
 
 # ------------------------------------------------------------------ inner widgets
@@ -583,7 +654,8 @@ class UnlockCard extends PanelContainer:
 
 	func _ready() -> void:
 		add_theme_stylebox_override("panel", UIKit.lux("panel", Vector2(40, 34)))
-		set_anchors_preset(Control.PRESET_CENTER)
+		size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 14)
 		v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -595,16 +667,17 @@ class UnlockCard extends PanelContainer:
 		rays.set_anchors_preset(Control.PRESET_FULL_RECT)
 		rays.offset_top = -60
 		rays.offset_bottom = 60
-		rays.color = Color(1.0, 0.82, 0.4, 0.4)
+		rays.color = Color(1.0, 0.82, 0.4, 0.5)
+		rays.on_light = true
 		halo.add_child(rays)
 		var ic := Icons.make(_icon(), 128.0)
 		ic.position = Vector2(220 - 64, 21)
 		halo.add_child(ic)
 		v.add_child(halo)
-		var t := UIKit.gradient_heading(Loc.t("UNLOCK_TITLE"), 52)
+		var t := UIKit.gradient_heading(_title(), 46)
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(t)
-		var line := UIKit.heading(Loc.t(str(entry.get("line", ""))), 30, UIKit.TEXT, 6)
+		var line := UIKit.label(Loc.t(str(entry.get("line", ""))), 28, UIKit.INK_SOFT, true)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size = Vector2(440, 0)
@@ -615,10 +688,23 @@ class UnlockCard extends PanelContainer:
 		v.add_child(b)
 		UIKit.add_shine(b, 30.0, 0.8, 2.5, 0.5)
 		await get_tree().process_frame
-		position = (get_parent_area_size() - size) * 0.5
+		pivot_offset = size * 0.5
 		UIJuice.pop(self, 0.0, UITokens.SLOW)
 		UIJuice.haptic("THUD", 0.8)
 		Audio.play("weapon_get", -4.0)
+
+	## "Відкрито: Вівтар" (the feature's name), or the plain "Відкрито!" when it has none.
+	func _title() -> String:
+		var id := str(entry.get("id", ""))
+		var key := ""
+		match id:
+			"arsenal": key = "TAB_ARSENAL"
+			"heroes": key = "TAB_HEROES"
+			"barracks": key = "TAB_BARRACKS"
+			_: key = "UNF_" + id.to_upper()
+		if Loc.STRINGS.has(key) and Loc.STRINGS.has("UNLOCK_NAMED"):
+			return Loc.f("UNLOCK_NAMED", [Loc.t(key)])
+		return Loc.t("UNLOCK_TITLE")
 
 	func _icon() -> String:
 		match str(entry.get("id", "")):
@@ -629,8 +715,8 @@ class UnlockCard extends PanelContainer:
 			"stone_cache": return "cache_stone"
 			"altar": return "cache_world"
 			"talents": return "laurel"
-			"pairs": return "crate"
+			"pairs": return "chest"
 			"rank_gates": return "chevron"
-			"drag": return "hand"
+			"drag": return "swipe"
 			"migration": return "crown"
 		return "crystal"

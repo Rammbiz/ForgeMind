@@ -101,8 +101,8 @@ func _layout() -> void:
 		_drag.reset_size()
 		_drag.position = Vector2((vp.x - _drag.size.x) * 0.5, vp.y * 0.6)
 	_toasts.size = Vector2(vp.x, 10)
-	# Above the big toast line and clear of the army counter (which rides at about 0.42).
-	_toasts.position = Vector2(0, vp.y * 0.215)
+	# Near the army (about 0.6 H), clear of the look-ahead zone where gates and crates appear.
+	_toasts.position = Vector2(0, vp.y * 0.6)
 	_place_hint()
 
 
@@ -320,9 +320,11 @@ func show_hint(key: String) -> void:
 		_hint_tw.kill()
 	if key == "":
 		_hint_key = ""
-		_hint_tw = _hint.create_tween()
-		_hint_tw.tween_property(_hint, "modulate:a", 0.0, 0.25)
-		_hint_tw.tween_callback(func(): _hint.visible = false)
+		_hint_tw = _hint.create_tween().set_parallel(true)
+		_hint_tw.tween_property(_hint, "modulate:a", 0.0, 0.2)
+		_hint_tw.tween_property(_hint, "position:y", _hint.position.y - 22.0, 0.2)
+		_hint_tw.tween_property(_hint, "scale", Vector2(0.94, 0.94), 0.2)
+		_hint_tw.chain().tween_callback(func(): _hint.visible = false)
 		return
 	_hint_key = key
 	# One line when it fits, otherwise wrapped by hand at a comfortable width. (An autowrapped
@@ -335,7 +337,7 @@ func show_hint(key: String) -> void:
 	_hint_lbl.reset_size()
 	var ik: String = HINT_ICONS.get(key, "")
 	if ik == "":
-		ik = ult_icon if key == "HINT_ULT" else "star"
+		ik = ult_icon if key == "HINT_ULT" else "glint"
 	_hint_badge.set_icon(ik)
 	_hint.visible = not _hint_hold
 	_place_hint()
@@ -349,7 +351,11 @@ func show_hint(key: String) -> void:
 	_hint_tw.tween_property(_hint, "scale", Vector2.ONE, 0.28)
 	_hint_tw.tween_property(_hint, "position:y", y, 0.28)
 	_hint_tw.chain().tween_interval(HINT_TIME)
-	_hint_tw.chain().tween_property(_hint, "modulate:a", 0.0, 0.45)
+	# Exit: a short upward slide + scale-out (200 ms) so the fading banner never reads as a
+	# dark translucent box over the world.
+	_hint_tw.chain().tween_property(_hint, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_hint_tw.parallel().tween_property(_hint, "position:y", y - 22.0, 0.2)
+	_hint_tw.parallel().tween_property(_hint, "scale", Vector2(0.94, 0.94), 0.2)
 	_hint_tw.chain().tween_callback(func(): _hint.visible = false)
 	Audio.note(9, -14.0)
 
@@ -454,7 +460,7 @@ func power_toast(stat: String, total: float) -> void:
 			set_arm(tier)
 			pill_toast(Loc.t(ARM_NAMES[tier]) + "!", ARM_ICONS[tier], Color(0.5, 1.0, 0.85))
 		_:
-			pill_toast(stat, "star")
+			pill_toast(stat, "glint")
 
 
 ## Army weapon tier chip next to the slots (0 hides it).
@@ -706,7 +712,7 @@ func _open_modal(kind: String, rays := false, ray_color := Color(1.0, 0.85, 0.45
 	add_child(_modal)
 	# Warm translucent scrim + vignette (no blur): the road and its gate numbers recede.
 	var dim := ResultFlow.scrim(get_viewport_rect().size, 0.62, 0.8)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_modal.add_child(dim)
 	if rays:
 		var r := UIKit.Rays.new()
@@ -1087,12 +1093,12 @@ class WeaponSlot extends Control:
 		if over > 0:
 			var f := UIKit.font_w("extrabold")
 			var txt := "+%d%%" % int(round(_over_pct(over) * 100.0))
-			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-			var cr := Rect2(Vector2(r.end.x - w - 10.0, r.position.y - 8.0), Vector2(w + 12.0, 22.0))
+			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+			var cr := Rect2(Vector2(r.end.x - w - 10.0, r.position.y - 10.0), Vector2(w + 12.0, 25.0))
 			var cp := GemDraw.chamfer_rect(cr, 5.0)
 			draw_colored_polygon(cp, UITokens.PAPER_0)
 			GemDraw.outline(self, cp, UITokens.HAIRLINE, 1.2)
-			draw_string(f, Vector2(cr.position.x + 6.0, cr.end.y - 5.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.GOLD_TEXT)
+			draw_string(f, Vector2(cr.position.x + 6.0, cr.end.y - 6.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITokens.GOLD_TEXT)
 
 	func _draw_arms() -> void:
 		var c := Vector2(size.x * 0.5, 34.0)
@@ -1217,13 +1223,16 @@ class DragHand extends Control:
 			draw_polyline(arm, Color(1.0, 0.9, 0.62), 3.5, true)
 		var s := sin(_t * 2.4)
 		var x := cx + s * span
-		var hs := 112.0
+		# The fingertip: a porcelain touch disc in a fine gold ring with a gold dot, a soft trail
+		# and a breathing press ring (no cartoon glove).
 		for k in [3, 2, 1]:
 			var sk := sin(_t * 2.4 - k * 0.16)
 			var xk := cx + sk * span
-			Icons.draw_icon(self, "hand", Rect2(Vector2(xk - hs * 0.485, cy - hs * 0.04), Vector2(hs, hs)), Color(1, 1, 1, 0.1 / k))
+			draw_circle(Vector2(xk, cy), 16.0, Color(ws.r, ws.g, ws.b, 0.12 / k), true, -1.0, true)
 		var ph := fmod(_t * 1.6, 1.0)
-		draw_arc(Vector2(x, cy), 10.0 + ph * 26.0, 0, TAU, 32, Color(1.0, 0.92, 0.7, 0.7 * (1.0 - ph)), 2.5, true)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.86, 0.5, 0.75))
-		Icons.draw_icon(self, "hand", Rect2(Vector2(x - hs * 0.485 + 3.0, cy - hs * 0.04 + 5.0), Vector2(hs, hs)), Color(sc.r, sc.g, sc.b, 0.3))
-		Icons.draw_icon(self, "hand", Rect2(Vector2(x - hs * 0.485, cy - hs * 0.04), Vector2(hs, hs)), Color.WHITE)
+		draw_arc(Vector2(x, cy), 22.0 + ph * 22.0, 0, TAU, 40, Color(1.0, 0.92, 0.7, 0.6 * (1.0 - ph)), 2.0, true)
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(40, 40), Vector2(80, 80)), false, Color(1.0, 0.86, 0.5, 0.55))
+		draw_circle(Vector2(x, cy + 3.0), 21.0, Color(sc.r, sc.g, sc.b, 0.22), true, -1.0, true)
+		draw_circle(Vector2(x, cy), 20.0, Color(ws.r, ws.g, ws.b, 0.96), true, -1.0, true)
+		draw_arc(Vector2(x, cy), 20.0, 0, TAU, 40, UITokens.HAIRLINE, 2.0, true)
+		draw_circle(Vector2(x, cy), 6.0, UITokens.CTA, true, -1.0, true)

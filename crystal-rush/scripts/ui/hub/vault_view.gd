@@ -12,7 +12,7 @@ const CACHE_GEM := {"stone": "sapphire", "world": "amethyst", "royal": "topaz", 
 const T := {
 	"V_ON_ALTAR": ["на вівтарі", "on the Altar"],
 	"V_PICK": ["Обери схованку", "Pick a cache"],
-	"V_EMPTY_HINT": ["Перемоги приносять кам'яні схованки, боси світів — світові.", "Wins bring Stone Caches, world bosses bring World Caches."],
+	"V_EMPTY_HINT": ["Перемоги приносять кам’яні схованки, боси світів — світові.", "Wins bring Stone Caches, world bosses bring World Caches."],
 	"V_TAKE": ["Забрати", "Collect"],
 }
 
@@ -66,7 +66,7 @@ func _ready() -> void:
 	info.pressed.connect(func(): hub.open_odds("world" if _has("world") else "stone"))
 	head.add_child(info)
 	var close := UIKit.edge_button("close", 26.0)
-	close.pressed.connect(func(): hub.pop_modal())
+	close.pressed.connect(func(): hub.close_modal(self))
 	head.add_child(close)
 	col.add_child(head)
 	col.add_child(UIKit.divider(560.0))

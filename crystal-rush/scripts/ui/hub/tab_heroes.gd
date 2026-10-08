@@ -15,7 +15,7 @@ const SHEET_H := 468.0          ## the sheet's content height (from its arched t
 
 ## Hero identity (heroes_design.md §6 roster table): gem, class, element, faction, title.
 const INFO := {
-	"titan": {"gem": "quartz", "cls": "guardian", "el": "kinetic", "fac": "stoneheart", "title": ["Кам'яний велет", "The Stone Titan"]},
+	"titan": {"gem": "quartz", "cls": "guardian", "el": "kinetic", "fac": "stoneheart", "title": ["Кам’яний велет", "The Stone Titan"]},
 	"bolt": {"gem": "sapphire", "cls": "ranger", "el": "volt", "fac": "wildfang", "title": ["Громовий лис", "Thunder Fox"]},
 	"seer": {"gem": "amethyst", "cls": "mage", "el": "rune", "fac": "wildfang", "title": ["Рись-містик", "Lynx Mystic"]},
 }
@@ -26,7 +26,7 @@ const T := {
 	"CLS_WARRIOR": ["Воїн", "Warrior"], "CLS_RANGER": ["Стрілець", "Ranger"], "CLS_MAGE": ["Маг", "Mage"],
 	"CLS_GUARDIAN": ["Страж", "Guardian"], "CLS_HEALER": ["Цілитель", "Healer"],
 	"FAC_DAWN": ["Орден Світанку", "Dawn Order"], "FAC_WILDFANG": ["Дикі Ікла", "Wildfang"],
-	"FAC_STONEHEART": ["Кам'яне Серце", "Stoneheart"], "FAC_CELESTIAL": ["Небожителі", "Celestials"],
+	"FAC_STONEHEART": ["Кам’яне Серце", "Stoneheart"], "FAC_CELESTIAL": ["Небожителі", "Celestials"],
 	"H_CLASS": ["Клас", "Class"], "H_ELEMENT": ["Стихія", "Element"], "H_FACTION": ["Фракція", "Faction"],
 	"H_TAB_ATTR": ["Атрибути", "Attributes"], "H_TAB_ULT": ["Ульта", "Ultimate"], "H_TAB_ASPECT": ["Аспекти", "Aspects"],
 	"H_LEVEL": ["Рів.", "Lv"], "H_CAP": ["Межа світу", "World cap"],

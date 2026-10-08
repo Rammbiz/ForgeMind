@@ -25,7 +25,7 @@ const CTA_HI := UITokens.CTA_HI
 const CTA := UITokens.CTA
 const CTA_LO := UITokens.CTA_LO
 const CTA_RIM := UITokens.CTA_RIM
-const CTA_TEXT := Color("#FFFDF6")        ## label on the amber CTA (with a soft amber shadow)
+const CTA_TEXT := Color("#5A3212")        ## label on the amber CTA: deep amber-brown ink (~5:1), light emboss
 const SCRIM := UITokens.SCRIM
 const PLUS := UITokens.PLUS
 const ALERT := UITokens.ALERT
@@ -671,9 +671,9 @@ static func theme() -> Theme:
 		for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 			t.set_color(k, v, CTA_TEXT)
 		t.set_color("font_disabled_color", v, INK_DIM)
-		# A faint warm halo (alpha 0.3) instead of a stroke: Button has no text shadow.
-		t.set_color("font_outline_color", v, Color(0.55, 0.27, 0.05, 0.3))
-		t.set_constant("outline_size", v, 6)
+		# Ink label, no stroke: a faint light halo keeps the glyph edges clean on the sweep.
+		t.set_color("font_outline_color", v, Color(1.0, 0.902, 0.639, 0.35))
+		t.set_constant("outline_size", v, 2)
 	# Panels
 	t.set_stylebox("panel", "PanelContainer", lux("panel"))
 	t.set_stylebox("panel", "Panel", lux("panel"))
@@ -1469,34 +1469,79 @@ class Divider extends Control:
 
 ## Slowly rotating light rays (victory sunburst / reward halo). Soft and warm in v2.
 class Rays extends Control:
+	## Soft light shafts for reward moments (fusion §6.6): 5-7 tapered shafts with feathered
+	## sides whose alpha rises from 0 at the root to a peak (~18 %) and fades to 0 at the tip,
+	## turning slowly over a radial bloom in the gem colour, plus a whisper of the gem's
+	## fracture lines. No hard wedges. `on_light` (a cream sheet): only the bloom + motes.
 	var color := Color(1.0, 0.86, 0.55, 0.28)
-	var count := 14
-	var speed := 0.12
+	var count := 6
+	var speed := 0.05
 	var inner := 0.0
+	var gem := ""
+	var on_light := false
 	var _a := 0.0
 
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		material = m
+
+	func _ready() -> void:
+		if on_light:
+			material = null
+
 	func _process(delta: float) -> void:
-		_a += delta * speed
+		_a += delta * minf(speed, 0.06)
 		queue_redraw()
 
 	func _draw() -> void:
 		var c := size * 0.5
 		var R := minf(size.x, size.y) * 0.5
-		var half := PI / count * 0.42
-		var mid := Color(color.r, color.g, color.b, color.a * 0.7)
-		var edge := Color(color.r, color.g, color.b, 0.0)
-		for i in count:
-			var a := _a + TAU * i / count
-			var d0 := Vector2(cos(a - half * 0.25), sin(a - half * 0.25))
-			var d1 := Vector2(cos(a + half * 0.25), sin(a + half * 0.25))
-			var e0 := Vector2(cos(a - half), sin(a - half))
-			var e1 := Vector2(cos(a + half), sin(a + half))
-			var m0 := d0.lerp(e0, 0.6).normalized()
-			var m1 := d1.lerp(e1, 0.6).normalized()
-			var rin := maxf(R * inner, 2.0)
-			draw_polygon(PackedVector2Array([c + d0 * rin, c + m0 * R * 0.6, c + m1 * R * 0.6, c + d1 * rin]), PackedColorArray([color, mid, mid, color]))
-			draw_polygon(PackedVector2Array([c + m0 * R * 0.6, c + e0 * R, c + e1 * R, c + m1 * R * 0.6]), PackedColorArray([mid, edge, edge, mid]))
-		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(R, R) * 0.62, Vector2(R, R) * 1.24), false, Color(color.r, color.g, color.b, minf(1.0, color.a * 1.6)))
+		var cc := Color(color.r, color.g, color.b, 1.0)
+		if on_light:
+			# Cream sheet: a soft radial glow only (never saturated wedges on cream).
+			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(R, R), Vector2(R, R) * 2.0), false, Color(cc.r, cc.g, cc.b, minf(0.55, color.a * 1.2)))
+			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(R, R) * 0.5, Vector2(R, R)), false, Color(1, 1, 1, 0.35))
+			return
+		# Bloom.
+		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(R, R) * 0.9, Vector2(R, R) * 1.8), false, Color(cc.r, cc.g, cc.b, minf(0.7, color.a * 1.5)))
+		var n := clampi(count, 5, 7)
+		var peak := minf(color.a * 1.1, 0.2)
+		var rin := maxf(R * inner, R * 0.08)
+		var radial := [rin, R * 0.42, R]
+		var ra := [0.0, 1.0, 0.0]
+		for i in n:
+			# Uneven spacing and widths so it reads as light, not a sunburst.
+			var ang := _a + TAU * (float(i) + 0.18 * sin(i * 2.3)) / n
+			var w_tip := (0.11 + 0.05 * sin(i * 1.7 + 0.5)) * PI / n * 2.2
+			var amp := peak * (0.75 + 0.25 * sin(i * 3.1 + _a * 3.0))
+			var grid: Array = []
+			for k in 3:
+				var row: Array = []
+				var r: float = radial[k]
+				var hw := w_tip * (0.25 + 0.75 * r / R)
+				for j in 3:
+					var aa: float = ang + (float(j) - 1.0) * hw
+					var al: float = amp * float(ra[k]) * (1.0 if j == 1 else 0.0)
+					row.append([c + Vector2(cos(aa), sin(aa)) * r, Color(cc.r, cc.g, cc.b, al)])
+				grid.append(row)
+			for k in 2:
+				for j in 2:
+					var p00: Array = grid[k][j]
+					var p01: Array = grid[k][j + 1]
+					var p11: Array = grid[k + 1][j + 1]
+					var p10: Array = grid[k + 1][j]
+					draw_polygon(PackedVector2Array([p00[0], p01[0], p11[0], p10[0]]), PackedColorArray([p00[1], p01[1], p11[1], p10[1]]))
+		# The gem's fracture whisper (8-12 %): a few long, faint refraction lines.
+		if gem != "":
+			var g := UITokens.gem(gem)
+			var lc: Color = g["light"]
+			for i in 4:
+				var la := _a * 0.5 + i * 0.83 + (0.4 if gem == "sapphire" else 0.0)
+				var d := Vector2(cos(la), sin(la))
+				var o := Vector2(-d.y, d.x) * R * (0.18 * (i - 1.5))
+				draw_line(c + o - d * R * 0.85, c + o + d * R * 0.85, Color(lc.r, lc.g, lc.b, 0.1), 1.5, true)
 
 
 ## Title ribbon (victory / result band): a band with V-notched, chamfered ends, a quiet

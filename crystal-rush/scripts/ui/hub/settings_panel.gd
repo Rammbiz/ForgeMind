@@ -40,7 +40,7 @@ func _ready() -> void:
 	head.add_child(t)
 	var x := UIKit.edge_button("close", 26.0)
 	x.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	x.pressed.connect(func(): hub.pop_modal())
+	x.pressed.connect(func(): hub.close_modal(self))
 	head.add_child(x)
 	col.add_child(head)
 	var div := UIKit.divider(560.0)
@@ -92,7 +92,7 @@ func _ready() -> void:
 					hub.toast(Loc.t("TELEMETRY_SAVED"), "check"))
 	foot.add_child(ver)
 	var close := UIKit.secondary_button(Loc.t("CLOSE"), "", Vector2(240, 68), 24)
-	close.pressed.connect(func(): hub.pop_modal())
+	close.pressed.connect(func(): hub.close_modal(self))
 	foot.add_child(close)
 	col.add_child(foot)
 	UIJuice.soft_in(_panel, Vector2(0, 28))

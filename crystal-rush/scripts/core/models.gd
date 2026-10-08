@@ -584,21 +584,48 @@ static func raider_mesh() -> Mesh:
 
 # ================================================================== labels
 
-## A label in the world: big bold numbers with a dark outline.
+## A label in the world: big bold numbers with a thin, translucent outline in a dark tint of
+## their own colour (UI v2: no sticker strokes) and, via soft_outline(), a soft glow quad.
 static func label(text: String, px: int, color := Color.WHITE, billboard := false) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
 	l.font = UIKit.font(true)
 	l.font_size = px
 	l.pixel_size = 0.006
-	l.outline_size = maxi(8, px / 6)
+	l.outline_size = clampi(px / 26, 3, 12)
 	l.modulate = color
-	l.outline_modulate = Color(0.04, 0.06, 0.15, 1.0)
+	l.outline_modulate = Color(0.118, 0.141, 0.2, 0.38)
 	l.no_depth_test = false
 	l.double_sided = false
 	if billboard:
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		l.fixed_size = false
+	return l
+
+
+## UI v2 soft legibility for a world label: a 3-12 px outline at ~38 % alpha in `tint` (slate
+## #1E2433 for white, #5A1410 for red) plus a soft radial glow quad behind the glyphs (no
+## thick strokes). `glow` 0 skips the quad. Call after the text is set (sizes the glow).
+static func soft_outline(l: Label3D, tint: Color, glow := 0.32) -> Label3D:
+	l.outline_size = clampi(l.font_size / 26, 3, 12)
+	l.outline_modulate = Color(tint.r, tint.g, tint.b, 0.38)
+	if glow > 0.0 and l.get_node_or_null("Glow") == null:
+		var sp := Sprite3D.new()
+		sp.name = "Glow"
+		sp.texture = UIKit.glow_texture()
+		sp.shaded = false
+		sp.double_sided = l.double_sided
+		sp.no_depth_test = l.no_depth_test
+		sp.billboard = l.billboard
+		sp.render_priority = l.render_priority - 2
+		sp.modulate = Color(tint.r, tint.g, tint.b, glow)
+		sp.pixel_size = l.pixel_size
+		var chars := maxi(l.text.length(), 2)
+		var w := float(l.font_size) * 0.62 * chars * 1.5
+		var h := float(l.font_size) * 1.7
+		sp.scale = Vector3(w / 128.0, h / 128.0, 1.0)
+		sp.position = Vector3(0, 0, -0.01)
+		l.add_child(sp)
 	return l
 
 
@@ -724,7 +751,8 @@ static func gate(width: float) -> Node3D:
 	pill_bg.position = Vector3(0, 0, -0.01)
 	pill.add_child(pill_bg)
 	var sub := label("", 120, Color(0.92, 0.97, 1.0))
-	sub.outline_size = 14
+	sub.outline_size = 4
+	sub.outline_modulate = Color(0.118, 0.141, 0.2, 0.38)
 	sub.render_priority = 3
 	sub.outline_render_priority = 2
 	pill.add_child(sub)
@@ -1769,8 +1797,7 @@ static func fortress(width: float, hp: int) -> Node3D:
 		_halo(root, Vector3(0, base_h + 11.2, kz), Color(1.0, 0.2, 0.1, 0.9), 2.0)
 		_halo(root, Vector3(0, base_h + 1.4, gz + 0.3), Color(1.0, 0.3, 0.1, 0.35), 3.4)
 	var l := label(str(hp), 300, Color(1.0, 0.94, 0.86))
-	l.outline_modulate = Color(0.28, 0.02, 0.02)
-	l.outline_size = 52
+	soft_outline(l, Color("#5A1410"), 0.0)
 	l.position = Vector3(0, label_y, label_z)
 	l.rotation_degrees = Vector3(-8, 0, 0)
 	# Always on top: the gate's front plates hid the hp counter from the high siege camera.
@@ -2020,8 +2047,7 @@ static func stairs(mults: Array, width: float) -> Node3D:
 		var c := _stairs_color(k)
 		var txt := _mult_text(float(mults[i]))
 		var l := label(txt, 200, Color.WHITE)
-		l.outline_modulate = c.darkened(0.7)
-		l.outline_size = 34
+		soft_outline(l, c.darkened(0.7), 0.0)
 		l.position = Vector3(0, (i + 1) * STEP_H + 0.24, -i * STEP_D - 0.5)
 		l.rotation_degrees = Vector3(-58, 0, 0)
 		l.render_priority = 3
@@ -2029,8 +2055,7 @@ static func stairs(mults: Array, width: float) -> Node3D:
 		_fit_label(l, w * 0.5, 0.62)
 		root.add_child(l)
 		var rl := label(txt, 90, c.lerp(Color.WHITE, 0.6))
-		rl.outline_modulate = c.darkened(0.8)
-		rl.outline_size = 16
+		soft_outline(rl, c.darkened(0.8), 0.0)
 		rl.position = Vector3(w * 0.32, i * STEP_H + STEP_H * 0.47, -i * STEP_D + 0.04)
 		rl.render_priority = 3
 		_fit_label(rl, 1.2, STEP_H - 0.1)

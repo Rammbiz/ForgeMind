@@ -79,8 +79,8 @@ func _ready() -> void:
 	back.add_child(bg)
 	var rays := UIKit.Rays.new()
 	rays.color = Color(rc.r, rc.g, rc.b, 0.0)
-	rays.count = 16
 	rays.inner = 0.1
+	rays.gem = UITokens.gem_of(ArsenalData.rarity_of(id))
 	rays.size = Vector2(1300, 1300)
 	var vps := get_viewport_rect().size
 	rays.position = Vector2(vps.x * 0.5, vps.y * 0.44) - rays.size * 0.5
@@ -97,16 +97,19 @@ func _ready() -> void:
 	# v2: a cream name plate ("Нова машина"), the name in soft warm type into the gem's light
 	# tone (no stroke, soft shadow + halo), rarity · family in gold, a quiet tap hint.
 	var gl: Color = UITokens.gem(ArsenalData.rarity_of(id))["light"]
-	var plate := UIKit.title_plate(Loc.t("NEW_MACHINE").trim_suffix("!"), 300.0, false)
-	plate.font_size = 24
-	_title = plate
+	# §6.5 NEW tag (#FFCF3F, #6A4512 ink), 44 px tall, right above the name.
+	var tag := UIKit.new_tag(Loc.t("NEW_MACHINE").trim_suffix("!"))
+	var tl := tag.get_child(0) as Label
+	tl.add_theme_font_size_override("font_size", 24)
+	tl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_title = tag
 	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"]))
-	var nfs := UIKit.fit_size(nm, 660.0, 76, 40)
+	var nfs := UIKit.fit_size(nm, 640.0, 62, 40)
 	_name = UIKit.gradient_heading(nm, nfs, UIKit.ON_SCENE, UIKit.ON_SCENE.lerp(gl, 0.5), gl)
 	UIKit.soft_shadow(_name, nfs, 1.4)
 	var fam := str((ArsenalData.FAMILIES[ArsenalData.family_of(id)] as Dictionary)["name"])
 	var rar := str((ArsenalData.RARITIES[ArsenalData.rarity_of(id)] as Dictionary)["name"])
-	_sub = UIKit.scene_label("%s · %s" % [Loc.t(rar), Loc.t(fam)], 28, true)
+	_sub = UIKit.scene_label("%s · %s" % [Loc.t(rar), Loc.t(fam)], 24, true)
 	_sub.add_theme_color_override("font_color", UIKit.GOLD_HI)
 	_tap = UIKit.scene_label(Loc.t("TAP_CONTINUE"), 22, false)
 	_tap.add_theme_color_override("font_color", Color(UIKit.ON_SCENE.r, UIKit.ON_SCENE.g, UIKit.ON_SCENE.b, 0.75))
@@ -123,13 +126,15 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var vp := size
-	_title.size = Vector2(300, 46)
-	_title.position = Vector2((vp.x - 300) * 0.5, vp.y * 0.13)
-	_name.size = Vector2(vp.x, 96)
+	_title.reset_size()
+	var tw := maxf(_title.get_combined_minimum_size().x, 200.0)
+	_title.size = Vector2(tw, 44)
+	_title.position = Vector2((vp.x - tw) * 0.5, vp.y * 0.69 - 50.0)
+	_name.size = Vector2(vp.x, 84)
 	_name.position = Vector2(0, vp.y * 0.69)
 	_name.pivot_offset = _name.size * 0.5
-	_sub.size = Vector2(vp.x, 40)
-	_sub.position = Vector2(0, vp.y * 0.69 + 96)
+	_sub.size = Vector2(vp.x, 36)
+	_sub.position = Vector2(0, vp.y * 0.69 + 84)
 	_tap.size = Vector2(vp.x, 34)
 	_tap.position = Vector2(0, vp.y * 0.9)
 
@@ -178,7 +183,7 @@ func _build_stage(acc: Color, rc: Color) -> void:
 	_halo.position = Vector3(0, 0.8, -1.6)
 	_halo.scale = Vector3.ONE * 1.5
 	_root.add_child(_halo)
-	var d := HubShowcase.owner_dais(2.0)
+	var d := HubShowcase.ivory_dais(2.0, rc)
 	if not d.is_empty():
 		_root.add_child(d["node"])
 		_dais_mat = d["mat"]
@@ -270,7 +275,7 @@ func _process(delta: float) -> void:
 			_dais_mat.set_shader_parameter("rune_k", 0.4 + 0.6 * l)
 	if _flash.color.a > 0.0:
 		_flash.color.a = maxf(0.0, _flash.color.a - delta * 2.5)
-	if _beat("title", 0.25):
+	if _beat("title", 1.4):
 		_title.create_tween().tween_property(_title, "modulate:a", 1.0, 0.3)
 	if _beat("name", 1.3):
 		_name.modulate.a = 1.0

@@ -1,8 +1,8 @@
 class_name KitCTA
 extends Button
 ## The amber jewel CTA (UI v2): amber gradient body with a fine rim (lux "primary"), a cut topaz
-## in a gold bezel at the left end, warm-white ExtraBold label with a soft amber shadow (no
-## stroke), an optional second line, a light sweep every UITokens.CTA_SWEEP_EVERY seconds and
+## in a gold bezel at the left end, deep amber-brown ExtraBold label with a light emboss (no
+## stroke, ~5:1), an optional second line, a light sweep every UITokens.CTA_SWEEP_EVERY seconds and
 ## a juicy press (squash 0.97 + topaz flash). Only for key actions: ГРАТИ, Призвати,
 ## Покращити, Забрати, Далі.
 ## Bitmap overrides: assets/ui/kit/primary*.png (body), cta_topaz.png (the gem).
@@ -52,7 +52,7 @@ func _ready() -> void:
 		_sweep_mat = ShaderMaterial.new()
 		_sweep_mat.shader = load(UIKit.SHINE_SHADER_PATH) as Shader
 		_sweep_mat.set_shader_parameter("chamfer", 12.0)
-		_sweep_mat.set_shader_parameter("strength", 0.42)
+		_sweep_mat.set_shader_parameter("strength", 0.26)
 		_sweep_rect.material = _sweep_mat
 		_sweep_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 		add_child(_sweep_rect)
@@ -155,12 +155,13 @@ func _draw() -> void:
 		draw_texture_rect(icon, Rect2(Vector2(x, base_y - asc * 0.78), Vector2(isz, isz)), false, Color(1, 1, 1, 0.6 if dis else 1.0))
 		x += ico_w
 	if not dis:
-		# Soft amber shadow: a spread pass and a tight pass, both translucent (no stroke).
-		draw_string_outline(f, Vector2(x, base_y + 2.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 7, Color(0.6, 0.29, 0.04, 0.16))
-		draw_string(f, Vector2(x, base_y + 2.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.52, 0.24, 0.03, 0.45))
+		# Engraved ink: a 1 px light emboss under the deep amber-brown label (no stroke, ~5:1).
+		draw_string(f, Vector2(x, base_y + 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.902, 0.639, 0.5))
 	draw_string(f, Vector2(x, base_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	if has_sub:
 		var sw := fsub.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size).x
 		var sx := area_x0 + (avail - sw) * 0.5
 		var sy := base_y + desc + fsub.get_ascent(sub_size) - 2.0
-		draw_string(fsub, Vector2(sx, sy), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color("#7A3E10") if not dis else UIKit.INK_DIM)
+		if not dis:
+			draw_string(fsub, Vector2(sx, sy + 1.0), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color(1.0, 0.902, 0.639, 0.4))
+		draw_string(fsub, Vector2(sx, sy), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color("#6E3A0F") if not dis else UIKit.INK_DIM)

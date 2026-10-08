@@ -2496,9 +2496,9 @@ static func _label(text: String, px: int, color: Color) -> Label3D:
 	l.font = _font
 	l.font_size = px
 	l.pixel_size = 0.006
-	l.outline_size = maxi(8, px / 6)
+	l.outline_size = clampi(px / 26, 3, 12)
 	l.modulate = color
-	l.outline_modulate = Color(0.04, 0.06, 0.15, 1.0)
+	l.outline_modulate = Color(0.118, 0.141, 0.2, 0.38)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	return l
 

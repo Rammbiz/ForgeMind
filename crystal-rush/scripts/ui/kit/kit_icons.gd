@@ -15,11 +15,15 @@ const LINE := [
 	"cls_warrior", "cls_ranger", "cls_mage", "cls_guardian", "cls_healer",
 	"el_kinetic", "el_volt", "el_frost", "el_plasma", "el_tech", "el_rune", "el_rift",
 	"fac_dawn", "fac_wildfang", "fac_stoneheart", "fac_celestial",
+	# UI v2 final pass: the legacy clip-art kinds now draw as line icons too.
+	"swipe", "spikes", "flag", "fortress", "egg", "cache_stone", "cache_world", "cache_royal", "cache_xray",
+	"glint", "gate", "blade", "hand", "crate", "soldier", "star", "castle", "vault",
 ]
 const PAINTED := ["coin", "gem", "crown", "blueprint", "beacon", "tome", "fragment",
 		"tab_shop", "tab_arsenal", "tab_play", "tab_heroes", "tab_barracks"]
 ## Legacy kinds that are UI glyphs (sticker style before) and now draw as line icons.
-const LINE_ALIASES := {"gear": "settings", "percent": "odds", "up": "arrow_up", "book": "quests"}
+const LINE_ALIASES := {"gear": "settings", "percent": "odds", "up": "arrow_up", "book": "quests",
+		"hand": "swipe", "crate": "chest", "soldier": "helmet", "star": "glint", "castle": "fortress", "vault": "chest"}
 
 
 static func has_line(k: String) -> bool:
@@ -342,6 +346,55 @@ static func line(ci: CanvasItem, k: String, r: Rect2, col: Color, width := -1.0)
 			_arc(ci, _p(r, 0.46, 0.52), s * 0.32, PI * 0.25, PI * 1.75, col, w)
 			_arc(ci, _p(r, 0.62, 0.44), s * 0.24, PI * 0.42, PI * 1.58, col, w * 0.8)
 			_ln(ci, _pts(r, [0.74, 0.62, 0.79, 0.7, 0.74, 0.78, 0.69, 0.7]), col, w * 0.7, true)
+		# ---- UI v2 final pass (legacy clip-art replacements)
+		"swipe":
+			# A finger-swipe arc with a gold-dot fingertip and a small arrow head.
+			_arc(ci, _p(r, 0.5, 0.66), s * 0.34, PI * 1.16, PI * 1.84, col, w)
+			var e := _p(r, 0.5, 0.66) + Vector2(cos(PI * 1.84), sin(PI * 1.84)) * s * 0.34
+			_ln(ci, PackedVector2Array([e + Vector2(-s * 0.13, -s * 0.02), e, e + Vector2(-s * 0.02, s * 0.12)]), col, w)
+			_arc(ci, _p(r, 0.5, 0.7), s * 0.1, 0, TAU, col, w * 0.85, false)
+			_dot(ci, _p(r, 0.5, 0.7), s * 0.045, UITokens.HAIRLINE)
+		"spikes":
+			for i in 3:
+				var x0 := 0.14 + i * 0.25
+				_ln(ci, _pts(r, [x0, 0.74, x0 + 0.11, 0.3, x0 + 0.22, 0.74]), col, w * 0.9, true)
+			_ln(ci, _pts(r, [0.1, 0.8, 0.9, 0.8]), col, w)
+		"flag":
+			_ln(ci, _pts(r, [0.28, 0.86, 0.28, 0.14]), col, w)
+			_ln(ci, _pts(r, [0.28, 0.18, 0.78, 0.26, 0.64, 0.38, 0.78, 0.5, 0.28, 0.5]), col, w * 0.9, true)
+			_dot(ci, _p(r, 0.28, 0.12), w * 0.9, col)
+		"fortress":
+			_ln(ci, _pts(r, [0.12, 0.84, 0.12, 0.3, 0.22, 0.3, 0.22, 0.38, 0.32, 0.38, 0.32, 0.3, 0.42, 0.3, 0.42, 0.38,
+					0.58, 0.38, 0.58, 0.3, 0.68, 0.3, 0.68, 0.38, 0.78, 0.38, 0.78, 0.3, 0.88, 0.3, 0.88, 0.84]), col, w, true)
+			_ln(ci, _pts(r, [0.38, 0.84, 0.38, 0.62]), col, w * 0.85)
+			_ln(ci, _pts(r, [0.62, 0.84, 0.62, 0.62]), col, w * 0.85)
+			_arc(ci, _p(r, 0.5, 0.62), s * 0.12, PI, TAU, col, w * 0.85, false)
+		"egg", "cache_stone", "cache_world", "cache_royal", "cache_xray":
+			# An egg outline with the cache's gem cut inside (stone square, world triangle, royal star).
+			var eg := PackedVector2Array()
+			for i in 36:
+				var t := TAU * i / 36.0
+				var yy := -cos(t)
+				var rx := 0.3 * (1.0 - 0.18 * yy) * sin(t)
+				eg.append(_p(r, 0.5 + rx, 0.54 + yy * 0.36))
+			_ln(ci, eg, col, w, true)
+			var cut: String = {"cache_stone": "square", "cache_world": "triangle", "cache_royal": "star", "cache_xray": "round"}.get(k, "square")
+			GemDraw.outline(ci, GemDraw.cut_points(cut, _p(r, 0.5, 0.58), s * 0.3), col, w * 0.75)
+		"glint":
+			# Our signature glint: a 4-ray cross with one long ray (no 4-point star).
+			_ln(ci, _pts(r, [0.5, 0.08, 0.5, 0.92]), col, w * 0.8)
+			_ln(ci, _pts(r, [0.28, 0.42, 0.72, 0.42]), col, w * 0.8)
+			_dot(ci, _p(r, 0.5, 0.42), w * 1.1, col)
+		"gate":
+			_ln(ci, _pts(r, [0.18, 0.84, 0.18, 0.2, 0.82, 0.2, 0.82, 0.84]), col, w)
+			_ln(ci, _pts(r, [0.5, 0.36, 0.5, 0.64]), col, w * 0.9)
+			_ln(ci, _pts(r, [0.36, 0.5, 0.64, 0.5]), col, w * 0.9)
+		"blade":
+			_arc(ci, c, s * 0.3, 0, TAU, col, w, false)
+			for i in 6:
+				var a0 := TAU * i / 6.0
+				_ln(ci, PackedVector2Array([c + Vector2(cos(a0), sin(a0)) * s * 0.3, c + Vector2(cos(a0 + 0.5), sin(a0 + 0.5)) * s * 0.42]), col, w * 0.8)
+			_dot(ci, c, w * 1.2, col)
 		_:
 			return false
 	return true
@@ -407,7 +460,7 @@ static func painted(ci: CanvasItem, k: String, r: Rect2, mod := Color.WHITE) -> 
 			GemDraw.outline(ci, PackedVector2Array([t, rr, b, l]), Color(0.7, 0.44, 0.12, 0.7 * a), 1.0)
 			ci.draw_arc(c, s * 0.4, PI * 1.08, PI * 1.62, 16, Color(1, 1, 1, 0.65 * a), maxf(1.0, s * 0.03), true)
 		"gem":
-			GemDraw.draw_gem(ci, "round", c + Vector2(0, s * 0.02), s * 0.86, Color("#3FA9FF") * shade, Color("#D2EEFF") * shade, Color("#1B4E7E") * shade, s >= 28.0, a)
+			GemDraw.draw_gem(ci, "round", c + Vector2(0, s * 0.02), s * 0.86, Color("#3FA9FF") * shade, Color("#D2EEFF") * shade, Color("#1B4E7E") * shade, true, a)
 		"crown":
 			var base := _pp(r, [0.16, 0.72, 0.84, 0.72, 0.84, 0.82, 0.16, 0.82])
 			var body := _pp(r, [0.16, 0.72, 0.12, 0.3, 0.34, 0.5, 0.5, 0.2, 0.66, 0.5, 0.88, 0.3, 0.84, 0.72])
@@ -420,17 +473,21 @@ static func painted(ci: CanvasItem, k: String, r: Rect2, mod := Color.WHITE) -> 
 			for q: Vector2 in [_p(r, 0.12, 0.3), _p(r, 0.5, 0.2), _p(r, 0.88, 0.3)]:
 				ci.draw_circle(q, s * 0.05, Color("#FFF2C8") * Color(shade, a), true, -1.0, true)
 		"blueprint":
-			var sheet := _pp(r, [0.16, 0.2, 0.74, 0.2, 0.86, 0.32, 0.86, 0.82, 0.16, 0.82])
-			ci.draw_colored_polygon(_shift(sheet, Vector2(0, s * 0.035)), Color(0.1, 0.2, 0.35, 0.2 * a))
-			_gp(ci, sheet, Color("#7CC4F2") * shade, Color("#3E86C6") * shade, r, a)
-			_edge(ci, sheet, Color(0.16, 0.36, 0.6, 0.9 * a), maxf(1.0, s * 0.025))
-			ci.draw_colored_polygon(_pp(r, [0.74, 0.2, 0.86, 0.32, 0.74, 0.32]), Color("#B9E2FA") * Color(shade, a))
-			var lc := Color(1, 1, 1, 0.8 * a)
-			var lw := maxf(1.0, s * 0.03)
-			ci.draw_line(_p(r, 0.26, 0.42), _p(r, 0.62, 0.42), lc, lw, true)
-			ci.draw_line(_p(r, 0.26, 0.54), _p(r, 0.76, 0.54), lc, lw, true)
-			ci.draw_arc(_p(r, 0.42, 0.68), s * 0.08, 0, TAU, 20, lc, lw, true)
-			ci.draw_line(_p(r, 0.56, 0.68), _p(r, 0.76, 0.68), lc, lw, true)
+			# A rolled parchment with a blue ink sketch and a small gold seal (no office sheet).
+			var sheet := _pp(r, [0.2, 0.22, 0.8, 0.22, 0.8, 0.8, 0.2, 0.8])
+			ci.draw_colored_polygon(_shift(sheet, Vector2(0, s * 0.035)), Color(0.35, 0.24, 0.1, 0.2 * a))
+			_gp(ci, sheet, Color("#FBF3DF") * shade, Color("#E6D3AE") * shade, r, a)
+			_edge(ci, sheet, Color(0.62, 0.48, 0.26, 0.85 * a), maxf(1.0, s * 0.025))
+			for yy: float in [0.22, 0.8]:
+				var roll := _pp(r, [0.14, yy - 0.06, 0.86, yy - 0.06, 0.86, yy + 0.06, 0.14, yy + 0.06])
+				_gp(ci, roll, Color("#F3E4C2") * shade, Color("#CDB283") * shade, r, a)
+				_edge(ci, roll, Color(0.55, 0.4, 0.2, 0.85 * a), maxf(1.0, s * 0.022))
+			var ink := Color(0.16, 0.42, 0.74, 0.9 * a)
+			var lw := maxf(1.0, s * 0.028)
+			ci.draw_arc(_p(r, 0.42, 0.5), s * 0.1, 0, TAU, 20, ink, lw, true)
+			ci.draw_line(_p(r, 0.52, 0.5), _p(r, 0.7, 0.42), ink, lw, true)
+			ci.draw_line(_p(r, 0.28, 0.64), _p(r, 0.62, 0.64), Color(ink.r, ink.g, ink.b, 0.6 * a), lw, true)
+			GemDraw.draw_gem(ci, "round", _p(r, 0.72, 0.66), s * 0.17, Color("#F2B84A") * shade, Color("#FFF0C2"), Color("#B9772A"), false, a)
 		"beacon":
 			var post := _pp(r, [0.4, 0.84, 0.6, 0.84, 0.56, 0.5, 0.44, 0.5])
 			_gp(ci, post, Color("#F3E3C2") * shade, Color("#C9B08A") * shade, r, a)

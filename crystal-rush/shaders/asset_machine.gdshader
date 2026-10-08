@@ -18,6 +18,9 @@ uniform bool use_cracks = false;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
 uniform float damage : hint_range(0.0, 1.0) = 0.0;
 uniform float flash : hint_range(0.0, 1.0) = 0.0;
+// UI v2: the white enamel reads as warm ivory (#E9E2D4) and the gold as matte gold, so the
+// machines stop looking like glossy plastic toys (0 = the owner's raw texture).
+uniform float ivory : hint_range(0.0, 1.0) = 0.85;
 
 void fragment() {
 	vec3 c = texture(albedo_tex, UV).rgb;
@@ -33,6 +36,9 @@ void fragment() {
 	float white = smoothstep(0.4, 0.68, lum) * (1.0 - smoothstep(0.06, 0.18, sat)) * (1.0 - cry);
 	vec3 tinted = crystal_color.rgb * (0.22 + lum * 0.8);
 	vec3 alb = mix(c, mix(c, tinted, crystal_mix), cry);
+	// Ivory enamel: pull pure white down to warm ivory, keep the texture's shading.
+	vec3 ivory_lin = vec3(0.815, 0.761, 0.658);
+	alb = mix(alb, alb * ivory_lin / max(lum, 0.35) * 0.92, white * ivory);
 	vec3 emit = mix(c, crystal_color.rgb, crystal_mix) * cry * crystal_glow * (0.3 + lum * 0.7);
 	if (use_cracks) {
 		vec2 cuv = UV * 3.0;
@@ -46,8 +52,8 @@ void fragment() {
 	emit += vec3(0.75, 0.9, 1.0) * flash * 0.7;
 	ALBEDO = alb;
 	METALLIC = gold * gold_metal;
-	ROUGHNESS = mix(mix(mix(0.78, 0.36, white), 0.3, gold), 0.14, cry);
-	SPECULAR = 0.5 + 0.25 * white;
+	ROUGHNESS = mix(mix(mix(0.78, mix(0.36, 0.58, ivory), white), mix(0.3, 0.44, ivory), gold), 0.14, cry);
+	SPECULAR = 0.5 + 0.25 * white * (1.0 - 0.6 * ivory);
 	EMISSION = emit;
 	if (has_normal) {
 		NORMAL_MAP = texture(normal_tex, UV).rgb;

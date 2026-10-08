@@ -48,7 +48,7 @@ func _ready() -> void:
 	head.add_child(tv)
 	var close := UIKit.edge_button("close", 26.0)
 	close.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	close.pressed.connect(func(): hub.pop_modal())
+	close.pressed.connect(func(): hub.close_modal(self))
 	head.add_child(close)
 	col.add_child(head)
 	col.add_child(UIKit.divider(560.0))
@@ -71,7 +71,7 @@ func _ready() -> void:
 	crow.alignment = BoxContainer.ALIGNMENT_CENTER
 	var done := UIKit.button(Loc.t("CLOSE"), false, 300.0)
 	done.custom_minimum_size.y = 68
-	done.pressed.connect(func(): hub.pop_modal())
+	done.pressed.connect(func(): hub.close_modal(self))
 	crow.add_child(done)
 	col.add_child(crow)
 	_fill()

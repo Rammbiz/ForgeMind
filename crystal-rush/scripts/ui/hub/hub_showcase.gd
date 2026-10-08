@@ -23,7 +23,10 @@ varying float vy;
 void vertex() { vy = UV.y; }
 void fragment() {
 	float edge = abs(dot(NORMAL, VIEW));
-	float a = (1.0 - vy) * (1.0 - vy) * pow(clamp(edge, 0.0, 1.0), 1.5) * strength;
+	// Vertical ramp: 0 at the top (never a hard edge where the strip cuts it), a peak at about
+	// 60 % height, 0 again at the floor; sides feathered by the view angle.
+	float ramp = smoothstep(0.0, 0.6, vy) * (1.0 - smoothstep(0.82, 1.0, vy));
+	float a = ramp * pow(clamp(edge, 0.0, 1.0), 2.2) * strength * 0.8;
 	ALBEDO = color.rgb;
 	ALPHA = clamp(a, 0.0, 1.0);
 }
@@ -141,6 +144,25 @@ static func owner_dais(w: float) -> Dictionary:
 
 
 static var _dais_meshes := {}
+
+
+## The owner's dais re-glazed as the v2 ivory marble with gold (home_dais), the same as on the
+## Home terrace, Heroes and Arsenal; its crystal ring glows in `ring` (rune_color / rune_k work
+## as on the altar shader). {} without the GLB.
+static func ivory_dais(w: float, ring := Color(0.45, 0.82, 1.0)) -> Dictionary:
+	var d := owner_dais(w)
+	if d.is_empty():
+		return d
+	var src: ShaderMaterial = d["mat"]
+	var m := ShaderMaterial.new()
+	m.shader = HubStage.DAIS_SHADER
+	for k in ["albedo_tex", "normal_tex", "has_normal"]:
+		m.set_shader_parameter(k, src.get_shader_parameter(k))
+	m.set_shader_parameter("rune_color", ring)
+	m.set_shader_parameter("rune_k", 0.6)
+	(d["node"] as MeshInstance3D).material_override = m
+	d["mat"] = m
+	return d
 
 
 func _build_dais() -> void:

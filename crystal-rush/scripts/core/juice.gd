@@ -57,8 +57,8 @@ const POPUP_POOL := 10
 const POPUP_TIME := 0.6
 const POPUP_RISE := 0.8
 const POPUP_PX := 120
-const POPUP_HALO_A := 0.6
-const POPUP_SHADOW_A := 0.45
+const POPUP_HALO_A := 0.2
+const POPUP_SHADOW_A := 0.18
 ## Counter roll time and pulse.
 const COUNTER_TIME := 0.3
 const COUNTER_PULSE := 0.35
@@ -283,12 +283,12 @@ func _make_popup_label() -> Label3D:
 	# sticker-like depth of premium mobile numbers.
 	var halo := _popup_layer(16)
 	halo.name = "Halo"
-	halo.outline_size = 62
+	halo.outline_size = 30
 	halo.modulate = Color(1, 1, 1, 0)
 	l.add_child(halo)
 	var shadow := _popup_layer(18)
 	shadow.name = "Shadow"
-	shadow.position = Vector3(0.03, -0.055, -0.01)
+	shadow.position = Vector3(0.0, -0.014, -0.01)
 	shadow.modulate = Color(0.0, 0.0, 0.05, POPUP_SHADOW_A)
 	shadow.outline_modulate = Color(0.0, 0.0, 0.05, POPUP_SHADOW_A)
 	l.add_child(shadow)
@@ -301,8 +301,8 @@ func _popup_layer(priority: int) -> Label3D:
 	l.font = UIKit.font(true)
 	l.font_size = POPUP_PX
 	l.pixel_size = 0.0055
-	l.outline_size = 26
-	l.outline_modulate = Color(0.03, 0.04, 0.12, 1.0)
+	l.outline_size = 5
+	l.outline_modulate = Color(0.118, 0.141, 0.2, 0.4)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
 	l.fixed_size = false
@@ -392,7 +392,7 @@ func _update_popups(rdt: float) -> void:
 		var a := 1.0 - clampf((u - 0.55) / 0.45, 0.0, 1.0)
 		a = a * a * (3.0 - 2.0 * a)
 		l.modulate.a = a
-		l.outline_modulate.a = a
+		l.outline_modulate.a = a * 0.4
 		var halo := l.get_child(0) as Label3D
 		halo.outline_modulate.a = a * POPUP_HALO_A
 		var shadow := l.get_child(1) as Label3D
