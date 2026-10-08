@@ -16,4 +16,8 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	KitNav.draw_arch_top(self, Rect2(Vector2.ZERO, size), arch, UITokens.CHAMFER_L, UITokens.PAPER_1, keystone)
+	# v3: translucent porcelain (the stage behind glows through); the arch is a 1 px hairline.
+	var fill := UITokens.SHEET_FILL
+	if material:
+		fill = Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 1.0)
+	KitNav.draw_arch_top(self, Rect2(Vector2.ZERO, size), arch, UITokens.CHAMFER_L, fill, keystone)

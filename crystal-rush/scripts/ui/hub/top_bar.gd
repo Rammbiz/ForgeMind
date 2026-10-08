@@ -216,10 +216,11 @@ class Avatar extends Control:
 		var c := Vector2(size.x * 0.5, size.y * 0.5 - 2.0)
 		var r := 38.0
 		var sc := UITokens.SCRIM
-		for i in 4:
-			draw_circle(c + Vector2(0, 2.0 + i), r + 1.5 + i * 0.8, Color(sc.r, sc.g, sc.b, 0.05))
-		draw_circle(c, r, UITokens.PAPER_0)
-		draw_arc(c, r - 0.75, 0, TAU, 64, UITokens.HAIRLINE, 1.5, true)
+		var lw := UIKit.px(1.0)
+		# v3: one soft halo (no stacked discs), a translucent porcelain ring, 1 device px lines.
+		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.3 + Vector2(0, 3), Vector2(r, r) * 2.6), false, Color(sc.r, sc.g, sc.b, 0.14))
+		draw_circle(c, r, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.78))
+		draw_arc(c, r - lw * 0.5, 0, TAU, 72, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), lw, true)
 		var face := r - 6.0
 		# Portrait ground: a soft sky gradient (light top) behind the render.
 		for i in 8:
@@ -237,20 +238,19 @@ class Avatar extends Control:
 				pts.append(c + d * face)
 				uvs.append(Vector2(0.5, 0.46) + d * 0.5 / 1.08)
 			draw_polygon(pts, PackedColorArray([Color.WHITE]), uvs, tex)
-		draw_arc(c, face + 0.5, 0, TAU, 64, UITokens.HAIRLINE, 1.2, true)
-		# World progress on the ring.
+		draw_arc(c, face + lw * 0.5, 0, TAU, 72, UITokens.HAIRLINE, lw, true)
+		# World progress on the ring: a 1.5 px amber arc over a faint 1 px track.
 		var pr := r - 3.0
-		draw_arc(c, pr, 0, TAU, 64, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.9), 2.5, true)
+		draw_arc(c, pr, 0, TAU, 72, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), lw, true)
 		if progress > 0.0:
-			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 48, UITokens.CTA, 2.5, true)
+			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 48, UITokens.CTA_LO, UIKit.px(2.0), true)
 		# Level disc: a gold-rimmed cream disc with an ink number (no dark navy).
-		var f := UIKit.font_w("extrabold")
+		var f := UIKit.font_w("bold")
 		var txt := str(level)
 		var fs := 18 if txt.length() < 3 else 15
 		var lc := c + Vector2(r * 0.72, r * 0.72)
-		var lr := 16.0
-		draw_circle(lc + Vector2(0, 1.5), lr + 1.0, Color(sc.r, sc.g, sc.b, 0.22))
+		var lr := 15.0
 		draw_circle(lc, lr, UITokens.PAPER_0)
-		draw_arc(lc, lr - 1.0, 0, TAU, 32, UITokens.HAIRLINE, 2.0, true)
+		draw_arc(lc, lr - lw * 0.5, 0, TAU, 48, UITokens.HAIRLINE, lw, true)
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		draw_string(f, Vector2(lc.x - tw * 0.5, lc.y + fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)

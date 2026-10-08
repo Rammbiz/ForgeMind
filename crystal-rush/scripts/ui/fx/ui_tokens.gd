@@ -47,8 +47,8 @@ const MIN_TOUCH := 88.0
 const MIN_TEXT := 20
 const TOP_BAR_H := 96.0            ## 0-96: portrait ring + currency plates
 const RIBBON_Y := 104.0            ## world ribbon / screen title row (44 tall)
-const NAV_H := 120.0               ## bottom nav bar body (y 1160-1280 at H 1280)
-const NAV_RISE := 28.0             ## the active medallion rises above the bar
+const NAV_H := 100.0               ## v3: slim frosted strip (was a 120 slab + 28 medallion rise)
+const NAV_RISE := 14.0             ## v3: only the slender Play ring rises above the strip's hairline
 const TAB_BAR_H := NAV_H + NAV_RISE ## legacy name: room the nav takes at the bottom
 const DOCK_H := 132.0              ## a screen dock (back tab + CTA) above the nav
 const GUTTER := 24.0               ## side margin
@@ -59,7 +59,27 @@ const CHAMFER_L := 12.0            ## CTA, sheets, modals
 const CHAMFER := 10.0              ## panels, cards
 const CHAMFER_S := 8.0             ## buttons, plates
 const CHAMFER_XS := 6.0            ## chips, tags
-const HAIRLINE_W := 1.5            ## gold hairline (2.0 on CTA rims and sheet tops)
+const HAIRLINE_W := 1.0            ## v3: legacy canvas width; new code sizes lines in DEVICE px (UIKit.px)
+const HAIRLINE_PX := 1.0           ## v3: every frame / divider = 1 device px (crisp at 1080 / 1440)
+const SELECT_PX := 2.0             ## v3: selected card / active underline = 2 device px, nothing heavier
+
+# ------------------------------------------------------------------ v3 porcelain glass (direction A)
+## Glass = translucent cream over the frosted world (KitGlass) + ONE 1 px gold hairline + a 1 px
+## inner LIGHT line just inside it (light catching the glass edge). No dark borders, soft shadows.
+const GLASS_TOP := Color(0.988, 0.976, 0.949, 0.80)   ## panel tint, top (alpha = how much cream)
+const GLASS_BOT := Color(0.969, 0.949, 0.910, 0.86)   ## panel tint, bottom (>= 0.72 under body text)
+const GLASS_THIN_A := 0.72         ## plates / chips / ribbons over the 3D (+0.10..0.14 per kind; no grey cast over blue sky)
+const SHEET_FILL := Color(0.969, 0.949, 0.910, 0.84)  ## bottom sheets (the stage tint glows through)
+const LINE_GOLD := Color(0.788, 0.659, 0.416, 0.78)   ## HAIRLINE at 78 %: the 1 px gold frame
+const LINE_LIGHT := Color(1.0, 1.0, 1.0, 0.62)        ## inner light line (top), fades to 0.18 at the bottom
+const SHADOW_A := 0.10             ## soft slate shadow, never darker (v2 used 0.16-0.30)
+const FROST_TINT := 0.70           ## KitGlass frost: share of cream over the world under text
+## Bottom nav v3 (720 canvas): a frosted strip, monoline gold glyphs, one quiet active state.
+const NAV_GLYPH := 44.0            ## glyph box (stroke 1.75 canvas px)
+const NAV_LABEL := 22              ## label size, Medium, +1 px tracking (MIN text 22)
+const NAV_GOLD := Color("#9A7A44") ## inactive glyph: antique gold (3.4:1 on the glass, 40 px glyph)
+const NAV_GOLD_ON := Color("#6E5122") ## active glyph: deep gold
+const NAV_PLAY_R := 31.0           ## slender Play ring (62 px), rises NAV_RISE above the hairline
 
 # ------------------------------------------------------------------ palette v2 (fusion §6.5)
 ## Surfaces (cream "documents you hold").

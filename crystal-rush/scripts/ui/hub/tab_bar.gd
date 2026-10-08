@@ -1,12 +1,16 @@
 class_name HubTabBar
 extends Control
-## Hub bottom navigation (UI v2, AFK Journey style): a light translucent cream bar with an
-## arched gold hairline top edge and a crystal keystone (KitNav.draw_bar), five painted icons
-## with taupe labels: Магазин · Арсенал · Грати · Герої · Казарми. The active tab rises on a
-## round amber medallion (KitNav.draw_medallion) that glides between the slots; its label
-## turns warm amber. Locked tabs (UnlockQueue) are faded with a small lock socket and
-## "Рівень N". Badges are small gold gems (an upgrade waits / a claimable): never numbers,
-## never red dots. anchor(id) returns an invisible Control on a tab icon (RewardFly target).
+## Hub bottom navigation, UI v3 "porcelain glass" (direction A): a slim frosted cream-glass strip
+## (KitNav.Strip: the blurred world glows through) edged by ONE fading 1-device-px gold hairline
+## with a light line under it; five monoline gold glyphs of one family (KitIcons.nav) with small
+## Medium labels: Магазин · Арсенал · Грати · Герої · Казарми. ГРАТИ is a slender raised ring (a
+## fine double gold ring around a faceted topaz crystal) set into the hairline like a stone.
+## The active tab is marked by light, not mass: a small cut-gem diamond riding the hairline with a
+## short 2 px amber glint, a soft warm light wash behind the glyph, the glyph in deep gold with a
+## thin amber duotone, the label in ink. No medallion, no bounce, nothing breathes.
+## Locked tabs (UnlockQueue) keep their name, fade, and carry a tiny line lock; the level needed
+## is in the tap toast. Badges are 8 px amber diamonds (never numbers, never red dots).
+## anchor(id) returns an invisible Control on a tab glyph (RewardFly target).
 ## Bitmap overrides via the kit: nav_bar.png, nav_medallion.png, icon_tab_*.png.
 
 signal tab_pressed(id: String)
@@ -15,7 +19,9 @@ signal locked_pressed(id: String)
 const TABS: Array[String] = ["shop", "arsenal", "play", "heroes", "barracks"]
 const LABELS := {"shop": "TAB_SHOP", "arsenal": "TAB_ARSENAL", "play": "NAV_PLAY", "heroes": "TAB_HEROES", "barracks": "TAB_BARRACKS"}
 const ICONS := {"shop": "tab_shop", "arsenal": "tab_arsenal", "play": "tab_play", "heroes": "tab_heroes", "barracks": "tab_barracks"}
-const MED_R := 46.0
+const MED_R := UITokens.NAV_PLAY_R   ## legacy name: the Play ring radius
+const GLYPH_Y := 9.0                 ## glyph top below the strip's hairline
+const LABEL_BASE := 18.0             ## label baseline above the strip bottom (inset excluded)
 
 var selected := "play"
 var bottom_inset := 0.0
@@ -23,14 +29,18 @@ var _locked := {}          ## id -> level number it opens after (0 = open)
 var _badges := {}          ## id -> "" | "arrow" | "!"
 var _anchors := {}         ## id -> Control
 var _sel_x := -1.0
-var _rise := 1.0           ## medallion rise 0..1 (dips while it glides)
-var _t := 0.0
 var _press := ""
-var _pop := {}             ## id -> 0..1 punch
+var _pop := {}             ## id -> 0..1 (a soft light flash, no scale bounce)
+var _strip: KitNav.Strip
+static var _label_fonts := {}
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_strip = KitNav.Strip.new()
+	_strip.top = _bar_top()
+	_strip.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_strip)
 	for id in TABS:
 		var a := Control.new()
 		a.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -39,9 +49,19 @@ func _init() -> void:
 		_anchors[id] = a
 
 
+func _ready() -> void:
+	resized.connect(_place_ring)
+	_place_ring()
+
+
+func _place_ring() -> void:
+	var i := TABS.find("play")
+	_strip.ring_c = _play_center()
+	_strip.ring_r = MED_R if i >= 0 else 0.0
+	_strip.queue_redraw()
+
+
 func set_selected(id: String) -> void:
-	if id != selected:
-		_rise = 0.0
 	selected = id
 	queue_redraw()
 
@@ -65,16 +85,17 @@ func locked_level(id: String) -> int:
 	return int(_locked.get(id, 0))
 
 
-## Punches a tab (it just unlocked, or a reward landed on it).
+## Flashes a tab (it just unlocked, or a reward landed on it): a soft light, no bounce.
 func pop(id: String) -> void:
 	_pop[id] = 1.0
+	set_process(true)
 
 
 func anchor(id: String) -> Control:
 	return _anchors.get(id)
 
 
-## Top of the bar body (the arch rises 8 px above it; the medallion above that).
+## Top of the strip (its hairline). Only the Play ring rises above it.
 func _bar_top() -> float:
 	return UITokens.NAV_RISE
 
@@ -85,31 +106,40 @@ func _slot_rect(i: int) -> Rect2:
 	return Rect2(Vector2(i * w, top), Vector2(w, size.y - bottom_inset - top))
 
 
+func _play_center() -> Vector2:
+	var r := _slot_rect(TABS.find("play"))
+	return Vector2(r.get_center().x, MED_R)
+
+
+func _glyph_rect(i: int) -> Rect2:
+	var r := _slot_rect(i)
+	var g := UITokens.NAV_GLYPH
+	return Rect2(Vector2(r.get_center().x - g * 0.5, r.position.y + GLYPH_Y), Vector2(g, g))
+
+
 func _process(delta: float) -> void:
-	_t += delta
 	if size.x <= 0.0:
 		return
 	var target := _slot_rect(TABS.find(selected)).get_center().x
 	if _sel_x < 0.0:
 		_sel_x = target
-	var k := 1.0 - exp(-delta / 0.06)
+	# The marker glides (ease-out, ~200 ms) and the bar only redraws while something moves.
+	var k := 1.0 - exp(-delta / 0.05)
 	var nx := lerpf(_sel_x, target, k)
 	var changed := absf(nx - _sel_x) > 0.05
-	_sel_x = nx
-	if _rise < 1.0:
-		_rise = minf(1.0, _rise + delta / 0.26)
-		changed = true
+	_sel_x = nx if changed else target
 	for id in _pop.keys():
-		_pop[id] = maxf(0.0, float(_pop[id]) - delta * 2.5)
+		_pop[id] = maxf(0.0, float(_pop[id]) - delta * 2.0)
 		changed = true
 		if float(_pop[id]) <= 0.0:
 			_pop.erase(id)
-	if changed or not _badges.is_empty():
+	if changed:
 		queue_redraw()
 	for i in TABS.size():
-		var r := _slot_rect(i)
+		var gr := _glyph_rect(i)
 		var a: Control = _anchors[TABS[i]]
-		a.position = Vector2(r.get_center().x - 28, r.position.y + (2.0 if TABS[i] == selected else 10.0))
+		var c := _play_center() if TABS[i] == "play" else gr.get_center()
+		a.position = c - Vector2(28, 28)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -130,72 +160,100 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+## Labels: Regular (inactive) / Medium (active), +1 px tracking.
+static func _lfont(weight := "regular") -> Font:
+	if not _label_fonts.has(weight):
+		var fv := FontVariation.new()
+		fv.base_font = UIKit.font_w(weight)
+		fv.spacing_glyph = 1
+		_label_fonts[weight] = fv
+	return _label_fonts[weight]
+
+
 func _draw() -> void:
 	if _sel_x < 0.0 and size.x > 0.0:
 		_sel_x = _slot_rect(TABS.find(selected)).get_center().x
 	var top := _bar_top()
-	var body := Rect2(Vector2(0, top), Vector2(size.x, size.y - top))
-	KitNav.draw_bar(self, body, 8.0)
-	var label_y := size.y - bottom_inset - 16.0
-	# The medallion: glides to the selected slot; it dips while moving and rises back
-	# (ease-out), its glow breathing softly.
-	var travel := absf(_sel_x - _slot_rect(TABS.find(selected)).get_center().x)
-	var lift := ease(_rise, 0.4) * (1.0 - clampf(travel / 120.0, 0.0, 0.6))
-	var mc := Vector2(_sel_x, top + 18.0 + (1.0 - lift) * 14.0)
-	var breathe := 0.5 + 0.5 * sin(fmod(_t, 200.0 * PI) * TAU / UITokens.GLOW_PERIOD)
-	var glow := 0.55 + 0.35 * breathe if selected == "play" else 0.4 + 0.2 * breathe
-	KitNav.draw_medallion(self, mc, MED_R, glow)
-	# The arch's crystal keystone always shows: above the medallion when it sits in the centre.
-	var kx := size.x * 0.5
-	if absf(mc.x - kx) < MED_R + 14.0:
-		GemDraw.draw_keystone(self, Vector2(kx, mc.y - MED_R - 9.0), 18.0, 1.0)
-	var f_med := UIKit.font_w("medium")
-	var f_bold := UIKit.font_w("bold")
+	var pc := _play_center()
+	var tex := UIKit.kit_texture("nav_bar")
+	if tex:
+		draw_style_box(UIKit.lux("nav_bar"), Rect2(Vector2(0, top), Vector2(size.x, size.y - top)))
+	# The only line: the hairline, open where the Play ring is set into it.
+	KitNav.draw_top_line(self, top, 0.0, size.x, Vector2(pc.x - MED_R - 3.0, pc.x + MED_R + 3.0))
+	var sel_i := TABS.find(selected)
+	var near_play := clampf(1.0 - absf(_sel_x - pc.x) / 60.0, 0.0, 1.0)
+	# Light wash behind the active glyph (warm, soft; it travels with the marker).
+	var wash_c := Vector2(_sel_x, top + GLYPH_Y + UITokens.NAV_GLYPH * 0.5)
+	wash_c.y = lerpf(wash_c.y, pc.y, near_play)
+	draw_texture_rect(UIKit.glow_texture(), Rect2(wash_c - Vector2(78, 46), Vector2(156, 92)), false, Color(1.0, 0.93, 0.76, 0.55))
+	draw_texture_rect(UIKit.glow_texture(), Rect2(wash_c - Vector2(40, 26), Vector2(80, 52)), false, Color(1.0, 1.0, 1.0, 0.5))
+	var label_y := size.y - bottom_inset - LABEL_BASE
 	for i in TABS.size():
 		var id := TABS[i]
 		var r := _slot_rect(i)
 		var cx := r.get_center().x
 		var sel := id == selected
 		var locked := is_locked(id)
-		var pk := float(_pop.get(id, 0.0))
-		var pscale := 1.0 + 0.22 * sin(pk * PI) + (-0.06 if _press == id else 0.0)
-		# Locked tabs keep their name (the level needed is in the tap toast) and a small lock.
-		var label := HomeText.t(LABELS[id])
-		var ir: Rect2
-		if sel:
-			var isz := 64.0 * pscale
-			ir = Rect2(Vector2(cx - isz * 0.5, mc.y - isz * 0.54), Vector2(isz, isz))
-			# Fade the icon in on the medallion once it has arrived.
-			var a := clampf(1.0 - absf(_sel_x - cx) / 40.0, 0.0, 1.0)
-			Icons.draw_icon(self, ICONS[id], ir, Color(1, 1, 1, a))
+		var on := clampf(1.0 - absf(_sel_x - cx) / 72.0, 0.0, 1.0) if sel else 0.0
+		var flash := float(_pop.get(id, 0.0))
+		var dim := 0.36 if locked else 1.0
+		var gr := _glyph_rect(i)
+		if _press == id:
+			gr = gr.grow(-1.0)
+		if id == "play":
+			KitNav.draw_play_ring(self, pc, MED_R, sel, dim)
 		else:
-			var isz2 := 54.0 * pscale
-			ir = Rect2(Vector2(cx - isz2 * 0.5, r.position.y + 8.0), Vector2(isz2, isz2))
-			var near := clampf(absf(_sel_x - cx) / 50.0, 0.0, 1.0)
-			Icons.draw_icon(self, ICONS[id], ir, Color(1, 1, 1, (0.42 if locked else 1.0) * near))
-		var fs := UIKit.fit_size(label, r.size.x - 6.0, 19 if sel else 18, 16)
-		var f := f_bold if sel else f_med
+			var ov := UIKit.kit_texture("icon_" + ICONS[id])
+			var col := UITokens.NAV_GOLD.lerp(UITokens.NAV_GOLD_ON, on)
+			col.a = dim
+			if ov:
+				draw_texture_rect(ov, gr, false, Color(1, 1, 1, dim))
+			else:
+				KitIcons.nav(self, id, gr, col, 0.22 * on)
+		if flash > 0.0:
+			var fc := (pc if id == "play" else gr.get_center())
+			draw_texture_rect(UIKit.glow_texture(), Rect2(fc - Vector2(44, 44), Vector2(88, 88)), false, Color(1.0, 0.9, 0.62, 0.6 * flash))
+		var label := HomeText.t(LABELS[id])
+		var f := _lfont("medium" if sel else "regular")
+		var fs := UITokens.NAV_LABEL
+		while fs > 18 and f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > r.size.x - 10.0:
+			fs -= 1
 		var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var col := UITokens.CTA_RIM if sel else UITokens.INK_DIM
-		draw_string(f, Vector2(cx - tw * 0.5, label_y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+		var lc := UITokens.INK_DIM.lerp(UITokens.INK, on)
+		lc.a = (0.92 if not locked else 0.5)
+		draw_string(f, Vector2(roundf(cx - tw * 0.5), label_y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, lc)
 		if locked:
-			var lc := Vector2(cx + 16.0, r.position.y + 46.0)
-			draw_circle(lc + Vector2(0, 1), 12.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.15))
-			draw_circle(lc, 11.0, UITokens.PAPER_0)
-			draw_arc(lc, 10.5, 0, TAU, 24, UITokens.HAIRLINE, 1.2, true)
-			Icons.line(self, "lock", Rect2(lc - Vector2(7, 7), Vector2(14, 14)), UITokens.INK_DIM)
-		_draw_badge(id, Vector2(ir.end.x - 8.0, ir.position.y + 8.0))
+			var lk := Rect2(gr.end - Vector2(12, 14), Vector2(16, 16))
+			if id == "play":
+				lk = Rect2(pc + Vector2(MED_R * 0.5, MED_R * 0.3), Vector2(16, 16))
+			Icons.line(self, "lock", lk, Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.7))
+		var bpos := Vector2(gr.end.x + 6.0, gr.position.y + 2.0)
+		if id == "play":
+			bpos = pc + Vector2(MED_R * 0.72, -MED_R * 0.72)
+		_draw_badge(id, bpos)
+	# The active marker: a small cut-gem diamond riding the hairline with a short amber glint
+	# (2 device px, fading out). Over the Play ring it sits on the ring's crown.
+	var my := lerpf(GemDraw.pixel_y(self, top), 0.0, near_play)
+	var gw := 26.0
+	var glint := Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.95 * (1.0 - near_play))
+	var g0 := Color(glint.r, glint.g, glint.b, 0.0)
+	if glint.a > 0.01:
+		draw_polyline_colors(PackedVector2Array([Vector2(_sel_x - gw, my), Vector2(_sel_x, my), Vector2(_sel_x + gw, my)]),
+				PackedColorArray([g0, glint, g0]), UIKit.px(UITokens.SELECT_PX))
+	if sel_i >= 0:
+		GemDraw.draw_diamond(self, Vector2(_sel_x, my), 12.0, UITokens.TOPAZ, Color("#A8662A"))
 
 
-## A small gold gem (topaz cushion) with a soft glow: something waits on this tab.
+## Something waits on this tab: an 8 px amber diamond with a 1 px cream edge (no glow, no pulse).
 func _draw_badge(id: String, at: Vector2) -> void:
 	var b := str(_badges.get(id, ""))
 	if b == "" or is_locked(id):
 		return
-	var breathe := 0.5 + 0.5 * sin(fmod(_t, 200.0 * PI) * TAU / UITokens.GLOW_PERIOD)
 	var tex := UIKit.kit_texture("badge_gem")
-	draw_texture_rect(UIKit.glow_texture(), Rect2(at - Vector2(16, 16), Vector2(32, 32)), false, Color(1.0, 0.8, 0.4, 0.35 + 0.25 * breathe))
 	if tex:
-		draw_texture_rect(tex, Rect2(at - Vector2(10, 10), Vector2(20, 20)), false)
+		draw_texture_rect(tex, Rect2(at - Vector2(7, 7), Vector2(14, 14)), false)
 		return
-	GemDraw.draw_gem(self, "diamond", at, 18.0, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"), false)
+	var h := 5.5
+	var pts := PackedVector2Array([at + Vector2(0, -h - 1.0), at + Vector2(h, 0), at + Vector2(0, h + 1.0), at + Vector2(-h, 0)])
+	draw_colored_polygon(pts, Color(1.0, 0.98, 0.92, 0.95))
+	GemDraw.draw_diamond(self, at, 9.0, Color("#EE9B2E"), Color("#B5651F"))

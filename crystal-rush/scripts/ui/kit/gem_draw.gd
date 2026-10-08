@@ -20,7 +20,7 @@ static func chamfer_rect(rect: Rect2, ch: float) -> PackedVector2Array:
 
 
 ## Closed hairline along a polygon.
-static func outline(ci: CanvasItem, pts: PackedVector2Array, col: Color, w := 1.5) -> void:
+static func outline(ci: CanvasItem, pts: PackedVector2Array, col: Color, w := 1.0) -> void:
 	var loop := pts.duplicate()
 	loop.append(pts[0])
 	ci.draw_polyline(loop, col, w, true)
@@ -193,10 +193,11 @@ static func draw_pip(ci: CanvasItem, c: Vector2, s: float, lit: bool, col := UIT
 		outline(ci, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9 * alpha), 1.2)
 
 
-## Crystal keystone: a rhombus split into 4 facets that catch the light, gold-edged.
+## Crystal keystone: a rhombus split into 4 facets that catch the light, edged by ONE device-px
+## gold line (v3: no drop shadow, no thick outline: it is a jewel, not a sticker).
 static func draw_keystone(ci: CanvasItem, c: Vector2, s: float, alpha := 1.0, tint := Color(0.86, 0.96, 1.0)) -> void:
 	var h := s * 0.5
-	var w := s * 0.42
+	var w := s * 0.36
 	var t := c + Vector2(0, -h)
 	var r := c + Vector2(w, 0)
 	var b := c + Vector2(0, h)
@@ -204,46 +205,74 @@ static func draw_keystone(ci: CanvasItem, c: Vector2, s: float, alpha := 1.0, ti
 	var k := c + Vector2(-w * 0.12, -h * 0.14)
 	var hi := Color(1, 1, 1, alpha)
 	var mid := Color(tint.r, tint.g, tint.b, alpha)
-	var lo := Color(tint.r * 0.62, tint.g * 0.82, tint.b * 0.94, alpha)
-	ci.draw_colored_polygon(_offset(PackedVector2Array([t, r, b, l]), Vector2(0, 1.5)), Color(0.15, 0.12, 0.08, 0.2 * alpha))
+	var lo := Color(tint.r * 0.7, tint.g * 0.86, tint.b * 0.95, alpha)
 	ci.draw_colored_polygon(PackedVector2Array([t, k, l]), hi)
 	ci.draw_colored_polygon(PackedVector2Array([t, r, k]), mid)
 	ci.draw_colored_polygon(PackedVector2Array([l, k, b]), mid.lerp(lo, 0.4))
 	ci.draw_colored_polygon(PackedVector2Array([k, r, b]), lo)
-	outline(ci, PackedVector2Array([t, r, b, l]), Color(UITokens.HAIRLINE.r * 0.9, UITokens.HAIRLINE.g * 0.85, UITokens.HAIRLINE.b * 0.8, alpha), maxf(1.0, s * 0.07))
+	outline(ci, PackedVector2Array([t, r, b, l]), Color(UITokens.HAIRLINE.r * 0.88, UITokens.HAIRLINE.g * 0.82, UITokens.HAIRLINE.b * 0.74, alpha), UIKit.px(1.0))
 
 
-## Tiny cut-gem marquise terminal for hairlines (pointing along `dir`).
+## v3 small cut-gem diamond (nav active marker, divider centre, sheet top): a slim rhombus with a
+## lit left facet and a shaded right facet, a 1 px edge. `fill` = the stone colour.
+static func draw_diamond(ci: CanvasItem, c: Vector2, s: float, fill := UITokens.TOPAZ, edge := Color(0, 0, 0, 0), alpha := 1.0) -> void:
+	var h := s * 0.5
+	var w := s * 0.34
+	var t := c + Vector2(0, -h)
+	var r := c + Vector2(w, 0)
+	var b := c + Vector2(0, h)
+	var l := c + Vector2(-w, 0)
+	var lit := fill.lightened(0.45)
+	var sh := fill.darkened(0.12)
+	ci.draw_colored_polygon(PackedVector2Array([t, b, l]), Color(lit.r, lit.g, lit.b, alpha))
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b]), Color(sh.r, sh.g, sh.b, alpha))
+	var e := edge if edge.a > 0.0 else fill.darkened(0.35)
+	outline(ci, PackedVector2Array([t, r, b, l]), Color(e.r, e.g, e.b, e.a * alpha), UIKit.px(1.0))
+
+
+## Tiny cut-gem marquise terminal for hairlines (pointing along `dir`): slim, flat gold.
 static func draw_marquise(ci: CanvasItem, c: Vector2, dir: Vector2, len := 10.0, col := UITokens.HAIRLINE) -> void:
 	var d := dir.normalized()
 	var n := Vector2(-d.y, d.x)
 	var hl := len * 0.5
-	var hw := len * 0.3
+	var hw := len * 0.2
 	var pts := PackedVector2Array([c - d * hl, c + n * hw, c + d * hl, c - n * hw])
 	ci.draw_colored_polygon(pts, col)
-	ci.draw_line(c - d * hl * 0.45, c + d * hl * 0.45, Color(1, 1, 1, 0.55 * col.a), 1.0, true)
 
 
-## Gold hairline with marquise terminals and an optional keystone at the centre.
-static func draw_hairline(ci: CanvasItem, a: Vector2, b: Vector2, col := UITokens.HAIRLINE, w := 1.5, keystone := true, fade := false) -> void:
+## `y` (local) moved to the centre of a device pixel row, so a 1-device-px rule is crisp.
+static func pixel_y(ci: CanvasItem, y: float) -> float:
+	var sc := UIKit.ui_scale()
+	var gy := ci.get_global_transform_with_canvas().origin.y
+	return (floorf((gy + y) * sc) + 0.5) / sc - gy
+
+
+## Gold hairline (ONE device px, v3) with slim marquise terminals and an optional small cut-gem
+## diamond at the centre (in a gap of the line). `fade`: the line fades out toward both ends.
+## `w` is kept for old callers: > 1.0 draws a 1.5-device-px line (primary frames only).
+static func draw_hairline(ci: CanvasItem, a: Vector2, b: Vector2, col := UITokens.HAIRLINE, w := 1.0, keystone := true, fade := false) -> void:
 	var d := (b - a).normalized()
-	var a2 := a + d * 8.0
-	var b2 := b - d * 8.0
-	if fade:
-		var n := 16
-		for i in n:
-			var t0 := float(i) / n
-			var t1 := float(i + 1) / n
-			var k := 1.0 - absf((t0 + t1) - 1.0)
-			ci.draw_line(a2.lerp(b2, t0), a2.lerp(b2, t1), Color(col.r, col.g, col.b, col.a * clampf(k * 1.6, 0.0, 1.0)), w, true)
-	else:
-		ci.draw_line(a2, b2, col, w, true)
-	draw_marquise(ci, a + d * 4.0, d, 9.0, col)
-	draw_marquise(ci, b - d * 4.0, d, 9.0, col)
+	var a2 := a + d * 12.0
+	var b2 := b - d * 12.0
+	var lw := -1.0 if w <= 1.0 else UIKit.px(1.5)
+	var m := (a + b) * 0.5
+	var gap := 11.0 if keystone else 0.0
+	var c0 := Color(col.r, col.g, col.b, col.a * (0.0 if fade else 1.0))
+	var c1 := Color(col.r, col.g, col.b, col.a)
+	# Two halves (one polyline each, per-vertex alpha for the fade).
+	ci.draw_polyline_colors(PackedVector2Array([a2, a2.lerp(m, 0.5), m - d * gap]), PackedColorArray([c0, c1, c1]), lw)
+	ci.draw_polyline_colors(PackedVector2Array([m + d * gap, b2.lerp(m, 0.5), b2]), PackedColorArray([c1, c1, c0]), lw)
+	# The engraved pair (Genshin): a 1 px light line right under the gold one, so the rule reads
+	# on cream glass and on darker grounds alike.
+	var nrm := Vector2(-d.y, d.x) * UIKit.px(1.0)
+	var l1 := Color(1, 1, 1, 0.55 * col.a)
+	var l0 := Color(1, 1, 1, 0.0)
+	ci.draw_polyline_colors(PackedVector2Array([a2 + nrm, a2.lerp(m, 0.5) + nrm, m - d * gap + nrm]), PackedColorArray([l0 if fade else l1, l1, l1]), lw)
+	ci.draw_polyline_colors(PackedVector2Array([m + d * gap + nrm, b2.lerp(m, 0.5) + nrm, b2 + nrm]), PackedColorArray([l1, l1, l0 if fade else l1]), lw)
+	draw_marquise(ci, a + d * 5.0, d, 8.0, Color(col.r, col.g, col.b, col.a * 0.9))
+	draw_marquise(ci, b - d * 5.0, d, 8.0, Color(col.r, col.g, col.b, col.a * 0.9))
 	if keystone:
-		var m := (a + b) * 0.5
-		ci.draw_line(m - d * 13.0, m + d * 13.0, UITokens.PAPER_1, w + 2.0)
-		draw_keystone(ci, m, 13.0, col.a)
+		draw_diamond(ci, m, 10.0, Color("#F3E2B8"), Color(col.r, col.g, col.b, 1.0), col.a)
 
 
 ## Our glint (anti-sparkle): a 4-ray cross with one long ray (a refraction streak).

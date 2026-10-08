@@ -29,6 +29,7 @@ var _plus_down := false
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	value_label = UIKit.label(value, 24, UIKit.INK, true)
+	value_label.add_theme_font_override("font", UIKit.font_w("medium"))
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(value_label)
@@ -66,9 +67,10 @@ func _draw() -> void:
 	if plus:
 		var pc := Vector2(size.x - size.y * 0.42, size.y * 0.5)
 		var pr := size.y * 0.27
-		draw_circle(pc, pr, UITokens.PAPER_2)
-		draw_arc(pc, pr - 0.5, 0, TAU, 32, UITokens.HAIRLINE, 1.2, true)
-		var k := pr * 0.5
-		draw_line(pc - Vector2(k, 0), pc + Vector2(k, 0), UITokens.GOLD_TEXT, 2.2, true)
-		draw_line(pc - Vector2(0, k), pc + Vector2(0, k), UITokens.GOLD_TEXT, 2.2, true)
+		# v3: a fine "+" in a 1 px gold ring (no filled disc).
+		var lw := UIKit.px(1.0)
+		draw_arc(pc, pr - lw * 0.5, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), lw, true)
+		var k := pr * 0.46
+		draw_line(pc - Vector2(k, 0), pc + Vector2(k, 0), UITokens.GOLD_TEXT, 1.5, true)
+		draw_line(pc - Vector2(0, k), pc + Vector2(0, k), UITokens.GOLD_TEXT, 1.5, true)
 	Icons.draw_icon(self, icon, Rect2(Vector2(0, (size.y - ic) * 0.5), Vector2(ic, ic)))

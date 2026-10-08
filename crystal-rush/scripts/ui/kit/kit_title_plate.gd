@@ -22,9 +22,9 @@ func _draw() -> void:
 	var r := Rect2(Vector2(term, 0), Vector2(size.x - term * 2.0, size.y))
 	draw_style_box(UIKit.lux("ribbon" if not on_scene else "pill"), r)
 	var y := size.y * 0.5
-	GemDraw.draw_marquise(self, Vector2(term * 0.45, y), Vector2(1, 0), 11.0)
-	GemDraw.draw_marquise(self, Vector2(size.x - term * 0.45, y), Vector2(1, 0), 11.0)
-	var f := UIKit.font_w("bold")
+	GemDraw.draw_marquise(self, Vector2(term * 0.5, y), Vector2(1, 0), 10.0)
+	GemDraw.draw_marquise(self, Vector2(size.x - term * 0.5, y), Vector2(1, 0), 10.0)
+	var f := UIKit.font_w("medium")
 	var fs := font_size
 	while fs > 16 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > r.size.x - 32.0:
 		fs -= 1

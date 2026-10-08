@@ -24,6 +24,7 @@ var topaz := true:
 		_apply_pad()
 		queue_redraw()
 var sweep := true
+const BODY_MAX := 96.0
 var _flash := 0.0
 var _sweep_rect: ColorRect
 var _sweep_mat: ShaderMaterial
@@ -37,7 +38,7 @@ func _init() -> void:
 	for k: String in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color", "icon_focus_color", "icon_disabled_color"]:
 		add_theme_color_override(k, Color(0, 0, 0, 0))
 	add_theme_constant_override("outline_size", 0)
-	add_theme_font_override("font", UIKit.font_w("extrabold"))
+	add_theme_font_override("font", UIKit.font_w("bold"))
 	pressed.connect(func(): Audio.play("click", -4.0))
 	button_down.connect(_down)
 	button_up.connect(_up)
@@ -45,6 +46,17 @@ func _init() -> void:
 
 func _ready() -> void:
 	_apply_pad()
+	# v3: a slimmer slab (at most BODY_MAX tall, centred; the touch area keeps the full size).
+	for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var base := get_theme_stylebox(st)
+		if base and not base is SlimBox:
+			var sb := SlimBox.new()
+			sb.inner = base
+			sb.content_margin_left = base.content_margin_left
+			sb.content_margin_right = base.content_margin_right
+			sb.content_margin_top = base.content_margin_top
+			sb.content_margin_bottom = base.content_margin_bottom
+			add_theme_stylebox_override(st, sb)
 	if sweep and not UITokens.reduce_motion():
 		_sweep_rect = ColorRect.new()
 		_sweep_rect.color = Color.WHITE
@@ -52,11 +64,17 @@ func _ready() -> void:
 		_sweep_mat = ShaderMaterial.new()
 		_sweep_mat.shader = load(UIKit.SHINE_SHADER_PATH) as Shader
 		_sweep_mat.set_shader_parameter("chamfer", 12.0)
-		_sweep_mat.set_shader_parameter("strength", 0.26)
+		_sweep_mat.set_shader_parameter("strength", 0.16)
 		_sweep_rect.material = _sweep_mat
 		_sweep_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 		add_child(_sweep_rect)
 		_sweep_rect.resized.connect(func(): _sweep_mat.set_shader_parameter("rect_size", _sweep_rect.size))
+		var fit := func() -> void:
+			var m := roundf((size.y - _body_h()) * 0.5)
+			_sweep_rect.offset_top = m
+			_sweep_rect.offset_bottom = -m
+		resized.connect(fit)
+		fit.call()
 		var tw := _sweep_rect.create_tween().set_loops()
 		tw.tween_interval(1.2)
 		tw.tween_method(func(v: float): _sweep_mat.set_shader_parameter("progress", v if not disabled else -1.0), 0.0, 1.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -73,7 +91,12 @@ func _apply_pad() -> void:
 func _gem_zone() -> float:
 	if not topaz:
 		return 0.0
-	return clampf(size.y * 0.62, 36.0, 76.0) + 16.0
+	return clampf(_body_h() * 0.5, 30.0, 52.0) + 22.0
+
+
+## Height of the painted slab (v3: never taller than BODY_MAX).
+func _body_h() -> float:
+	return minf(size.y, BODY_MAX)
 
 
 func _down() -> void:
@@ -101,21 +124,21 @@ func _draw() -> void:
 	var down := is_pressed() and not disabled
 	var dy := 2.0 if down else 0.0
 	var h := size.y
+	var bh := _body_h()
 	var dis := disabled
 	var gem_w := _gem_zone()
 	# Topaz in a gold bezel at the left end.
 	if topaz and gem_w > 0.0:
-		var gs := clampf(h * 0.62, 36.0, 76.0)
-		var gc := Vector2(14.0 + gs * 0.5 * 0.74 + 4.0, h * 0.5 + dy - 1.0)
+		var gs := clampf(bh * 0.5, 30.0, 52.0)
+		var gc := Vector2(22.0 + gs * 0.5 * 0.74 + 4.0, h * 0.5 + dy)
 		var tex := UIKit.kit_texture("cta_topaz")
 		if tex:
 			var ts := Vector2(gs, gs) * Vector2(float(tex.get_width()) / maxf(1.0, float(tex.get_height())), 1.0)
 			draw_texture_rect(tex, Rect2(gc - ts * 0.5, ts), false, Color(1, 1, 1, 0.55 if dis else 1.0))
 		else:
-			# Bezel: a thin dark-gold seat with a light rim, then the cut topaz.
-			var bez := GemDraw.cut_points("cushion", gc, gs * 1.14)
-			draw_colored_polygon(bez, Color("#B9772A") if not dis else Color("#B8AA92"))
-			GemDraw.outline(self, bez, Color(1.0, 0.93, 0.74, 0.9) if not dis else Color(1, 1, 1, 0.5), 1.2)
+			# v3: the cut topaz set with ONE fine light line (no dark-gold slab bezel).
+			var bez := GemDraw.cut_points("cushion", gc, gs * 1.16)
+			GemDraw.outline(self, bez, Color(1.0, 0.97, 0.86, 0.85) if not dis else Color(1, 1, 1, 0.5), UIKit.px(1.0))
 			if dis:
 				GemDraw.draw_gem(self, "cushion", gc, gs, Color("#D9CDB8"), Color("#F2EDE4"), Color("#AFA28B"), false)
 			else:
@@ -126,8 +149,9 @@ func _draw() -> void:
 	# Label (+ optional icon and second line), centred in the area right of the gem.
 	if text == "" and sub == "":
 		return
-	var f := UIKit.font_w("extrabold")
-	var fs := label_size
+	var f := UIKit.font_w("bold")
+	# v3: a calmer label (x0.86, Bold, never above 40 px); the slab carries the weight.
+	var fs := mini(int(round(label_size * 0.86)), 40)
 	var area_x0 := gem_w + (6.0 if topaz else 18.0)
 	var area_x1 := size.x - (22.0 if topaz else 18.0)
 	var avail := area_x1 - area_x0
@@ -140,7 +164,7 @@ func _draw() -> void:
 	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var total := tw + ico_w
 	var x := area_x0 + (avail - total) * 0.5
-	var fsub := UIKit.font_w("bold")
+	var fsub := UIKit.font_w("medium")
 	var has_sub := sub != ""
 	var asc := f.get_ascent(fs)
 	var desc := f.get_descent(fs)
@@ -154,14 +178,21 @@ func _draw() -> void:
 		var isz := fs * 0.9
 		draw_texture_rect(icon, Rect2(Vector2(x, base_y - asc * 0.78), Vector2(isz, isz)), false, Color(1, 1, 1, 0.6 if dis else 1.0))
 		x += ico_w
-	if not dis:
-		# Engraved ink: a 1 px light emboss under the deep amber-brown label (no stroke, ~5:1).
-		draw_string(f, Vector2(x, base_y + 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.902, 0.639, 0.5))
 	draw_string(f, Vector2(x, base_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	if has_sub:
 		var sw := fsub.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size).x
 		var sx := area_x0 + (avail - sw) * 0.5
 		var sy := base_y + desc + fsub.get_ascent(sub_size) - 2.0
-		if not dis:
-			draw_string(fsub, Vector2(sx, sy + 1.0), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color(1.0, 0.902, 0.639, 0.4))
 		draw_string(fsub, Vector2(sx, sy), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color("#6E3A0F") if not dis else UIKit.INK_DIM)
+
+
+## v3: draws the CTA body style at most BODY_MAX tall, centred vertically in the button rect.
+class SlimBox extends StyleBox:
+	var inner: StyleBox
+
+	func _draw(ci: RID, rect: Rect2) -> void:
+		var h := minf(rect.size.y, BODY_MAX)
+		inner.draw(ci, Rect2(Vector2(rect.position.x, rect.position.y + roundf((rect.size.y - h) * 0.5)), Vector2(rect.size.x, h)))
+
+	func _get_draw_rect(rect: Rect2) -> Rect2:
+		return inner._get_draw_rect(rect) if inner.has_method("_get_draw_rect") else rect

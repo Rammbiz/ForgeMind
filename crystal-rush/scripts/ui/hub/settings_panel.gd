@@ -23,7 +23,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", UIKit.lux("modal", Vector2(30, 24)))
+	UIKit.frost_into(_panel, "modal", Vector2(30, 24))
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ins := hub.insets()
 	_panel.offset_left = 28 + ins.x

@@ -1,5 +1,10 @@
 class_name UIKit
-## UI v2 design system ("Genshin x AFK Journey", contract: scratchpad/uiv2/ui_v2_contract.md).
+## UI v3 direction A "porcelain glass" (on top of the v2 Genshin x AFK Journey system): surfaces are
+## translucent cream glass (the frosted 3D world glows through, see KitGlass), every frame is ONE
+## 1-device-px gold hairline with a 1 px inner light line (KitBox paints at device resolution),
+## shadows are soft and quiet, type is a weight lighter (Medium / Bold; ExtraBold only for big
+## numbers). Everything below keeps the v2 API.
+## v2 notes (contract: scratchpad/uiv2/ui_v2_contract.md):
 ## Light warm cream surfaces, ONE thin gold hairline, soft shadows, small 45-degree chamfered
 ## corners (gem-girdle cut), M PLUS Rounded 1c, no text outlines. The amber jewel CTA is the
 ## only loud element.
@@ -114,8 +119,8 @@ static func font_caps(size := 20) -> Font:
 	if _fonts.has(key):
 		return _fonts[key]
 	var fv := FontVariation.new()
-	fv.base_font = font_w("bold")
-	fv.spacing_glyph = maxi(1, int(round(size * 0.06)))
+	fv.base_font = font_w("medium")
+	fv.spacing_glyph = maxi(1, int(round(size * 0.08)))
 	_fonts[key] = fv
 	return fv
 
@@ -231,6 +236,22 @@ static func cbox(bg: Color, chamfer := 8, line := HAIRLINE, line_w := 0, pad := 
 
 # ------------------------------------------------------------------ painted styles
 
+# ------------------------------------------------------------------ device pixels (v3)
+
+## Canvas -> device scale of the root viewport (1.0 at 720 wide, 1.5 on 1080p, 0.75 at 540).
+static func ui_scale() -> float:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return 1.0
+	var sc := tree.root.get_final_transform().get_scale().x
+	return clampf(sc, 0.5, 4.0) if sc > 0.0 else 1.0
+
+
+## `n` DEVICE pixels in canvas units: draw_line(a, b, col, UIKit.px(1)) is one crisp device px.
+static func px(n := 1.0) -> float:
+	return n / ui_scale()
+
+
 ## Nine-patch styles, painted once and cached (or the owner's bitmap of the same name).
 ## v2 kinds:
 ##   "panel" / "cream" / "parch"     cream document panel, outer hairline + inner hairline
@@ -251,7 +272,8 @@ static func cbox(bg: Color, chamfer := 8, line := HAIRLINE, line_w := 0, pad := 
 ##   "band_amber" / "band_cool"      full-width result bands; "tag_new" NEW tag
 ## `pad` sets the content margins.
 static func lux(kind: String, pad := Vector2(-1, -1)) -> StyleBox:
-	var key := "%s_%d_%d" % [kind, int(pad.x), int(pad.y)]
+	var sc := ui_scale()
+	var key := "%s_%d_%d_%.3f" % [kind, int(pad.x), int(pad.y), sc]
 	if _styles.has(key):
 		return _styles[key]
 	var ov := _kit_style(kind, pad)
@@ -259,23 +281,18 @@ static func lux(kind: String, pad := Vector2(-1, -1)) -> StyleBox:
 		_styles[key] = ov
 		return ov
 	var spec := _spec(kind)
-	var tkey := str(spec).md5_text()
+	# v3: painted at DEVICE resolution (rings are device px), drawn through a 1/s transform.
+	var dspec := _device_spec(spec, sc)
+	var tkey := str(dspec).md5_text()
 	var tex: Texture2D = _textures.get(tkey)
 	if tex == null:
-		tex = ImageTexture.create_from_image(_cached_paint(kind, spec))
+		tex = ImageTexture.create_from_image(_cached_paint(kind, dspec))
 		_textures[tkey] = tex
-	var s := StyleBoxTexture.new()
-	s.texture = tex
-	var sh := _shadow_room(spec)
-	var m := _margin(spec)
-	s.texture_margin_left = m
-	s.texture_margin_right = m
-	s.texture_margin_top = m
-	s.texture_margin_bottom = m
-	s.expand_margin_left = sh
-	s.expand_margin_right = sh
-	s.expand_margin_top = sh
-	s.expand_margin_bottom = sh
+	var s := KitBox.new()
+	s.tex = tex
+	s.s = sc
+	s.margin_dev = _margin(dspec)
+	s.shadow_dev = _shadow_room(dspec)
 	var p: Vector2 = spec["pad"] if pad.x < 0.0 else pad
 	var shift: float = spec.get("shift", 0.0)
 	s.content_margin_left = p.x
@@ -290,168 +307,155 @@ static func _a(c: Color, a: float) -> Color:
 	return Color(c.r, c.g, c.b, a)
 
 
+## A canvas-unit spec scaled to device px: chamfers, blurs, offsets and insets x s; rings and line
+## widths are already device px (1.0 = one device pixel); `inset_px` is a device-px inset.
+static func _device_spec(spec: Dictionary, sc: float) -> Dictionary:
+	var d := spec.duplicate(true)
+	for k: String in ["cham", "blur", "sh_dy"]:
+		if d.has(k):
+			d[k] = float(d[k]) * sc
+	var layers: Array = []
+	for L: Dictionary in spec["layers"]:
+		var l2 := L.duplicate()
+		if l2.has("inset"):
+			l2["inset"] = float(l2["inset"]) * sc
+		if l2.has("inset_px"):
+			l2["inset"] = float(l2.get("inset", 0.0)) + float(l2["inset_px"])
+			l2.erase("inset_px")
+		for k2: String in ["y", "inset_x"]:
+			if l2.has(k2):
+				l2[k2] = float(l2[k2]) * sc
+		layers.append(l2)
+	d["layers"] = layers
+	d["dev"] = sc
+	return d
+
+
+## v3 porcelain glass body: translucent cream fill, ONE 1 px gold hairline, a 1 px inner light
+## line just inside it (bright at the top, fading down), a quiet shadow.
+static func _glass(cham: float, top: Color, bot: Color, line_a: float, light: float, blur: float, sh_a: float,
+		sh_dy: float, pad: Vector2, line := HAIRLINE) -> Dictionary:
+	var layers: Array = [{"top": top, "bot": bot}]
+	if line_a > 0.0:
+		layers.append({"ring": UITokens.HAIRLINE_PX, "top": _a(line, line_a), "bot": _a(line, line_a * 0.82)})
+	if light > 0.0:
+		layers.append({"inset_px": 1.0 if line_a > 0.0 else 0.0, "ring": 1.0, "top": Color(1, 1, 1, light), "bot": Color(1, 1, 1, light * 0.22)})
+	return {"cham": cham, "blur": blur, "sh_a": sh_a, "sh_dy": sh_dy, "pad": pad, "layers": layers}
+
+
 static func _spec(kind: String) -> Dictionary:
-	var line := {"ring": 1.5, "top": HAIRLINE, "bot": HAIRLINE}
+	var G0 := UITokens.GLASS_TOP
+	var G1 := UITokens.GLASS_BOT
+	var sa := UITokens.SHADOW_A
 	match kind:
 		"panel", "cream", "parch":
-			return {"cham": 12.0, "blur": 16.0, "sh_a": 0.2, "sh_dy": 5.0, "pad": Vector2(36, 30), "layers": [
-				{"top": PAPER_0, "bot": CREAM},
-				{"ring": 1.5, "top": HAIRLINE, "bot": HAIRLINE},
-				{"inset": 5.0, "ring": 1.0, "top": _a(HAIRLINE, 0.55), "bot": _a(HAIRLINE, 0.4)},
-			]}
+			return _glass(12.0, G0, G1, 0.78, 0.62, 22.0, sa * 0.8, 6.0, Vector2(36, 30))
 		"modal":
-			return {"cham": 12.0, "blur": 24.0, "sh_a": 0.3, "sh_dy": 8.0, "pad": Vector2(36, 32), "layers": [
-				{"top": PAPER_0, "bot": CREAM},
-				{"ring": 1.5, "top": HAIRLINE, "bot": HAIRLINE},
-				{"inset": 5.0, "ring": 1.0, "top": _a(HAIRLINE, 0.55), "bot": _a(HAIRLINE, 0.4)},
-			]}
+			# Flat fallback (no world snapshot): text-heavy, so near-opaque (no ghosting under text).
+			return _glass(12.0, _a(G0, 0.97), _a(G1, 0.98), 0.8, 0.7, 30.0, sa * 1.4, 10.0, Vector2(36, 32))
+		"modal_frost", "panel_frost":
+			# Opaque-painted body for the KitGlass frost material (the shader mixes the world in).
+			return _glass(12.0, _a(G0, 1.0), _a(G1, 1.0), 0.85, 0.75, 30.0, sa * 1.4, 10.0, Vector2(36, 32) if kind == "modal_frost" else Vector2(36, 30))
 		"cream_glass", "glass":
-			return {"cham": 10.0, "blur": 14.0, "sh_a": 0.18, "sh_dy": 4.0, "pad": Vector2(22, 14), "layers": [
-				{"top": _a(PAPER_0, 0.9), "bot": _a(CREAM, 0.84)},
-				{"ring": 1.5, "top": _a(HAIRLINE, 0.95), "bot": _a(HAIRLINE, 0.85)},
-			]}
+			return _glass(10.0, _a(G0, 0.62), _a(G1, 0.7), 0.72, 0.6, 16.0, sa * 0.7, 4.0, Vector2(22, 14))
 		"sheet":
-			return {"cham": 12.0, "blur": 20.0, "sh_a": 0.18, "sh_dy": -2.0, "pad": Vector2(26, 28), "layers": [
-				{"top": CREAM, "bot": CREAM},
-				{"ring": 2.0, "top": HAIRLINE, "bot": HAIRLINE},
-				{"inset": 5.0, "ring": 1.0, "top": _a(HAIRLINE, 0.5), "bot": _a(HAIRLINE, 0.35)},
-			]}
+			return _glass(12.0, _a(UITokens.SHEET_FILL, 0.9), _a(UITokens.SHEET_FILL, 0.94), 0.0, 0.0, 24.0, sa * 0.6, -3.0, Vector2(26, 28))
+		"sheet_frost":
+			return _glass(12.0, _a(PAPER_0, 1.0), _a(UITokens.SHEET_FILL, 1.0), 0.0, 0.0, 24.0, sa * 0.6, -3.0, Vector2(26, 28))
 		"card", "parch_card":
-			return {"cham": 10.0, "blur": 10.0, "sh_a": 0.16, "sh_dy": 3.0, "pad": Vector2(16, 14), "layers": [
-				{"top": PAPER_0, "bot": CREAM},
-				line,
-			]}
+			return _glass(10.0, _a(PAPER_0, 0.84), _a(CREAM, 0.88), 0.62, 0.55, 12.0, sa * 0.7, 3.0, Vector2(16, 14))
 		"card_sel":
-			return {"cham": 10.0, "blur": 14.0, "sh_a": 0.2, "sh_dy": 3.0, "glow": _a(CTA, 0.5), "pad": Vector2(16, 14), "layers": [
-				{"top": PAPER_0, "bot": PAPER_0},
-				{"ring": 2.0, "top": Color("#D9A74A"), "bot": Color("#C98F36")},
-				{"inset": 4.0, "ring": 1.0, "top": _a(CTA, 0.9), "bot": _a(CTA_LO, 0.7)},
-			]}
+			var cs := _glass(10.0, _a(PAPER_0, 0.94), _a(PAPER_0, 0.94), 0.0, 0.7, 14.0, sa, 3.0, Vector2(16, 14))
+			cs["glow"] = _a(CTA, 0.32)
+			(cs["layers"] as Array).insert(1, {"ring": UITokens.SELECT_PX, "top": Color("#E0AE52"), "bot": Color("#C98F36")})
+			return cs
 		"card_dim":
-			return {"cham": 10.0, "blur": 6.0, "sh_a": 0.1, "sh_dy": 2.0, "pad": Vector2(16, 14), "layers": [
-				{"top": CREAM_3, "bot": Color("#DCCFB8")},
-				{"ring": 1.5, "top": _a(HAIRLINE, 0.6), "bot": _a(HAIRLINE, 0.5)},
-			]}
+			return _glass(10.0, _a(CREAM_3, 0.6), _a(Color("#DCCFB8"), 0.66), 0.42, 0.35, 0.0, 0.0, 0.0, Vector2(16, 14))
 		"pill", "plate":
-			return {"cham": 8.0, "blur": 8.0, "sh_a": 0.25, "sh_dy": 2.0, "pad": Vector2(16, 6), "layers": [
-				{"top": _a(PAPER_0, 0.94), "bot": _a(CREAM, 0.92)},
-				line,
-			]}
+			return _glass(8.0, _a(PAPER_0, UITokens.GLASS_THIN_A + 0.1), _a(CREAM, UITokens.GLASS_THIN_A + 0.14), 0.8, 0.7, 10.0, sa * 0.8, 2.0, Vector2(16, 6))
 		"pill_dark":
-			return {"cham": 8.0, "blur": 8.0, "sh_a": 0.22, "sh_dy": 2.0, "pad": Vector2(16, 6), "layers": [
-				{"top": _a(PAPER_0, 0.9), "bot": _a(CREAM, 0.88)},
-				{"ring": 1.0, "top": _a(CREAM_3, 0.9), "bot": _a(CREAM_3, 0.9)},
-			]}
+			return _glass(8.0, _a(PAPER_0, UITokens.GLASS_THIN_A + 0.08), _a(CREAM, UITokens.GLASS_THIN_A + 0.12), 0.0, 0.75, 10.0, sa * 0.7, 2.0, Vector2(16, 6))
 		"chip":
-			return {"cham": 6.0, "blur": 5.0, "sh_a": 0.16, "sh_dy": 1.5, "pad": Vector2(14, 4), "layers": [
-				{"top": _a(PAPER_0, 0.96), "bot": _a(CREAM, 0.95)},
-				{"ring": 1.2, "top": HAIRLINE, "bot": HAIRLINE},
-			]}
+			return _glass(6.0, _a(PAPER_0, 0.82), _a(CREAM, 0.86), 0.72, 0.6, 6.0, sa * 0.6, 1.5, Vector2(14, 4))
 		"banner", "toast":
-			return {"cham": 10.0, "blur": 14.0, "sh_a": 0.24, "sh_dy": 4.0, "pad": Vector2(26, 14), "layers": [
-				{"top": _a(PAPER_0, 0.95), "bot": _a(CREAM, 0.93)},
-				{"ring": 1.5, "top": HAIRLINE, "bot": HAIRLINE},
-				{"inset": 4.0, "ring": 1.0, "top": _a(HAIRLINE, 0.45), "bot": _a(HAIRLINE, 0.3)},
-			]}
+			return _glass(10.0, _a(G0, 0.9), _a(G1, 0.92), 0.8, 0.7, 18.0, sa * 1.1, 5.0, Vector2(26, 14))
 		"ribbon":
-			return {"cham": 8.0, "blur": 8.0, "sh_a": 0.18, "sh_dy": 2.0, "pad": Vector2(30, 6), "layers": [
-				{"top": _a(PAPER_0, 0.94), "bot": _a(CREAM, 0.92)},
-				{"ring": 1.2, "top": HAIRLINE, "bot": HAIRLINE},
-			]}
+			return _glass(8.0, _a(PAPER_0, UITokens.GLASS_THIN_A + 0.1), _a(CREAM, UITokens.GLASS_THIN_A + 0.14), 0.75, 0.7, 8.0, sa * 0.7, 2.0, Vector2(30, 6))
 		"button":
-			return {"cham": 8.0, "blur": 6.0, "sh_a": 0.16, "sh_dy": 2.0, "pad": Vector2(28, 10), "layers": [
-				{"top": Color("#F3EDE2"), "bot": CREAM_2},
-				line,
-			]}
+			return _glass(8.0, _a(PAPER_0, 0.84), _a(CREAM_2, 0.86), 0.72, 0.7, 8.0, sa * 0.8, 2.0, Vector2(28, 10))
 		"button_pressed":
-			return {"cham": 8.0, "blur": 3.0, "sh_a": 0.1, "sh_dy": 1.0, "shift": 2.0, "pad": Vector2(28, 10), "layers": [
-				{"top": CREAM_3, "bot": Color("#E8DECC")},
-				line,
-			]}
+			var bp := _glass(8.0, _a(CREAM_3, 0.9), _a(Color("#E8DECC"), 0.9), 0.8, 0.3, 4.0, sa * 0.5, 1.0, Vector2(28, 10))
+			bp["shift"] = 2.0
+			return bp
 		"button_disabled":
-			return {"cham": 8.0, "blur": 0.0, "pad": Vector2(28, 10), "layers": [
-				{"top": _a(CREAM_2, 0.75), "bot": _a(CREAM_3, 0.7)},
-				{"ring": 1.2, "top": _a(HAIRLINE, 0.45), "bot": _a(HAIRLINE, 0.45)},
-			]}
+			return _glass(8.0, _a(CREAM_2, 0.5), _a(CREAM_3, 0.5), 0.4, 0.3, 0.0, 0.0, 0.0, Vector2(28, 10))
 		"ghost":
-			return {"cham": 8.0, "blur": 0.0, "pad": Vector2(24, 8), "layers": [
-				{"top": _a(PAPER_0, 0.18), "bot": _a(PAPER_0, 0.1)},
-				{"ring": 1.5, "top": _a(HAIRLINE, 0.9), "bot": _a(HAIRLINE, 0.9)},
-			]}
+			return _glass(8.0, _a(PAPER_0, 0.16), _a(PAPER_0, 0.08), 0.85, 0.35, 0.0, 0.0, 0.0, Vector2(24, 8))
 		"ghost_pressed":
-			return {"cham": 8.0, "blur": 0.0, "shift": 2.0, "pad": Vector2(24, 8), "layers": [
-				{"top": _a(PAPER_0, 0.45), "bot": _a(PAPER_0, 0.35)},
-				{"ring": 1.5, "top": HAIRLINE, "bot": HAIRLINE},
-			]}
+			var gp := _glass(8.0, _a(PAPER_0, 0.42), _a(PAPER_0, 0.32), 0.95, 0.3, 0.0, 0.0, 0.0, Vector2(24, 8))
+			gp["shift"] = 2.0
+			return gp
 		"text", "text_pressed":
 			return {"cham": 6.0, "blur": 0.0, "pad": Vector2(14, 6), "layers": [
 				{"top": _a(CREAM_3, 0.0 if kind == "text" else 0.45), "bot": _a(CREAM_3, 0.0 if kind == "text" else 0.45)},
 			]}
 		"primary", "green", "primary_compact":
-			return {"cham": 12.0, "blur": 12.0, "sh_a": 0.3, "sh_dy": 4.0, "sh_col": Color("#7A3E10"),
+			# A cut topaz slab, lit not glossy: a 1 px deep-amber edge, a soft amber body (no sheen
+			# blob, no brown drop shadow), a 1 px inner light line along the top.
+			return {"cham": 12.0, "blur": 16.0, "sh_a": 0.16, "sh_dy": 4.0, "sh_col": Color("#A8662A"),
 					"pad": Vector2(36, 10), "layers": [
-				{"top": Color("#C98536"), "bot": CTA_RIM},
-				{"inset": 1.5, "top": CTA_HI, "mid": CTA, "bot": CTA_LO},
-				{"inset": 1.5, "sheen": 0.16},
-				{"inset": 3.5, "ring": 1.0, "top": Color(1, 0.98, 0.88, 0.7), "bot": Color(1, 0.9, 0.7, 0.18)},
+				{"top": Color("#E3A04E"), "bot": Color("#C27A33")},
+				{"inset_px": 1.0, "top": Color("#FFDE9C"), "mid": Color("#F6B451"), "bot": Color("#E79A3E")},
+				{"inset_px": 2.0, "ring": 1.0, "top": Color(1, 0.99, 0.92, 0.85), "bot": Color(1, 0.95, 0.8, 0.12)},
 			]}
 		"primary_pressed", "green_pressed":
-			return {"cham": 12.0, "blur": 6.0, "sh_a": 0.24, "sh_dy": 2.0, "sh_col": Color("#7A3E10"), "shift": 2.0,
+			return {"cham": 12.0, "blur": 8.0, "sh_a": 0.12, "sh_dy": 2.0, "sh_col": Color("#A8662A"), "shift": 2.0,
 					"pad": Vector2(36, 10), "layers": [
-				{"top": Color("#B8742A"), "bot": CTA_RIM},
-				{"inset": 1.5, "top": Color("#FFD98A"), "mid": Color("#EC9F3A"), "bot": Color("#CC7426")},
-				{"inset": 3.5, "ring": 1.0, "top": Color(1, 0.95, 0.8, 0.45), "bot": Color(1, 0.9, 0.7, 0.1)},
+				{"top": Color("#D18F42"), "bot": Color("#B36E2B")},
+				{"inset_px": 1.0, "top": Color("#FFD48A"), "mid": Color("#EEA544"), "bot": Color("#D9873A")},
+				{"inset_px": 2.0, "ring": 1.0, "top": Color(1, 0.95, 0.8, 0.5), "bot": Color(1, 0.9, 0.7, 0.1)},
 			]}
 		"primary_disabled":
 			return {"cham": 12.0, "blur": 0.0, "pad": Vector2(36, 10), "layers": [
-				{"top": Color("#CDBFA6"), "bot": Color("#B9AA8F")},
-				{"inset": 1.5, "top": Color("#EFE6D6"), "bot": Color("#DDD0BA")},
+				{"top": Color("#D6CBB6"), "bot": Color("#C4B79F")},
+				{"inset_px": 1.0, "top": Color("#F1EADD"), "bot": Color("#E2D7C4")},
 			]}
 		"parch_well", "well":
-			return {"cham": 6.0, "blur": 0.0, "pad": Vector2(12, 8), "layers": [
-				{"top": _a(CREAM_3, 0.85), "bot": _a(CREAM_2, 0.8)},
-				{"ring": 1.0, "top": _a(HAIRLINE, 0.5), "bot": _a(HAIRLINE, 0.3)},
-			]}
+			return _glass(6.0, _a(CREAM_3, 0.5), _a(CREAM_2, 0.45), 0.45, 0.0, 0.0, 0.0, 0.0, Vector2(12, 8))
 		"seg":
-			return {"cham": 8.0, "blur": 0.0, "pad": Vector2(4, 4), "layers": [
-				{"top": _a(CREAM_3, 0.7), "bot": _a(CREAM_2, 0.75)},
-				{"ring": 1.0, "top": _a(HAIRLINE, 0.7), "bot": _a(HAIRLINE, 0.7)},
-			]}
+			return _glass(8.0, _a(CREAM_3, 0.32), _a(CREAM_2, 0.36), 0.55, 0.0, 0.0, 0.0, 0.0, Vector2(4, 4))
 		"seg_sel":
-			return {"cham": 6.0, "blur": 5.0, "sh_a": 0.16, "sh_dy": 1.5, "pad": Vector2(18, 6), "layers": [
-				{"top": PAPER_0, "bot": PAPER_0},
-				{"ring": 1.2, "top": HAIRLINE, "bot": HAIRLINE},
-				{"line": "bottom", "y": 4.0, "w": 2.0, "inset_x": 16.0, "col": CTA_LO},
-			]}
+			var ss := _glass(6.0, _a(PAPER_0, 0.94), _a(PAPER_0, 0.94), 0.8, 0.7, 6.0, sa * 0.7, 1.5, Vector2(18, 6))
+			(ss["layers"] as Array).append({"line": "bottom", "y": 4.0, "w": UITokens.SELECT_PX, "inset_x": 22.0, "col": CTA_LO})
+			return ss
 		"tab_track":
 			return {"cham": 0.0, "blur": 0.0, "pad": Vector2(8, 6), "layers": [
-				{"line": "bottom", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.8)},
+				{"line": "bottom", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.6)},
 			]}
-		"tabbar":
-			return {"cham": 0.0, "blur": 14.0, "sh_a": 0.14, "sh_dy": -3.0, "pad": Vector2(8, 8), "layers": [
-				{"top": _a(PAPER_0, 0.96), "bot": _a(CREAM, 0.96)},
-				{"line": "top", "y": 0.0, "w": 1.5, "inset_x": 0.0, "col": HAIRLINE},
+		"tabbar", "nav_bar":
+			return {"cham": 0.0, "blur": 0.0, "pad": Vector2(8, 8), "layers": [
+				{"top": _a(PAPER_0, 0.82), "bot": _a(CREAM, 0.88)},
+				{"line": "top", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.7)},
+				{"line": "top", "y": 1.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 1, 1, 0.6)},
 			]}
 		"tab_sel":
-			return {"cham": 10.0, "blur": 10.0, "sh_a": 0.18, "sh_dy": 3.0, "pad": Vector2(8, 8), "layers": [
-				{"top": PAPER_0, "bot": CREAM},
-				{"ring": 1.5, "top": HAIRLINE, "bot": HAIRLINE},
-				{"line": "bottom", "y": 5.0, "w": 2.0, "inset_x": 18.0, "col": CTA_LO},
-			]}
+			var ts := _glass(10.0, _a(PAPER_0, 0.9), _a(CREAM, 0.9), 0.78, 0.7, 10.0, sa * 0.8, 3.0, Vector2(8, 8))
+			(ts["layers"] as Array).append({"line": "bottom", "y": 5.0, "w": UITokens.SELECT_PX, "inset_x": 18.0, "col": CTA_LO})
+			return ts
 		"band_amber":
-			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.22, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
+			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.14, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
 				{"top": Color("#FFE1A0"), "mid": CTA, "bot": Color("#E3913A")},
-				{"line": "top", "y": 5.0, "w": 1.5, "inset_x": 0.0, "col": Color(1, 0.97, 0.86, 0.8)},
-				{"line": "bottom", "y": 5.0, "w": 1.5, "inset_x": 0.0, "col": Color(1, 0.95, 0.8, 0.6)},
+				{"line": "top", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 0.97, 0.86, 0.85)},
+				{"line": "bottom", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 0.95, 0.8, 0.65)},
 			]}
 		"band_cool":
-			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.2, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
-				{"top": CREAM, "bot": CREAM_2},
-				{"line": "top", "y": 5.0, "w": 1.5, "inset_x": 0.0, "col": Color("#8E98AA")},
-				{"line": "bottom", "y": 5.0, "w": 1.5, "inset_x": 0.0, "col": Color("#8E98AA")},
+			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.12, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
+				{"top": _a(CREAM, 0.9), "bot": _a(CREAM_2, 0.92)},
+				{"line": "top", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color("#8E98AA")},
+				{"line": "bottom", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color("#8E98AA")},
 			]}
 		"tag_new":
-			return {"cham": 5.0, "blur": 3.0, "sh_a": 0.18, "sh_dy": 1.0, "pad": Vector2(8, 1), "layers": [
+			return {"cham": 5.0, "blur": 3.0, "sh_a": 0.12, "sh_dy": 1.0, "pad": Vector2(8, 1), "layers": [
 				{"top": Color("#FFDD6E"), "bot": UITokens.NEW_TAG},
 				{"ring": 1.0, "top": Color("#C99A2A"), "bot": Color("#B5861E")},
 			]}
@@ -461,7 +465,7 @@ static func _spec(kind: String) -> Dictionary:
 ## Painting in GDScript costs a few ms per style, so painted images are cached as PNGs in
 ## user://ui_cache (keyed by a hash of the spec); later launches load them instantly.
 static func _cached_paint(kind: String, spec: Dictionary) -> Image:
-	var path := "user://ui_cache/v2_%s_%s.png" % [kind, str(spec).md5_text().substr(0, 10)]
+	var path := "user://ui_cache/v3_%s_%s.png" % [kind, str(spec).md5_text().substr(0, 10)]
 	if FileAccess.file_exists(path):
 		var cached := Image.load_from_file(path)
 		if cached and not cached.is_empty():
@@ -644,7 +648,7 @@ static func theme() -> Theme:
 	t.set_stylebox("hover_pressed", "Button", lux("button_pressed"))
 	t.set_stylebox("disabled", "Button", lux("button_disabled"))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	t.set_font("font", "Button", font(true))
+	t.set_font("font", "Button", font_w("medium"))
 	t.set_font_size("font_size", "Button", 26)
 	t.set_color("font_color", "Button", INK)
 	t.set_color("font_hover_color", "Button", INK)
@@ -666,14 +670,14 @@ static func theme() -> Theme:
 		t.set_stylebox("pressed", v, lux("primary_pressed"))
 		t.set_stylebox("hover_pressed", v, lux("primary_pressed"))
 		t.set_stylebox("disabled", v, lux("primary_disabled"))
-		t.set_font("font", v, font_w("extrabold"))
-		t.set_font_size("font_size", v, 32)
+		t.set_font("font", v, font_w("bold"))
+		t.set_font_size("font_size", v, 30)
 		for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 			t.set_color(k, v, CTA_TEXT)
 		t.set_color("font_disabled_color", v, INK_DIM)
-		# Ink label, no stroke: a faint light halo keeps the glyph edges clean on the sweep.
-		t.set_color("font_outline_color", v, Color(1.0, 0.902, 0.639, 0.35))
-		t.set_constant("outline_size", v, 2)
+		# v3: no outline or halo at all (no text outlines).
+		t.set_color("font_outline_color", v, Color(0, 0, 0, 0))
+		t.set_constant("outline_size", v, 0)
 	# Panels
 	t.set_stylebox("panel", "PanelContainer", lux("panel"))
 	t.set_stylebox("panel", "Panel", lux("panel"))
@@ -684,7 +688,7 @@ static func theme() -> Theme:
 	t.set_type_variation("GlassPanel", "PanelContainer")
 	t.set_stylebox("panel", "GlassPanel", lux("cream_glass"))
 	# Sliders: thin cream track, amber fill, cream disc grabber with a gold ring.
-	var track := cbox(CREAM_3, 4, HAIRLINE, 1, Vector2(0, 4))
+	var track := cbox(_a(CREAM_3, 0.7), 4, _a(HAIRLINE, 0.7), 1, Vector2(0, 3))
 	var fill := cbox(CTA, 4, CTA_LO, 1, Vector2(0, 4))
 	t.set_stylebox("slider", "HSlider", track)
 	t.set_stylebox("grabber_area", "HSlider", fill)
@@ -692,7 +696,7 @@ static func theme() -> Theme:
 	t.set_icon("grabber", "HSlider", _disc_tex(34, PAPER_0, HAIRLINE))
 	t.set_icon("grabber_highlight", "HSlider", _disc_tex(34, Color.WHITE, CTA_LO))
 	# Progress bars
-	t.set_stylebox("background", "ProgressBar", cbox(CREAM_3, 3, HAIRLINE, 1, Vector2.ZERO))
+	t.set_stylebox("background", "ProgressBar", cbox(_a(CREAM_3, 0.7), 3, _a(HAIRLINE, 0.7), 1, Vector2.ZERO))
 	t.set_stylebox("fill", "ProgressBar", cbox(CTA, 3, CTA_LO, 0, Vector2.ZERO))
 	t.set_color("font_color", "ProgressBar", INK)
 	# Thin scrollbars (cream grabber, no track).
@@ -757,8 +761,9 @@ static func label(text: String, size := 24, color := TEXT, bold := false, outlin
 ## colours get the soft scene shadow; >= 44 px uses ExtraBold.
 static func heading(text: String, size := 40, color := TEXT, outline := 0) -> Label:
 	var l := label(text, size, color, true, 0)
-	if size >= 44:
-		l.add_theme_font_override("font", font_w("extrabold"))
+	if size < 30:
+		# v3: small titles a weight lighter (Medium); size and space carry them.
+		l.add_theme_font_override("font", font_w("medium"))
 	if _is_light(color):
 		soft_shadow(l, size)
 	return l
@@ -811,8 +816,6 @@ static func scene_halo(target: Control, strength := 1.0, scale := 1.5) -> Textur
 ## Text that sits on a 3D scene / art: warm white + soft shadow.
 static func scene_label(text: String, size := 24, bold := true) -> Label:
 	var l := label(text, size, ON_SCENE, bold)
-	if bold and size >= 44:
-		l.add_theme_font_override("font", font_w("extrabold"))
 	soft_shadow(l, size)
 	return l
 
@@ -833,7 +836,8 @@ static func section(text: String, size := 22) -> Label:
 static func number(text: String, size := 48, on_scene := false, color := Color(0, 0, 0, 0)) -> Label:
 	var col := color if color.a > 0.0 else (ON_SCENE if on_scene else INK)
 	var l := label(text, size, col, true)
-	l.add_theme_font_override("font", font_w("extrabold"))
+	# v3: ExtraBold only for the big numbers of a screen (>= 40 px); smaller numbers are Bold.
+	l.add_theme_font_override("font", font_w("extrabold" if size >= 40 else "bold"))
 	if on_scene:
 		soft_shadow(l, size)
 	return l
@@ -843,7 +847,7 @@ static func number(text: String, size := 48, on_scene := false, color := Color(0
 ## colours (on-scene titles) adds the soft shadow. `outline` is ignored (no strokes in v2).
 static func gradient_heading(text: String, size := 64, top := Color("#5D6A80"), mid := INK, bottom := Color("#3C4557"), outline := 0) -> Label:
 	var l := label(text, size, Color.WHITE, true, 0)
-	l.add_theme_font_override("font", font_w("extrabold" if size >= 44 else "bold"))
+	l.add_theme_font_override("font", font_w("bold"))
 	if _is_light(mid):
 		soft_shadow(l, size)
 	if _text_shader == null:
@@ -1047,10 +1051,26 @@ static func tabs(options: Array, selected: String, on_change := Callable(), font
 # ------------------------------------------------------------------ containers
 
 ## Cream document panel (kind: "panel" | "cream_glass" | "card" | "card_sel" | "card_dim" | "modal" ...).
+## v3: "modal" panels are frosted cream glass when the hub's world snapshot exists (KitGlass).
 static func panel(kind := "panel", pad := Vector2(-1, -1)) -> PanelContainer:
 	var p := PanelContainer.new()
+	if kind == "modal" and frost_into(p, kind, pad):
+		return p
 	p.add_theme_stylebox_override("panel", lux(kind, pad))
 	return p
+
+
+## Gives an existing PanelContainer the frosted `kind` body ("modal" | "panel"): the opaque-painted
+## `<kind>_frost` style + the KitGlass frost material. Returns false (and sets the flat `kind`)
+## when there is no world snapshot.
+static func frost_into(p: PanelContainer, kind := "modal", pad := Vector2(-1, -1)) -> bool:
+	var m := KitGlass.frost(UITokens.FROST_TINT)
+	if m == null:
+		p.add_theme_stylebox_override("panel", lux(kind, pad))
+		return false
+	p.add_theme_stylebox_override("panel", lux(kind + "_frost", pad))
+	p.material = m
+	return true
 
 
 ## Translucent cream over 3D (porcelain), one hairline.
@@ -1058,17 +1078,32 @@ static func glass_panel(pad := Vector2(-1, -1)) -> PanelContainer:
 	return panel("cream_glass", pad)
 
 
+## v3 frosted panel: with the hub's world snapshot (KitGlass) the body is frosted cream glass
+## (the blurred world glows through at UITokens.FROST_TINT); without it, the flat translucent
+## `kind` ("modal" | "panel").
+static func frost_panel(kind := "modal", pad := Vector2(-1, -1)) -> PanelContainer:
+	var p := PanelContainer.new()
+	frost_into(p, kind, pad)
+	return p
+
+
 ## Bottom sheet: cream body with an arched top hairline and a crystal keystone.
 static func sheet(pad := Vector2(-1, -1)) -> KitSheet:
 	var s := KitSheet.new()
-	s.add_theme_stylebox_override("panel", lux("sheet", pad))
+	# v3: frosted cream glass (the world glows through; nothing sharp ghosts under the text).
+	var m := KitGlass.frost(0.8)
+	if m:
+		s.add_theme_stylebox_override("panel", lux("sheet_frost", pad))
+		s.material = m
+	else:
+		s.add_theme_stylebox_override("panel", lux("sheet", pad))
 	return s
 
 
 ## Modal frame: cream panel, title plate, close disc. Body content goes into
 ## modal.get_meta("body") (a VBoxContainer). `on_close` runs on the close disc.
 static func modal(title: String, on_close := Callable(), width := 600.0) -> PanelContainer:
-	var p := panel("modal")
+	var p := frost_panel("modal")
 	p.custom_minimum_size = Vector2(width, 0)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
@@ -1077,6 +1112,7 @@ static func modal(title: String, on_close := Callable(), width := 600.0) -> Pane
 	head.add_theme_constant_override("separation", 12)
 	v.add_child(head)
 	var tl := heading(title, 34, INK)
+	tl.add_theme_font_override("font", font_w("medium"))
 	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(tl)
 	if on_close.is_valid():
@@ -1492,11 +1528,11 @@ class Divider extends Control:
 	var color := UITokens.HAIRLINE
 
 	func _draw() -> void:
-		var y := size.y * 0.5
+		var y := GemDraw.pixel_y(self, size.y * 0.5)
 		if plain:
-			draw_line(Vector2(0, y), Vector2(size.x, y), color, 1.0, true)
+			draw_line(Vector2(0, y), Vector2(size.x, y), color, -1.0)
 			return
-		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), color, 1.5, keystone, true)
+		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), color, 1.0, keystone, true)
 
 
 ## Slowly rotating light rays (victory sunburst / reward halo). Soft and warm in v2.
@@ -1626,5 +1662,5 @@ class Ribbon extends Control:
 ## HBox list row that draws a hairline under itself (no boxes).
 class KitRow extends HBoxContainer:
 	func _draw() -> void:
-		var y := size.y - 0.5
-		draw_line(Vector2(0, y), Vector2(size.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5), 1.0, true)
+		var y := GemDraw.pixel_y(self, size.y - UIKit.px(0.5))
+		draw_line(Vector2(0, y), Vector2(size.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.42), -1.0)

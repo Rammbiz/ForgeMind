@@ -38,22 +38,21 @@ func _draw() -> void:
 		_draw_badge(c, r)
 		return
 	var tex := UIKit.kit_texture("socket_slate" if slate else "socket_cream")
-	# Soft shadow
-	draw_circle(c + Vector2(0, 2.0), r + 0.5, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14))
+	# v3: a whisper of shadow, 1-device-px rings.
+	var lw := UIKit.px(1.0)
+	draw_circle(c + Vector2(0, 1.5), r + 0.5, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.07))
 	if tex:
 		draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), false)
 	elif slate:
 		draw_circle(c, r, UITokens.SOCKET)
 		draw_circle(c + Vector2(0, -r * 0.12), r * 0.8, UITokens.SOCKET.lightened(0.07))
-		draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-		draw_arc(c, r - 4.0, 0, TAU, 48, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.35), 1.0, true)
+		draw_arc(c, r - lw * 0.5, 0, TAU, 64, UITokens.HAIRLINE, lw, true)
+		draw_arc(c, r - 4.0, 0, TAU, 64, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.3), lw, true)
 	else:
-		draw_circle(c, r, UITokens.PAPER_1)
-		draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0)
+		draw_circle(c, r, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.88))
 		if ring:
-			draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-			if s >= 44.0:
-				draw_arc(c, r - 4.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.4), 1.0, true)
+			draw_arc(c, r - lw * 0.5, 0, TAU, 64, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), lw, true)
+			draw_arc(c, r - lw * 1.5, PI * 1.05, PI * 1.75, 24, Color(1, 1, 1, 0.7), lw, true)
 	if icon != "":
 		var col := icon_color
 		if col.a <= 0.0:

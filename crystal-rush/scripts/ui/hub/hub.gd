@@ -55,6 +55,8 @@ func _init(p_start_tab := "play") -> void:
 func _ready() -> void:
 	stage = HubStage.new()
 	add_child(stage)
+	# UI v3 glass: a blurred 1/8-res still of the Home world for the frosted surfaces (KitGlass).
+	KitGlass.attach_world(self, stage.camera(), stage, stage.world)
 	var layer := CanvasLayer.new()
 	layer.layer = 1
 	add_child(layer)
@@ -150,6 +152,10 @@ func select_tab(id: String, animate := true) -> void:
 	top_bar.set_tab(id)
 	backdrop.set_tab(id, animate)
 	stage.active = id == "play"
+	# v3 glass: re-shoot the world still on arriving at Play (hero and Deck in place); the other
+	# tabs keep that still (3D goes off there).
+	if id == "play":
+		KitGlass.refresh_world()
 	_set_3d(id == "play", animate)
 	if animate:
 		UIJuice.haptic("TICK", 0.4)
@@ -276,7 +282,7 @@ func push_modal(c: Control, sticky := false, centered := false, ceremony := fals
 	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(dim)
-	dim.create_tween().tween_property(dim, "color:a", 0.56 if ceremony else 0.5, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	dim.create_tween().tween_property(dim, "color:a", 0.56 if ceremony else 0.36, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if not sticky:
 		dim.gui_input.connect(func(e: InputEvent):
 			if UIJuice.is_tap(e):
@@ -562,13 +568,13 @@ class Backdrop extends Control:
 		match tab:
 			"play":
 				return {"top": Color(sc.r, sc.g, sc.b, 0.16), "mid": Color(sc.r, sc.g, sc.b, 0.0), "bot": Color(0.55, 0.42, 0.3, 0.22),
-						"spot": Color(1, 1, 1, 0.0), "spot_y": 0.3, "vig": 0.0, "shafts": 1.0}
+						"spot": Color(1, 1, 1, 0.0), "spot_y": 0.3, "vig": 0.0, "shafts": 1.0, "world": 0.0}
 			"arsenal":
 				return {"top": Color("#F1ECE2"), "mid": Color("#E4DDD0"), "bot": Color("#CFC5B4"), "spot": Color(1.0, 0.99, 0.96, 0.75),
-						"spot_y": 0.22, "vig": 0.16, "shafts": 0.0}
+						"spot_y": 0.22, "vig": 0.16, "shafts": 0.0, "world": 1.0}
 			_:
 				return {"top": Color("#F4ECDD"), "mid": UITokens.STAGE_TOP, "bot": UITokens.STAGE_BOTTOM, "spot": Color(1.0, 0.93, 0.78, 0.7),
-						"spot_y": 0.2, "vig": 0.18, "shafts": 0.0}
+						"spot_y": 0.2, "vig": 0.18, "shafts": 0.0, "world": 1.0}
 
 	func set_tab(tab: String, animate := true) -> void:
 		_from = _cur()
@@ -600,6 +606,18 @@ class Backdrop extends Control:
 		var mid: Color = L["mid"]
 		var bot: Color = L["bot"]
 		var play_like := float(L["shafts"]) > 0.5
+		# UI v3 porcelain glass: where 3D is off the backdrop is the frosted world itself (the
+		# blurred Home still) under a light cream veil, so every glass surface has a world behind.
+		var wk := float(L.get("world", 0.0))
+		var wt := KitGlass.world_texture()
+		if wt and wk > 0.01:
+			draw_texture_rect(wt, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, wk))
+			var p0 := UITokens.PAPER_0
+			top = top.lerp(Color(p0.r, p0.g, p0.b, 0.34), wk)
+			mid = mid.lerp(Color(p0.r, p0.g, p0.b, 0.4), wk)
+			bot = bot.lerp(Color(UITokens.PAPER_1.r, UITokens.PAPER_1.g, UITokens.PAPER_1.b, 0.5), wk)
+			L["spot"] = Color(1, 1, 1, 0.0)
+			L["vig"] = 0.0
 		# Play: the slate whisper only covers the top band and the warm fade the bottom band.
 		var y1 := h * (0.2 if play_like else 0.45)
 		var y2 := h * (0.72 if play_like else 0.45)

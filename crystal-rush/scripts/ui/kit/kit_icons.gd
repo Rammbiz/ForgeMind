@@ -76,7 +76,8 @@ static func _dot(ci: CanvasItem, c: Vector2, rad: float, col: Color) -> void:
 static func line(ci: CanvasItem, k: String, r: Rect2, col: Color, width := -1.0) -> bool:
 	k = LINE_ALIASES.get(k, k)
 	var s := r.size.x
-	var w := width if width > 0.0 else clampf(s * 0.075, 1.6, 3.2)
+	# v3: finer monoline (was s * 0.075, 1.6..3.2): 1.3..2.4 canvas px.
+	var w := width if width > 0.0 else clampf(s * 0.055, 1.3, 2.4)
 	var c := r.get_center()
 	match k:
 		"settings":
@@ -507,15 +508,20 @@ static func painted(ci: CanvasItem, k: String, r: Rect2, mod := Color.WHITE) -> 
 		"fragment":
 			GemDraw.draw_gem(ci, "triangle", c, s * 0.8, Color("#B06CFF") * shade, Color("#E7D2FF"), Color("#5E2BA8"), s >= 28.0, a)
 		"tab_shop":
-			_pouch(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "shop", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_arsenal":
-			_cannon_cog(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "arsenal", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_play":
-			_bridge(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "play", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_heroes":
-			_sun_shield(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "heroes", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_barracks":
-			_tent(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "barracks", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		_:
 			return false
 	return true
@@ -761,3 +767,145 @@ static func _tent(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	ci.draw_line(_p(r, 0.5, 0.2), _p(r, 0.5, 0.05), gold, maxf(1.5, s * 0.035), true)
 	var flag := _pp(r, [0.5, 0.05, 0.72, 0.095, 0.5, 0.14])
 	_nav_fill(ci, flag, "gold", r, Color(1.0, 0.82, 0.6) * shade, a, false)
+
+
+# ------------------------------------------------------------------ v3 nav glyphs (monoline gold)
+## UI v3 bottom-nav family ("porcelain glass"): ONE monoline family, gold ink, 1.6 canvas px
+## strokes with round joins on a 40 px box, one silhouette per tab, and one small cut-gem accent
+## each (the gem DNA). `fill_a` > 0 lays a thin duotone wash of `fill` under the strokes (the
+## active tab). No gradients, no rims, no drop shadows, no multi-colour.
+##   shop = a brilliant-cut gem · arsenal = a crossed blade and cannon barrel · play = an arch
+##   gate (the Play slot itself shows the topaz crystal) · heroes = a crested helm ·
+##   barracks = a swallow-tail banner.
+const NAV := ["shop", "arsenal", "play", "heroes", "barracks"]
+
+
+static func nav(ci: CanvasItem, k: String, r: Rect2, col: Color, fill_a := 0.0, fill := UITokens.CTA, width := -1.0) -> bool:
+	var s := r.size.x
+	var w := width if width > 0.0 else clampf(s * 0.04, 1.2, 2.0)
+	var fc := Color(fill.r, fill.g, fill.b, fill_a * col.a)
+	match k:
+		"shop":
+			var body := _pts(r, [0.3, 0.24, 0.7, 0.24, 0.88, 0.42, 0.5, 0.86, 0.12, 0.42])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(body, fc)
+			_ln(ci, body, col, w, true)
+			_ln(ci, _pts(r, [0.12, 0.42, 0.88, 0.42]), col, w * 0.8)
+			_ln(ci, _pts(r, [0.3, 0.24, 0.4, 0.42, 0.5, 0.24, 0.6, 0.42, 0.7, 0.24]), col, w * 0.8)
+			_ln(ci, _pts(r, [0.4, 0.42, 0.5, 0.86, 0.6, 0.42]), col, w * 0.8)
+			# Glint: a tiny 4-ray star off the crown (the gem accent).
+			var g := _p(r, 0.86, 0.16)
+			ci.draw_line(g - Vector2(s * 0.07, 0), g + Vector2(s * 0.07, 0), col, w * 0.7, true)
+			ci.draw_line(g - Vector2(0, s * 0.07), g + Vector2(0, s * 0.07), col, w * 0.7, true)
+		"arsenal":
+			# Blade: lower left -> upper right.
+			var bd := Vector2(1, -1).normalized()
+			var bn := Vector2(-bd.y, bd.x)
+			var base := _p(r, 0.34, 0.66)
+			var tip := _p(r, 0.84, 0.16)
+			var hw := s * 0.05
+			var blade := PackedVector2Array([base + bn * hw, tip - bd * s * 0.08 + bn * hw * 0.8, tip, tip - bd * s * 0.08 - bn * hw * 0.8, base - bn * hw])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(blade, fc)
+			_ln(ci, blade, col, w)
+			_ln(ci, PackedVector2Array([base - bn * s * 0.13, base + bn * s * 0.13]), col, w)
+			_ln(ci, PackedVector2Array([base, base - bd * s * 0.15]), col, w)
+			_diamond_line(ci, base - bd * s * 0.2, s * 0.09, col, w * 0.8)
+			# Cannon barrel: upper left (muzzle) -> lower right (breech), behind the blade.
+			var cd := Vector2(1, 1).normalized()
+			var cn := Vector2(-cd.y, cd.x)
+			var m0 := _p(r, 0.17, 0.2)
+			var b0 := _p(r, 0.66, 0.69)
+			var tube := PackedVector2Array([m0 + cn * s * 0.065, b0 + cn * s * 0.085, b0 - cn * s * 0.085, m0 - cn * s * 0.065])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(tube, fc)
+			_ln(ci, tube, col, w, true)
+			_ln(ci, PackedVector2Array([m0 + cd * s * 0.06 + cn * s * 0.085, m0 + cd * s * 0.06 - cn * s * 0.085]), col, w * 0.8)
+			_arc(ci, b0 + cd * s * 0.1, s * 0.055, 0, TAU, col, w * 0.8, false)
+		"play":
+			var gate := PackedVector2Array()
+			gate.append(_p(r, 0.24, 0.84))
+			for i in 17:
+				var a := PI + PI * float(i) / 16.0
+				gate.append(_p(r, 0.5, 0.48) + Vector2(cos(a), sin(a)) * s * 0.26)
+			gate.append(_p(r, 0.76, 0.84))
+			if fill_a > 0.0:
+				var poly := gate.duplicate()
+				ci.draw_colored_polygon(poly, fc)
+			_ln(ci, gate, col, w)
+			_arc(ci, _p(r, 0.5, 0.52), s * 0.14, PI, TAU, col, w * 0.8, false)
+			_ln(ci, _pts(r, [0.36, 0.52, 0.36, 0.84]), col, w * 0.8)
+			_ln(ci, _pts(r, [0.64, 0.52, 0.64, 0.84]), col, w * 0.8)
+			_ln(ci, _pts(r, [0.12, 0.86, 0.88, 0.86]), col, w)
+			_diamond_line(ci, _p(r, 0.5, 0.12), s * 0.11, col, w * 0.8)
+		"heroes":
+			var helm := PackedVector2Array()
+			helm.append(_p(r, 0.38, 0.86))
+			helm.append(_p(r, 0.22, 0.78))
+			helm.append(_p(r, 0.2, 0.52))
+			for i in 17:
+				var a := PI + PI * float(i) / 16.0
+				helm.append(_p(r, 0.5, 0.52) + Vector2(cos(a), sin(a)) * s * 0.3)
+			helm.append(_p(r, 0.78, 0.78))
+			helm.append(_p(r, 0.62, 0.86))
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(helm, fc)
+			_ln(ci, helm, col, w)
+			# T-visor.
+			_ln(ci, _pts(r, [0.3, 0.6, 0.45, 0.6, 0.47, 0.82]), col, w * 0.85)
+			_ln(ci, _pts(r, [0.7, 0.6, 0.55, 0.6, 0.53, 0.82]), col, w * 0.85)
+			# Crest ridge and the brow gem.
+			_arc(ci, _p(r, 0.5, 0.52), s * 0.38, PI * 1.28, PI * 1.72, col, w * 0.8, false)
+			_diamond_line(ci, _p(r, 0.5, 0.42), s * 0.1, col, w * 0.8)
+		"barracks":
+			_ln(ci, _pts(r, [0.26, 0.16, 0.26, 0.9]), col, w)
+			_ln(ci, _pts(r, [0.26, 0.2, 0.78, 0.2]), col, w * 0.85)
+			_diamond_line(ci, _p(r, 0.26, 0.1), s * 0.1, col, w * 0.8)
+			var cloth := _pts(r, [0.34, 0.2, 0.34, 0.74, 0.53, 0.62, 0.72, 0.74, 0.72, 0.2])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(cloth, fc)
+			_ln(ci, cloth, col, w)
+			_diamond_line(ci, _p(r, 0.53, 0.4), s * 0.15, col, w * 0.8)
+		_:
+			return false
+	return true
+
+
+## A small rhombus outline (the family's gem accent).
+static func _diamond_line(ci: CanvasItem, c: Vector2, sz: float, col: Color, w: float) -> void:
+	var h := sz * 0.5
+	var hw := sz * 0.36
+	_ln(ci, PackedVector2Array([c + Vector2(0, -h), c + Vector2(hw, 0), c + Vector2(0, h), c + Vector2(-hw, 0)]), col, w, true)
+
+
+## The Play key's jewel: a slender faceted topaz crystal (a hexagonal point), lit from the upper
+## left, edged by one fine deep-amber line. `glow` adds a soft inner light (the active Play tab).
+static func topaz_crystal(ci: CanvasItem, c: Vector2, h: float, alpha := 1.0, glow := 0.0) -> void:
+	var w := h * 0.62
+	var t := c + Vector2(0, -h * 0.5)
+	var b := c + Vector2(0, h * 0.5)
+	var ul := c + Vector2(-w * 0.5, -h * 0.2)
+	var ur := c + Vector2(w * 0.5, -h * 0.2)
+	var ll := c + Vector2(-w * 0.5, h * 0.24)
+	var lr := c + Vector2(w * 0.5, h * 0.24)
+	var tm := c + Vector2(0, -h * 0.12)
+	var bm := c + Vector2(0, h * 0.16)
+	if glow > 0.0:
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(h, h) * 0.9, Vector2(h, h) * 1.8), false, Color(1.0, 0.82, 0.45, 0.45 * glow * alpha))
+	ci.draw_colored_polygon(PackedVector2Array([t, tm, ul]), _ca(Color("#FFF1C9"), alpha))
+	ci.draw_colored_polygon(PackedVector2Array([t, ur, tm]), _ca(Color("#FFD27A"), alpha))
+	ci.draw_colored_polygon(PackedVector2Array([ul, tm, bm, ll]), _ca(Color("#FFC560"), alpha))
+	ci.draw_colored_polygon(PackedVector2Array([tm, ur, lr, bm]), _ca(Color("#F0A23C"), alpha))
+	ci.draw_colored_polygon(PackedVector2Array([ll, bm, b]), _ca(Color("#E89434"), alpha))
+	ci.draw_colored_polygon(PackedVector2Array([bm, lr, b]), _ca(Color("#C9772A"), alpha))
+	var edge := _ca(Color(0.62, 0.36, 0.1, 0.9), alpha)
+	var lw := UIKit.px(1.0)
+	ci.draw_polyline(PackedVector2Array([t, ur, lr, b, ll, ul, t]), edge, lw, true)
+	var facet := _ca(Color(1, 0.97, 0.88, 0.75), alpha)
+	ci.draw_polyline(PackedVector2Array([ul, tm, ur]), facet, lw, true)
+	ci.draw_polyline(PackedVector2Array([tm, bm]), facet, lw, true)
+	ci.draw_polyline(PackedVector2Array([ll, bm, lr]), Color(edge.r, edge.g, edge.b, edge.a * 0.5), lw, true)
+
+
+static func _ca(c: Color, a: float) -> Color:
+	return Color(c.r, c.g, c.b, c.a * a)

@@ -468,8 +468,8 @@ class _Stage extends Control:
 			sp.append(Vector2(sheet.end.x, sheet.position.y + 24.0))
 			sp.append(Vector2(sheet.position.x, sheet.position.y + 24.0))
 			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.035))
-		draw_rect(sheet, UITokens.PAPER_1)
-		KitNav.draw_arch_top(self, sheet, 10.0, 0.0, UITokens.PAPER_1, true, UITokens.HAIRLINE, 1.5)
+		draw_rect(sheet, UITokens.SHEET_FILL)
+		KitNav.draw_arch_top(self, sheet, 10.0, 0.0, UITokens.SHEET_FILL, true, UITokens.HAIRLINE, 1.5)
 		# A faint paper gradient down the sheet.
 		var p2 := Color(UITokens.PAPER_2.r, UITokens.PAPER_2.g, UITokens.PAPER_2.b, 0.0)
 		draw_polygon(PackedVector2Array([Vector2(full.position.x, floor_y + 160.0), Vector2(full.end.x, floor_y + 160.0), Vector2(full.end.x, full.end.y), Vector2(full.position.x, full.end.y)]),

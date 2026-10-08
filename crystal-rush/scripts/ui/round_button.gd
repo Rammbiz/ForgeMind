@@ -141,27 +141,28 @@ func _draw() -> void:
 		s *= 1.0 + sin(_t * 4.0) * 0.03
 	var r := radius * s
 	var dim := 0.5 if disabled else 1.0
-	# v2 edge button: soft shadow, cream disc, ONE thin gold ring (+ a faint inner ring).
+	# v3 edge button (porcelain glass): a translucent cream disc with ONE 1-device-px gold ring
+	# and a 1 px light arc on its lit upper edge; one soft halo instead of stacked shadow discs.
 	var tex := UIKit.kit_texture("edge_button")
-	for i in 4:
-		draw_circle(c + Vector2(0, 2.0 + i * 1.2), r + i * 0.8, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.055), true, -1.0, true)
+	draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.32 + Vector2(0, 3), Vector2(r, r) * 2.64), false,
+			Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
 	var ring := UITokens.HAIRLINE if ring_color == UIKit.GOLD else ring_color
 	if disabled:
 		ring = Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5)
 	if highlight and not armed:
-		var k := 0.5 + 0.5 * sin(_t * TAU / UITokens.GLOW_PERIOD)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.7, Vector2(r, r) * 3.4), false, Color(1.0, 0.78, 0.4, 0.28 + 0.22 * k))
+		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.6, Vector2(r, r) * 3.2), false, Color(1.0, 0.82, 0.5, 0.32))
 	if tex:
 		draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(dim, dim, dim, 1.0))
 	else:
-		draw_circle(c, r, UITokens.PAPER_1 if not disabled else UITokens.PAPER_3, true, -1.0, true)
-		draw_circle(c + Vector2(0, -r * 0.1), r * 0.86, UITokens.PAPER_0 if not disabled else UITokens.PAPER_3, true, -1.0, true)
-		draw_arc(c, r - 0.75, 0, TAU, 64, ring, 1.6, true)
-		draw_arc(c, r - 4.5, 0, TAU, 64, Color(ring.r, ring.g, ring.b, 0.38), 1.0, true)
+		var face := UITokens.PAPER_0 if not disabled else UITokens.PAPER_3
+		draw_circle(c, r, Color(face.r, face.g, face.b, 0.84), true, -1.0, true)
+		var lw := UIKit.px(1.0)
+		draw_arc(c, r - lw * 0.5, 0, TAU, 72, Color(ring.r, ring.g, ring.b, ring.a * 0.85), lw, true)
+		draw_arc(c, r - lw * 1.5, PI * 1.05, PI * 1.75, 32, Color(1, 1, 1, 0.75), lw, true)
 	if armed:
 		draw_arc(c, r + 5.0, 0, TAU, 64, Color(UIKit.PLUS.r, UIKit.PLUS.g, UIKit.PLUS.b, 0.45 + 0.25 * sin(_t * 8.0)), 3.0, true)
 	if highlight and not armed:
-		draw_arc(c, r + 4.0, 0, TAU, 64, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.55 + 0.3 * sin(_t * TAU / UITokens.GLOW_PERIOD)), 2.0, true)
+		draw_arc(c, r + 3.0, 0, TAU, 72, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.8), UIKit.px(1.5), true)
 	if progress >= 0.0:
 		var pc := progress_color if progress_color != UIKit.GOLD else UITokens.CTA
 		draw_arc(c, r + 5.0, 0, TAU, 64, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.9), 4.0, true)
@@ -237,7 +238,7 @@ func _draw_caption(c: Vector2, r: float, dim: float) -> void:
 	if caption == "":
 		return
 	# Porcelain chip under the disc, ink label (it usually floats over a 3D scene).
-	var f2 := UIKit.font(true)
+	var f2 := UIKit.font_w("medium")
 	var fs := 20
 	var tw := f2.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var iw := 22.0 if caption_icon != "" else 0.0

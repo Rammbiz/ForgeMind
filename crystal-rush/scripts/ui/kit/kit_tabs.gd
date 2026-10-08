@@ -86,7 +86,7 @@ func _restyle() -> void:
 		var c := UITokens.INK if on else UITokens.INK_DIM
 		for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 			b.add_theme_color_override(k, c)
-		b.add_theme_font_override("font", UIKit.font_w("bold" if on else "medium"))
+		b.add_theme_font_override("font", UIKit.font_w("medium"))
 
 
 ## Vector2(centre x, underline width) of the selected tab.
@@ -109,10 +109,18 @@ func _snap() -> void:
 
 
 func _draw() -> void:
-	var y := size.y - 1.0
-	draw_line(Vector2(0, y), Vector2(size.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.6), 1.0, true)
+	# v3: one 1-device-px rule under the row (fading at the ends), the active tab = a 2 px amber
+	# underline that fades at its ends with a small cut-gem diamond (no crystal keystone).
+	var y := GemDraw.pixel_y(self, size.y - 1.0)
+	var hl := Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5)
+	var hl0 := Color(hl.r, hl.g, hl.b, 0.0)
+	draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(size.x * 0.12, y), Vector2(size.x * 0.88, y), Vector2(size.x, y)]),
+			PackedColorArray([hl0, hl, hl, hl0]), -1.0)
 	if _uw <= 0.0:
 		return
-	var uy := size.y - 4.0
-	draw_line(Vector2(_ux - _uw * 0.5, uy), Vector2(_ux + _uw * 0.5, uy), UITokens.CTA_LO, 2.5, true)
-	GemDraw.draw_keystone(self, Vector2(_ux, uy), 12.0, 1.0, Color(1.0, 0.9, 0.6))
+	var uy := GemDraw.pixel_y(self, size.y - 4.0)
+	var a := UITokens.CTA_LO
+	var a0 := Color(a.r, a.g, a.b, 0.0)
+	draw_polyline_colors(PackedVector2Array([Vector2(_ux - _uw * 0.5, uy), Vector2(_ux - _uw * 0.3, uy), Vector2(_ux + _uw * 0.3, uy), Vector2(_ux + _uw * 0.5, uy)]),
+			PackedColorArray([a0, a, a, a0]), UIKit.px(UITokens.SELECT_PX))
+	GemDraw.draw_diamond(self, Vector2(_ux, uy), 9.0, UITokens.TOPAZ, Color("#A8662A"))
