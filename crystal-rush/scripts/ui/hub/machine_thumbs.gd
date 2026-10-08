@@ -4,6 +4,8 @@ extends Node
 ## live machine (and its Ascension look) once in a transparent SubViewport, 3/4 front view,
 ## keeps the textures for the session and caches PNGs in user://thumbs/ for later launches.
 ## Headless runs get null (cards fall back to the vector icon).
+## UI v2: lit for the light gem-ground cards - a warm key, a neutral-warm ambient and a soft
+## cool rim (no blue cast), so the machines read like the painted cream UI around them.
 ##
 ##   var tex := MachineThumbs.get_thumb(self, "ballista", false)   # null until rendered
 ##   MachineThumbs.service(get_tree()).rendered.connect(func(key, tex): ...)
@@ -12,7 +14,7 @@ signal rendered(key: String, tex: Texture2D)
 
 const PX := 256
 ## Bump when the procedural models change their look (old PNGs are ignored).
-const VERSION := "m1e"
+const VERSION := "m2a"
 
 static var _cache := {}
 var _queue: Array[String] = []
@@ -79,20 +81,20 @@ func _ready() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.78, 0.82, 1.0)
-	env.ambient_light_energy = 0.7
+	env.ambient_light_color = Color(0.96, 0.93, 0.88)
+	env.ambient_light_energy = 0.72
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_vp.add_child(we)
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-35, -40, 0)
-	key.light_energy = 1.2
-	key.light_color = Color(1.0, 0.95, 0.88)
+	key.light_energy = 1.22
+	key.light_color = Color(1.0, 0.94, 0.84)
 	_vp.add_child(key)
 	var rim := DirectionalLight3D.new()
 	rim.rotation_degrees = Vector3(-15, 150, 0)
-	rim.light_color = Color(0.6, 0.8, 1.0)
-	rim.light_energy = 0.9
+	rim.light_color = Color(0.86, 0.92, 1.0)
+	rim.light_energy = 0.75
 	_vp.add_child(rim)
 	_cam = Camera3D.new()
 	_cam.fov = 26.0

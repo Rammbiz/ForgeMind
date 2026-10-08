@@ -41,6 +41,8 @@ var _head: Control
 var _sheet: KitSheet
 var _show: HubShowcase
 var _lv_lbl: Label
+var _lv_word: Label
+var _lv_max: Label
 var _tabs: KitTabs
 var _tab := "stats"
 var _pages := {}
@@ -104,7 +106,7 @@ func _build() -> void:
 	# The machine on the turntable: from under the header down into the sheet's arch.
 	_show = HubShowcase.new("machine")
 	_show.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_show.offset_top = ins.y + 176.0
+	_show.offset_top = ins.y + 110.0
 	_show.offset_bottom = -(SHEET_H + ins.w) + 46.0
 	_show.offset_left = 40.0
 	_show.offset_right = -40.0
@@ -139,20 +141,30 @@ func _build() -> void:
 	chips.add_child(family_chip(str(c["family"])))
 	chips.add_child(text_chip(Loc.t(str((ArsenalData.VERBS[str(c["verb"])] as Dictionary)["name"]))))
 	tv.add_child(chips)
-	var lv := VBoxContainer.new()
+	var lv := HBoxContainer.new()
 	lv.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	lv.position = Vector2(-UITokens.GUTTER - 200.0, 14.0)
-	lv.size = Vector2(200, 80)
-	lv.alignment = BoxContainer.ALIGNMENT_BEGIN
+	lv.position = Vector2(-UITokens.GUTTER - 260.0, 10.0)
+	lv.size = Vector2(260, 76)
+	lv.alignment = BoxContainer.ALIGNMENT_END
+	lv.add_theme_constant_override("separation", 6)
 	lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_head.add_child(lv)
-	_lv_lbl = UIKit.number("", 46, true)
+	var lw := UIKit.label(Loc.t("LV").replace("%d", "").strip_edges(), 22, UIKit.GOLD_HI, true)
+	UIKit.soft_shadow(lw)
+	lw.size_flags_vertical = Control.SIZE_SHRINK_END
+	lw.custom_minimum_size.y = 44
+	lv.add_child(lw)
+	_lv_lbl = UIKit.number("", 60, true)
 	_lv_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_lv_lbl.size_flags_vertical = Control.SIZE_SHRINK_END
 	lv.add_child(_lv_lbl)
-	var mx := UIKit.label("/ %d" % ArsenalData.MAX_LEVEL, 20, UIKit.GOLD_HI, true)
+	var mx := UIKit.label("/%d" % ArsenalData.MAX_LEVEL, 22, UIKit.GOLD_HI, true)
 	UIKit.soft_shadow(mx)
-	mx.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	mx.size_flags_vertical = Control.SIZE_SHRINK_END
+	mx.custom_minimum_size.y = 44
 	lv.add_child(mx)
+	_lv_word = lw
+	_lv_max = mx
 	# The cream sheet.
 	_sheet = UIKit.sheet(Vector2(UITokens.GUTTER, 10))
 	_sheet.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -183,6 +195,12 @@ func _build() -> void:
 	_rebuild_body()
 
 
+func _set_level(lvl: int) -> void:
+	_lv_lbl.text = str(lvl) if lvl > 0 else ""
+	_lv_word.visible = lvl > 0
+	_lv_max.visible = lvl > 0
+
+
 func _on_tab(t: String) -> void:
 	var old: Control = _pages.get(_tab)
 	_tab = t
@@ -207,7 +225,7 @@ func _rebuild_body() -> void:
 	_bp = null
 	_cost = null
 	var c := Meta.machine_card(id)
-	_lv_lbl.text = Loc.f("LV", [int(c["lvl"])]) if bool(c["owned"]) else ""
+	_set_level(int(c["lvl"]) if bool(c["owned"]) else 0)
 	_pages["stats"] = _stats_page(c)
 	_pages["beats"] = _beats_page(c)
 	_talent_box = _talents_page(c)
@@ -371,7 +389,7 @@ func _do_upgrade() -> void:
 	var asc_before := int(before["lvl"]) >= ArsenalData.ASCENSION_LEVEL
 	if asc_now != asc_before:
 		_show.show_machine(id, int(res["lvl"]), false)
-	_lv_lbl.text = Loc.f("LV", [int(res["lvl"])])
+	_set_level(int(res["lvl"]))
 	UIJuice.punch(_lv_lbl, 1.35, 0.4)
 	Meta.note("upgrade_ceremony", {"id": id, "tier": tier})
 	_busy = false
@@ -389,34 +407,39 @@ func _do_upgrade() -> void:
 
 ## Full ceremony (a beat level): warm rays, the beat's icon and name rise over the stage.
 func _beat_banner(beat: String) -> void:
+	# Host = the stage band (clipped at the sheet's top so the rays stay on the stage).
 	var host := Control.new()
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var r := _show.get_global_rect()
-	host.position = r.position - global_position
-	host.size = r.size
+	host.clip_contents = true
+	host.size = Vector2(size.x, _sheet.position.y - 8.0)
 	add_child(host)
+	var c := _show.get_global_rect().get_center() - global_position
+	c.y = minf(c.y, host.size.y - 90.0)
 	var rays := UIKit.Rays.new()
 	rays.color = Color(1.0, 0.9, 0.6, 0.4)
 	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rays.position = Vector2(r.size.x * 0.5 - 380, r.size.y * 0.5 - 380)
+	rays.position = c - Vector2(380, 380)
 	rays.size = Vector2(760, 760)
 	host.add_child(rays)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 14)
+	# Genshin level-up band: a full-width amber band with the beat's icon and name.
+	var band := UIKit.band(Loc.t("BEAT_" + beat.to_upper()), "amber", 112.0)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bl := band.get_child(0) as Label
+	bl.add_theme_font_size_override("font_size", UIKit.fit_size(bl.text, size.x - 220.0, 52, 30))
+	var ic := Icons.make(str(BEAT_ICONS.get(beat, "trophy")), 56.0, UIKit.CTA_TEXT)
+	var row := Control.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ic := Icons.make(str(BEAT_ICONS.get(beat, "trophy")), 64.0, UIKit.ON_SCENE)
-	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(ic)
-	var t := UIKit.gradient_heading(Loc.t("BEAT_" + beat.to_upper()), 60, Color(1, 1, 0.96), Color("#FFE6A3"), Color("#F5AE45"))
-	UIKit.scene_halo(t, 0.8, 1.3)
-	row.add_child(t)
-	row.size = Vector2(r.size.x, 90)
-	row.position = Vector2(0, r.size.y * 0.5 - 45)
+	row.position = Vector2(0, c.y - 56.0)
+	row.size = Vector2(size.x, 112.0)
 	host.add_child(row)
-	UIJuice.pop(row, 0.0, UITokens.SLOW, 0.7)
+	band.size = row.size
+	row.add_child(band)
+	ic.position = Vector2(UITokens.GUTTER + 14.0, 28.0)
+	ic.size = Vector2(56, 56)
+	row.add_child(ic)
+	UIJuice.pop(row, 0.0, UITokens.SLOW, 0.85)
 	UIJuice.fade_in(rays, 0.0, UITokens.FAST)
-	UIKit.sparkles(host, r.size * 0.5, UIKit.GOLD_LIGHT, 34, 320.0)
+	UIKit.sparkles(host, c, UIKit.GOLD_LIGHT, 34, 320.0)
 	UIJuice.haptic_pattern("upgrade")
 	Audio.play("weapon_get", -2.0)
 	var tw := host.create_tween()
@@ -638,7 +661,7 @@ func _talents_page(c: Dictionary) -> Control:
 			var tc := TalentCard.new()
 			tc.talent = tid
 			tc.state = "locked" if lvl < need else ("chosen" if cur == tid else ("pick" if cur == "" else "other"))
-			tc.custom_minimum_size = Vector2(0, 132)
+			tc.custom_minimum_size = Vector2(0, 116)
 			tc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			tc.tapped.connect(_pick_talent.bind(tier, tid, tc))
 			row.add_child(tc)
