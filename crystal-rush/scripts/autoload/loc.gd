@@ -272,7 +272,7 @@ const STRINGS := {
 	"LEAD_DESC": ["Виходить на бій з самого старту", "Fielded from the start of the run"],
 	"DECK": ["Колода", "Deck"],
 	"AUTO_DECK": ["Авто-колода", "Auto-deck"],
-	"DECK_HINT": ["Колода вирішує, що в скринях", "Your deck decides what crates hold"],
+	"DECK_HINT": ["Колода вирішує, що в схованках", "Your deck decides what caches hold"],
 	"BEST_UPGRADE": ["Найкраще покращення", "Best upgrade"],
 	"TALENT_PICK": ["Обери талант", "Pick a talent"],
 	"TALENT_RESPEC": ["Змінити безкоштовно", "Change for free"],
