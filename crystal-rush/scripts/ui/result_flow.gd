@@ -937,32 +937,35 @@ func _notification(what: int) -> void:
 ## The stairs multiplier stamp: an amber chamfered seal (the CTA jewel's colours, a fine rim
 ## and an inner light line) with "×3.2" in warm white - no stroke, a soft amber shadow.
 class Stamp extends Control:
+	## The stairs multiplier seal (UI v2 polish): a porcelain plate with a double gold hairline,
+	## an amber number and a topaz keystone on the top edge - it stamps in juicily, but it is
+	## no longer an amber slab that reads as a second button next to the CTA.
 	var text := "×2"
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		draw_texture_rect(UIKit.glow_texture(), r.grow(26), false, Color(1.0, 0.76, 0.32, 0.45))
+		draw_texture_rect(UIKit.glow_texture(), r.grow(22), false, Color(1.0, 0.78, 0.36, 0.3))
 		var pts := GemDraw.chamfer_rect(r, 12.0)
 		for i in 4:
 			var sp := PackedVector2Array()
 			for p in pts:
 				sp.append(p + Vector2(0, 2.0 + i * 1.5))
-			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.07))
+			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.06))
 		var cols := PackedColorArray()
 		for p in pts:
-			var k := p.y / maxf(size.y, 1.0)
-			cols.append(UITokens.CTA_HI.lerp(UITokens.CTA, minf(k * 1.6, 1.0)).lerp(UITokens.CTA_LO, maxf(k - 0.55, 0.0) * 2.0))
+			cols.append(UITokens.PAPER_0.lerp(UITokens.PAPER_2, clampf(p.y / maxf(size.y, 1.0), 0.0, 1.0)))
 		draw_polygon(pts, cols)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-4.0), 9.0), Color(1.0, 0.95, 0.8, 0.75), 1.2)
-		GemDraw.outline(self, pts, UITokens.CTA_RIM, 1.5)
+		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-5.0), 8.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5), 1.0)
 		var f := UIKit.font_w("extrabold")
-		var fs := 48
-		while fs > 26 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 22.0:
+		var fs := 46
+		while fs > 26 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 26.0:
 			fs -= 2
 		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var p := Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.36)
-		draw_string(f, p + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.9, 0.64, 0.5))
-		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.CTA_TEXT)
+		var p := Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.36 + 2.0)
+		draw_string(f, p + Vector2(0, 1.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.98, 0.9, 0.9))
+		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.CTA_LO.darkened(0.12))
+		GemDraw.draw_keystone(self, Vector2(size.x * 0.5, 0.0), 16.0, 1.0, Color(1.0, 0.86, 0.5))
 
 
 ## One Crown of the 3 as a gold gem mark: a topaz star-cut gem in its gold bezel (won), or

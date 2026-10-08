@@ -78,7 +78,8 @@ func _ready() -> void:
 	if not inline_cache:
 		var content_h := 304.0 + 96.0 + (110.0 if int((bundle.get("assist", {}) as Dictionary).get("stacks", 0)) > 0 else 0.0)
 		var spare := (_retry_btn_y() - 28.0) - (_ins.y + SHEET_Y + content_h)
-		_ins.y += clampf(spare * 0.7, 0.0, 220.0)
+		# Keep a steady 64 px between the last row and «Ще раз» (tall phones too).
+		_ins.y += clampf(spare - 64.0, 0.0, 340.0)
 	# Calm: a cool porcelain title that settles in, the reason, and (when the copy exists) a
 	# word of encouragement. No red anywhere.
 	var rib := ResultFlow.ribbon(Loc.t("DEFEAT"), false, _vp.x)
