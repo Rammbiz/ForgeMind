@@ -3,8 +3,9 @@ extends Control
 ## Rolling number (mechanical odometer): each digit column scrolls like a counter wheel, so a
 ## change from 1 290 to 1 310 rolls the tens wheel through 9 -> 0 -> 1. Used by the currency
 ## chips (RewardFly rolls them from first arrival to last + 150 ms) and the result flow.
-## Thousands are grouped like Loc.num(). Draws with UIKit's bold font, a dark outline and a
-## soft shadow (same look as UIKit.heading).
+## Thousands are grouped like Loc.num(). v2: ExtraBold digits, never stroked; ink on cream by
+## default, and a light `color` (on scenes) gets the soft slate scene shadow, like
+## UIKit.number(.., true).
 
 signal finished
 
@@ -12,8 +13,9 @@ signal finished
 	set(v):
 		font_size = v
 		_measure()
-@export var color := UIKit.TEXT
-@export var outline := 6
+@export var color := UIKit.INK
+## Kept for old call sites; v2 draws no outline (it only widens the clip window a little).
+@export var outline := 0
 ## Horizontal alignment of the number inside the control.
 @export var align := HORIZONTAL_ALIGNMENT_LEFT
 
@@ -78,8 +80,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func _font() -> Font:
+	return UIKit.font_w("extrabold")
+
+
 func _measure() -> void:
-	var f := UIKit.font(true)
+	var f := _font()
 	_digit_w = f.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var chars := _text_for(maxi(absi(value), absi(int(_shown)))).length()
 	custom_minimum_size = Vector2(chars * _digit_w + outline, f.get_height(font_size))
@@ -93,7 +99,7 @@ func _text_for(n: int) -> String:
 
 
 func _draw() -> void:
-	var f := UIKit.font(true)
+	var f := _font()
 	var pad := _pad()
 	var base_y := _base_y(f)
 	_win.position = Vector2(-pad, base_y - _cap(f) - pad)
@@ -103,9 +109,9 @@ func _draw() -> void:
 	_ink.queue_redraw()
 
 
-## Outline room around the digits inside the window.
+## Shadow room around the digits inside the window.
 func _pad() -> float:
-	return float(outline) + 4.0
+	return float(mini(outline, 4)) + 6.0
 
 
 ## Digit height (Rubik figures sit at about 0.74 of the ascent).
@@ -118,7 +124,7 @@ func _base_y(f: Font) -> float:
 
 
 func _paint() -> void:
-	var f := UIKit.font(true)
+	var f := _font()
 	var x_val := maxf(_shown, 0.0)
 	var target := int(round(x_val)) if _dur <= 0.0 else int(floor(x_val))
 	var text := _text_for(maxi(target, int(_to) if _dur > 0.0 else target))
@@ -164,6 +170,10 @@ func _digit(f: Font, s: String, pos: Vector2, alpha: float) -> void:
 	var cw := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var p := pos + Vector2((_digit_w - cw) * 0.5, 0)
 	var a := clampf(alpha * 1.6, 0.0, 1.0)
-	_ink.draw_string_outline(f, p + Vector2(0, maxf(2.0, font_size / 14.0)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline + 4, Color(0, 0, 0.04, 0.45 * a))
-	_ink.draw_string_outline(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline, Color(0.02, 0.03, 0.08, 0.95 * a))
+	if color.get_luminance() > 0.62:
+		# On a scene: the soft slate shadow (no stroke).
+		var sc := UITokens.SCRIM
+		var dy := clampf(font_size / 28.0, 1.0, 3.0)
+		_ink.draw_string_outline(f, p + Vector2(0, dy), s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, clampi(font_size / 7, 3, 12), Color(sc.r, sc.g, sc.b, 0.12 * a))
+		_ink.draw_string(f, p + Vector2(0, dy), s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(sc.r, sc.g, sc.b, 0.3 * a))
 	_ink.draw_string(f, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color.r, color.g, color.b, color.a * a))

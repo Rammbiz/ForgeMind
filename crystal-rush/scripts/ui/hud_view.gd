@@ -37,7 +37,7 @@ var insets := Vector4.ZERO
 
 var _top: HBoxContainer
 var _level_lbl: Label
-var _coins_lbl: Label
+var _coins_plate: KitCurrencyPlate
 var _coin_icon: Control
 var _coins_shown := 0
 var _coins_tw: Tween
@@ -122,29 +122,32 @@ func _build_top() -> void:
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_top.add_child(left)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left.add_child(row)
-	var lp := UIKit.pill()
+	# v2: porcelain plates (cream, one gold hairline, soft slate shadow) - readable on any world.
+	var lp := PanelContainer.new()
+	lp.add_theme_stylebox_override("panel", UIKit.lux("pill", Vector2(16, 6)))
+	lp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lp.custom_minimum_size.y = 52
 	var lrow := HBoxContainer.new()
 	lrow.add_theme_constant_override("separation", 8)
 	lrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lp.add_child(lrow)
-	lrow.add_child(Icons.make("crystal", 30.0))
-	_level_lbl = UIKit.heading(Loc.f("LEVEL", [level]), 28, UIKit.TEXT, 6)
+	var mark := Icons.make("map", 28.0, UIKit.GOLD_TEXT)
+	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lrow.add_child(mark)
+	_level_lbl = UIKit.label(Loc.f("LEVEL", [level]), 24, UIKit.INK, true)
+	_level_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_level_lbl.size_flags_vertical = Control.SIZE_FILL
 	lrow.add_child(_level_lbl)
 	row.add_child(lp)
-	var cp := UIKit.pill()
-	var crow := HBoxContainer.new()
-	crow.add_theme_constant_override("separation", 8)
-	crow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cp.add_child(crow)
-	_coin_icon = Icons.make("coin", 34.0)
-	crow.add_child(_coin_icon)
-	_coins_lbl = UIKit.heading("0", 30, UIKit.GOLD, 6)
-	_coins_lbl.custom_minimum_size.x = 44
-	crow.add_child(_coins_lbl)
-	row.add_child(cp)
+	_coins_plate = UIKit.currency_plate("coin", "0", false, 148.0)
+	_coins_plate.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_coins_plate)
+	# Display only: the plate must not eat drags that start over it.
+	_coins_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coin_icon = _coins_plate
 	# Machine column, bottom-left (display only): the army-arms chip on top, then 3 slots.
 	_column = VBoxContainer.new()
 	_column.add_theme_constant_override("separation", SLOT_GAP)
@@ -161,8 +164,7 @@ func _build_top() -> void:
 		_column.add_child(s)
 		_slots.append(s)
 	_top.add_child(UIKit.spacer())
-	_pause_btn = RoundButton.new(30.0)
-	_pause_btn.icon_kind = "pause"
+	_pause_btn = UIKit.edge_button("pause", 30.0)
 	_pause_btn.pressed.connect(func(): pause_pressed.emit())
 	_top.add_child(_pause_btn)
 
@@ -170,16 +172,16 @@ func _build_top() -> void:
 func set_coins(n: int, animate := true) -> void:
 	if not animate:
 		_coins_shown = n
-		_coins_lbl.text = str(n)
+		_coins_plate.value = Loc.num(n)
 		return
 	if _coins_tw:
 		_coins_tw.kill()
 	var from := _coins_shown
 	_coins_shown = n
-	_coins_tw = _coins_lbl.create_tween()
-	_coins_tw.tween_method(func(v: float): _coins_lbl.text = str(int(round(v))), float(from), float(n), 0.25)
+	_coins_tw = _coins_plate.create_tween()
+	_coins_tw.tween_method(func(v: float): _coins_plate.value = Loc.num(int(round(v))), float(from), float(n), 0.25)
 	if n > from:
-		UIKit.punch(_coin_icon, 1.3, 0.28)
+		UIKit.punch(_coin_icon, 1.12, 0.26)
 
 
 # ------------------------------------------------------------------ ult
@@ -188,9 +190,7 @@ func _build_ult() -> void:
 	ult_btn = RoundButton.new(ULT_RADIUS)
 	ult_btn.ult_style = true
 	ult_btn.custom_minimum_size = Vector2(ULT_RADIUS * 2.0 + 60.0, ULT_RADIUS * 2.0 + 48.0)
-	ult_btn.base_color = Color(0.08, 0.06, 0.18, 1.0)
 	ult_btn.glow_color = _vivid(hero_color.lerp(Color(1.0, 0.5, 1.0), 0.3))
-	ult_btn.progress_color = Color(0.55, 0.7, 1.0)
 	ult_btn.icon_kind = ult_icon
 	ult_btn.badge_icon = ult_icon
 	ult_btn.caption = Loc.t("ULT")
@@ -211,8 +211,8 @@ func set_ult(ratio: float, ready: bool) -> bool:
 	_ult_ready = ready
 	if edge:
 		ult_btn.burst()
-		toast(Loc.t("ULT_READY"), Color(0.86, 0.45, 1.0))
-		UIKit.sparkles(self, ult_btn.position + Vector2(ult_btn.size.x * 0.5, ULT_RADIUS + 4.0), ult_btn.glow_color.lightened(0.3), 22, 220.0)
+		toast(Loc.t("ULT_READY"), UITokens.TOPAZ)
+		UIKit.sparkles(self, ult_btn.position + Vector2(ult_btn.size.x * 0.5, ULT_RADIUS + 4.0), UIKit.GOLD_LIGHT, 22, 220.0)
 	return edge
 
 
@@ -238,7 +238,7 @@ func _build_drag_hint() -> void:
 	_drag.add_child(anim)
 	var p := UIKit.pill()
 	p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var l := UIKit.heading(Loc.t("DRAG_HINT"), 30, UIKit.TEXT, 7)
+	var l := UIKit.label(Loc.t("DRAG_HINT"), 26, UIKit.INK, true)
 	p.add_child(l)
 	_drag.add_child(p)
 	_drag.visible = false
@@ -277,7 +277,7 @@ func _build_hint() -> void:
 	_hint_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hint_badge.icon_scale = 0.78
 	row.add_child(_hint_badge)
-	_hint_lbl = UIKit.heading("", 28, UIKit.TEXT, 6)
+	_hint_lbl = UIKit.label("", 26, UIKit.INK, true)
 	_hint_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hint_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(_hint_lbl)
@@ -331,7 +331,7 @@ func show_hint(key: String) -> void:
 	var max_w := minf(get_viewport_rect().size.x - 48.0 - 140.0, 440.0)
 	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_hint_lbl.custom_minimum_size = Vector2.ZERO
-	_hint_lbl.text = _wrap_text(Loc.t(key), max_w, 28)
+	_hint_lbl.text = _wrap_text(Loc.t(key), max_w, 26)
 	_hint_lbl.reset_size()
 	var ik: String = HINT_ICONS.get(key, "")
 	if ik == "":
@@ -341,13 +341,13 @@ func show_hint(key: String) -> void:
 	_place_hint()
 	var y := _hint.position.y
 	_hint.modulate.a = 0.0
-	_hint.scale = Vector2(0.9, 0.9)
-	_hint.position.y = y - 26.0
+	_hint.scale = Vector2(0.96, 0.96)
+	_hint.position.y = y - 18.0
 	_hint_tw = _hint.create_tween()
-	_hint_tw.set_parallel(true).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_hint_tw.tween_property(_hint, "modulate:a", 1.0, 0.25)
-	_hint_tw.tween_property(_hint, "scale", Vector2.ONE, 0.4)
-	_hint_tw.tween_property(_hint, "position:y", y, 0.4)
+	_hint_tw.set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_hint_tw.tween_property(_hint, "modulate:a", 1.0, UITokens.MENU_IN)
+	_hint_tw.tween_property(_hint, "scale", Vector2.ONE, 0.28)
+	_hint_tw.tween_property(_hint, "position:y", y, 0.28)
 	_hint_tw.chain().tween_interval(HINT_TIME)
 	_hint_tw.chain().tween_property(_hint, "modulate:a", 0.0, 0.45)
 	_hint_tw.chain().tween_callback(func(): _hint.visible = false)
@@ -356,21 +356,24 @@ func show_hint(key: String) -> void:
 
 # ------------------------------------------------------------------ toasts
 
-## Big centred gradient text (ult ready, ult name, armour, stairs multiplier).
+## Big centred title on the scene (ult ready, ult name, armour, stairs multiplier): warm white
+## into `color`, no stroke - a soft slate shadow and halo carry it on any world.
 func toast(text: String, color := Color(1.0, 0.9, 0.5), size_px := 54) -> void:
 	if _big_toast:
 		_big_toast.queue_free()
 	if _big_tw:
 		_big_tw.kill()
 	var vp := get_viewport_rect().size
-	var l := UIKit.gradient_heading(text, size_px, color.lightened(0.7), color, color.darkened(0.35), 12)
-	l.add_theme_color_override("font_outline_color", color.darkened(0.8))
+	var hue := Color.from_hsv(color.h, minf(color.s, 0.75), maxf(color.v, 0.92))
+	var l := UIKit.gradient_heading(text, size_px, UIKit.ON_SCENE, hue.lerp(UIKit.ON_SCENE, 0.35), hue)
+	UIKit.soft_shadow(l, size_px, 1.3)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.size = Vector2(vp.x, size_px * 1.6)
 	l.position = Vector2(0, vp.y * 0.305)
 	l.pivot_offset = l.size * 0.5
 	add_child(l)
+	_halo_behind(l, UIKit.font_w("extrabold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x, 1.0)
 	_big_toast = l
 	l.scale = Vector2(0.4, 0.4)
 	l.modulate.a = 0.0
@@ -388,19 +391,45 @@ func toast(text: String, color := Color(1.0, 0.9, 0.5), size_px := 54) -> void:
 		l.queue_free())
 
 
-## Small pill toast with an icon, stacking under the big toast line (power-ups, arms).
+## A soft slate glow behind on-scene text `l` (no panel, no stroke), sized to the text width.
+static func _halo_behind(l: Control, text_w: float, strength := 1.0) -> TextureRect:
+	var g := TextureRect.new()
+	g.texture = UIKit.glow_texture()
+	g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	g.stretch_mode = TextureRect.STRETCH_SCALE
+	g.modulate = Color(UIKit.SCRIM.r, UIKit.SCRIM.g, UIKit.SCRIM.b, 0.34 * strength)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.show_behind_parent = true
+	l.add_child(g)
+	g.size = Vector2(text_w * 1.45 + 40.0, l.size.y * 1.5)
+	g.position = (l.size - g.size) * 0.5
+	return g
+
+
+## Small porcelain toast with an icon, stacking under the big toast line (power-ups, arms).
+## `color` tints the gem keystone at its left (the text stays ink on cream).
 func pill_toast(text: String, icon := "", color := UIKit.GOLD) -> void:
 	var holder := CenterContainer.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var p := UIKit.pill()
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UIKit.lux("pill", Vector2(18, 6)))
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(row)
 	if icon != "":
-		row.add_child(Icons.make(icon, 42.0))
-	var l := UIKit.heading(text, 32, color, 7)
+		var b := IconBadge.new()
+		b.ring = color
+		b.set_icon(icon)
+		b.custom_minimum_size = Vector2(48, 48)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(b)
+	var l := UIKit.label(text, 28, UIKit.INK, true)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.size_flags_vertical = Control.SIZE_FILL
 	row.add_child(l)
+	row.add_child(UIKit.gap(4))
 	holder.add_child(p)
 	_toasts.add_child(holder)
 	_layout()
@@ -553,75 +582,100 @@ static func machine_name(kind: String) -> String:
 	return kind
 
 
+## Gem key of a machine's rarity frame ("quartz".."opal"); topaz for non-machines.
+static func _gem_of(kind: String) -> String:
+	if not ArsenalData.MACHINES.has(kind):
+		return "topaz"
+	return UITokens.gem_of(ArsenalData.rarity_of(kind))
+
+
 ## The card shown when a machine joins (or ranks up from a crate); also used by previews.
-## `lvl` = its Rank after the crate.
+## `lvl` = its Rank after the crate. v2: a gem-ground rarity card (Genshin item card) with the
+## machine render, its name on the cream footer and the Rank as facet pips on the seam, under
+## an engraved "НОВА МАШИНА" plate; a warm halo and slow rays behind (juicy, but no dark).
 static func build_weapon_card(kind: String, lvl: int) -> Control:
 	var col := _weapon_color(kind)
-	var rar := _rarity_color(kind)
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.custom_minimum_size = Vector2(420, 430)
+	var W := 300.0
+	var H := 392.0
+	root.custom_minimum_size = Vector2(W + 80.0, H + 76.0)
+	root.size = root.custom_minimum_size
+	var cx := root.size.x * 0.5
 	var shade := TextureRect.new()
 	shade.texture = UIKit.glow_texture()
 	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.modulate = Color(0.0, 0.0, 0.04, 0.7)
-	shade.size = Vector2(760, 760)
-	shade.position = Vector2(210 - 380, 200 - 380)
+	shade.modulate = Color(UIKit.SCRIM.r, UIKit.SCRIM.g, UIKit.SCRIM.b, 0.42)
+	shade.size = Vector2(720, 720)
+	shade.position = Vector2(cx - 360, 54 + H * 0.5 - 360)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shade)
+	var warm := TextureRect.new()
+	warm.texture = UIKit.glow_texture()
+	warm.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	warm.modulate = Color(1.0, 0.86, 0.55, 0.55)
+	warm.size = Vector2(560, 560)
+	warm.position = Vector2(cx - 280, 54 + H * 0.42 - 280)
+	warm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(warm)
 	var rays := UIKit.Rays.new()
-	rays.color = Color(col.r, col.g, col.b, 0.55).lerp(Color(1, 0.92, 0.65, 0.55), 0.4)
-	rays.inner = 0.12
-	rays.count = 16
+	rays.color = Color(1.0, 0.9, 0.66, 0.34).lerp(Color(col.r, col.g, col.b, 0.34), 0.25)
+	rays.inner = 0.14
+	rays.count = 14
 	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rays.size = Vector2(900, 900)
-	rays.position = Vector2(210 - 450, 190 - 450)
+	rays.size = Vector2(860, 860)
+	rays.position = Vector2(cx - 430, 54 + H * 0.42 - 430)
 	root.add_child(rays)
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", UIKit.lux("card_sel", Vector2(26, 20)))
+	var gk := _gem_of(kind)
+	var card := UIKit.gem_card(gk, Vector2(W, H))
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.custom_minimum_size = Vector2(360, 0)
-	card.position = Vector2(30, 14)
-	root.add_child(card)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(v)
-	var head_text := Loc.t("NEW_MACHINE") if lvl <= 1 else Loc.t("RANK_UP") % ["I", "II", "III"][clampi(lvl, 1, 3) - 1]
-	var head := UIKit.heading(head_text.to_upper(), 22, UIKit.GOLD, 5)
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(head)
-	var art := IconBadge.new()
-	art.ring = col
-	art.big = true
-	art.icon = kind
-	art.icon_scale = 0.8
-	art.custom_minimum_size = Vector2(190, 190)
-	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	v.add_child(art)
-	var title := machine_name(kind)
-	var t := UIKit.gradient_heading(title, 44 if title.length() < 16 else 36, Color(1, 1, 0.92), col.lightened(0.45), col.darkened(0.1), 10)
-	t.add_theme_color_override("font_outline_color", col.darkened(0.8))
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
+	card.size = Vector2(W, H)
+	card.position = Vector2(cx - W * 0.5, 54)
+	card.footer_ratio = 0.27
+	card.title = machine_name(kind)
 	if ArsenalData.MACHINES.has(kind):
-		var fam := UIKit.heading(Loc.t(str((ArsenalData.RARITIES[ArsenalData.rarity_of(kind)] as Dictionary)["name"])) + "  ·  " +
-				Loc.t(str((ArsenalData.FAMILIES[ArsenalData.family_of(kind)] as Dictionary)["name"])), 22, rar.lerp(Color.WHITE, 0.25), 5)
-		fam.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		v.add_child(fam)
-	var chev := RankPips.new()
-	chev.rank = clampi(lvl, 1, 3)
-	chev.custom_minimum_size = Vector2(150, 40)
-	chev.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	v.add_child(chev)
-	UIKit.add_shine(card, 26.0, 0.35, 1.4, 0.6)
-	card.resized.connect(func():
-		# Long titles widen the card past 360: keep it centred on the root (and its rays).
-		card.position.x = (420.0 - card.size.x) * 0.5
-		root.custom_minimum_size = Vector2(420, card.size.y + 28.0)
-		rays.position = Vector2(210 - 450, 14 + card.size.y * 0.42 - 450)
-		shade.position = Vector2(210 - 380, 14 + card.size.y * 0.45 - 380))
+		card.footer = Loc.t(str((ArsenalData.RARITIES[ArsenalData.rarity_of(kind)] as Dictionary)["name"])) + "  ·  " + \
+				Loc.t(str((ArsenalData.FAMILIES[ArsenalData.family_of(kind)] as Dictionary)["name"]))
+	card.pip_count = 3
+	card.pips = clampi(lvl, 1, 3)
+	root.add_child(card)
+	# The machine: its 3D render when cached (else the painted icon), on a family-accent glow.
+	var glow := TextureRect.new()
+	glow.texture = UIKit.glow_texture()
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.modulate = Color(col.r, col.g, col.b, 0.42)
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.size = Vector2(W * 0.95, W * 0.95)
+	glow.position = Vector2(W * 0.025, H * 0.36 - W * 0.475)
+	card.content.add_child(glow)
+	var ic := Icons.make(kind, W * 0.62)
+	ic.position = Vector2((W - W * 0.62) * 0.5, H * 0.36 - W * 0.31)
+	ic.size = Vector2(W * 0.62, W * 0.62)
+	card.content.add_child(ic)
+	var set_thumb := func(tex: Texture2D):
+		if tex == null or not is_instance_valid(card):
+			return
+		card.art.texture = tex
+		card.art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		card.art.offset_left = -W * 0.22
+		card.art.offset_right = W * 0.22
+		card.art.offset_top = -H * 0.06
+		ic.visible = false
+	card.ready.connect(func():
+		var tex := MachineThumbs.get_thumb(card, kind, false)
+		if tex:
+			set_thumb.call(tex)
+		elif DisplayServer.get_name() != "headless" and card.is_inside_tree():
+			MachineThumbs.service(card.get_tree()).rendered.connect(func(key: String, t: Texture2D):
+				if is_instance_valid(card) and key == MachineThumbs.key_of(kind, false):
+					set_thumb.call(t)))
+	var head_text := Loc.t("NEW_MACHINE") if lvl <= 1 else Loc.t("RANK_UP") % ["I", "II", "III"][clampi(lvl, 1, 3) - 1]
+	var plate := UIKit.title_plate(head_text.trim_suffix("!"), 280.0, false)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.size = Vector2(280, 44)
+	plate.position = Vector2(cx - 140, 0)
+	root.add_child(plate)
+	UIKit.add_shine(card, 12.0, 0.45, 0.0, 0.22)
 	return root
 
 
@@ -650,24 +704,10 @@ func _open_modal(kind: String, rays := false, ray_color := Color(1.0, 0.85, 0.45
 	_modal.process_mode = Node.PROCESS_MODE_ALWAYS
 	_modal.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_modal)
-	var dim := TextureRect.new()
-	var g := Gradient.new()
-	g.set_color(0, Color(0.03, 0.04, 0.1, 0.55))
-	g.set_color(1, Color(0.0, 0.0, 0.03, 0.88))
-	var gt := GradientTexture2D.new()
-	gt.gradient = g
-	gt.fill = GradientTexture2D.FILL_RADIAL
-	gt.fill_from = Vector2(0.5, 0.42)
-	gt.fill_to = Vector2(1.15, 1.0)
-	gt.width = 256
-	gt.height = 256
-	dim.texture = gt
-	dim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	dim.stretch_mode = TextureRect.STRETCH_SCALE
+	# Warm translucent scrim + vignette (no blur): the road and its gate numbers recede.
+	var dim := ResultFlow.scrim(get_viewport_rect().size, 0.62, 0.8)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal.add_child(dim)
-	dim.modulate.a = 0.0
-	dim.create_tween().tween_property(dim, "modulate:a", 1.0, 0.3)
 	if rays:
 		var r := UIKit.Rays.new()
 		r.color = ray_color
@@ -690,28 +730,36 @@ func show_pause() -> void:
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(center)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIKit.lux("panel", Vector2(48, 40)))
+	panel.add_theme_stylebox_override("panel", UIKit.lux("modal", Vector2(44, 36)))
 	center.add_child(panel)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 20)
+	box.add_theme_constant_override("separation", 18)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(box)
-	var t := UIKit.gradient_heading(Loc.t("PAUSED"), 64)
+	var cap := UIKit.section(Loc.f("LEVEL", [level]))
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(cap)
+	var t := UIKit.heading(Loc.t("PAUSED"), 52, UIKit.INK)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
-	box.add_child(UIKit.divider(380.0))
-	var resume := UIKit.button(Loc.t("RESUME"), true, 400.0)
-	resume.theme_type_variation = "GreenButton"
+	var div := UIKit.divider(400.0)
+	div.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(div)
+	box.add_child(UIKit.gap(4))
+	var resume := UIKit.cta_button(Loc.t("RESUME"), "", Vector2(420, 96), 34)
+	resume.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	resume.pressed.connect(func(): resume_pressed.emit())
 	box.add_child(resume)
-	var again := UIKit.button(Loc.t("RETRY"), false, 400.0)
+	var again := UIKit.secondary_button(Loc.t("RETRY"), "restart", Vector2(420, 76), 26)
+	again.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	again.pressed.connect(func(): retry.emit())
 	box.add_child(again)
-	var to_menu := UIKit.button(Loc.t("MENU"), false, 400.0)
+	var to_menu := UIKit.secondary_button(Loc.t("MENU"), "home", Vector2(420, 76), 26)
+	to_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	to_menu.pressed.connect(func(): menu.emit())
 	box.add_child(to_menu)
-	UIKit.pop_in(panel, 0.0, 0.4)
-	UIKit.stagger([t, resume, again, to_menu], 0.08, 0.06, 0.35)
+	UIJuice.soft_in(panel, Vector2(0, 24))
+	UIKit.stagger([resume, again, to_menu], 0.1, 0.05, 0.3)
 
 
 ## Result screen. `data` follows Run.result: {coins_run, victory, mult, total, survivors};
@@ -748,20 +796,14 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 	if not won:
 		ribbon.set_palette(Color(0.62, 0.66, 0.8), Color(0.3, 0.33, 0.46), Color(0.14, 0.15, 0.24))
 	ribbon_holder.add_child(ribbon)
-	var title: Label
-	if won:
-		title = UIKit.gradient_heading(Loc.t("VICTORY"), 60, Color(1, 1, 1), Color(1.0, 0.96, 0.78), Color(1.0, 0.82, 0.45), 12)
-		title.add_theme_color_override("font_outline_color", Color(0.42, 0.18, 0.02))
-	else:
-		title = UIKit.gradient_heading(Loc.t("DEFEAT"), 60, Color(1, 0.9, 0.88), Color(1.0, 0.55, 0.5), Color(0.82, 0.25, 0.25), 12)
-		title.add_theme_color_override("font_outline_color", Color(0.16, 0.04, 0.06))
+	var title := ResultFlow.ribbon_title(Loc.t("VICTORY") if won else Loc.t("DEFEAT"), won, 56)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title.size = Vector2(560, 92)
 	title.position = Vector2(30, 6)
 	ribbon_holder.add_child(title)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIKit.lux("panel", Vector2(40, 30)))
+	panel.add_theme_stylebox_override("panel", UIKit.lux("modal", Vector2(40, 30)))
 	panel.custom_minimum_size = Vector2(620, 0)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	col.add_child(panel)
@@ -773,7 +815,7 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 	box.add_child(UIKit.gap(34))
 	var anim: Array[Control] = []
 	if reason != "":
-		var why := UIKit.heading(Loc.t(reason), 30, UIKit.TEXT_DIM, 5)
+		var why := UIKit.label(Loc.t(reason), 26, UIKit.INK_DIM, true)
 		why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(why)
 		anim.append(why)
@@ -783,7 +825,7 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 		srow.add_theme_constant_override("separation", 10)
 		srow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		srow.add_child(Icons.make("soldier", 40.0))
-		srow.add_child(UIKit.heading(Loc.f("SURVIVORS", [survivors]), 32, UIKit.TEXT, 6))
+		srow.add_child(UIKit.label(Loc.f("SURVIVORS", [survivors]), 28, UIKit.INK, true))
 		box.add_child(srow)
 		anim.append(srow)
 	var mult_node: Control = null
@@ -807,28 +849,26 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 	trow.alignment = BoxContainer.ALIGNMENT_CENTER
 	trow.add_theme_constant_override("separation", 14)
 	trow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tl := UIKit.heading(Loc.t("COINS_TOTAL"), 30, UIKit.TEXT_DIM, 5)
+	var tl := UIKit.caps(Loc.t("COINS_TOTAL"), 22)
 	tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	trow.add_child(tl)
 	var tcoin := Icons.make("coin", 58.0)
 	tcoin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	trow.add_child(tcoin)
-	var tnum := UIKit.gradient_heading("0", 72)
+	var tnum := UIKit.number("0", 72)
 	tnum.custom_minimum_size.x = 150
 	trow.add_child(tnum)
 	box.add_child(trow)
 	box.add_child(UIKit.gap(6))
 	# Buttons.
-	var primary := UIKit.button(Loc.t("NEXT") if won else Loc.t("RETRY"), true, 440.0)
-	primary.custom_minimum_size.y = 96
-	primary.add_theme_font_size_override("font_size", 40)
+	var primary := UIKit.cta_button(Loc.t("NEXT") if won else Loc.t("RETRY"), "", Vector2(440, 96), 38)
 	primary.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if won:
 		primary.pressed.connect(func(): next.emit())
 	else:
 		primary.pressed.connect(func(): retry.emit())
 	box.add_child(primary)
-	var to_menu := UIKit.button(Loc.t("MENU"), false, 440.0)
+	var to_menu := UIKit.secondary_button(Loc.t("MENU"), "home", Vector2(440, 72), 26)
 	to_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	to_menu.pressed.connect(func(): menu.emit())
 	box.add_child(to_menu)
@@ -845,7 +885,6 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 	UIKit.pop_in(trow, t_total, 0.4)
 	UIKit.count_up(tnum, 0, total, clampf(0.5 + total * 0.004, 0.6, 1.4), t_total + 0.15)
 	UIKit.stagger([primary, to_menu], t_total + 0.5, 0.1, 0.4)
-	UIKit.add_shine(primary, 30.0, t_total + 1.2, 2.4, 0.5)
 	if won:
 		var tw := create_tween()
 		tw.tween_interval(0.3)
@@ -868,18 +907,18 @@ func _mult_block(mult: float) -> Control:
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var glow := TextureRect.new()
 	glow.texture = UIKit.glow_texture()
-	glow.modulate = Color(1.0, 0.7, 0.25, 0.55)
+	glow.modulate = Color(1.0, 0.8, 0.4, 0.4)
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	glow.size = Vector2(360, 200)
 	glow.position = Vector2(60, -26)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(glow)
-	var cap := UIKit.heading(Loc.t("MULTIPLIER").to_upper(), 22, UIKit.GOLD, 5)
+	var cap := UIKit.section(Loc.t("MULTIPLIER"))
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cap.size = Vector2(480, 26)
 	cap.position = Vector2(0, 0)
 	holder.add_child(cap)
-	var big := UIKit.gradient_heading(Loc.t("STAIRS_MULT") % _fmt_mult(mult), 104, Color(1, 1, 0.9), Color(1.0, 0.8, 0.3), Color(0.9, 0.42, 0.08), 14)
+	var big := UIKit.gradient_heading(Loc.t("STAIRS_MULT") % _fmt_mult(mult), 104, UIKit.CTA, UIKit.CTA_LO, UIKit.CTA_RIM)
 	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	big.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	big.size = Vector2(480, 124)
@@ -911,16 +950,16 @@ func _ribbon_in(ribbon: Control, title: Label, delay: float) -> void:
 		tw.parallel().tween_property(n, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
-func _coin_row(text: String, value: String, value_color := UIKit.TEXT, coin := true) -> Control:
+func _coin_row(text: String, value: String, value_color := UIKit.INK, coin := true) -> Control:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(460, 40)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	row.add_theme_constant_override("separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := UIKit.label(text, 28, UIKit.TEXT_DIM, false, 4)
+	var l := UIKit.label(text, 24, UIKit.INK_DIM)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(l)
-	var v := UIKit.heading(value, 32, value_color, 6)
+	var v := UIKit.label(value, 28, value_color, true)
 	row.add_child(v)
 	if coin:
 		row.add_child(Icons.make("coin", 32.0))
@@ -931,37 +970,59 @@ func _coin_row(text: String, value: String, value_color := UIKit.TEXT, coin := t
 
 # ------------------------------------------------------------------ drawn widgets
 
-## Machine slot of the column (§3.7): a glass tile with the machine icon, the family glow, a
-## rarity-coloured frame, Rank chevrons (I-III, drawn: Rubik has no ▲) and the overflow "+N%".
-## The circle variant is the army-arms chip.
+## Machine slot of the column (§3.7), v2: a small gem-ground card (the rarity's gradient, its
+## faint light pool, a gold hairline and an inner rim in the gem's light tone, the gem-cut mark
+## top-left) with the machine render (or its painted icon), the Rank as facet pips on a cream
+## seam bed and the overflow "+N%" on a cream chip. Empty = a faint porcelain socket. The
+## circle variant is the army-arms chip (cream disc, gold ring).
 class WeaponSlot extends Control:
 	var kind := ""
 	var lvl := 0
 	var over := 0
 	var color := Color.WHITE
-	var frame := Color(1, 0.85, 0.45)
+	var gem := "quartz"
 	var circle := false
 	var _flash := 0.0
+	var _tex: Texture2D
+	var _wired := false
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(SLOT_PX, SLOT_PX)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	## Etap-1 setter (the arms chip): icon kind, level 0 = no chevrons, glow colour.
+	## Etap-1 setter (the arms chip): icon kind, level 0 = no pips, accent colour.
 	func set_weapon(k: String, level: int, c: Color) -> void:
 		kind = k
 		lvl = level
 		color = c
-		frame = c.lerp(Color(1, 0.85, 0.45), 0.35)
+		_tex = null
 		queue_redraw()
 
 	func set_machine(id: String, rank: int, p_over: int) -> void:
+		var changed := id != kind
 		kind = id
 		lvl = rank
 		over = p_over
 		color = HudView._weapon_color(id)
-		frame = HudView._rarity_color(id)
+		gem = HudView._gem_of(id)
+		if changed:
+			_tex = null
+			_fetch_thumb()
 		queue_redraw()
+
+	func _ready() -> void:
+		_fetch_thumb()
+
+	func _fetch_thumb() -> void:
+		if circle or kind == "" or not is_inside_tree() or not ArsenalData.MACHINES.has(kind):
+			return
+		_tex = MachineThumbs.get_thumb(self, kind, false)
+		if _tex == null and not _wired and DisplayServer.get_name() != "headless":
+			_wired = true
+			MachineThumbs.service(get_tree()).rendered.connect(func(key: String, tex: Texture2D):
+				if is_instance_valid(self) and key == MachineThumbs.key_of(kind, false):
+					_tex = tex
+					queue_redraw())
 
 	func flash() -> void:
 		_flash = 1.0
@@ -972,38 +1033,83 @@ class WeaponSlot extends Control:
 			queue_redraw()
 
 	func _draw() -> void:
-		var side := minf(size.x, size.y if not circle else size.x)
-		var r := Rect2(Vector2(2, 2), Vector2(side - 4, side - 4)) if not circle else Rect2(Vector2((size.x - 64) * 0.5, 2), Vector2(64, 64))
-		var rad := int(r.size.x * 0.5) if circle else 20
-		if kind == "":
-			draw_style_box(UIKit.box(Color(0.03, 0.04, 0.1, 0.32), Color(1, 1, 1, 0.12), rad, 2, 0, Vector2.ZERO), r)
-			var c := r.get_center()
-			draw_line(c - Vector2(9, 0), c + Vector2(9, 0), Color(1, 1, 1, 0.18), 3.0)
-			draw_line(c - Vector2(0, 9), c + Vector2(0, 9), Color(1, 1, 1, 0.18), 3.0)
+		if circle:
+			_draw_arms()
 			return
-		draw_texture_rect(UIKit.glow_texture(), r.grow(18), false, Color(color.r, color.g, color.b, 0.32 + _flash * 0.6))
-		draw_style_box(UIKit.box(Color(0.0, 0.0, 0.03, 0.45), Color(0, 0, 0, 0), rad + 2, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(0, 5), r.size))
-		draw_style_box(UIKit.box(Color(0.07, 0.09, 0.2, 0.96), frame, rad, 3, 0, Vector2.ZERO), r)
-		draw_style_box(UIKit.box(Color(0, 0, 0, 0), color.lerp(Color.WHITE, 0.2) * Color(1, 1, 1, 0.45), rad - 4, 1, 0, Vector2.ZERO), r.grow(-4))
-		draw_style_box(UIKit.box(Color(1, 1, 1, 0.07), Color(0, 0, 0, 0), rad - 4, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(5, 5), Vector2(r.size.x - 10, r.size.y * 0.4)))
-		var ir := Rect2(r.position + Vector2(9, 5), r.size - Vector2(18, 22))
-		Icons.draw_icon(self, kind, Rect2(ir.position + Vector2(0, 3), ir.size), Color(0, 0, 0.05, 0.35))
-		Icons.draw_icon(self, kind, ir, Color.WHITE)
+		var side := minf(size.x, size.y)
+		var r := Rect2(Vector2(2, 2), Vector2(side - 4, side - 4))
+		var ch := 9.0
+		var pts := GemDraw.chamfer_rect(r, ch)
+		var sc := UITokens.SCRIM
+		if kind == "":
+			draw_colored_polygon(pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.26))
+			GemDraw.outline(self, pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.55), 1.5)
+			GemDraw.draw_keystone(self, r.get_center(), 14.0, 0.5)
+			return
+		# Family glow (the machine's accent) round the card, brighter on a flash.
+		draw_texture_rect(UIKit.glow_texture(), r.grow(16), false, Color(color.r, color.g, color.b, 0.2 + _flash * 0.6))
+		for i in 4:
+			var o := Vector2(0, 2.0 + i * 1.5)
+			var sp := PackedVector2Array()
+			for p in pts:
+				sp.append(p + o)
+			draw_colored_polygon(sp, Color(sc.r, sc.g, sc.b, 0.08))
+		var g: Dictionary = UITokens.gem(gem)
+		var top: Color = g["top"]
+		var bot: Color = g["bot"]
+		var cols := PackedColorArray()
+		for p in pts:
+			cols.append(top.lerp(bot, (p.y - r.position.y) / maxf(r.size.y, 1.0)))
+		draw_polygon(pts, cols)
+		var lc: Color = g["light"]
+		draw_texture_rect(UIKit.glow_texture(), Rect2(r.get_center() - Vector2(r.size.x, r.size.x) * 0.62 - Vector2(0, 6), Vector2(r.size.x, r.size.x) * 1.24), false, Color(lc.r, lc.g, lc.b, 0.3))
+		var ir := Rect2(r.position + Vector2(6, 4), r.size - Vector2(12, 18))
+		if _tex:
+			var s := ir.size.x * 1.6
+			draw_texture_rect(_tex, Rect2(ir.get_center() - Vector2(s, s) * 0.5 + Vector2(0, 2), Vector2(s, s)), false)
+		else:
+			Icons.draw_icon(self, kind, Rect2(ir.position + Vector2(4, 6), ir.size - Vector2(8, 8)), Color.WHITE)
 		if _flash > 0.0:
-			draw_style_box(UIKit.box(Color(1, 1, 1, _flash * 0.6), Color(0, 0, 0, 0), rad, 0, 0, Vector2.ZERO), r)
-		if lvl > 0 and not circle:
-			# Rank chevrons on a dark pill across the bottom edge.
-			var pw := 64.0
-			var pr := Rect2(Vector2(r.get_center().x - pw * 0.5, r.end.y - 14.0), Vector2(pw, 22.0))
-			draw_style_box(UIKit.box(Color(0.02, 0.03, 0.08, 0.94), Color(1, 0.85, 0.45, 0.55), 11, 1, 0, Vector2.ZERO), pr)
-			RankPips.draw_chevrons(self, pr.get_center() + Vector2(0, 1), lvl, 16.0)
-		if over > 0 and not circle:
-			var f := UIKit.font(true)
+			draw_colored_polygon(pts, Color(1, 0.98, 0.9, _flash * 0.55))
+		var rim: Color = g["rim"]
+		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-3.0), ch - 1.5), Color(rim.r, rim.g, rim.b, 0.7), 1.0)
+		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+		GemDraw.draw_mark(self, gem, r.position + Vector2(ch + 3.0, ch + 3.0), 13.0)
+		if lvl > 0:
+			# Rank I-III: facet pips on a cream bed across the bottom edge.
+			var pw := 52.0
+			var bed := Rect2(Vector2(r.get_center().x - pw * 0.5, r.end.y - 10.0), Vector2(pw, 18.0))
+			var bp := GemDraw.chamfer_rect(bed, 5.0)
+			draw_colored_polygon(bp, UITokens.PAPER_0)
+			GemDraw.outline(self, bp, UITokens.HAIRLINE, 1.2)
+			for i in 3:
+				GemDraw.draw_pip(self, Vector2(bed.get_center().x + (i - 1) * 14.0, bed.get_center().y), 13.0, i < lvl, UITokens.TOPAZ)
+		if over > 0:
+			var f := UIKit.font_w("extrabold")
 			var txt := "+%d%%" % int(round(_over_pct(over) * 100.0))
-			var tp := Vector2(r.end.x - 4.0, r.position.y + 18.0)
-			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
-			draw_style_box(UIKit.box(Color(0.25, 0.12, 0.0, 0.92), Color(1, 0.8, 0.35), 8, 1, 0, Vector2.ZERO), Rect2(tp + Vector2(-w - 8.0, -16.0), Vector2(w + 12.0, 21.0)))
-			draw_string(f, tp + Vector2(-w - 2.0, 0.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.55))
+			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			var cr := Rect2(Vector2(r.end.x - w - 10.0, r.position.y - 8.0), Vector2(w + 12.0, 22.0))
+			var cp := GemDraw.chamfer_rect(cr, 5.0)
+			draw_colored_polygon(cp, UITokens.PAPER_0)
+			GemDraw.outline(self, cp, UITokens.HAIRLINE, 1.2)
+			draw_string(f, Vector2(cr.position.x + 6.0, cr.end.y - 5.5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITokens.GOLD_TEXT)
+
+	func _draw_arms() -> void:
+		var c := Vector2(size.x * 0.5, 34.0)
+		var rr := 31.0
+		var sc := UITokens.SCRIM
+		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(rr, rr) * 1.6, Vector2(rr, rr) * 3.2), false, Color(color.r, color.g, color.b, 0.25 + _flash * 0.5))
+		for i in 3:
+			draw_circle(c + Vector2(0, 2.0 + i * 1.2), rr + i, Color(sc.r, sc.g, sc.b, 0.07), true, -1.0, true)
+		draw_circle(c, rr, UITokens.PAPER_1, true, -1.0, true)
+		draw_circle(c + Vector2(0, -rr * 0.1), rr * 0.84, UITokens.PAPER_0, true, -1.0, true)
+		draw_arc(c, rr - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+		draw_arc(c, rr - 4.0, 0, TAU, 48, Color(color.r, color.g, color.b, 0.55), 1.5, true)
+		if kind != "":
+			var isz := rr * 1.3
+			Icons.draw_icon(self, kind, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)))
+		if _flash > 0.0:
+			draw_circle(c, rr, Color(1, 0.98, 0.9, _flash * 0.5), true, -1.0, true)
 
 	static func _over_pct(n: int) -> float:
 		var t := 0.0
@@ -1012,7 +1118,7 @@ class WeaponSlot extends Control:
 		return t
 
 
-## Rank chevrons I-III (gold, filled for the Ranks reached; dim for the rest).
+## Rank I-III as facet pips (topaz lit for the Ranks reached, engraved for the rest).
 class RankPips extends Control:
 	var rank := 1
 
@@ -1020,27 +1126,19 @@ class RankPips extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		draw_chevrons(self, size * 0.5, rank, minf(size.y * 0.8, 32.0))
-
-	static func draw_chevrons(ci: CanvasItem, c: Vector2, n: int, s: float) -> void:
-		var gap := s * 0.95
+		var s := minf(size.y * 0.8, 28.0)
 		for i in 3:
-			var x := c.x + (i - 1) * gap
-			var on := i < n
-			var tip := Vector2(x, c.y - s * 0.38)
-			var pts := PackedVector2Array([tip, Vector2(x + s * 0.46, c.y + s * 0.3), Vector2(x + s * 0.2, c.y + s * 0.3),
-					Vector2(x, c.y + s * 0.02), Vector2(x - s * 0.2, c.y + s * 0.3), Vector2(x - s * 0.46, c.y + s * 0.3)])
-			var sh := PackedVector2Array()
-			for p in pts:
-				sh.append(p + Vector2(0, 2))
-			ci.draw_colored_polygon(sh, Color(0, 0, 0.05, 0.6))
-			ci.draw_colored_polygon(pts, Color(1.0, 0.8, 0.3) if on else Color(0.38, 0.4, 0.5, 0.85))
-			if on:
-				var hi := PackedVector2Array([tip, Vector2(x + s * 0.23, c.y - s * 0.04), Vector2(x - s * 0.23, c.y - s * 0.04)])
-				ci.draw_colored_polygon(hi, Color(1.0, 0.95, 0.75))
+			GemDraw.draw_pip(self, size * 0.5 + Vector2((i - 1) * s * 0.95, 0), s, i < rank, UITokens.TOPAZ)
+
+	## Old call sites: chevrons are pips now (same footprint).
+	static func draw_chevrons(ci: CanvasItem, c: Vector2, n: int, s: float) -> void:
+		for i in 3:
+			GemDraw.draw_pip(ci, c + Vector2((i - 1) * s * 0.95, 0), s, i < n, UITokens.TOPAZ)
 
 
-## Round gold-rimmed medallion behind an icon (hint banner, weapon card).
+## v2 icon socket (hint banner, power toasts, legacy weapon card): a cream disc with a thin
+## gold ring and a second ring in the accent colour; the painted item icon on it. `big` adds a
+## breathing warm glow.
 class IconBadge extends Control:
 	var ring := Color(1.0, 0.8, 0.34)
 	var big := false
@@ -1063,26 +1161,24 @@ class IconBadge extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var r := minf(size.x, size.y) * 0.5 - 2.0
+		var sc := UITokens.SCRIM
 		if big:
 			var k := 0.75 + 0.25 * sin(_t * 3.0)
-			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.5, Vector2(r, r) * 3.0), false, Color(ring.r, ring.g, ring.b, 0.55 * k))
-		draw_circle(c + Vector2(0, 3), r, Color(0, 0, 0.02, 0.4))
-		draw_circle(c, r, Color(0.42, 0.22, 0.05))
-		draw_circle(c + Vector2(0, -1), r - 1.5, Color(1.0, 0.88, 0.5))
-		draw_circle(c + Vector2(0, 1), r - (5.0 if big else 3.5), Color(0.75, 0.46, 0.12))
-		var face := r - (8.0 if big else 5.5)
-		for i in 5:
-			var kk := 1.0 - i * 0.14
-			draw_circle(c - Vector2(0, face * 0.06 * i), face * kk, Color(0.06, 0.08, 0.2).lerp(ring.darkened(0.2), i * 0.11))
-		draw_arc(c, face - 1.0, PI * 1.1, PI * 1.9, 24, Color(1, 1, 1, 0.22), 2.0, true)
+			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.5, Vector2(r, r) * 3.0), false, Color(ring.r, ring.g, ring.b, 0.45 * k))
+		for i in 3:
+			draw_circle(c + Vector2(0, 1.5 + i), r - 1.0 + i, Color(sc.r, sc.g, sc.b, 0.06), true, -1.0, true)
+		draw_circle(c, r, UITokens.PAPER_1, true, -1.0, true)
+		draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0, true, -1.0, true)
+		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 0.8, Vector2(r, r) * 1.6), false, Color(ring.r, ring.g, ring.b, 0.22))
+		draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+		draw_arc(c, r - 4.0, 0, TAU, 48, Color(ring.r, ring.g, ring.b, 0.6), 1.2, true)
 		if icon != "":
-			var isz := face * 2.0 * icon_scale
-			var ir := Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz))
-			Icons.draw_icon(self, icon, Rect2(ir.position + Vector2(0, isz * 0.04), ir.size), Color(0, 0, 0.05, 0.4))
-			Icons.draw_icon(self, icon, ir, Color.WHITE)
+			var isz := (r - 4.0) * 2.0 * icon_scale
+			Icons.draw_icon(self, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)))
 
 
-## Animated hand sliding left and right over a dotted track (drag tutorial).
+## Animated hand sliding left and right over a dotted track (drag tutorial). Warm white
+## dots and hairline chevrons with a soft slate shadow (no strokes) - reads on any world.
 class DragHand extends Control:
 	var _t := 0.0
 
@@ -1098,31 +1194,36 @@ class DragHand extends Control:
 		var cy := 34.0
 		var span := w * 0.36
 		var cx := w * 0.5
-		# Track: glowing dots fading to the ends, chevrons at both ends.
+		var sc := UITokens.SCRIM
+		var ws := UITokens.ON_SCENE
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - span * 1.3, cy - 40), Vector2(span * 2.6, 80)), false, Color(sc.r, sc.g, sc.b, 0.22))
 		for i in 21:
 			var f := float(i) / 20.0 * 2.0 - 1.0
-			var a := 0.75 * (1.0 - absf(f) * 0.6)
-			draw_circle(Vector2(cx + f * span, cy), 4.0, Color(0, 0, 0.05, a * 0.6))
-			draw_circle(Vector2(cx + f * span, cy), 3.0, Color(1, 1, 1, a))
+			var a := 0.85 * (1.0 - absf(f) * 0.6)
+			var p := Vector2(cx + f * span, cy)
+			if i % 5 == 0:
+				GemDraw.draw_pip(self, p + Vector2(0, 1.5), 13.0, true, Color(sc.r, sc.g, sc.b, 0.25 * a))
+				GemDraw.draw_pip(self, p, 12.0, true, Color(1.0, 0.86, 0.5, a))
+			else:
+				draw_circle(p + Vector2(0, 1.5), 3.4, Color(sc.r, sc.g, sc.b, 0.3 * a))
+				draw_circle(p, 2.8, Color(ws.r, ws.g, ws.b, a))
 		for sgn: float in [-1.0, 1.0]:
 			var tip := Vector2(cx + sgn * (span + 34.0), cy)
-			var pts := PackedVector2Array([tip, tip + Vector2(-sgn * 22.0, -18.0), tip + Vector2(-sgn * 12.0, 0), tip + Vector2(-sgn * 22.0, 18.0)])
-			var out := pts.duplicate()
-			out.append(pts[0])
-			draw_polyline(out, Color(0.04, 0.05, 0.12, 0.9), 6.0, true)
-			draw_colored_polygon(pts, UIKit.GOLD)
-		# Hand position: smooth ease back and forth.
+			var arm := PackedVector2Array([tip + Vector2(-sgn * 18.0, -16.0), tip, tip + Vector2(-sgn * 18.0, 16.0)])
+			var sh := PackedVector2Array()
+			for q in arm:
+				sh.append(q + Vector2(0, 2.0))
+			draw_polyline(sh, Color(sc.r, sc.g, sc.b, 0.35), 5.0, true)
+			draw_polyline(arm, Color(1.0, 0.9, 0.62), 3.5, true)
 		var s := sin(_t * 2.4)
 		var x := cx + s * span
 		var hs := 112.0
-		# Motion trail.
 		for k in [3, 2, 1]:
 			var sk := sin(_t * 2.4 - k * 0.16)
 			var xk := cx + sk * span
 			Icons.draw_icon(self, "hand", Rect2(Vector2(xk - hs * 0.485, cy - hs * 0.04), Vector2(hs, hs)), Color(1, 1, 1, 0.1 / k))
-		# Touch ripple under the fingertip.
 		var ph := fmod(_t * 1.6, 1.0)
-		draw_arc(Vector2(x, cy), 10.0 + ph * 26.0, 0, TAU, 32, Color(1, 1, 1, 0.6 * (1.0 - ph)), 3.0, true)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(26, 26), Vector2(52, 52)), false, Color(0.6, 0.9, 1.0, 0.8))
-		Icons.draw_icon(self, "hand", Rect2(Vector2(x - hs * 0.485 + 4.0, cy - hs * 0.04 + 6.0), Vector2(hs, hs)), Color(0, 0, 0.05, 0.35))
+		draw_arc(Vector2(x, cy), 10.0 + ph * 26.0, 0, TAU, 32, Color(1.0, 0.92, 0.7, 0.7 * (1.0 - ph)), 2.5, true)
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(x, cy) - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.86, 0.5, 0.75))
+		Icons.draw_icon(self, "hand", Rect2(Vector2(x - hs * 0.485 + 3.0, cy - hs * 0.04 + 5.0), Vector2(hs, hs)), Color(sc.r, sc.g, sc.b, 0.3))
 		Icons.draw_icon(self, "hand", Rect2(Vector2(x - hs * 0.485, cy - hs * 0.04), Vector2(hs, hs)), Color.WHITE)
