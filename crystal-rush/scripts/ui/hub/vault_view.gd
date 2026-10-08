@@ -381,12 +381,16 @@ class _Pick extends Control:
 
 ## Legendary pity: caps label + a fine bar + "≤ N", or the World 3 note.
 class PityBar extends VBoxContainer:
-	static func make() -> PityBar:
+	## `on_scene`: over a 3D scene (the night altar) the labels are warm white / gold_hi with
+	## a soft slate glow instead of ink on cream.
+	static func make(on_scene := false) -> PityBar:
 		var p := PityBar.new()
 		p.add_theme_constant_override("separation", 4)
 		var left := Meta.pity_left()
 		if left < 0:
-			var t := UIKit.label(Loc.t("PITY_LEG_LOCKED"), 20, UIKit.INK_DIM, true)
+			var t := UIKit.label(Loc.t("PITY_LEG_LOCKED"), 20, UIKit.GOLD_HI if on_scene else UIKit.INK_DIM, true)
+			if on_scene:
+				UIKit.soft_shadow(t, 20, 1.6)
 			t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			p.add_child(t)
 			return p
@@ -396,11 +400,15 @@ class PityBar extends VBoxContainer:
 		m.custom_minimum_size = Vector2(26, 26)
 		m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(m)
-		var l := UIKit.caps(Loc.t("ODDS_PITY_BAR"), 18, UIKit.INK_SOFT)
+		var l := UIKit.caps(Loc.t("ODDS_PITY_BAR"), 18, UIKit.ON_SCENE if on_scene else UIKit.INK_SOFT)
+		if on_scene:
+			UIKit.soft_shadow(l, 18, 1.6)
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(l)
-		var n := UIKit.label(Loc.f("PITY_SHORT", [left]), 20, UIKit.GOLD_TEXT, true)
+		var n := UIKit.label(Loc.f("PITY_SHORT", [left]), 20, UIKit.GOLD_HI if on_scene else UIKit.GOLD_TEXT, true)
+		if on_scene:
+			UIKit.soft_shadow(n, 20, 1.6)
 		row.add_child(n)
 		p.add_child(row)
 		var hard := float(EconData.PITY["leg_hard"])
@@ -477,15 +485,21 @@ class Reveal extends Control:
 			crow.add_child(ci)
 			crow.add_child(UIKit.number("+" + Loc.num(coins), 44, true))
 		col.add_child(crow)
-		var brow := HBoxContainer.new()
-		brow.alignment = BoxContainer.ALIGNMENT_CENTER
-		var b := UIKit.cta_button(VaultView.tr2("V_TAKE"), "", Vector2(420, 96), 38)
+		# «Забрати» sits in the PLAY slot (the dock), the only jewel on screen while the Home
+		# chrome is faded out under the reveal.
+		var b := UIKit.cta_button(VaultView.tr2("V_TAKE"), "", Vector2(448, 100), 40)
+		b.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		var ins := hub.insets() if hub else Vector4.ZERO
+		b.offset_left = -224
+		b.offset_right = 224
+		b.offset_bottom = -(UITokens.TAB_BAR_H + ins.w + 28.0)
+		b.offset_top = b.offset_bottom - 100.0
 		b.pressed.connect(func():
 			if coins > 0:
 				hub.fly_reward("coins", coins, crow.get_global_rect().get_center())
-			hub.pop_modal())
-		brow.add_child(b)
-		col.add_child(brow)
+			hub.close_modal(self))
+		add_child(b)
+		col.offset_bottom = -(UITokens.TAB_BAR_H + ins.w + 140.0)
 		var flip: Dictionary = EconData.REVEAL["flip"]
 		var delay := 0.15
 		for i in _cards.size():
@@ -499,7 +513,7 @@ class Reveal extends Control:
 					if is_instance_valid(cref):
 						UIKit.sparkles(self, cref.get_global_rect().get_center() - global_position, lc, 40, 300.0)
 						UIJuice.haptic_pattern("rarity_" + r))
-		UIJuice.pop(brow, delay + 0.2)
+		UIJuice.pop(b, delay + 0.2)
 		UIJuice.fade_in(t, 0.0, UITokens.STD)
 		Audio.play("crate_open", -2.0)
 

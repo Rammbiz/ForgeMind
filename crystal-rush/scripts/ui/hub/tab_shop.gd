@@ -11,7 +11,7 @@ const T := {
 	"SHOP_LOOKS": ["Образи героїв", "Hero looks"],
 	"SHOP_PASS": ["Пропуск сезону", "Season pass"],
 }
-const BANNER := Vector2(672, 212)
+const BANNER := Vector2(672, 300)
 const CARD := Vector2(216, 296)
 
 var hub: Hub
@@ -70,34 +70,47 @@ func _ready() -> void:
 	col.add_child(_vault_banner())
 	# Odds row
 	col.add_child(_odds_row())
-	# Coming products
-	col.add_child(UIKit.gap(4))
-	var sec := HBoxContainer.new()
-	sec.add_theme_constant_override("separation", 12)
-	var sl := UIKit.section(Loc.t("SHOP_SOON"), 18)
-	sec.add_child(sl)
-	var hl := UIKit.hairline()
-	hl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	sec.add_child(hl)
-	col.add_child(sec)
-	var grid := HBoxContainer.new()
-	grid.alignment = BoxContainer.ALIGNMENT_CENTER
-	grid.add_theme_constant_override("separation", 12)
-	var cards: Array = []
-	for p: Array in [["gem", "sapphire", "SHOP_GEMS"], ["crown", "topaz", "SHOP_LOOKS"], ["tome", "amethyst", "SHOP_PASS"]]:
-		var c := _soon_card(str(p[0]), str(p[1]), tr2(str(p[2])))
-		grid.add_child(c)
-		cards.append(c)
-	col.add_child(grid)
-	# Footer
-	var nr := UIKit.label(Loc.t("NO_RANDOM"), 19, UIKit.INK_DIM, true)
-	nr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Coming products: one quiet cream row (a shop that is mostly "coming soon" reads unfinished).
+	var soon := UIKit.panel("card", Vector2(18, 10))
+	soon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 16)
+	srow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ss := UIKit.socket("lock", 52.0)
+	ss.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	srow.add_child(ss)
+	var stl := UIKit.label(Loc.t("SHOP_SOON_ROW"), 22, UIKit.INK_SOFT, true)
+	stl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	stl.size_flags_vertical = Control.SIZE_FILL
+	srow.add_child(stl)
+	soon.add_child(srow)
+	col.add_child(soon)
+	var cards: Array = [soon]
+	# The promise as an engraved plate: no random paid chests.
+	var plate := UIKit.panel("plate", Vector2(18, 14))
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var prow := HBoxContainer.new()
+	prow.add_theme_constant_override("separation", 14)
+	prow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pck := UIKit.socket("check", 52.0)
+	pck.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	prow.add_child(pck)
+	var nr := UIKit.label(Loc.t("NO_RANDOM"), 22, UIKit.GOLD_TEXT, true)
 	nr.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col.add_child(nr)
+	nr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nr.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	nr.size_flags_vertical = Control.SIZE_FILL
+	prow.add_child(nr)
+	plate.add_child(prow)
+	col.add_child(plate)
+	cards.append(plate)
 	var rrow := HBoxContainer.new()
 	rrow.alignment = BoxContainer.ALIGNMENT_CENTER
-	var restore := UIKit.text_button(Loc.t("RESTORE"), Vector2(0, 52), 21)
+	var restore := UIKit.text_button(Loc.t("RESTORE"), Vector2(0, 72), 22)
 	restore.disabled = true
+	restore.add_theme_color_override("font_disabled_color", UIKit.INK_SOFT)
 	rrow.add_child(restore)
 	col.add_child(rrow)
 	refresh()
@@ -125,7 +138,7 @@ func refresh() -> void:
 	for i in mini(types.size(), 3):
 		var art := VaultView.CacheArt.new()
 		art.type = types[i]
-		art.custom_minimum_size = Vector2(150, 176)
+		art.custom_minimum_size = Vector2(190, 250)
 		art.modulate = Color.WHITE if not v.is_empty() else Color(1, 1, 1, 0.5)
 		_vault_eggs.add_child(art)
 	if v.size() > 3:
@@ -161,7 +174,7 @@ func _vault_banner() -> Control:
 	bcol.add_theme_constant_override("separation", 2)
 	bcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bcol)
-	var vt := UIKit.scene_label(Loc.t("VAULT"), 36)
+	var vt := UIKit.scene_label(Loc.t("VAULT"), 40)
 	bcol.add_child(vt)
 	_vault_count = UIKit.scene_label("", 20, false)
 	_vault_count.add_theme_color_override("font_color", UIKit.GOLD_HI)

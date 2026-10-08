@@ -934,12 +934,15 @@ static func secondary_button(text: String, icon := "", min_size := Vector2(240, 
 		b.add_theme_stylebox_override("pressed", lux("button_pressed", pad))
 		b.add_theme_stylebox_override("hover_pressed", lux("button_pressed", pad))
 		b.add_theme_stylebox_override("disabled", lux("button_disabled", pad))
+		# Anchored to the vertical centre (no position maths that runs while size is still 0).
 		var ic := Icons.make(icon, 34.0, INK)
-		ic.size = Vector2(34, 34)
+		ic.anchor_top = 0.5
+		ic.anchor_bottom = 0.5
+		ic.offset_left = 22.0
+		ic.offset_right = 56.0
+		ic.offset_top = -17.0
+		ic.offset_bottom = 17.0
 		b.add_child(ic)
-		var place := func(): ic.position = Vector2(22, (b.size.y - 34.0) * 0.5)
-		b.resized.connect(place)
-		place.call()
 	return b
 
 

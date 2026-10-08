@@ -311,8 +311,19 @@ func _chrome_for_modals() -> void:
 			continue
 		var tw := n.create_tween()
 		tw.tween_property(n, "modulate:a", float(pair[1]), 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	if stage:
-		stage.set_meta("covered", any and _modals.back().get_meta("content") is MachineDetail)
+	# An opaque full-screen modal (MachineDetail) covers the page: its 3D showcases stop
+	# rendering until the modal closes (no second 3D pass under the detail).
+	var covered := any and _modals.back().get_meta("content") is MachineDetail
+	for p: Control in pages.values():
+		_pause_showcases(p, covered)
+
+
+func _pause_showcases(n: Node, paused: bool) -> void:
+	for c in n.get_children():
+		if c is HubShowcase:
+			(c as HubShowcase).set_paused(paused)
+		elif c is Control:
+			_pause_showcases(c, paused)
 
 
 ## Closes the top modal (exit animation is the content's own: it may implement `play_exit()`
@@ -541,7 +552,7 @@ class Backdrop extends Control:
 		var sc := UITokens.SCRIM
 		match tab:
 			"play":
-				return {"top": Color(sc.r, sc.g, sc.b, 0.16), "mid": Color(sc.r, sc.g, sc.b, 0.0), "bot": Color(0.55, 0.42, 0.3, 0.16),
+				return {"top": Color(sc.r, sc.g, sc.b, 0.16), "mid": Color(sc.r, sc.g, sc.b, 0.0), "bot": Color(0.55, 0.42, 0.3, 0.22),
 						"spot": Color(1, 1, 1, 0.0), "spot_y": 0.3, "vig": 0.0, "shafts": 1.0}
 			"arsenal":
 				return {"top": Color("#F1ECE2"), "mid": Color("#E4DDD0"), "bot": Color("#CFC5B4"), "spot": Color(1.0, 0.99, 0.96, 0.75),

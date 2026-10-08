@@ -396,6 +396,11 @@ func show_hero(id: String) -> void:
 	set_accent(Balance.HEROES[id]["color"] if Balance.HEROES.has(id) else accent)
 
 
+## Stops / resumes rendering (a full-screen opaque modal covers the page).
+func set_paused(paused: bool) -> void:
+	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED if paused else SubViewport.UPDATE_WHEN_VISIBLE
+
+
 ## Hides the in-run Rank chevrons and aura of a machine shown in the hub.
 static func hide_rank_marks(m: Node3D) -> void:
 	for n in ["Chevrons", "Stars", "Aura"]:

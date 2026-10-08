@@ -30,7 +30,9 @@ signal done(action: String, id: String)
 const HOLD_SKIP := 0.3
 const BASE := Vector3(0, 0, -10)
 ## Camera framings relative to the altar: [position, look target, v_offset].
-const CAM_WIDE := [Vector3(0.6, 2.7, 5.6), Vector3(0, 1.1, 0), 0.0]
+## UI v2 final pass: a little closer and lower so the altar sits mid-screen with the hero fully
+## in frame on the left (no empty bridge floor in the bottom third).
+const CAM_WIDE := [Vector3(0.35, 2.35, 4.9), Vector3(-0.25, 1.0, 0), 0.3]
 const CAM_FAN := [Vector3(0.0, 2.5, 5.9), Vector3(0, 0.95, 0), -0.95]
 const CAM_WALK := [Vector3(-0.35, 2.25, 3.9), Vector3(0, 0.8, 0), -0.45]
 const CAM_SUMMARY := [Vector3(0.0, 2.9, 7.4), Vector3(0, 0.95, 0), -1.75]
@@ -136,7 +138,7 @@ func _build_world() -> void:
 	CacheModels.place_on_altar(altar, cache)
 	cache.visible = false
 	hero = HeroModels.hero(hero_id)
-	hero.position = BASE + Vector3(-1.55, 0, 1.35)
+	hero.position = BASE + Vector3(-1.2, 0, 1.15)
 	var to := (BASE - hero.position)
 	hero.rotation.y = atan2(to.x, to.z)
 	add_child(hero)
@@ -271,16 +273,16 @@ func _build_ui() -> void:
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title.size = Vector2(vp.x, 60)
-	_title.position = Vector2(0, ins.y + 96)
+	_title.position = Vector2(0, ins.y + 72)
 	_root_ui.add_child(_title)
 	_info = UIKit.edge_button("info", 26.0)
-	_info.position = Vector2(vp.x - 86 - ins.z, ins.y + 98)
+	_info.position = Vector2(vp.x - 86 - ins.z, ins.y + 74)
 	_info.pressed.connect(_toggle_odds)
 	_root_ui.add_child(_info)
-	_pity = VaultView.PityBar.make()
+	_pity = VaultView.PityBar.make(true)
 	_pity.custom_minimum_size = Vector2(440, 0)
 	_pity.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pity.position = Vector2((vp.x - 440) * 0.5, ins.y + 160)
+	_pity.position = Vector2((vp.x - 440) * 0.5, ins.y + 132)
 	_pity.size = Vector2(440, 56)
 	_root_ui.add_child(_pity)
 	# Coins chip (top right): the bonus slot flies into it at the summary.
@@ -289,7 +291,8 @@ func _build_ui() -> void:
 	_chip.set_amount(Meta.currency("coins") - int(rev.get("coins", 0)), false)
 	_chip.size = _chip.custom_minimum_size
 	_chip.position = Vector2(vp.x - _chip.size.x - 22 - ins.z, ins.y + 22)
-	_hint = UIKit.heading(Loc.t("TAP_TO_CRACK"), 28, UIKit.GOLD_LIGHT, 6)
+	_hint = UIKit.scene_label(Loc.t("TAP_TO_CRACK"), 28)
+	UIKit.soft_shadow(_hint, 28, 1.6)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint.size = Vector2(vp.x, 40)
@@ -330,7 +333,7 @@ func _build_ui() -> void:
 	_ident_name.position = Vector2(0, 150)
 	_ident_name.pivot_offset = _ident_name.size * 0.5
 	_ident.add_child(_ident_name)
-	_ident_sub = UIKit.heading("", 28, UIKit.GOLD_LIGHT, 6)
+	_ident_sub = UIKit.scene_label("", 28)
 	_ident_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ident_sub.size = Vector2(vp.x, 36)
 	_ident_sub.position = Vector2(0, 240)
@@ -401,8 +404,9 @@ func _arc_slot(i: int) -> Vector2:
 
 
 func _arc_rot(i: int) -> float:
+	# Cards land almost straight (3 degrees at most): no scattered tilts.
 	var u := i - (_cards.size() - 1) * 0.5
-	return deg_to_rad(u * 3.5)
+	return deg_to_rad(clampf(u * 1.5, -3.0, 3.0))
 
 
 ## Summary grid slot (rows of 3, best rarity first).

@@ -11,6 +11,8 @@ extends Control
 var hub: Hub
 var _panel: PanelContainer
 var _taps := 0
+var _list: VBoxContainer
+var _sc: ScrollContainer
 
 
 func setup(p_hub: Hub, _a: Variant = null) -> void:
@@ -47,10 +49,12 @@ func _ready() -> void:
 	div.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(div)
 	var sc := ScrollContainer.new()
+	_sc = sc
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col.add_child(sc)
 	var list := VBoxContainer.new()
+	_list = list
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 0)
 	sc.add_child(list)
@@ -95,7 +99,23 @@ func _ready() -> void:
 	close.pressed.connect(func(): hub.close_modal(self))
 	foot.add_child(close)
 	col.add_child(foot)
+	_fit_height()
 	UIJuice.soft_in(_panel, Vector2(0, 28))
+
+
+## Sized to its content and centred (tall phones get no empty cream inside the modal); it
+## scrolls only when the content is taller than the screen allows.
+func _fit_height() -> void:
+	var ins := hub.insets()
+	var vp := get_viewport_rect().size
+	var avail := vp.y - ins.y - ins.w - 168.0
+	var list_h := _list.get_combined_minimum_size().y
+	var chrome := 36.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
+	var h := minf(list_h + chrome, avail)
+	_sc.custom_minimum_size.y = maxf(120.0, h - chrome)
+	var top := ins.y + (vp.y - ins.y - ins.w - h) * 0.5
+	_panel.offset_top = top
+	_panel.offset_bottom = -(vp.y - top - h)
 
 
 func play_exit() -> Tween:

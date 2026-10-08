@@ -238,10 +238,13 @@ func _is_wild() -> bool:
 	return bool(data.get("wild", false)) or str(data.get("id", "")) == ""
 
 
+var _name_two := false
+
+
 func _bar_rect() -> Rect2:
 	var b := _body()
 	var seam := b.end.y - _foot_h()
-	return Rect2(Vector2(b.position.x + 14, seam + _foot_h() * 0.46), Vector2(b.size.x - 28, 9))
+	return Rect2(Vector2(b.position.x + 14, seam + _foot_h() * (0.64 if _name_two else 0.46)), Vector2(b.size.x - 28, 9))
 
 
 func _draw() -> void:
@@ -331,10 +334,17 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 	draw_colored_polygon(foot, UITokens.PAPER_1)
 	draw_line(Vector2(body.position.x, seam), Vector2(body.end.x, seam), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0, true)
 	var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else Loc.t("CUR_WILD")
+	# Name: 16-19 px, a long name wraps to two lines (never shrunk to 13 px or clipped).
 	var max_w := body.size.x - 14.0
-	var fs := UIKit.fit_size(nm, max_w, 19, 13)
-	var name_y := seam + (fh * 0.36 if not wild else fh * 0.62)
-	_text_c(f, nm, Vector2(cx, name_y), fs, UITokens.INK)
+	var fs := UIKit.fit_size(nm, max_w, 19, 16)
+	var lines := MachineCard._name_lines(nm, f, fs, max_w)
+	_name_two = lines.size() == 2 and not wild
+	if _name_two:
+		_text_c(f, lines[0], Vector2(cx, seam + 19.0), fs, UITokens.INK)
+		_text_c(f, lines[1], Vector2(cx, seam + 19.0 + fs + 1.0), fs, UITokens.INK)
+	else:
+		var name_y := seam + (fh * 0.36 if not wild else fh * 0.62)
+		_text_c(f, lines[0], Vector2(cx, name_y), fs, UITokens.INK)
 	# Count chip (top-right of the art).
 	var ct := "×%d" % int(data.get("count", 1))
 	var cf := UIKit.font_w("extrabold")
@@ -365,13 +375,16 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.0)
 		if _bar_hit > 0.0:
 			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(1.0, 0.82, 0.45, _bar_hit * 0.7))
-		_text_c(fm, "%d/%d" % [int(round(shown)), need], Vector2(cx, br.end.y + 17.0), 15, UITokens.INK_DIM)
+		if not _name_two:
+			_text_c(fm, "%d/%d" % [int(round(shown)), need], Vector2(cx, br.end.y + 18.0), 16, UITokens.INK_DIM)
 		if up:
-			var bc := Vector2(br.end.x + 2.0, br.position.y - 2.0)
-			draw_circle(bc + Vector2(0, 1.5), 11.0, Color(0.3, 0.18, 0.05, 0.25), true, -1.0, true)
-			draw_circle(bc, 11.0, Color(1, 0.98, 0.92), true, -1.0, true)
-			draw_circle(bc, 9.5, UITokens.NOTIFY, true, -1.0, true)
-			_text_c(cf, "!", bc + Vector2(0, 6.0), 16, UIKit.BROWN)
+			# The gold "!" sits in the card's top-right corner over the art (as on the Arsenal),
+			# never on the name / bar row.
+			var bc := Vector2(body.end.x - 18.0, body.position.y + 18.0)
+			draw_circle(bc + Vector2(0, 1.5), 14.0, Color(0.3, 0.18, 0.05, 0.25), true, -1.0, true)
+			draw_circle(bc, 14.0, Color(1, 0.98, 0.92), true, -1.0, true)
+			draw_circle(bc, 12.5, UITokens.NOTIFY, true, -1.0, true)
+			_text_c(cf, "!", bc + Vector2(0, 7.0), 19, UIKit.BROWN)
 	# Frame.
 	var rim: Color = g["rim"]
 	GemDraw.outline(self, GemDraw.chamfer_rect(body.grow(-3.0), 8.5), Color(rim.r, rim.g, rim.b, 0.7), 1.0)
