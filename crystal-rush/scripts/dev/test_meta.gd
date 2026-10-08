@@ -1450,7 +1450,11 @@ func _test_meta_api_heroes() -> void:
 	_ok(bool(lv["ok"]) and Meta.champion_level() == cl0 + 1, "Champion Level for coins")
 	_ok(Meta.set_chest_focus("otto") and Meta.chest_focus("R") == "otto", "chest Focus per gem")
 	_ok(Meta.set_portal_focus("C", "arin") == Summon.pool(acc, "C").has("arin"), "Portal Focus set for a pool hero")
+	var t_od := Time.get_ticks_usec()
 	var od := Meta.portal_odds()
+	var od_ms := float(Time.get_ticks_usec() - t_od) / 1000.0
+	print("  Meta.portal_odds(): %.2f ms (review F3: was ~490 ms)" % od_ms)
+	_ok(od_ms < 50.0, "Meta.portal_odds() reads generated tables (%.2f ms)" % od_ms)
 	_near(float((od["consolidated"] as Dictionary).values().reduce(func(a: float, b: float) -> float: return a + b, 0.0)), 1.0, 1e-6, "consolidated odds sum to 1")
 	_ok(not Meta.chest_odds("grand_hero_chest").is_empty() and Meta.chest_odds("pony").is_empty(), "chest_odds per type")
 	# Run profile (live).

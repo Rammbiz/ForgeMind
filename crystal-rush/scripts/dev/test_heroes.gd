@@ -991,6 +991,7 @@ func _test_summon_tables() -> void:
 		Summon.welcome_odds(pacc)
 		Summon.hero_odds(pacc)
 	var per_open_ms := float(Time.get_ticks_usec() - t_odds) / 20000.0
+	print("  (i) sheet tables: %.3f ms per open (consolidated, typical / welcome x10, per-hero odds)" % per_open_ms)
 	_ok(per_open_ms < 5.0, "the (i) sheet's tables cost %.3f ms per open (< 5 ms; was ~500 ms)" % per_open_ms)
 	var disclosed := {"C": 52.09, "R": 26.52, "E": 14.35, "L": 5.63, "M": 1.41}
 	for g: String in disclosed:
