@@ -612,7 +612,6 @@ class Backdrop extends Control:
 		# The frosted world sits BEHIND this control's own veil draw (show_behind_parent), drawn
 		# through the frost's milk transform so the floor never reads as a dark blotch.
 		_world = _WorldLayer.new()
-		_world.owner_bd = self
 		_world.show_behind_parent = true
 		_world.set_anchors_preset(Control.PRESET_FULL_RECT)
 		add_child(_world)
@@ -738,7 +737,6 @@ void fragment() {
 	COLOR = vec4(mix(c.rgb, b, milk), c.a) * COLOR;
 }"""
 	static var _shader: Shader
-	var owner_bd: Control
 	var alpha := 0.0:
 		set(v):
 			if not is_equal_approx(v, alpha):

@@ -92,9 +92,7 @@ func _ready() -> void:
 	nv.add_theme_constant_override("separation", 10)
 	nv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	notes.add_child(nv)
-	var hl := UIKit.divider(560.0)
-	hl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	nv.add_child(hl)
+	nv.add_child(UIKit.gap(6))
 	nv.add_child(_note("lock", Loc.t("SHOP_SOON_ROW"), UITokens.INK_DIM_GLASS))
 	nv.add_child(_note("check", Loc.t("NO_RANDOM"), UITokens.GOLD_TEXT_GLASS))
 	var rrow := HBoxContainer.new()
