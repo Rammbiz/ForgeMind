@@ -183,6 +183,10 @@ func _layout() -> void:
 	if foot:
 		foot.custom_minimum_size.y = maxf(0.0, below - 12.0)
 	_show.offset_bottom = -SHEET_H + 120.0
+	# Tall phones: the hero stays standing on the sheet's arch, a little larger; the extra
+	# height goes to the air above the name block.
+	var extra := maxf(0.0, size.y - 994.0)
+	_show.offset_top = maxf(-40.0, size.y - SHEET_H + 120.0 - 686.0 - extra * 0.35)
 	_stage.queue_redraw()
 
 

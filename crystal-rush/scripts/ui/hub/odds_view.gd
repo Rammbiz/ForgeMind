@@ -14,6 +14,7 @@ var hub: Hub
 var type := "stone"
 var _sheet: PanelContainer
 var _body: VBoxContainer
+var _scroll: ScrollContainer
 
 
 func setup(p_hub: Hub, p_type: Variant = "stone") -> void:
@@ -25,12 +26,13 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ins := hub.insets()
+	# Centred between the top bar and the nav; its height follows the content (scrolls when
+	# the content is taller than the room).
 	_sheet = UIKit.panel("modal", Vector2(28, 24))
-	_sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_sheet.offset_left = UITokens.GUTTER + ins.x
-	_sheet.offset_right = -UITokens.GUTTER - ins.z
-	_sheet.offset_top = ins.y + UITokens.TOP_BAR_H + 14.0
-	_sheet.offset_bottom = -ins.w - UITokens.TAB_BAR_H - 10.0
+	_sheet.set_anchors_preset(Control.PRESET_CENTER)
+	var half_w := 360.0 - UITokens.GUTTER
+	_sheet.offset_left = -half_w + (ins.x - ins.z) * 0.5
+	_sheet.offset_right = half_w + (ins.x - ins.z) * 0.5
 	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_sheet)
 	var col := VBoxContainer.new()
@@ -56,6 +58,7 @@ func _ready() -> void:
 		UIJuice.cross_fade(null, _body), 58.0, 22)
 	col.add_child(seg)
 	var sc := ScrollContainer.new()
+	_scroll = sc
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
@@ -72,7 +75,23 @@ func _ready() -> void:
 	crow.add_child(done)
 	col.add_child(crow)
 	_fill()
+	_body.minimum_size_changed.connect(_center, CONNECT_DEFERRED)
+	_sheet.minimum_size_changed.connect(_center, CONNECT_DEFERRED)
+	_center()
 	UIJuice.soft_in(_sheet, Vector2(0, 28))
+
+
+## Fits the scroll area to the table (up to the room between the bars) and centres the modal.
+func _center() -> void:
+	var ins := hub.insets()
+	var vp := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(720, 1280)
+	var room := vp.y - ins.y - ins.w - UITokens.TOP_BAR_H - UITokens.TAB_BAR_H - 24.0
+	var chrome := _sheet.get_combined_minimum_size().y - _scroll.custom_minimum_size.y
+	_scroll.custom_minimum_size.y = clampf(_body.get_combined_minimum_size().y, 200.0, maxf(200.0, room - chrome))
+	var mid := (ins.y + UITokens.TOP_BAR_H - ins.w - UITokens.TAB_BAR_H) * 0.5
+	var h := _sheet.get_combined_minimum_size().y
+	_sheet.offset_top = mid - h * 0.5
+	_sheet.offset_bottom = mid + h * 0.5
 
 
 func play_exit() -> Tween:
