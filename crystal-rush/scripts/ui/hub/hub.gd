@@ -1,8 +1,11 @@
 class_name Hub
 extends Node3D
-## The home screen of the meta (arsenal_design.md §7; replaces Menu): the 3D world behind the
-## Play tab, a top bar with currency chips, five tabs (Магазин · Арсенал · ГРА · Герої ·
-## Казарми) and a modal layer for sheets (machine detail, vault, odds, settings, unlock cards).
+## The home screen of the meta (arsenal_design.md §7; replaces Menu). UI v2 (Genshin x AFK
+## Journey): the bright 3D Home stage behind the Play tab (HubStage), a light warm backdrop on
+## the other tabs, the top bar (portrait ring, cream currency plates), the arched cream bottom
+## nav with the rising amber medallion (Магазин · Арсенал · Грати · Герої · Казарми), soft
+## tab cross-fades, and a modal layer for sheets (machine detail, vault, odds, settings,
+## unlock cards) over a light slate scrim.
 ## Reads only Meta (and ArsenalData / EconData constants); refreshes on Meta signals.
 ##
 ##   var hub := Hub.new("arsenal")      # start tab (default "play")
@@ -239,7 +242,8 @@ func _refresh_locks() -> void:
 			tab_bar.set_locked(tab, int(e.get("after_win", 0)) + 1)
 
 
-## Green arrow / gold "!" per tab (§7.4: only the Best upgrade and Deck machines, claimables).
+## Tab badges (§7.4: only the Best upgrade and Deck machines, claimables); the nav draws
+## both kinds as a small gold gem.
 func _refresh_badges() -> void:
 	var best := Meta.best_upgrade()
 	var kind := str(best.get("kind", ""))
@@ -387,14 +391,13 @@ func reward_target(cur: String) -> Control:
 	return top_bar.chip("coins")
 
 
-## A short message chip above the bottom nav (UI v2: cream-glass chip, ink text, a line icon;
-## soft in, hold, soft out). `color` is kept for old callers and ignored (text is always ink).
+## A short message chip under the top bar / world ribbon (UI v2, Genshin: cream-glass chip, ink
+## text, an icon; soft in, hold, soft out), clear of PLAY and the nav. `color` is kept for old
+## callers and ignored (text is always ink).
 func toast(text: String, icon := "", _color := UIKit.GOLD_LIGHT) -> void:
 	if _toast and is_instance_valid(_toast):
 		_toast.queue_free()
-	var vs := ui.size if ui.size.y > 0.0 else Vector2(720, 1280)
-	var y := vs.y - UITokens.TAB_BAR_H - _insets.w - 96.0
-	_toast = UIKit.toast(ui, text, icon, 1.8, y)
+	_toast = UIKit.toast(ui, text, icon, 1.8, _insets.y + UITokens.RIBBON_Y + 60.0)
 
 
 # ------------------------------------------------------------------ unlock queue (§4.6)

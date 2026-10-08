@@ -14,7 +14,7 @@ signal shop_pressed
 const PLATE_H := 52.0
 const PLATE_Y := 22.0
 
-var _chips := {}            ## cur -> HubPlate
+var _chips := {}            ## cur -> HubChip
 var _avatar: Avatar
 var _gear: RoundButton
 var _tab := "play"
@@ -41,9 +41,7 @@ func _ready() -> void:
 		settings_pressed.emit())
 	add_child(_gear)
 	for cur: String in ["crowns", "wild", "coins", "gems"]:
-		var ch := HubPlate.new()
-		ch.cur = cur
-		ch.icon = {"coins": "coin", "gems": "gem", "crowns": "crown", "wild": "blueprint"}[cur]
+		var ch := HubChip.new(cur)
 		ch.plus = cur == "coins"
 		if cur == "coins":
 			ch.plus_pressed.connect(func(): shop_pressed.emit())
@@ -64,7 +62,7 @@ func _render_avatar() -> void:
 ## Re-reads the wallet and the level (rolls the numbers when `animate`).
 func refresh(animate := true) -> void:
 	for cur: String in _chips:
-		(_chips[cur] as HubPlate).set_amount(_amount(cur), animate)
+		(_chips[cur] as HubChip).set_amount(_amount(cur), animate)
 	var lv := Meta.level()
 	_avatar.level = lv
 	_avatar.progress = float(ArsenalData.level_in_world(lv) - 1) / float(ArsenalData.LEVELS_PER_WORLD)
@@ -84,7 +82,7 @@ func set_tab(tab: String) -> void:
 func _layout() -> void:
 	var x := size.x - 14.0
 	for cur: String in ["gems", "coins", "wild", "crowns"]:
-		var p: HubPlate = _chips[cur]
+		var p: HubChip = _chips[cur]
 		if not p.visible:
 			continue
 		var w := p.want_width()
@@ -108,7 +106,7 @@ func chip(cur: String) -> Control:
 ## The plate will receive a RewardFly: hold its number until the first icon lands (a hidden
 ## plate - Crowns on Home - fades in for the flight and out again after it).
 func expect_fly(cur: String) -> void:
-	var c := chip(cur) as HubPlate
+	var c := chip(cur) as HubChip
 	if c == null:
 		return
 	if not c.visible:
@@ -120,7 +118,7 @@ func expect_fly(cur: String) -> void:
 	c.expect_fly()
 
 
-func _after_fly(c: HubPlate) -> void:
+func _after_fly(c: HubChip) -> void:
 	get_tree().create_timer(2.2).timeout.connect(func():
 		if not is_instance_valid(c) or not _flying.has(c.cur):
 			return
@@ -141,13 +139,21 @@ func _amount(cur: String) -> int:
 
 
 ## A currency plate (KitCurrencyPlate) that rolls its number and receives RewardFly icons.
-class HubPlate extends KitCurrencyPlate:
+## Also used on its own by the result / loss screens and the altar:
+##   var ch := HubTopBar.HubChip.new("coins"); parent.add_child(ch); ch.set_amount(n, false)
+##   ch.size = ch.custom_minimum_size
+class HubChip extends KitCurrencyPlate:
 	signal landed
 	var cur := "coins"
 	var _amount := -1
 	var _shown := 0.0
 	var _hold := false
 	var _roll: Tween
+
+	func _init(p_cur := "coins") -> void:
+		cur = p_cur
+		icon = {"coins": "coin", "gems": "gem", "crowns": "crown", "wild": "blueprint"}.get(cur, cur)
+		custom_minimum_size = Vector2(150, PLATE_H)
 
 	func want_width() -> float:
 		var digits := Loc.num(maxi(_amount, 0)).length()
@@ -157,6 +163,7 @@ class HubPlate extends KitCurrencyPlate:
 	func set_amount(n: int, animate := true) -> void:
 		var first := _amount < 0
 		_amount = n
+		custom_minimum_size = Vector2(want_width(), PLATE_H)
 		if _hold:
 			return
 		_roll_to(n, 0.0 if (first or not animate) else 0.5)

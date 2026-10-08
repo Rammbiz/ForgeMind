@@ -87,6 +87,8 @@ func _slot_rect(i: int) -> Rect2:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if size.x <= 0.0:
+		return
 	var target := _slot_rect(TABS.find(selected)).get_center().x
 	if _sel_x < 0.0:
 		_sel_x = target
@@ -129,6 +131,8 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
+	if _sel_x < 0.0 and size.x > 0.0:
+		_sel_x = _slot_rect(TABS.find(selected)).get_center().x
 	var top := _bar_top()
 	var body := Rect2(Vector2(0, top), Vector2(size.x, size.y - top))
 	KitNav.draw_bar(self, body, 8.0)

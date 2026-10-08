@@ -50,9 +50,10 @@ func build(p_quality_high := true) -> void:
 
 
 func _process(delta: float) -> void:
+	# (The sky stays still on purpose: animating its parameters would re-bake the sky every
+	# frame. The motion comes from the motes, the lantern halos, the light shafts and the
+	# camera sway.)
 	_t += delta
-	if sky_mat:
-		sky_mat.set_shader_parameter("drift", fmod(_t, 4000.0))
 	var k := 0.85 + 0.15 * sin(fmod(_t, 200.0 * PI) * 1.4)
 	for i in _halos.size():
 		var h := _halos[i]
@@ -552,8 +553,8 @@ func _build_bridge() -> void:
 func _build_islands() -> void:
 	var spots := [
 		# x, y, z, radius, trees (inside the camera's narrow view, above the balustrade line)
-		[-6.2, 1.6, -31.0, 1.7, 2],
-		[7.4, 2.8, -40.0, 2.3, 3],
+		[-8.6, 3.4, -34.0, 1.9, 3],
+		[9.8, 0.4, -40.0, 2.4, 4],
 		[-13.5, 5.0, -64.0, 3.8, 4],
 		[16.0, 7.5, -82.0, 4.8, 5],
 		[-26.0, 10.0, -118.0, 7.0, 6],
@@ -576,49 +577,54 @@ func _build_islands() -> void:
 		_trees(mi, float(s[3]), int(s[4]), rng)
 
 
-## An irregular floating island: a grassy cap over an earthy, rocky cone that narrows to a
-## point; vertex colours only.
+## An irregular floating island: a domed grassy cap with a darker grass lip, an earth band and
+## a lobed rocky cone that narrows to an off-centre point; vertex colours only.
 func _island_mesh(r: float, rng: RandomNumberGenerator) -> ArrayMesh:
-	var seg := 18
-	var rings := 6
-	var depth := r * rng.randf_range(1.1, 1.5)
+	var seg := 20
+	var depth := r * rng.randf_range(1.6, 2.2)
 	var jit := PackedFloat32Array()
 	for i in seg:
-		jit.append(rng.randf_range(0.82, 1.12))
+		jit.append(rng.randf_range(0.84, 1.1))
+	var lobe_a := rng.randf() * TAU
+	var tip := Vector3(rng.randf_range(-0.2, 0.2) * r, -depth, rng.randf_range(-0.2, 0.2) * r)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var grass_a := Color(0.52, 0.72, 0.36)
-	var grass_b := Color(0.62, 0.8, 0.42)
-	var earth := Color(0.66, 0.54, 0.42)
-	var rock := Color(0.55, 0.5, 0.56)
+	var grass_hi := Color(0.6, 0.78, 0.42)
+	var grass := Color(0.48, 0.68, 0.34)
+	var lip := Color(0.36, 0.52, 0.28)
+	var earth := Color(0.7, 0.58, 0.46)
+	var rock := Color(0.72, 0.64, 0.58)
+	var rock_lo := Color(0.6, 0.55, 0.58)
+	# Rings: [radius factor, y factor (of depth), colour]
+	var prof := [[1.0, 0.0, grass], [1.03, -0.03, lip], [0.96, -0.09, earth], [0.82, -0.22, earth.lerp(rock, 0.5)],
+			[0.62, -0.42, rock], [0.4, -0.64, rock.lerp(rock_lo, 0.5)], [0.18, -0.85, rock_lo]]
 	var ring_pts: Array = []
-	for k in rings + 1:
-		var t := float(k) / rings
-		var rr := r * pow(1.0 - t, 0.75) * (1.0 if k > 0 else 1.0)
-		var y := -depth * t - (0.0 if k == 0 else 0.15)
+	for k in prof.size():
+		var pr: Array = prof[k]
 		var pts := PackedVector3Array()
+		var t := -float(pr[1])
 		for i in seg:
 			var a := TAU * i / seg
-			var j := jit[i] * (1.0 + 0.12 * sin(a * 3.0 + k))
-			pts.append(Vector3(cos(a) * rr * j, y + (rng.randf_range(-0.12, 0.12) * r * 0.1 if k > 0 else 0.0), sin(a) * rr * j))
+			var lobe := 1.0 + 0.18 * sin(a * 2.0 + lobe_a) * t * 1.4 + 0.08 * sin(a * 5.0 + k)
+			var rr := r * float(pr[0]) * jit[i] * lobe
+			var y := depth * float(pr[1]) + (rng.randf_range(-0.05, 0.05) * r if k > 1 else 0.0)
+			var o := tip * t * 0.6
+			pts.append(Vector3(cos(a) * rr + o.x, y, sin(a) * rr + o.z))
 		ring_pts.append(pts)
-	# Grass top: a slightly domed fan.
-	var centre := Vector3(0, r * 0.06, 0)
+	# Grass top: a domed fan.
+	var centre := Vector3(0, r * 0.08, 0)
 	var top: PackedVector3Array = ring_pts[0]
 	for i in seg:
-		var a := top[i]
-		var b := top[(i + 1) % seg]
-		st.set_color(grass_b)
+		st.set_color(grass_hi)
 		st.add_vertex(centre)
-		st.set_color(grass_a)
-		st.add_vertex(b)
-		st.add_vertex(a)
-	# Sides.
-	for k in rings:
+		st.set_color(grass)
+		st.add_vertex(top[(i + 1) % seg])
+		st.add_vertex(top[i])
+	for k in prof.size() - 1:
 		var up: PackedVector3Array = ring_pts[k]
 		var dn: PackedVector3Array = ring_pts[k + 1]
-		var cu := earth.lerp(rock, float(k) / rings) if k > 0 else grass_a.darkened(0.2)
-		var cd := earth.lerp(rock, float(k + 1) / rings)
+		var cu: Color = prof[k][2]
+		var cd: Color = prof[k + 1][2]
 		for i in seg:
 			var i2 := (i + 1) % seg
 			st.set_color(cu)
@@ -631,46 +637,55 @@ func _island_mesh(r: float, rng: RandomNumberGenerator) -> ArrayMesh:
 			st.set_color(cd)
 			st.add_vertex(dn[i2])
 			st.add_vertex(dn[i])
+	var last: PackedVector3Array = ring_pts[prof.size() - 1]
+	for i in seg:
+		st.set_color(rock_lo)
+		st.add_vertex(last[i])
+		st.add_vertex(last[(i + 1) % seg])
+		st.add_vertex(tip)
 	st.generate_normals()
 	return st.commit()
 
 
+## Small groves: short trunks under clustered, slightly flattened crowns in mixed greens.
 func _trees(parent: Node3D, r: float, n: int, rng: RandomNumberGenerator) -> void:
-	var leaf := StandardMaterial3D.new()
-	leaf.vertex_color_use_as_albedo = true
-	leaf.roughness = 0.9
 	var trunk := StandardMaterial3D.new()
-	trunk.albedo_color = Color(0.5, 0.38, 0.3)
+	trunk.albedo_color = Color(0.48, 0.37, 0.3)
+	trunk.roughness = 0.9
+	var greens := [Color(0.34, 0.54, 0.3), Color(0.42, 0.62, 0.32), Color(0.5, 0.68, 0.38), Color(0.38, 0.58, 0.36)]
 	for i in n:
 		var a := rng.randf() * TAU
-		var d := rng.randf_range(0.0, r * 0.65)
-		var s := r * rng.randf_range(0.16, 0.26)
-		var p := Vector3(cos(a) * d, r * 0.04, sin(a) * d)
+		var d := rng.randf_range(0.0, r * 0.6)
+		var s := r * rng.randf_range(0.14, 0.22)
+		var p := Vector3(cos(a) * d, r * 0.05, sin(a) * d)
 		var tr := MeshInstance3D.new()
 		var tm := CylinderMesh.new()
-		tm.top_radius = s * 0.08
-		tm.bottom_radius = s * 0.12
-		tm.height = s * 0.9
+		tm.top_radius = s * 0.07
+		tm.bottom_radius = s * 0.11
+		tm.height = s * 0.7
 		tm.radial_segments = 6
 		tr.mesh = tm
 		tr.material_override = trunk
-		tr.position = p + Vector3(0, s * 0.45, 0)
+		tr.position = p + Vector3(0, s * 0.35, 0)
 		tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(tr)
-		var crown := MeshInstance3D.new()
-		var cm := SphereMesh.new()
-		cm.radius = s * 0.55
-		cm.height = s * 1.0
-		cm.radial_segments = 10
-		cm.rings = 5
-		crown.mesh = cm
 		var lm := StandardMaterial3D.new()
-		lm.albedo_color = [Color(0.36, 0.58, 0.32), Color(0.44, 0.66, 0.34), Color(0.5, 0.7, 0.4)][i % 3]
+		lm.albedo_color = greens[i % greens.size()]
 		lm.roughness = 0.9
-		crown.material_override = lm
-		crown.position = p + Vector3(0, s * 1.15, 0)
-		crown.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		parent.add_child(crown)
+		for k in 3:
+			var crown := MeshInstance3D.new()
+			var cm := SphereMesh.new()
+			var cr := s * rng.randf_range(0.34, 0.48)
+			cm.radius = cr
+			cm.height = cr * 1.6
+			cm.radial_segments = 10
+			cm.rings = 5
+			crown.mesh = cm
+			crown.material_override = lm
+			var off := Vector3(cos(k * 2.1 + a) * s * 0.22, s * (0.85 + 0.16 * k), sin(k * 2.1 + a) * s * 0.22)
+			crown.position = p + off
+			crown.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			parent.add_child(crown)
 
 
 ## Soft cloud puffs below and around the terrace and along the bridge (depth layers).

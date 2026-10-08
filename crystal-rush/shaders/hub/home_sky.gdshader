@@ -5,8 +5,8 @@
 shader_type sky;
 
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
-uniform vec4 zenith : source_color = vec4(0.36, 0.62, 0.90, 1.0);
-uniform vec4 mid_sky : source_color = vec4(0.62, 0.81, 0.94, 1.0);
+uniform vec4 zenith : source_color = vec4(0.33, 0.6, 0.9, 1.0);
+uniform vec4 mid_sky : source_color = vec4(0.52, 0.75, 0.93, 1.0);
 uniform vec4 horizon : source_color = vec4(0.98, 0.89, 0.74, 1.0);
 uniform vec4 haze : source_color = vec4(0.99, 0.93, 0.84, 1.0);
 uniform vec4 sun_color : source_color = vec4(1.0, 0.85, 0.54, 1.0);
@@ -33,8 +33,8 @@ void sky() {
 	// Sky gradient (warmer towards the sun side of the horizon).
 	float az = atan(d.x, -d.z);
 	vec3 hor = mix(horizon.rgb, mix(horizon.rgb, sun_color.rgb, 0.35), pow(sun, 3.0));
-	vec3 col = mix(hor, mid_sky.rgb, smoothstep(0.0, 0.2, y));
-	col = mix(col, zenith.rgb, smoothstep(0.16, 0.8, y));
+	vec3 col = mix(hor, mid_sky.rgb, smoothstep(0.02, 0.17, y));
+	col = mix(col, zenith.rgb, smoothstep(0.14, 0.5, y));
 	// Sun disc and glow.
 	col += sun_color.rgb * (pow(sun, 900.0) * 1.6 + pow(sun, 60.0) * 0.45 + pow(sun, 8.0) * 0.18);
 	// High wisps (plane projection), very faint.

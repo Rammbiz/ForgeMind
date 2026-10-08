@@ -262,7 +262,7 @@ class DeckTag extends Control:
 		GemDraw.draw_mark(self, gem, Vector2(r.position.x + 17.0, r.get_center().y), 15.0)
 		draw_string(f, Vector2(r.position.x + 30.0, r.position.y + 21.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 		if lead:
-			Icons.draw_icon(self, "crown", Rect2(Vector2(r.position.x - 8.0, r.position.y - 16.0), Vector2(24, 24)))
+			Icons.draw_icon(self, "crown", Rect2(Vector2(r.position.x - 12.0, r.position.y - 20.0), Vector2(30, 30)))
 
 
 ## The world's level path as a slim line of facets on a translucent porcelain plate: cleared
