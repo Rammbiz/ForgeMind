@@ -7,7 +7,7 @@ extends SummonSheet
 ## portal_state() read PortalData; the sentences are Loc templates filled from it.
 ## Route "odds" (HeroesNav modal) or embedded over the Portal.
 
-const COL := [112.0, 168.0, 112.0]
+const COL := [120.0, 176.0, 104.0]
 
 
 func _title() -> String:
@@ -59,12 +59,12 @@ func _fill(b: VBoxContainer) -> void:
 func _head() -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
-	var n := UIKit.caps(HeroesText.t("RARITY"), 20)
+	var n := UIKit.caps(HeroesText.t("RARITY"), 22)
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(n)
 	for i in 3:
 		var k: String = ["PORTAL_ODDS_BASE", "PORTAL_ODDS_TOTAL", ""][i]
-		var l := UIKit.caps(HeroesText.t(k) if k != "" else "", 20)
+		var l := UIKit.caps(HeroesText.t(k) if k != "" else "", 22)
 		l.custom_minimum_size.x = COL[i]
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
