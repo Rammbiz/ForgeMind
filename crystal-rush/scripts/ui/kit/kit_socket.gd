@@ -39,8 +39,7 @@ func _draw() -> void:
 		return
 	var tex := UIKit.kit_texture("socket_slate" if slate else "socket_cream")
 	# Soft shadow
-	for i in 3:
-		draw_circle(c + Vector2(0, 1.5 + i), r - 1.0 + i, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.06))
+	draw_circle(c + Vector2(0, 2.0), r + 0.5, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14))
 	if tex:
 		draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), false)
 	elif slate:
@@ -53,7 +52,8 @@ func _draw() -> void:
 		draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0)
 		if ring:
 			draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-			draw_arc(c, r - 4.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.4), 1.0, true)
+			if s >= 44.0:
+				draw_arc(c, r - 4.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.4), 1.0, true)
 	if icon != "":
 		var col := icon_color
 		if col.a <= 0.0:

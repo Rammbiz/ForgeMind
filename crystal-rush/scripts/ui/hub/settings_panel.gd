@@ -109,7 +109,11 @@ func _fit_height() -> void:
 	var ins := hub.insets()
 	var vp := get_viewport_rect().size
 	var avail := vp.y - ins.y - ins.w - 168.0
-	var list_h := _list.get_combined_minimum_size().y
+	# Measured from the rows themselves (an autowrapped label can report a huge minimum height
+	# before its first layout): section headers ~50 px, rows ROW_H + 4 plus the hairline.
+	var list_h := 0.0
+	for c in _list.get_children():
+		list_h += 50.0 if c is MarginContainer else UITokens.ROW_H + 6.0
 	var chrome := 36.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
 	var h := minf(list_h + chrome, avail)
 	_sc.custom_minimum_size.y = maxf(120.0, h - chrome)

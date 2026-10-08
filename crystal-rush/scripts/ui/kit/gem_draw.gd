@@ -88,12 +88,22 @@ static func draw_gem(ci: CanvasItem, cut: String, c: Vector2, s: float, base: Co
 	for p in outer:
 		inner.append(tc + (p - c) * tk)
 	var a := alpha
-	# Soft contact shadow.
-	ci.draw_colored_polygon(_offset(outer, Vector2(0, s * 0.05)), Color(0.12, 0.08, 0.04, 0.22 * a))
-	# Crown facets.
+	# One triangle array for the shadow, the crown facets and the table (a single canvas draw
+	# command per gem instead of ~25; the Arsenal grid draws dozens of these).
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	var sh := Color(0.12, 0.08, 0.04, 0.22 * a)
+	var so := Vector2(0, s * 0.05)
+	var sc := c + so
 	for i in n:
 		var j := (i + 1) % n
-		var quad := PackedVector2Array([outer[i], outer[j], inner[j], inner[i]])
+		var k0 := pts.size()
+		pts.append_array([sc, outer[i] + so, outer[j] + so])
+		cols.append_array([sh, sh, sh])
+		idx.append_array([k0, k0 + 1, k0 + 2])
+	for i in n:
+		var j := (i + 1) % n
 		var mid := (outer[i] + outer[j]) * 0.5 - c
 		var lam := clampf(mid.normalized().dot(LIGHT_DIR) * 0.5 + 0.5, 0.0, 1.0)
 		var col := deep.lerp(base, smoothstep(0.0, 0.55, lam)).lerp(light, smoothstep(0.55, 1.0, lam) * 0.85)
@@ -101,28 +111,42 @@ static func draw_gem(ci: CanvasItem, cut: String, c: Vector2, s: float, base: Co
 		if i % 2 == 1:
 			col = col.lightened(0.06)
 		col.a = a
-		ci.draw_colored_polygon(quad, col)
-	# Table: a soft vertical gradient (lighter at the top).
-	var tcols := PackedColorArray()
+		var k1 := pts.size()
+		pts.append_array([outer[i], outer[j], inner[j], inner[i]])
+		cols.append_array([col, col, col, col])
+		idx.append_array([k1, k1 + 1, k1 + 2, k1, k1 + 2, k1 + 3])
+	# Table: a soft vertical gradient (lighter at the top), fanned from its centre.
 	var ty0 := INF
 	var ty1 := -INF
 	for p in inner:
 		ty0 = minf(ty0, p.y)
 		ty1 = maxf(ty1, p.y)
+	var kc := pts.size()
+	var cc := base.lerp(light, 0.55).lerp(base, 0.4)
+	cc.a = a
+	pts.append(tc)
+	cols.append(cc)
 	for p in inner:
 		var t := (p.y - ty0) / maxf(ty1 - ty0, 1.0)
 		var tcol := base.lerp(light, 0.55).lerp(base, t * 0.8)
 		tcol.a = a
-		tcols.append(tcol)
-	ci.draw_polygon(inner, tcols)
+		pts.append(p)
+		cols.append(tcol)
+	for i in n:
+		idx.append_array([kc, kc + 1 + i, kc + 1 + (i + 1) % n])
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols)
 	# Facet lines (light, thin).
 	var fl := Color(light.r, light.g, light.b, 0.45 * a)
 	var lw := maxf(0.8, s * 0.018)
-	for i in n:
-		if n > 10 and i % 2 == 1:
-			continue
-		ci.draw_line(outer[i], inner[i], fl, lw, true)
-	outline(ci, inner, Color(light.r, light.g, light.b, 0.55 * a), lw)
+	# Small marks (cards, chips) skip the hairline facet lines: the facet colours already read.
+	if s >= 26.0:
+		var lines := PackedVector2Array()
+		for i in n:
+			if n > 10 and i % 2 == 1:
+				continue
+			lines.append_array([outer[i], inner[i]])
+		ci.draw_multiline(lines, fl, lw, true)
+		outline(ci, inner, Color(light.r, light.g, light.b, 0.55 * a), lw)
 	# Girdle rim.
 	outline(ci, outer, Color(deep.r * 0.7, deep.g * 0.7, deep.b * 0.7, 0.85 * a), maxf(1.0, s * 0.025))
 	if glint:
@@ -227,12 +251,19 @@ static func draw_glint(ci: CanvasItem, c: Vector2, s: float, col := Color(1, 1, 
 	var tex := UIKit.glow_texture()
 	ci.draw_texture_rect(tex, Rect2(c - Vector2(s, s) * 0.22, Vector2(s, s) * 0.44), false, Color(col.r, col.g, col.b, col.a * 0.8))
 	var rays := [[Vector2(1, 0), 0.5], [Vector2(-1, 0), 0.32], [Vector2(0, -1), 0.3], [Vector2(0, 1), 0.62]]
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
 	for ray: Array in rays:
 		var d: Vector2 = (ray[0] as Vector2).rotated(-0.35)
 		var L: float = s * float(ray[1])
 		var n := Vector2(-d.y, d.x)
 		var wdt := s * 0.045
-		ci.draw_colored_polygon(PackedVector2Array([c + n * wdt, c + d * L, c - n * wdt]), col)
+		var k := pts.size()
+		pts.append_array([c + n * wdt, c + d * L, c - n * wdt])
+		cols.append_array([col, col, col])
+		idx.append_array([k, k + 1, k + 2])
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols)
 
 
 static func _offset(pts: PackedVector2Array, o: Vector2) -> PackedVector2Array:

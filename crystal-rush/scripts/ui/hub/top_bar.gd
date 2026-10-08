@@ -233,7 +233,8 @@ class Avatar extends Control:
 			var k := float(i) / 7.0
 			draw_circle(c + Vector2(0, -face * 0.25 * k), face * (1.0 - k * 0.45), UITokens.SKY_TOP.lerp(UITokens.SKY_MID, k))
 		if tex == null and hero != "":
-			Icons.draw_icon(self, hero, Rect2(c - Vector2(face, face) * 0.78, Vector2(face, face) * 1.56))
+			# Until the portrait render lands: the hero's gem, cut, on the sky ground.
+			GemDraw.draw_mark(self, str(HubStage.HERO_GEM.get(hero, "sapphire")), c, face * 0.8)
 		if tex:
 			var pts := PackedVector2Array()
 			var uvs := PackedVector2Array()

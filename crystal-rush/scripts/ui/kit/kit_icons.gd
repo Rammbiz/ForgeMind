@@ -54,13 +54,16 @@ static func _ln(ci: CanvasItem, pts: PackedVector2Array, col: Color, w: float, c
 		p = pts.duplicate()
 		p.append(pts[0])
 	ci.draw_polyline(p, col, w, true)
-	for q in pts:
-		ci.draw_circle(q, w * 0.5, col, true, -1.0, true)
+	# Round caps at the two ends only (a dot per joint cost one draw call each: the Arsenal
+	# grid's sockets drew ~50 calls per icon).
+	if not closed and pts.size() >= 2 and w >= 2.6:
+		ci.draw_circle(pts[0], w * 0.5, col, true, -1.0, true)
+		ci.draw_circle(pts[pts.size() - 1], w * 0.5, col, true, -1.0, true)
 
 
 static func _arc(ci: CanvasItem, c: Vector2, rad: float, a0: float, a1: float, col: Color, w: float, caps := true) -> void:
 	ci.draw_arc(c, rad, a0, a1, maxi(8, int(absf(a1 - a0) * 10.0)), col, w, true)
-	if caps:
+	if caps and w >= 2.6:
 		ci.draw_circle(c + Vector2(cos(a0), sin(a0)) * rad, w * 0.5, col, true, -1.0, true)
 		ci.draw_circle(c + Vector2(cos(a1), sin(a1)) * rad, w * 0.5, col, true, -1.0, true)
 
