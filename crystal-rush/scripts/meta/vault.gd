@@ -4,11 +4,10 @@ class_name Vault
 ## a 2.2.1 build reading the same file never meets an unknown Cache type. Pure and static, account
 ## first; the rolls themselves belong to the HeroChest roller (WS-A), which Meta calls.
 ##
-## Entry: {type: hero_chest | grand_hero_chest, source: win | boss | weekly | expedition | unlock |
-## migration | mission, level, scripted: 0 | 1 | 2}. `scripted` marks the two known-contents chests
-## of §7.5 (#1 at the champions unlock: Альба with Руді as the team hero, else Отто; #2 = the next
-## Hero Chest: Міла); chests {scripted} counts the scripted chests GRANTED (0..2), so neither is ever
-## granted twice (result screen, catch-up card, migration).
+## Entry: {type: hero_chest | grand_hero_chest, source: win | replay | boss | weekly | expedition |
+## unlock | migration, level}. Which chests hold the two scripted champions of §7.5 is HeroChest's
+## rule (the first and second chest ever OPENED, chests.scripted); the champions-unlock gift chest
+## is granted once (chests.unlock_gift) by Rewards on the unlock win or by the unlock's free step.
 
 const HERO_CHEST := "hero_chest"
 const GRAND := "grand_hero_chest"
@@ -38,11 +37,11 @@ static func hero_chests(acc: Dictionary) -> Array:
 
 
 ## Puts a Hero Chest into the Vault; returns its index (-1 for an unknown type).
-static func add(acc: Dictionary, type: String, source: String, level: int, scripted := 0) -> int:
+static func add(acc: Dictionary, type: String, source: String, level: int) -> int:
 	if not type in TYPES:
 		return -1
 	var hc := hero_chests(acc)
-	hc.append({"type": type, "source": source, "level": level, "scripted": scripted})
+	hc.append({"type": type, "source": source, "level": level})
 	return hc.size() - 1
 
 
@@ -56,25 +55,11 @@ static func take(acc: Dictionary, index: int) -> Dictionary:
 	return c
 
 
-## Scripted chests granted so far (0..2).
-static func scripted_granted(acc: Dictionary) -> int:
-	return clampi(int((acc["chests"] as Dictionary).get("scripted", 0)), 0, 2)
-
-
-## Grants scripted chest #n (1 or 2) once: books it in chests.scripted and returns the Vault entry
-## (not stored; the caller opens it inline or stores it with add()), or {} when #n was already
-## granted or #n - 1 was not.
-static func scripted_entry(acc: Dictionary, n: int, source: String, level: int) -> Dictionary:
-	if n < 1 or n > 2 or scripted_granted(acc) != n - 1:
-		return {}
-	(acc["chests"] as Dictionary)["scripted"] = n
-	return {"type": HERO_CHEST, "source": source, "level": level, "scripted": n}
-
-
-## The champion scripted chest #n shows (known contents, §7.5): #1 follows the team hero
-## (PortalData.SCRIPTED_FIRST, else SCRIPTED_FIRST_DEFAULT), #2 is PortalData.SCRIPTED_SECOND.
-static func scripted_champion(acc: Dictionary, n: int) -> String:
-	if n == 2:
-		return PortalData.SCRIPTED_SECOND
-	var hero := str((acc.get("team", {}) as Dictionary).get("hero", ""))
-	return str(PortalData.SCRIPTED_FIRST.get(hero, PortalData.SCRIPTED_FIRST_DEFAULT))
+## The champions-unlock gift (the chest that opens as scripted chest #1, §11.4) once per account:
+## true when it is granted now, false when it was granted before.
+static func take_unlock_gift(acc: Dictionary) -> bool:
+	var cs: Dictionary = acc["chests"]
+	if bool(cs.get("unlock_gift", false)):
+		return false
+	cs["unlock_gift"] = true
+	return true

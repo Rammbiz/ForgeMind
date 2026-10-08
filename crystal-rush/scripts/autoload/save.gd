@@ -113,11 +113,13 @@ func _backup_once(backup: String) -> void:
 		DirAccess.copy_absolute(src, b)
 
 
-func save_data() -> void:
+## Writes the file atomically. Returns OK (also in readonly runs) or the failing Error, so a caller
+## that granted something can roll the in-memory account back (heroes_design.md §12.1).
+func save_data() -> Error:
 	if readonly:
-		return
+		return OK
 	_to_account()
-	write_file(path, _legacy(), account)
+	return write_file(path, _legacy(), account)
 
 
 ## Legacy field values for the file.

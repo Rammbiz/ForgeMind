@@ -203,12 +203,11 @@ static func _grant_free(acc: Dictionary, u: Dictionary) -> void:
 				(ar["decks"] as Array)[int(ar.get("deck_active", 0))] = Arsenal.auto_deck(acc)
 		# Heroes & Champions (heroes_design.md §11.1, §11.4).
 		"first_champion":
-			# Scripted chest #1 (known contents) when the result screen of the unlock did not grant it
-			# (a migrated player's catch-up card): into the Vault; Meta.ack_unlock opens it at once and
-			# places its champion in slot 1.
-			var e := Vault.scripted_entry(acc, 1, "unlock", MetaAcc.level(acc) - 1)
-			if not e.is_empty():
-				Vault.add(acc, str(e["type"]), str(e["source"]), int(e["level"]), int(e["scripted"]))
+			# The champions-unlock gift chest (it opens as scripted chest #1, HeroChest) when the unlock
+			# win's result screen did not grant it (a migrated player's catch-up card): into the Vault;
+			# Meta.ack_unlock opens it at once and its champion takes slot 1.
+			if Vault.take_unlock_gift(acc):
+				Vault.add(acc, Vault.HERO_CHEST, "unlock", MetaAcc.level(acc) - 1)
 		"welcome_x10":
 			pass          # the free x10 waits in the Portal until summon.welcome_done (Meta.portal().welcome_ready)
 		"first_rank":

@@ -553,7 +553,7 @@ static func fresh_account() -> Dictionary:
 		"champions": {"level": 1, "roster": {}},
 		"team": {"hero": "bolt", "champions": [], "presets": presets, "preset": 0},
 		"summon": {"seals": 0, "since_e": 0, "since_l": 0, "total": 0, "focus": {}, "history": [], "welcome_done": false},
-		"chests": {"since_l": 0, "total": 0, "focus": {}, "scripted": 0},
+		"chests": {"since_l": 0, "total": 0, "focus": {}, "scripted": 0, "unlock_gift": false},
 		"workshop": {"items": {}, "relics": {}, "trophies": [], "retro_done": false, "migration_ore": 0},
 		"barracks": {"recruits": 0, "reserves": 0, "scrape_guard": 0, "drill": 0, "volleys": 0, "tactics": {}, "skins": {},
 				"grandfathered": {}},

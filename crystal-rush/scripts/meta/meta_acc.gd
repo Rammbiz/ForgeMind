@@ -4,6 +4,10 @@ class_name MetaAcc
 ## autoload compares wallet snapshots around each call and emits the signals.
 
 const CURRENCIES: Array[String] = ["coins", "gems", "crowns", "cores"]
+## Save v3 wallet currencies of the hero systems (heroes_design.md §12.1): Маяки / Beacons (the only
+## Portal currency, earned only), Томи / Tomes, Зоряна руда / Star Ore. They never change while the
+## heroes phase is off, so the 2.2.1 signals are unchanged.
+const HERO_CURRENCIES: Array[String] = ["beacons", "tomes", "ore"]
 
 
 ## Next campaign level to play (1-based).
@@ -59,11 +63,14 @@ static func spend(acc: Dictionary, cur: String, n: int) -> bool:
 	return true
 
 
-## Every wallet value as {cur: int} (coins, gems, crowns, cores, wild_C..wild_M) for diffing.
+## Every wallet value as {cur: int} (coins, gems, crowns, cores, beacons, tomes, ore, wild_C..wild_M)
+## for diffing.
 static func wallet_snapshot(acc: Dictionary) -> Dictionary:
 	var out := {}
 	for c in CURRENCIES:
 		out[c] = amount(acc, c)
+	for c2 in HERO_CURRENCIES:
+		out[c2] = amount(acc, c2)
 	for r in ArsenalData.RARITY_ORDER:
 		out["wild_" + r] = amount(acc, "wild_" + r)
 	return out

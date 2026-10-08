@@ -301,51 +301,52 @@ static func hero_level_end(acc: Dictionary, bundle: Dictionary, result: Dictiona
 		tomes = PortalData.TOMES_BOSS
 		MetaAcc.add(acc, "tomes", tomes)
 	bundle["tomes"] = {"add": tomes}
-	# Hero Chests (PortalData.CHEST_*): scripted #1 on the win that opens the champions row, a Grand
-	# Hero Chest per world-boss first clear, a Hero Chest every 3rd win (replays: 3 a day).
+	# Hero Chests (PortalData.CHEST_*): the champions-unlock gift on the win that opens the row (it
+	# opens as scripted chest #1, HeroChest), a Grand Hero Chest per world-boss first clear, a Hero
+	# Chest every 3rd win (replays: the first CHEST_REPLAYS_PER_DAY a day).
 	var drops: Array[Dictionary] = []
-	var champs_at := int(SaveV3Data.UNLOCK_AT["champions"])
-	if first_clear and lvl == champs_at and not hero_open_before("champions", before_level):
-		var s1 := Vault.scripted_entry(acc, 1, "unlock", lvl)
-		if not s1.is_empty():
-			drops.append(s1)
+	if first_clear and lvl == int(SaveV3Data.UNLOCK_AT["champions"]) and not hero_open_before("champions", before_level) \
+			and Vault.take_unlock_gift(acc):
+		drops.append({"type": Vault.HERO_CHEST, "source": "unlock", "level": lvl})
 	if hero_open_before("champions", before_level) and won:
 		if first_clear and boss:
-			drops.append({"type": Vault.GRAND, "source": "boss", "level": lvl, "scripted": 0})
+			drops.append({"type": Vault.GRAND, "source": "boss", "level": lvl})
 		if not replay or _replay_chest_left(acc, now_s) > 0:
 			if replay:
 				_replay_chest_take(acc, now_s)
 			w["chest_charge"] = float(w.get("chest_charge", 0.0)) + PortalData.CHEST_CHARGE_PER_WIN
 			if float(w["chest_charge"]) >= 1.0 - 1e-6:
 				w["chest_charge"] = maxf(0.0, float(w["chest_charge"]) - 1.0)
-				var s2 := Vault.scripted_entry(acc, 2, "win", lvl)
-				drops.append(s2 if not s2.is_empty() else {"type": Vault.HERO_CHEST, "source": "replay" if replay else "win",
-						"level": lvl, "scripted": 0})
+				drops.append({"type": Vault.HERO_CHEST, "source": "replay" if replay else "win", "level": lvl})
 	bundle["chest_charge"] = {"value": clampi(int(round(float(w.get("chest_charge", 0.0)) * 3.0)), 0, 3), "of": 3}
-	# One inline reveal per result screen: scripted > Grand > Hero Chest (> the Stone Cache, step 6).
+	# One inline reveal per result screen: the gift (scripted) > Grand > Hero Chest (> the Stone Cache,
+	# step 6). The others wait in the Vault.
 	var best := -1
 	for i in drops.size():
 		if best < 0 or _chest_rank(drops[i]) > _chest_rank(drops[best]):
 			best = i
 	var rows: Array = []
+	var inline_done := false
 	for i2 in drops.size():
 		var d: Dictionary = drops[i2]
+		var row := {"type": d["type"], "source": d["source"], "inline": false, "reveal": {}, "vault_index": -1,
+				"scripted": 0}
 		if i2 == best:
-			var rev := open_chest(acc, d, rng, now_s)
-			rows.append({"type": d["type"], "source": d["source"], "scripted": int(d["scripted"]), "inline": true,
-					"reveal": rev, "vault_index": -1})
-			MetaTelemetry.note(acc, "chest", {"type": d["type"], "best": str(rev.get("best_gem", rev.get("best", ""))),
-					"scripted": int(d["scripted"]), "inline": true}, now_s)
-		else:
-			var at := Vault.add(acc, str(d["type"]), str(d["source"]), int(d["level"]), int(d["scripted"]))
-			rows.append({"type": d["type"], "source": d["source"], "scripted": int(d["scripted"]), "inline": false,
-					"reveal": {}, "vault_index": at})
+			var rev := open_chest(acc, d, rng, now_s, true)
+			if bool(rev.get("ok", false)):
+				row["inline"] = true
+				row["reveal"] = rev
+				row["scripted"] = int(rev.get("scripted", 0))
+				inline_done = true
+		if not bool(row["inline"]):
+			row["vault_index"] = Vault.add(acc, str(d["type"]), str(d["source"]), int(d["level"]))
+		rows.append(row)
 	bundle["hero_chests"] = rows
 	# Мейра's guest level: no ownership, one line after the result.
 	if str(result.get("guest", "")) != "":
 		bundle["guest"] = {"id": str(result["guest"]), "line": "GUEST_SEER_RETURN"}
 	_team_run(acc, result, lvl, won, now_s)
-	return best >= 0
+	return inline_done
 
 
 ## Whole Beacons out of wallet.beacon_charge (the fraction stays). Returns the Beacons banked.
@@ -419,7 +420,7 @@ static func hero_login(acc: Dictionary, cycle_day: int) -> Dictionary:
 
 
 static func _chest_rank(d: Dictionary) -> int:
-	if int(d.get("scripted", 0)) > 0:
+	if str(d.get("source", "")) == "unlock":
 		return 3
 	return 2 if str(d.get("type", "")) == Vault.GRAND else 1
 
@@ -459,9 +460,11 @@ static func _team_run(acc: Dictionary, result: Dictionary, lvl: int, won: bool, 
 			"champions": champs, "synergies": syn if syn is Array else [], "won": won, "lost_ids": lost}, now_s)
 
 
-## Opens Hero Chest entry `d` ({type, source, level, scripted}) at once through the HeroChest roller
-## (WS-A) and returns its reveal bundle; the result is booked before any animation.
-static func open_chest(acc: Dictionary, d: Dictionary, rng: RandomNumberGenerator, now_s := 0) -> Dictionary:
-	# TEMP (H1 WIP): until WS-A's HeroChest lands the chest waits in the Vault.
-	var at := Vault.add(acc, str(d["type"]), str(d["source"]), int(d["level"]), int(d["scripted"]))
-	return {"pending": true, "vault_index": at}
+## Opens Hero Chest entry `d` ({type, source, level}) at once through the HeroChest roller (WS-A)
+## and returns its reveal ({ok false} when the roller refuses, e.g. the champions row still waits
+## for its session slot: the caller keeps the chest in the Vault). Booked before any animation.
+static func open_chest(acc: Dictionary, d: Dictionary, rng: RandomNumberGenerator, now_s := 0, inline := false) -> Dictionary:
+	var rev := HeroChest.open(acc, Vault.kind_of(str(d.get("type", ""))), rng, now_s, str(d.get("source", "")), inline)
+	rev["type"] = str(d.get("type", ""))
+	rev["source"] = str(d.get("source", ""))
+	return rev
