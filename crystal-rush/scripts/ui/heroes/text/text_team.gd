@@ -80,6 +80,7 @@ const T := {
 	"RECUT_TOP_FULL": ["Повні грані", "Full facets"],
 	"RECUT_TOP_AWAKEN": ["Пробудження: ранг %d / %d", "Awakening: rank %d / %d"],
 	"RECUT_STONE_NATIVE": ["серце: %s", "heart: %s"],
+	"CHAMP_UI_ART_SOON": ["Арт чемпіона — скоро", "Champion art — coming soon"],
 	"RECUT_SKIP_HINT": ["Торкнись, щоб пропустити", "Tap to skip"],
 	# ------------------------------------------------------------ Champion Showcase (§4, §9.3, part U §2.6)
 	"CHAMP_UI_SHARED": ["спільний для всіх чемпіонів", "shared by every champion"],

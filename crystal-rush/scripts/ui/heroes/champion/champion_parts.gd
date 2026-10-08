@@ -1,9 +1,13 @@
 class_name HeroesChampionParts
 extends RefCounted
 ## Drawn parts of the Champion Showcase (heroes_design.md §4, §9.3; part U §2.6):
-##   CardArt   the 3:4 card art: the painted card when HeroArt has one, else the honest Genshin-like
-##             "unknown" card (gem ground, the gem's fracture pattern, the engraved class emblem in
-##             the gem's cut, a thin gold double frame); dimmed when not owned
+##   CardArt   the art: the painted 3:4 card in a thin gold double frame when HeroArt has one;
+##             otherwise NO card and no frame: the class sigil in metal relief (HeroArt.draw_relief)
+##             painted straight into the gem sky over a faint silhouette of the gem's cut, slow
+##             0.8 % breathing and a light sweep, the honest 20 px caps line «Арт чемпіона —
+##             скоро» under it (Genshin's "unknown" look); dimmed when not owned
+##   SlotMap   a mini formation diagram for the АУРА plate: the hero at the dais centre and the
+##             four run slots, the champion's slot lit in its gem
 ##   TierPips  the Action tier I..IV: four rhombus pips, each lit in its own gem (I Кварц .. IV
 ##             Топаз) up to the champion's tier, the rest engraved; roman numerals under them
 ##   RunDemo   «У забігу»: a small looping diagram of a bridge segment, the crowd, the champion
@@ -18,19 +22,48 @@ class CardArt extends Control:
 	var dim := false
 	var _t := 0.0
 	var _tex: Texture2D
+	var _note: Label
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var st := HeroArt.state(id)
 		if st in ["splash", "card"]:
 			_tex = HeroArt.card_texture(id)
+		if _tex == null:
+			_note = UIKit.caps(HeroesText.t("CHAMP_UI_ART_SOON"), 20, UITokens.GOLD_TEXT)
+			_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			add_child(_note)
+			resized.connect(_place_note)
+			_place_note()
 		set_process(not UITokens.reduce_motion())
+
+	func has_art() -> bool:
+		return _tex != null
+
+	## Relief glyph size and centre (placeholder mode).
+	func glyph_px() -> float:
+		return clampf(minf(size.x * 0.78, size.y * 0.56), 120.0, 300.0)
+
+	func centre() -> Vector2:
+		return Vector2(size.x * 0.5, size.y * 0.44)
+
+	func _place_note() -> void:
+		if _note == null:
+			return
+		_note.custom_minimum_size = Vector2(size.x, 0)
+		var ns := _note.get_combined_minimum_size()
+		_note.size = Vector2(size.x, ns.y)
+		_note.position = Vector2(0, centre().y + glyph_px() * 0.62 + 14.0)
 
 	func _process(d: float) -> void:
 		_t += d
 		queue_redraw()
 
 	func _draw() -> void:
+		if _tex == null:
+			_draw_relief()
+			return
 		var r := Rect2(Vector2.ZERO, size)
 		var g: Dictionary = UITokens.gem(gem)
 		var pts := GemDraw.chamfer_rect(r, 14.0)
@@ -58,15 +91,67 @@ class CardArt extends Control:
 				var c := r.get_center() + Vector2(cos(a) * size.x * 0.28, sin(a * 1.3) * size.y * 0.3)
 				var fc: Color = fl[i]
 				draw_texture_rect(glow, Rect2(c - Vector2(80, 80), Vector2(160, 160)), false, Color(fc.r, fc.g, fc.b, 0.35))
-		if _tex:
-			draw_texture_rect(_tex, r.grow(-6.0), false, Color(1, 1, 1, 0.5 if dim else 1.0))
-		else:
-			HeroArt.draw_placeholder(self, Rect2(r.position + Vector2(0, size.y * 0.02), Vector2(size.x, size.y * 0.9)), cls, gem, 0.55 if dim else 1.0)
+		draw_texture_rect(_tex, r.grow(-6.0), false, Color(1, 1, 1, 0.5 if dim else 1.0))
 		GemDraw.outline(self, pts, UITokens.HAIRLINE, 2.0)
 		var hi := UITokens.GOLD_HI
 		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-7.0), 10.0), Color(hi.r, hi.g, hi.b, 0.75), 1.2)
 		for cy: float in [0.0, 1.0]:
 			GemDraw.draw_keystone(self, Vector2(size.x * 0.5, size.y * cy), 14.0, 1.0, Color(1.0, 0.92, 0.7))
+
+
+	func _draw_relief() -> void:
+		var g: Dictionary = UITokens.gem(gem)
+		var light: Color = g["light"]
+		var rim: Color = g["rim"]
+		var a := 0.55 if dim else 1.0
+		var c := centre()
+		var gp := glyph_px()
+		var glow := UIKit.glow_texture()
+		# A gem-light pool and the cut, large and faint, so the rarity still reads by shape.
+		draw_texture_rect(glow, Rect2(c - Vector2(gp, gp) * 1.05, Vector2(gp, gp) * 2.1), false, Color(rim.r, rim.g, rim.b, 0.22 * a))
+		var cut := str(g["cut"])
+		var pts := GemDraw.cut_points(cut, c, gp * 1.28)
+		draw_colored_polygon(pts, Color(light.r, light.g, light.b, 0.18 * a))
+		GemDraw.outline(self, pts, Color(1, 1, 1, 0.5 * a), 1.6)
+		GemDraw.outline(self, GemDraw.cut_points(cut, c, gp * 1.4), Color(light.r, light.g, light.b, 0.35 * a), 1.0)
+		var reduce := UITokens.reduce_motion()
+		var k := 0.0 if reduce else sin(_t * TAU / 5.2)
+		draw_set_transform(c + Vector2(0, -3.0 * k), 0.0, Vector2.ONE * (1.0 + 0.008 * k))
+		HeroArt.draw_relief(self, Vector2.ZERO, gp, cls, gem, a, -1.0 if reduce else _t, 0.0)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Mini formation: the dais, the hero at its centre, the four run slots (ChampionKinds offsets),
+## the champion's own slot lit in its gem with a small aura ring.
+class SlotMap extends Control:
+	var slot := "left"
+	var gem := "C"
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var R := Vector2(size.x * 0.4, size.y * 0.4)
+		var hl := UITokens.HAIRLINE
+		var ring := PackedVector2Array()
+		for i in 40:
+			var a := TAU * i / 40.0
+			ring.append(c + Vector2(cos(a) * R.x, sin(a) * R.y))
+		draw_colored_polygon(ring, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.9))
+		GemDraw.outline(self, ring, hl, 1.5)
+		draw_circle(c, 7.0, UITokens.CTA_HI)
+		draw_arc(c, 7.0, 0, TAU, 20, hl, 1.2, true)
+		var gc: Color = UITokens.gem(gem)["rim"]
+		for sl: StringName in ChampionKinds.SLOT_ORDER:
+			var o := ChampionKinds.slot_offset(sl, 1.0)
+			var p := c + Vector2(o.x / 0.69 * R.x * 0.9, o.y / 0.69 * R.y * 0.9)
+			if str(sl) == slot:
+				draw_circle(p, 13.0, Color(gc.r, gc.g, gc.b, 0.25))
+				draw_circle(p, 7.5, gc)
+				draw_arc(p, 7.5, 0, TAU, 20, hl, 1.5, true)
+			else:
+				draw_arc(p, 5.0, 0, TAU, 16, Color(hl.r, hl.g, hl.b, 0.7), 1.2, true)
 
 
 ## The relic socket: a cream disc in a thin gold ring with the engraved relic glyph.

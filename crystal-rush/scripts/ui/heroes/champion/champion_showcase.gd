@@ -3,14 +3,16 @@ extends Control
 ## «Вітрина чемпіона / Champion Showcase» (heroes_design.md §4, §9.2, §9.3, §11.3; part U §2.6).
 ## Route "champion/<id>" (HeroesNav, host "screen"). The Hero Showcase template, lighter:
 ##   backdrop  the bright painted sky of the champion's gem (HeroShowcaseBackdrop)
-##   art       the 3:4 card on the right (HeroesChampionParts.CardArt: painted card or the honest
-##             engraved class emblem on the gem ground)
+##   art       right of the column (HeroesChampionParts.CardArt): the painted 3:4 card in a frame, or,
+##             until art exists, the class sigil in relief straight on the gem sky (no empty card)
 ##   left      gem emblem (a doublet for a recut champion) · the ROLE LINE FIRST («Повертає
 ##             полеглих», §11.3) · name · title · class / element / faction badges · facets +
 ##             fragments · the shared Champion Level («спільний для всіх чемпіонів») · formation slot
-##   plates    ДІЯ (class Action + the twist, the live main number, tier pips I-IV each in its gem,
-##             «Ярус IV — лише для корінних Топазів» or «Ярус IV — найвищий: корінний Топаз») ·
-##             АУРА (class hook, the live effect at the slot share, «діє на солдатів у колі»)
+##   plates    top-aligned, independent heights. ДІЯ: class Action + the twist name, then the tier
+##             pips I-IV each in its gem and «Ярус IV — лише для корінних Топазів» / «Ярус IV —
+##             найвищий: корінний Топаз» (rule #3, above the fold), the live main number, the rule
+##             text last · АУРА: class hook, the live effect at the slot share, «діє на солдатів у
+##             колі», «Місце в строю» with a mini formation map
 ##   relic     the relic socket (Workshop; locked before it opens)
 ##   run       «У забігу»: the run diagram (HeroesChampionParts.RunDemo) until the 3D demo exists
 ##   dock      ‹ · «До команди» · «Огранити» (amber, only when a recut is ready)
@@ -34,6 +36,8 @@ var _codex: Control
 var _sheet: Control
 
 const COL_W := 352.0
+## Clear space kept between the column's text and the art.
+const COL_PAD := 16.0
 
 
 func setup(p_hub: Hub, args: PackedStringArray) -> void:
@@ -57,6 +61,7 @@ func _ready() -> void:
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 14)
 	_scroll.add_child(_body)
+	UIKit.scroll_fade(_scroll, UITokens.PAPER_1)
 	_dock = HBoxContainer.new()
 	_dock.add_theme_constant_override("separation", 12)
 	add_child(_dock)
@@ -134,7 +139,7 @@ func _build() -> void:
 	_left.add_child(badges)
 	var tags := UIKit.label(HeroesText.t("SHOW_TAGS", [HeroesText.class_label(str(_c["class"])), HeroesText.element_label(str(_c["element"]))]) + " · " + HeroesText.faction_label(str(_c["faction"])), 22, UITokens.INK)
 	tags.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tags.custom_minimum_size = Vector2(COL_W - 8.0, 0)
+	tags.custom_minimum_size = Vector2(COL_W - COL_PAD, 0)
 	_left.add_child(tags)
 	if owned:
 		_left.add_child(UIKit.gap(6))
@@ -144,7 +149,7 @@ func _build() -> void:
 		var lvl_args := [int(cl["level"]), int(cl["cap"]), int(cl["next_world"])] if lvl_key == "CHAMP_UI_LEVEL_CAP" else [int(cl["level"]), int(cl["cap"])]
 		var lv := UIKit.label(HeroesText.t(lvl_key, lvl_args), 24, UITokens.INK, true)
 		lv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lv.custom_minimum_size = Vector2(COL_W - 8.0, 0)
+		lv.custom_minimum_size = Vector2(COL_W - COL_PAD, 0)
 		_left.add_child(lv)
 		_left.add_child(UIKit.label(HeroesText.t("CHAMP_UI_SHARED"), 22, UITokens.INK_DIM))
 		if bool(_c["in_team"]):
@@ -173,8 +178,11 @@ func _build() -> void:
 	var plates := HBoxContainer.new()
 	plates.add_theme_constant_override("separation", 14)
 	var pw := (inner - 14.0) / 2.0
-	plates.add_child(_action_plate(nums, pw))
-	plates.add_child(_aura_plate(nums, pw))
+	var ap := _action_plate(nums, pw)
+	var up := _aura_plate(nums, pw)
+	for pl: Control in [ap, up]:
+		pl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		plates.add_child(pl)
 	_body.add_child(plates)
 	_body.add_child(_run_panel(inner, slot))
 	_body.add_child(_relic_row(inner))
@@ -213,7 +221,7 @@ func _role_line(text: String) -> Control:
 	ic.custom_minimum_size = Vector2(26, 26)
 	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(ic)
-	h.add_child(UIKit.label(text, UIKit.fit_size(text, COL_W - 70.0, 26, 22), UITokens.INK, true))
+	h.add_child(UIKit.label(text, UIKit.fit_size(text, COL_W - COL_PAD - 70.0, 26, 22), UITokens.INK, true))
 	p.add_child(h)
 	return p
 
@@ -229,7 +237,7 @@ func _facets_row() -> Control:
 	h.add_child(UIKit.label(txt, 24, UITokens.INK, true))
 	v.add_child(h)
 	if need > 0:
-		var bar := HeroEngravedBar.make(str(_c["gem"]), minf(int(_c["frags"]), need), need, COL_W - 24.0)
+		var bar := HeroEngravedBar.make(str(_c["gem"]), minf(int(_c["frags"]), need), need, COL_W - COL_PAD - 8.0)
 		bar.value_text = HeroesText.t("FACET_FRAGS", [int(_c["frags"]), need])
 		bar.label = HeroesText.t("CUR_FRAGS")
 		v.add_child(bar)
@@ -252,23 +260,29 @@ func _action_plate(n: Dictionary, w: float) -> Control:
 	var v: VBoxContainer = sh[1]
 	var tw := w - 36.0
 	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper()), 26, UITokens.INK, true, tw))
-	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper() + "_DESC"), 22, UITokens.INK_DIM, false, tw))
-	v.add_child(_wrap(str(n["action_text"]), 22, UITokens.INK, true, tw))
-	v.add_child(UIKit.gap(2))
+	# Tier first (rule #3 visible on first view), then the live number, then the rule text.
 	var tier := int(n["tier"])
+	var tr := HBoxContainer.new()
+	tr.add_theme_constant_override("separation", 10)
 	var pips := HeroesChampionParts.TierPips.new()
 	pips.tier = tier
-	v.add_child(pips)
+	tr.add_child(pips)
+	var tl := UIKit.label(HeroesText.t("CHAMP_UI_TIER", [HeroesText.roman(tier)]), 24, UITokens.INK, true)
+	tl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tr.add_child(tl)
+	v.add_child(tr)
 	var note := ""
 	var top := Ladder.gem_index(Ladder.CHAMPION_MAX_GEM) + 1
 	if tier >= top:
 		note = HeroesText.t("CHAMP_UI_TIER_HAVE", [HeroesText.roman(top), HeroesText.gem_name(Ladder.CHAMPION_MAX_GEM)])
 	else:
 		note = HeroesText.t("CHAMP_UI_TIER_NATIVE", [HeroesText.roman(top), HeroesText.gem_name(Ladder.CHAMPION_MAX_GEM, "PL")])
-	v.add_child(_wrap(HeroesText.t("CHAMP_UI_TIER", [HeroesText.roman(tier)]), 24, UITokens.INK, true, tw))
-	v.add_child(_wrap(note, 22, UITokens.GOLD_TEXT, false, tw))
+	v.add_child(_wrap(note, 22, UITokens.GOLD_TEXT, true, tw))
 	if bool(_c["is_recut"]):
 		v.add_child(_wrap(HeroesText.t("CHAMP_UI_TIER_KEPT", [HeroesText.roman(tier)]), 22, UITokens.INK_DIM, false, tw))
+	v.add_child(UIKit.hairline())
+	v.add_child(_wrap(str(n["action_text"]), 22, UITokens.INK, true, tw))
+	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper() + "_DESC"), 22, UITokens.INK_DIM, false, tw))
 	return sh[0]
 
 
@@ -281,7 +295,17 @@ func _aura_plate(n: Dictionary, w: float) -> Control:
 	var val := UIKit.number(str(n["aura_text"]).split(" ")[0], 44)
 	v.add_child(val)
 	v.add_child(_wrap(HeroesText.t("CHAMP_UI_AURA_NOTE"), 22, UITokens.INK_DIM, false, tw))
-	v.add_child(_wrap(HeroesText.t("CHAMP_UI_SLOT", [HeroesTeamLogic.slot_label(StringName(str(n["slot"])))]), 22, UITokens.INK_DIM, false, tw))
+	var sr := HBoxContainer.new()
+	sr.add_theme_constant_override("separation", 10)
+	var map := HeroesChampionParts.SlotMap.new()
+	map.slot = str(n["slot"])
+	map.gem = str(_c["gem"])
+	map.custom_minimum_size = Vector2(110, 76)
+	sr.add_child(map)
+	var sl := _wrap(HeroesText.t("CHAMP_UI_SLOT", [HeroesTeamLogic.slot_label(StringName(str(n["slot"])))]), 22, UITokens.INK, false, tw - 120.0)
+	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sr.add_child(sl)
+	v.add_child(sr)
 	return sh[0]
 
 
@@ -369,11 +393,20 @@ func _place_art() -> void:
 		return
 	var holder := _art.get_parent() as Control
 	var W := holder.size.x
-	var cw := minf(W + 6.0, 330.0)
-	var ch := cw * 4.0 / 3.0
-	_art.size = Vector2(cw, ch)
-	_art.position = Vector2(W - cw + 6.0, 96.0)
-	holder.custom_minimum_size = Vector2(0, ch + 100.0)
+	if not _art.has_art():
+		# The relief sigil fills the space right of the column (no card): from under the «?» to
+		# about the column's facets row.
+		var col_h := _left.get_combined_minimum_size().y if is_instance_valid(_left) else 0.0
+		var rh := clampf(maxf(W * 1.3, col_h - 80.0), 260.0, 640.0)
+		_art.size = Vector2(W, rh)
+		_art.position = Vector2(0, 70.0)
+		holder.custom_minimum_size = Vector2(0, rh + 70.0)
+	else:
+		var cw := minf(W - COL_PAD * 0.5, 330.0)
+		var ch := cw * 4.0 / 3.0
+		_art.size = Vector2(cw, ch)
+		_art.position = Vector2(W - cw, 96.0)
+		holder.custom_minimum_size = Vector2(0, ch + 100.0)
 	if holder.has_meta("seal"):
 		var seal: Control = holder.get_meta("seal")
 		seal.position = Vector2(W - 70.0, 76.0)
