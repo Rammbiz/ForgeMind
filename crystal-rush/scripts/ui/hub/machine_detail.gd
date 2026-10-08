@@ -183,7 +183,7 @@ func _build() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	col.add_child(_scroll)
-	UIKit.scroll_fade(_scroll, UIKit.CREAM, 48.0, 18.0)
+	UIKit.scroll_fade(_scroll, UIKit.CREAM, 36.0, 18.0)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", 0)
@@ -572,7 +572,7 @@ func _stats_page(c: Dictionary) -> Control:
 			fmt = "+%.0f%%"
 			val *= 100.0
 		var row := UIKit.list_row(Loc.t(str(r[1])), fmt % val, str(r[2]))
-		row.custom_minimum_size.y = 58
+		row.custom_minimum_size.y = 54
 		var vl: Label = row.get_meta("value")
 		vl.add_theme_font_override("font", UIKit.font_w("extrabold"))
 		vl.add_theme_font_size_override("font_size", 26)
@@ -609,10 +609,10 @@ func _stats_page(c: Dictionary) -> Control:
 	if bool(flags.get("ground_only", false)):
 		chips.add_child(text_chip(Loc.t("FLAG_GROUND"), "chevron_down"))
 	if chips.get_child_count() > 0:
-		v.add_child(UIKit.gap(14))
+		v.add_child(UIKit.gap(10))
 		v.add_child(chips)
 	if bool(c["owned"]) and str(c["locked"]) == "":
-		v.add_child(UIKit.gap(18))
+		v.add_child(UIKit.gap(10))
 		v.add_child(_focus_row(c))
 	v.add_child(UIKit.gap(12))
 	return v
