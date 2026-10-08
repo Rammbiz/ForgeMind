@@ -62,6 +62,7 @@ func _ready() -> void:
 	_test_two_track()
 	_test_focus_exact()
 	_test_hero_telemetry()
+	_test_synthetic_heroes()
 	EconData.phase_override = -1
 	EconData.meta_phase_override = -1
 	print("TEST_META %s: %d passed, %d failed (%.1f s)" % ["PASS" if _fails == 0 else "FAIL", _passes, _fails,
@@ -1146,6 +1147,7 @@ func _test_unlocks_heroes() -> void:
 	UnlockQueue.ack(a, "skills")
 	_ok(bool(MetaAcc.free_steps(a).get("skill_rank", false)), "skills: one free Ult rank on the team hero")
 	var b := _natural(15)
+	(b["chests"] as Dictionary)["unlock_gift"] = false      # a player whose unlock win granted no gift
 	UnlockQueue.ack(b, "champions")
 	var gift := Vault.hero_chests(b)
 	_ok(gift.size() == 1 and str(gift[0]["source"]) == "unlock" and bool(b["chests"]["unlock_gift"]), "champions (no gift yet): the gift chest waits in the Vault")
@@ -1613,7 +1615,15 @@ func _test_hero_telemetry() -> void:
 	Meta.recut("hero", "bolt")
 	Meta.level_hero("bolt")
 	Meta.level_champions()
-	Rewards.level_end(acc, _res(25, true, {"run_id": 5, "team_report": [{"id": "alba", "alive": false}]}), Meta._rng, 0)
+	Rewards.level_end(acc, _res(25, true, {"run_id": 5, "team_report": [{"id": "alba", "alive": false, "t": 41.5, "cause": "clash"}]}), Meta._rng, 0)
+	Meta.note_ceremony("walkout_L", 3.6, false)
+	(acc["progress"] as Dictionary)["level"] = 31
+	UnlockQueue.mark_all_done(acc)
+	(acc["wallet"] as Dictionary)["tomes"] = 30
+	var cb := Meta.buy_chronicle("bolt")
+	_ok(bool(cb["ok"]) and int(cb["page"]) == 1 and int(cb["tomes"]) == HeroData.CHRONICLE_PRICES[0] and MetaAcc.amount(acc, "tomes") == 30 - HeroData.CHRONICLE_PRICES[0],
+			"Chronicle page 1 for %d Tomes" % HeroData.CHRONICLE_PRICES[0])
+	_ok(str(Meta.chronicle_cost("vesta")["reason"]) in ["owned", "tomes", ""], "Chronicle cost of another hero")
 	var missing: Array = []
 	var seen := {}
 	for ev in (acc["telemetry"]["events"] as Array):
@@ -1624,8 +1634,33 @@ func _test_hero_telemetry() -> void:
 			if not m.is_empty():
 				missing.append("%s %s" % [e, str(m)])
 	_ok(missing.is_empty(), "hero events carry every §12.5 key: %s" % str(missing))
-	_ok(seen.has_all(["summon", "seal_pick", "facet", "recut", "team_run"]), "events logged: %s" % str(seen.keys()))
+	_ok(seen.has_all(["summon", "seal_pick", "facet", "recut", "team_run", "champion_lost", "ceremony", "chronicle", "champion_level"]),
+			"events logged: %s" % str(seen.keys()))
 	var tr := MetaTelemetry.events_of(acc, "team_run")
 	_ok(not tr.is_empty() and (tr[-1]["d"]["lost_ids"] as Array) == ["alba"], "team_run lists the fallen champions")
 	Meta.account = keep
 	_live(false)
+
+
+## Dev profiles from the champions-in-the-run phase (H2): synthetic accounts carry the starters met
+## by progress and the two scripted champions; dev run profiles get the v3 hero / team blocks while a
+## real account still plays 2.2.1 until the live phase.
+func _test_synthetic_heroes() -> void:
+	print("== synthetic accounts / dev run profiles (phase H2)")
+	_live(true, EconData.HEROES_RUN_PHASE)
+	var a := Meta.synthetic_account(30, "expected")
+	_ok(bool(a["heroes"]["titan"]["owned"]) and bool(a["heroes"]["seer"]["owned"]) and Array(a["team"]["champions"]) == ["alba", "mila"]
+			and int(a["champions"]["level"]) == SaveV3Data.EXPECTED_CHAMPION_LEVEL[29], "expected L30: Goran and Meira met, Alba + Mila, Champion Lv %d" % SaveV3Data.EXPECTED_CHAMPION_LEVEL[29])
+	_ok(not bool(Meta.synthetic_account(20, "expected")["heroes"]["seer"]["owned"]), "expected L20: Meira joins only after the L24 win")
+	var b := Meta.synthetic_account(10, "fresh")
+	_ok((b["team"]["champions"] as Array).is_empty() and (b["champions"]["roster"] as Dictionary).is_empty(), "before L14: no champions")
+	var keep := Meta.account
+	Meta.account = a
+	var p := Meta.run_profile(30)
+	_ok(Save.readonly and p.has("team") and (p["team"]["champions"] as Array).size() == 2 and p["hero"].has("ult_power") and not Meta.heroes_on(),
+			"dev run profile at phase 2: v3 hero + team blocks, hero systems still off")
+	_ok(str(Meta.summon(1).get("reason", "")) == "phase", "phase 2: no meta mutations")
+	Meta.account = keep
+	_live(false)
+	var c := Meta.synthetic_account(30, "expected")
+	_ok((c["team"]["champions"] as Array).is_empty() and not bool(c["heroes"]["titan"]["owned"]), "phase 0: synthetic accounts as 2.2.1")

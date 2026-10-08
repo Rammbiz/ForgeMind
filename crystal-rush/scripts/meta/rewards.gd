@@ -440,8 +440,9 @@ static func _replay_chest_take(acc: Dictionary, now_s: int) -> void:
 	p["replay_chest_day"] = {"day": day, "n": n + 1}
 
 
-## Telemetry `team_run` (§12.5) from the run's team report (WS-C: result.team_report [{id, alive,
-## kills, heals, blocks}], result.synergies [ids]).
+## Telemetry `team_run` and one `champion_lost` per fallen champion (§12.5) from the run's team
+## report (WS-C: result.team_report [{id, alive, kills, heals, blocks, t (s into the run when it
+## fell), cause}], result.synergies [ids]).
 static func _team_run(acc: Dictionary, result: Dictionary, lvl: int, won: bool, now_s: int) -> void:
 	var team: Dictionary = acc.get("team", {})
 	var champs: Array = []
@@ -450,9 +451,12 @@ static func _team_run(acc: Dictionary, result: Dictionary, lvl: int, won: bool, 
 	if rep is Array:
 		for r in rep:
 			if r is Dictionary:
-				champs.append(str((r as Dictionary).get("id", "")))
-				if not bool((r as Dictionary).get("alive", true)):
-					lost.append(str((r as Dictionary).get("id", "")))
+				var rd: Dictionary = r
+				champs.append(str(rd.get("id", "")))
+				if not bool(rd.get("alive", true)):
+					lost.append(str(rd.get("id", "")))
+					MetaTelemetry.note(acc, "champion_lost", {"id": str(rd.get("id", "")), "level": lvl,
+							"t": float(rd.get("t", 0.0)), "cause": str(rd.get("cause", ""))}, now_s)
 	if champs.is_empty():
 		champs = (team.get("champions", []) as Array).duplicate()
 	var syn: Variant = result.get("synergies", [])

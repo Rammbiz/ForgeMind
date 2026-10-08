@@ -51,6 +51,10 @@ const HERO_UNLOCK_V2 := {"bolt": 0, "titan": 4, "seer": 5}
 ## the build that turns the hero systems on (H3).
 const HEROES_PHASE := 0
 const HEROES_LIVE_PHASE := 3
+## Champions in the run (WS-C, phase H2): from this phase DEV runs (Save.readonly: autotest, bot,
+## level_check) read the v3 hero / team blocks of Meta.run_profile; a real account only from
+## HEROES_LIVE_PHASE.
+const HEROES_RUN_PHASE := 2
 ## The Workshop (WS-F, phase H4) opens its unlock row only from this phase (release 1 if green by the
 ## release cut, else release 2; the retro grant makes a late unlock lossless).
 const HEROES_WORKSHOP_PHASE := 4
@@ -69,6 +73,11 @@ static func heroes_phase() -> int:
 
 static func heroes_live() -> bool:
 	return heroes_phase() >= HEROES_LIVE_PHASE
+
+
+## Champions-in-the-run phase reached (dev runs only until heroes_live()).
+static func heroes_run() -> bool:
+	return heroes_phase() >= HEROES_RUN_PHASE
 
 
 ## The Meta-1 content phase the UnlockQueue opens rows for (ArsenalData.PHASE unless overridden).
@@ -507,10 +516,11 @@ static func _unlock_at(u: Dictionary) -> int:
 
 
 ## Campaign level whose WIN unlocks hero `id` (0 = from the start, -1 = never by progress: Portal and
-## Seal shop only). While the heroes phase is off this is the 2.2.1 HERO_UNLOCK table; live, the Seer
-## joins at UNLOCK_AT.seer (her L5 level becomes a guest level, seer_guest_level()).
+## Seal shop only). While the heroes phase is off this is the 2.2.1 HERO_UNLOCK table; from the
+## champions-in-the-run phase (dev profiles) and live, the Seer joins at UNLOCK_AT.seer (live, her L5
+## level becomes a guest level, seer_guest_level()).
 static func hero_unlock_at(id: String) -> int:
-	if heroes_live() and id == "seer":
+	if heroes_run() and id == "seer":
 		return int(SaveV3Data.UNLOCK_AT["seer"])
 	return int(HERO_UNLOCK.get(id, -1))
 

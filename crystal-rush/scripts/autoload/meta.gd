@@ -148,7 +148,7 @@ static func synthetic_account(level: int, kind := "fresh") -> Dictionary:
 	# dev runs, level_check and the bot identical until the heroes phase goes live.
 	var heroes := {}
 	for h0: String in (acc["heroes"] as Dictionary):
-		if h0 in SYNTH_HERO_ENTRIES or EconData.heroes_live():
+		if h0 in SYNTH_HERO_ENTRIES or EconData.heroes_run():
 			heroes[h0] = (acc["heroes"] as Dictionary)[h0]
 	match kind:
 		"expected":
@@ -175,7 +175,42 @@ static func synthetic_account(level: int, kind := "fresh") -> Dictionary:
 				(acc["barracks"] as Dictionary)[t2] = EconData.BARRACKS_MAX
 	UnlockQueue.mark_all_done(acc)
 	(acc["pity"] as Dictionary)["leg_welcome_done"] = w >= 3
+	if EconData.heroes_run():
+		_synthetic_heroes(acc, level, kind)
 	return acc
+
+
+## Hero systems of a synthetic account (heroes phase >= HEROES_RUN_PHASE): the starters a player at
+## `level` has met by progress, the two scripted champions (gift chest #1 by the team hero, #2) in
+## the team slots, Champion Level (expected: SaveV3Data.EXPECTED_CHAMPION_LEVEL; max: the cap).
+## Never a random-sourced character (the EXPECTED profile is the free floor, heroes_design.md P4);
+## the disclosed welcome Topaz of the EXPECTED profile is WS-A / WS-C's choice (H2, TEAM_DEMAND).
+static func _synthetic_heroes(acc: Dictionary, level: int, kind: String) -> void:
+	var hs: Dictionary = acc["heroes"]
+	for id: String in SaveV3Data.STARTERS:
+		var at := EconData.hero_unlock_at(id)
+		if at >= 0 and level > at and hs.has(id) and not bool((hs[id] as Dictionary)["owned"]):
+			(hs[id] as Dictionary)["owned"] = true
+			(hs[id] as Dictionary)["seen"] = true
+			(hs[id] as Dictionary)["got"] = {"t": 0, "via": "progress"}
+	var team: Dictionary = acc["team"]
+	team["hero"] = str((acc["progress"] as Dictionary).get("hero", "bolt"))
+	var ch: Dictionary = acc["champions"]
+	var champs: Array = []
+	if level > int(SaveV3Data.UNLOCK_AT["champions"]):
+		champs.append(str(PortalData.SCRIPTED_FIRST.get(str(team["hero"]), PortalData.SCRIPTED_FIRST_DEFAULT)))
+		champs.append(PortalData.SCRIPTED_SECOND)
+		for cid: String in champs:
+			(ch["roster"] as Dictionary)[cid] = EconData.new_champion_state(cid, true, "chest")
+		(acc["chests"] as Dictionary)["scripted"] = 2
+		(acc["chests"] as Dictionary)["unlock_gift"] = true
+	team["champions"] = champs
+	var cl_table: Array[int] = SaveV3Data.EXPECTED_CHAMPION_LEVEL
+	match kind:
+		"expected":
+			ch["level"] = cl_table[clampi(level - 1, 0, cl_table.size() - 1)]
+		"max":
+			ch["level"] = SaveV3Data.CHAMP_LEVEL_MAX
 
 
 static var _expected_cache: Dictionary = {}
@@ -867,6 +902,50 @@ func rewrite_skills(id: String) -> Dictionary:
 	return res
 
 
+## «Хроніка героя / Hero Chronicle» (§3.5): the next page of hero `id` (1..5) and its Tomes
+## ({page 0 = all bought, tomes, can, reason}); cosmetic only, opens with the skills (L30).
+func chronicle_cost(id: String) -> Dictionary:
+	var e := Roster.entry(account, id)
+	var page := int(e.get("chronicle", 0)) + 1
+	var prices: Array[int] = HeroData.CHRONICLE_PRICES
+	var tomes := prices[page - 1] if page <= prices.size() else 0
+	var why := ""
+	if not Roster.owned(account, id) or Roster.kind_of(id) != Roster.KIND_HERO:
+		why = "owned"
+	elif page > prices.size():
+		why = "done"
+	elif not Roster.system_open(account, "skills"):
+		why = "locked"
+	elif currency("tomes") < tomes:
+		why = "tomes"
+	return {"page": page if page <= prices.size() else 0, "tomes": tomes, "can": why == "", "reason": why}
+
+
+## Buys the next Chronicle page with Tomes: {ok, reason, id, page, tomes}.
+func buy_chronicle(id: String) -> Dictionary:
+	if not heroes_on():
+		return _phase_off({"id": id})
+	level()
+	var fn := func() -> Dictionary:
+		var c := chronicle_cost(id)
+		if not bool(c["can"]):
+			return {"ok": false, "reason": c["reason"], "id": id}
+		MetaAcc.spend(account, "tomes", int(c["tomes"]))
+		Roster.entry(account, id)["chronicle"] = int(c["page"])
+		MetaTelemetry.note(account, "chronicle", {"id": id, "page": int(c["page"])}, _now())
+		return {"ok": true, "reason": "", "id": id, "page": int(c["page"]), "tomes": int(c["tomes"])}
+	var res := _transact(fn)
+	if bool(res.get("ok", false)):
+		hero_changed.emit(id)
+	return res
+
+
+## The UI played (or skipped) ceremony `kind` for `s` seconds (live phase; §12.5 `ceremony`).
+func note_ceremony(kind: String, s: float, skipped: bool) -> void:
+	if heroes_on():
+		note("ceremony", {"kind": kind, "s": snappedf(s, 0.01), "skipped": skipped})
+
+
 func _changed(id: String) -> void:
 	if Roster.kind_of(id) == Roster.KIND_CHAMPION:
 		champion_changed.emit(id)
@@ -1272,6 +1351,11 @@ func run_hero(lvl: int) -> String:
 	return "seer" if _guest_level(lvl) else hero()
 
 
+## The run reads the v3 hero / team blocks: live phase, or a dev run from HEROES_RUN_PHASE (H2).
+func _v3_run() -> bool:
+	return heroes_on() or (EconData.heroes_run() and Save.readonly)
+
+
 func _guest_level(lvl: int) -> bool:
 	var g := EconData.seer_guest_level()
 	return g > 0 and lvl == g and level() == g and not Roster.owned(account, "seer")
@@ -1484,14 +1568,14 @@ func run_profile(lvl: int) -> Dictionary:
 		"new_carry": carry,
 		"inrun": {"crates": ArsenalData.crate_events(lvl, boss), "rank_gates": ArsenalData.rank_gates(lvl),
 				"pairs": ArsenalData.pairs_on(lvl), "crate_bonus": bool(ArsenalData.FEATURES["crate_bonus"])},
-		"hero": hero_profile(hero()) if not heroes_on() else _hero_block(run_hero(lvl), _guest_level(lvl)),
+		"hero": hero_profile(hero()) if not _v3_run() else _hero_block(run_hero(lvl), _guest_level(lvl)),
 		"army": army_profile(),
 		"tactics": {"crate_bonus_mult": 1.0, "weak_point": 0.0, "streak_every": 0, "lead_add": 0.0, "ult_start": 0.0},
 		"assist": EconData.assist(assist_stacks(lvl)),
 		"haven_info": [], "codex": {}, "auto_apex": bool((account["settings"] as Dictionary).get("auto_apex", false)),
 		"features": ArsenalData.FEATURES,
 	}
-	if heroes_on():
+	if _v3_run():
 		prof["team"] = _team_block(run_hero(lvl), _guest_level(lvl))
 		prof["guest"] = _open_guest
 	return prof
