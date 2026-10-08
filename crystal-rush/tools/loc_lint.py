@@ -149,6 +149,8 @@ FORBIDDEN = [
      "machine rarities adopt the gem names in en: Quartz · Sapphire · Amethyst · Topaz · Opal"),
     ("awakening-skill-live", r"[Пп]робуджен|[Aa]waken", "both", "live", None, None, "«Пробудження / Awakening» is the fourth hero skill only (MS_AWAKEN retires)"),
     ("glory-live", r"(?<![\w])Слав[аиу](?![\w])|\bGlory\b|◆", "both", "live", None, {"MIGRATION_HEROES_ORE"}, "Glory ◆ retires with the heroes release"),
+    ("soldier-voin", r"(?<![\w’])воїн(и|ів|ам|ами|ах|а|ові)?(?![\w’])", "uk", "live", r"^(?!.*_LORE$)", {"SYN_PAIR_WARRIOR"},
+     "army soldiers are «солдати» («Воїн» is the Warrior class; lore prose may say «воїн»)"),
     ("ore-materials", r"[Мм]атеріал|\bMaterials?\b", "both", "heroes", r"^(WORKSHOP_|CUR_ORE|GEAR_)", set(), "one material: «Зоряна руда / Star Ore»"),
 ]
 # "allowed keys" = None above means: allowed only in heroes-block keys (computed at run time).
