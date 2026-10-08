@@ -302,8 +302,8 @@ static func draw_crystal_lux(ci: CanvasItem, g: String, c: Vector2, s: float, al
 		var m := (outer[i] + outer[j]) * 0.5
 		var dir := ((outer[i] + outer[j]) * 0.5 - c).normalized()
 		var lam := clampf(dir.dot(ld) * 0.5 + 0.5, 0.0, 1.0)
-		var lo := deep.lerp(base, smoothstep(0.05, 0.6, lam))
-		var hi := base.lerp(light, 0.25 + 0.65 * smoothstep(0.35, 1.0, lam))
+		var lo := deep.lerp(base, smoothstep(0.15, 0.8, lam))
+		var hi := base.lerp(light, 0.12 + 0.7 * smoothstep(0.45, 1.0, lam))
 		var alt := 0.08 if i % 2 == 0 else -0.04
 		add_tri.call(outer[i], m, inner[i], lo, lo.lerp(hi, 0.35), hi.lightened(alt))
 		add_tri.call(m, outer[j], inner[j], lo.lerp(hi, 0.35), lo.darkened(0.06), hi)
@@ -347,8 +347,8 @@ static func draw_crystal_lux(ci: CanvasItem, g: String, c: Vector2, s: float, al
 			ci.draw_colored_polygon(poly, Color(1, 1, 1, 0.1 * alpha))
 	# Inner glow (charge) from the table.
 	if glow > 0.0:
-		var ig := light.lerp(Color(1, 1, 1), 0.3)
-		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(tc - Vector2(s, s) * 0.42, Vector2(s, s) * 0.84), false, Color(ig.r, ig.g, ig.b, 0.55 * glow * alpha))
+		var ig := light
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(tc - Vector2(s, s) * 0.36, Vector2(s, s) * 0.72), false, Color(ig.r, ig.g, ig.b, 0.32 * clampf(glow, 0.0, 1.0) * alpha))
 	# Light rim: a bright girdle line plus a faint inner echo (no dark outline).
 	var rim := light.lerp(Color(1, 1, 1), 0.35)
 	GemDraw.outline(ci, outer, Color(rim.r, rim.g, rim.b, 0.9 * alpha), maxf(1.5, s * 0.007))
@@ -403,3 +403,16 @@ static func draw_relief_glyph(ci: CanvasItem, icon: String, r: Rect2, alpha := 1
 	KitIcons.line(ci, icon, r, Color(0.62, 0.45, 0.18, alpha), w * 1.1)
 	KitIcons.line(ci, icon, Rect2(r.position + Vector2(-s * 0.006, -s * 0.01), r.size), Color(0.93, 0.79, 0.47, alpha), w * 0.72)
 	KitIcons.line(ci, icon, Rect2(r.position + Vector2(-s * 0.012, -s * 0.02), r.size), Color(1.0, 0.96, 0.84, 0.75 * alpha), w * 0.26)
+
+
+## A card footer for the Portal screens. When HeroCard draws its own footer (footer_mode: the
+## name at >= 22 px) the card shows just the name and the screen prints `text` outside the card;
+## otherwise the kit's footer line carries `text` ("" = no sub-line).
+static func card_footer(card: HeroCard, text: String) -> void:
+	if "footer_mode" in card:
+		card.set("footer_mode", "name")
+		return
+	if card.is_node_ready():
+		card.card.footer = text
+	else:
+		card.ready.connect(func(): card.card.footer = text)

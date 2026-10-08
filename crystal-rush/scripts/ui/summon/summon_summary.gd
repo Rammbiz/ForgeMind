@@ -80,7 +80,7 @@ func _ready() -> void:
 			foot = HeroesText.t("SUMMON_TOMES", [int(r["tomes"])])
 		else:
 			foot = HeroesText.t("SUMMON_FRAGS", [int(r["fragments"])])
-		c.ready.connect(func(): c.card.footer = foot)
+		SummonFx.card_footer(c, foot)
 		add_child(c)
 		_cards.append(c)
 		var s: HeroWaxSeal = null

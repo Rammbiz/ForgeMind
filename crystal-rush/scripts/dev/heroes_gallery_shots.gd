@@ -35,6 +35,8 @@ const SHOTS := {
 	"portal_welcome": {"uri": "portal", "state": "welcome"},
 	"odds": {"uri": "odds"},
 	"seals": {"uri": "seals"},
+	"portal_odds": {"uri": "portal/odds", "wait": 0.6},
+	"portal_seals": {"uri": "portal/seals", "wait": 0.6},
 	"walkout_*": {"uri": "summon/walkout/{gem}", "force": [{"id": "{gem_hero}", "gem": "{gem}"}], "wait": 0.6},
 	"summary10": {"uri": "summon/x10", "state": "welcome", "wait": 0.6},
 }

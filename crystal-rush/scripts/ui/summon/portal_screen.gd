@@ -280,7 +280,7 @@ func _pool_cell(id: String, p: float, first: String) -> Control:
 	var card := HeroCard.make(d, "S")
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	# No 14 px footer sub-line on the S card: what a summon gives moves to the 22 px lines below.
-	card.ready.connect(func(): card.card.footer = "")
+	SummonFx.card_footer(card, "")
 	card.pressed.connect(func(_id): open_sheet("odds"))
 	box.add_child(card)
 	var l := UIKit.scene_label(HeroesText.pct(p), 24)

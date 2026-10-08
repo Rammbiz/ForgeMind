@@ -72,7 +72,7 @@ func _cell(r: Dictionary, seals: int) -> Control:
 		d["frags"] = 0
 		card.set_data(d)
 	var foot := HeroesText.t("SHOW_LV", [int(h["level"])]) if bool(r["owned"]) else HeroesText.t("SEAL_GIVES_HERO")
-	card.ready.connect(func(): card.card.footer = foot)
+	SummonFx.card_footer(card, foot)
 	cc.add_child(card)
 	var gives := ""
 	match str(r["gives"]):

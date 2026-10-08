@@ -439,8 +439,9 @@ func _build_ribbon() -> void:
 		var w := minf(hl.size.x, maxf(260.0, _name_w() + 40.0))
 		GemDraw.draw_hairline(hl, Vector2(0, 7), Vector2(w, 7), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.95), 1.6, false, false))
 	_ribbon.add_child(hl)
-	_rtitle = UIKit.label("", 28, UITokens.GOLD_HI, true)
-	UIKit.soft_shadow(_rtitle, 28, 1.4)
+	_rtitle = UIKit.label("", 28, UITokens.CTA_HI, true)
+	UIKit.soft_shadow(_rtitle, 28, 1.8)
+	UIKit.scene_halo(_rtitle, 2.0, 1.4)
 	_ribbon.add_child(_rtitle)
 	_chips = HBoxContainer.new()
 	_chips.add_theme_constant_override("separation", 18)
@@ -458,6 +459,8 @@ func _build_ribbon() -> void:
 	_rdup_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_rdup_bar)
 	_ribbon.add_child(_rdup)
+	# A soft slate halo behind the whole block so the name and title read on bright art too.
+	UIKit.scene_halo(_ribbon, 1.5, 1.25)
 	_rseal = HeroWaxSeal.make(96)
 	add_child(_rseal)
 
@@ -1357,7 +1360,12 @@ func _draw_walk_mid(ci: Control, st: Dictionary) -> void:
 		var ik := float(w["crack"])
 		var ca := clampf(ck * 3.0, 0.0, 1.0)
 		var hl := SummonFx.hex(g).lightened(0.35)
-		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(s, s) * 0.85, Vector2(s, s) * 1.7), false, Color(hl.r, hl.g, hl.b, 0.32 * ca))
+		# (Topaz skips it: gold on the gold pillar would wash the stone out.)
+		if g != "L":
+			ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(s, s) * 0.85, Vector2(s, s) * 1.7), false, Color(hl.r, hl.g, hl.b, 0.26 * ca))
+		else:
+			# A soft slate shade behind the star so the gold stone reads on the gold pillar.
+			ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(s, s) * 0.62, Vector2(s, s) * 1.24), false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.22 * ca))
 		SummonFx.draw_crystal_lux(ci, g, c, s, ca, t, 0.25 + 0.6 * ik + 0.15 * sin(t * 3.0) * (1.0 - ik))
 		SummonFx.draw_cracks(ci, g, c, s * 0.5, ik, Color(1.0, 0.98, 0.92, 0.95))
 		var hot := float(w.get("hot", 0.0))
