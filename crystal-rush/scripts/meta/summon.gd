@@ -173,17 +173,23 @@ static func cost(count: int, src := "beacons") -> int:
 	return 0 if src == "welcome" else count * PortalData.BEACONS_PER_SUMMON
 
 
-## "" when the summon can run, else locked | count | welcome (already used) | beacons | pool.
+## "" when the summon can run, else locked | count | welcome (already used) | welcome_first (a
+## Beacon summon before the free welcome ×10) | beacons | pool.
+## Beacon summons wait for the welcome ×10 (§11.4 order; review F4): the welcome then always starts
+## from fresh pity, so its disclosed best-of-10 row (PortalData.ODDS_X10_WELCOME, 78.46 / 21.54) is
+## exact. A migrated player's lump Beacons therefore stay in the wallet until the welcome is used.
 static func block(acc: Dictionary, count: int, src := "beacons", eligible: Array = []) -> String:
 	if not is_open(acc):
 		return "locked"
 	if src == "welcome":
 		if count != PortalData.X10_SUMMONS:
 			return "count"
-		if bool(state(acc).get("welcome_done", false)):
+		if welcome_done(acc):
 			return "welcome"
 	elif count != 1 and count != PortalData.X10_SUMMONS:
 		return "count"
+	elif not welcome_done(acc):
+		return "welcome_first"
 	elif MetaAcc.amount(acc, "beacons") < cost(count, src):
 		return "beacons"
 	for g in Ladder.GEMS:
@@ -239,6 +245,11 @@ static func summon(acc: Dictionary, count: int, rng: RandomNumberGenerator, src 
 			"seals": int(st["seals"]), "welcome": src == "welcome"}, now_s)
 	return {"ok": true, "reason": "", "src": src, "count": count, "results": results, "best": best,
 			"seals": count * PortalData.SEALS_PER_SUMMON, "beacons": paid, "welcome_rule": forced}
+
+
+## True once the free welcome ×10 was used.
+static func welcome_done(acc: Dictionary) -> bool:
+	return bool(state(acc).get("welcome_done", false))
 
 
 ## The free welcome ×10 at the Portal unlock.
@@ -320,11 +331,19 @@ static func credit(acc: Dictionary, source: String, times := 1.0) -> int:
 
 # ------------------------------------------------------------------ disclosure ((i) sheet, §7.2)
 
-## Exact consolidated gem odds over the stationary pity chain (sim portal_exact). {gem: p}.
+## Exact consolidated gem odds over the stationary pity chain (sim portal_exact), as generated into
+## PortalData.ODDS_CONSOLIDATED: the (i) sheet reads the constant (review F3: solving the chain took
+## ~0.8 s on desktop). {gem: p}.
 static func consolidated() -> Dictionary:
+	return PortalData.ODDS_CONSOLIDATED.duplicate()
+
+
+## The same table solved at runtime from the PortalData rules (tests and tools/odds_table.gd check
+## it equals the generated constant). {gem: p}.
+static func solve_consolidated() -> Dictionary:
 	if _cons_cache.is_empty():
 		_solve_chain()
-	return _cons_cache
+	return _cons_cache.duplicate()
 
 
 ## Stationary distribution of pity states {Vector2i(since_e, since_l): p}.
@@ -392,8 +411,23 @@ static func x10_best(since_e := 0, since_l := 0, welcome_rule := false) -> Dicti
 	return out
 
 
-## Best gem of a typical ×10 (starting from the stationary pity state).
+## Best gem of a typical ×10 (starting from the stationary pity state): the generated
+## PortalData.ODDS_X10_TYPICAL (review F3). {gem: p}.
 static func x10_best_stationary() -> Dictionary:
+	return PortalData.ODDS_X10_TYPICAL.duplicate()
+
+
+## Best gem of the welcome ×10 from the account's pity now: the generated ODDS_X10_WELCOME from fresh
+## pity (always, while Beacon summons wait for the welcome), else solved from the current state. {gem: p}.
+static func welcome_odds(acc: Dictionary) -> Dictionary:
+	var st := state(acc)
+	if int(st.get("since_e", 0)) == 0 and int(st.get("since_l", 0)) == 0:
+		return PortalData.ODDS_X10_WELCOME.duplicate()
+	return x10_best(int(st["since_e"]), int(st["since_l"]), true)
+
+
+## x10_best_stationary solved at runtime (~0.5 s; tests / tools only). {gem: p}.
+static func solve_x10_best_stationary() -> Dictionary:
 	var out := {}
 	var st := stationary()
 	for s: Vector2i in st:

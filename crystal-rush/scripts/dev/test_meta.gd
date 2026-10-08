@@ -1363,15 +1363,19 @@ func _test_meta_api_heroes() -> void:
 	Roster.grant(acc, "titan", "progress")
 	var po := Meta.portal()
 	_ok(bool(po["open"]) and bool(po["welcome_ready"]) and int(po["e_left"]) == 10 and int(po["l_left"]) == 30, "portal(): open, welcome ready, pity 10 / 30")
-	_ok(str(Meta.summon(1).get("reason", "")) == "beacons", "no Beacons: summon refused")
+	(acc["wallet"] as Dictionary)["beacons"] = 5
+	_ok(str(Meta.summon(1).get("reason", "")) == "welcome_first" and MetaAcc.amount(acc, "beacons") == 5,
+			"Beacon summons wait for the welcome x10 (review F4)")
+	(acc["wallet"] as Dictionary)["beacons"] = 0
 	(acc["wallet"] as Dictionary)["gems"] = 99999
 	(acc["wallet"] as Dictionary)["coins"] = 999999
-	_ok(str(Meta.summon(1).get("reason", "")) == "beacons", "Gems and coins never pay a summon")
 	var wb := Meta.welcome_summon()
 	var lplus := (wb["items"] as Array).any(func(it: Dictionary) -> bool: return Ladder.gem_index(str(it["gem"])) >= 3)
 	_ok(bool(wb["ok"]) and (wb["items"] as Array).size() == 10 and lplus and int(wb["seals"]["after"]) == 10 and int(wb["beacons"]) == 0,
 			"welcome x10: free, 10 heroes, at least one Topaz+, +10 Seals")
 	_ok(str(Meta.welcome_summon().get("reason", "")) == "welcome" and not bool(Meta.portal()["welcome_ready"]), "the welcome x10 is used once")
+	_ok(str(Meta.summon(1).get("reason", "")) == "beacons", "no Beacons: summon refused")
+	_ok(str(Meta.summon(1).get("reason", "")) == "beacons", "Gems and coins never pay a summon")
 	(acc["wallet"] as Dictionary)["beacons"] = 11
 	var s1 := Meta.summon(1)
 	_ok(bool(s1["ok"]) and int(s1["beacons_after"]) == 10 and int(s1["seals"]["after"]) == 11 and s1.has("pity") and s1.has("history_id"), "x1: 1 Beacon, +1 Seal, bundle shape")
@@ -1471,6 +1475,11 @@ func _test_grant_rollback() -> void:
 	Save.hero = str(acc["progress"]["hero"])
 	var snap := var_to_str(acc)
 	var rs: int = Meta._rng.state
+	var r2 := Meta.welcome_summon()
+	_ok(not bool(r2["ok"]) and str(r2["reason"]) == "save" and var_to_str(Meta.account) == snap and Meta._rng.state == rs,
+			"welcome x10 whose save fails: rolled back (still unused)")
+	(acc["summon"] as Dictionary)["welcome_done"] = true     # Beacon summons wait for the welcome (review F4)
+	snap = var_to_str(acc)
 	var r := Meta.summon(10)
 	if str(r.get("reason", "")) != "save" or var_to_str(Meta.account) != snap:
 		var was: Dictionary = str_to_var(snap)
@@ -1480,8 +1489,6 @@ func _test_grant_rollback() -> void:
 		print("    rollback: summon -> %s rng %s/%s" % [str(r).left(200), str(rs), str(Meta._rng.state)])
 	_ok(not bool(r["ok"]) and str(r["reason"]) == "save" and var_to_str(Meta.account) == snap and Meta._rng.state == rs and is_same(Meta.account, Save.account),
 			"summon whose save fails: account, RNG and the shared dictionary restored")
-	var r2 := Meta.welcome_summon()
-	_ok(not bool(r2["ok"]) and var_to_str(Meta.account) == snap, "welcome x10 rolled back too (still unused)")
 	Save.path = TMP_DIR + "/rollback_ok.cfg"
 	var r3 := Meta.summon(1)
 	_ok(bool(r3["ok"]) and MetaAcc.amount(Meta.account, "beacons") == 9 and FileAccess.file_exists(Save.path), "a good path saves the grant")

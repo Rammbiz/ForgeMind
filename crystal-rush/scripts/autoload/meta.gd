@@ -1216,14 +1216,15 @@ func seal_pick(id: String) -> Dictionary:
 
 
 ## The (i) sheet (§7.2, KR item-level disclosure): {base, consolidated, x10_best {welcome, fresh,
-## typical}, heroes {id: p} for the current pool, pity {e_hard, l_soft_from, l_step, l_hard,
+## typical}, welcome_done, heroes {id: p} for the current pool, pity {e_hard, l_soft_from, l_step, l_hard,
 ## opal_share_in_l}, focus_total, e_left, l_left}.
 func portal_odds() -> Dictionary:
 	level()
 	var left := Summon.pity_left(account)
 	return {"base": PortalData.BASE_ODDS.duplicate(), "consolidated": Summon.consolidated(),
-			"x10_best": {"welcome": Summon.x10_best(0, 0, true), "fresh": Summon.x10_best(0, 0, false),
+			"x10_best": {"welcome": Summon.welcome_odds(account), "fresh": PortalData.ODDS_X10_FRESH.duplicate(),
 					"typical": Summon.x10_best_stationary()},
+			"welcome_done": Summon.welcome_done(account),
 			"heroes": Summon.hero_odds(account, eligible()),
 			"pity": {"e_hard": int(PortalData.PITY_E["hard"]), "l_soft_from": int(PortalData.PITY_L["soft_from"]),
 					"l_step": float(PortalData.PITY_L["step"]), "l_hard": int(PortalData.PITY_L["hard"]),

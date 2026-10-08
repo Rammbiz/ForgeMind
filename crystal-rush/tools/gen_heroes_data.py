@@ -497,6 +497,16 @@ def block_portal(b: Block) -> None:
     b.docv("BEACONS_PER_SUMMON")
     b.docv("X10_SUMMONS")
     b.docv("SEALS_PER_SUMMON")
+    b.head("disclosed exact odds ((i) sheet, §7.2 / §7.5), computed by the sim (portal_exact, portal_x10_best,\n"
+           "# chest_exact_best). Read at runtime instead of solving the pity chain on every sheet open (review F3);\n"
+           "# Summon.solve_consolidated / x10_best / HeroChest.exact_best recompute them in tests and tools/odds_table.gd")
+    b.roster("ODDS_CONSOLIDATED", "oracle.portal_consolidated",
+             "Each gem's long-run share of all summons (stationary pity chain).")
+    b.roster("ODDS_X10_FRESH", "oracle.portal_x10_fresh", "Best gem of a ×10 from fresh pity.")
+    b.roster("ODDS_X10_WELCOME", "oracle.portal_x10_welcome",
+             "Best gem of the free welcome ×10 (fresh pity: Beacon summons wait for it, Summon.block).")
+    b.roster("ODDS_X10_TYPICAL", "oracle.portal_x10_stationary", "Best gem of a typical ×10 (stationary pity start).")
+    b.roster("CHEST_BEST", "oracle.chest_best", "Best card of a Hero / Grand chest without pity.")
     b.head("Hero Chests (§7.5; unlock UNLOCK_CHESTS)")
     b.emit("UNLOCK_CHESTS", b.c["unlocks"]["champions"], "consts:unlocks.champions")
     for k in b.c["chests"]:

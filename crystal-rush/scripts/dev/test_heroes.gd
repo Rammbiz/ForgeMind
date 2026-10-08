@@ -906,9 +906,25 @@ func _test_team() -> void:
 func _test_summon_tables() -> void:
 	print("== Portal exact tables vs the sim and the disclosed §7.2 rows")
 	var o: Dictionary = _roster.get("oracle", {})
-	var cons := Summon.consolidated()
+	var cons := Summon.solve_consolidated()
 	_ok(_diff(cons, o["portal_consolidated"]) == "" or _max_dev(cons, o["portal_consolidated"]) < 1e-12,
-			"consolidated odds = sim portal_exact (max dev %s)" % str(_max_dev(cons, o["portal_consolidated"])))
+			"consolidated odds (runtime solver) = sim portal_exact (max dev %s)" % str(_max_dev(cons, o["portal_consolidated"])))
+	# Review F3: the (i) sheet reads generated constants; they equal the runtime solvers.
+	_ok(_max_dev(Summon.consolidated(), cons) < 1e-12, "PortalData.ODDS_CONSOLIDATED = runtime solver")
+	_ok(_max_dev(PortalData.ODDS_X10_FRESH, Summon.x10_best(0, 0, false)) < 1e-12, "PortalData.ODDS_X10_FRESH = runtime solver")
+	_ok(_max_dev(PortalData.ODDS_X10_WELCOME, Summon.x10_best(0, 0, true)) < 1e-12, "PortalData.ODDS_X10_WELCOME = runtime solver")
+	_ok(_max_dev(Summon.x10_best_stationary(), Summon.solve_x10_best_stationary()) < 1e-10, "PortalData.ODDS_X10_TYPICAL = runtime solver")
+	for ck: String in ["hero", "grand"]:
+		_ok(_max_dev(PortalData.CHEST_BEST[ck], HeroChest.exact_best(ck)) < 1e-12, "PortalData.CHEST_BEST.%s = HeroChest.exact_best" % ck)
+	var pacc := _acc(20)
+	var t_odds := Time.get_ticks_usec()
+	for _i in 20:
+		Summon.consolidated()
+		Summon.x10_best_stationary()
+		Summon.welcome_odds(pacc)
+		Summon.hero_odds(pacc)
+	var per_open_ms := float(Time.get_ticks_usec() - t_odds) / 20000.0
+	_ok(per_open_ms < 5.0, "the (i) sheet's tables cost %.3f ms per open (< 5 ms; was ~500 ms)" % per_open_ms)
 	var disclosed := {"C": 52.09, "R": 26.52, "E": 14.35, "L": 5.63, "M": 1.41}
 	for g: String in disclosed:
 		_ok(absf(100.0 * float(cons[g]) - float(disclosed[g])) <= 0.005, "§7.2 %s %.2f%%" % [g, disclosed[g]])
@@ -917,7 +933,7 @@ func _test_summon_tables() -> void:
 	_ok(absf(100.0 * (lplus + float(cons["E"])) - 21.39) <= 0.005, "Amethyst or better 21.39%")
 	_ok(_max_dev(Summon.x10_best(0, 0, false), o["portal_x10_fresh"]) < 1e-12, "x10 best (fresh pity) = sim")
 	_ok(_max_dev(Summon.x10_best(0, 0, true), o["portal_x10_welcome"]) < 1e-12, "x10 best (welcome rule) = sim")
-	_ok(_max_dev(Summon.x10_best_stationary(), o["portal_x10_stationary"]) < 1e-10, "x10 best (typical) = sim")
+	_ok(_max_dev(Summon.solve_x10_best_stationary(), o["portal_x10_stationary"]) < 1e-10, "x10 best (typical, runtime solver) = sim")
 	var rows := {"welcome": [Summon.x10_best(0, 0, true), {"L": 78.46, "M": 21.54}],
 			"fresh": [Summon.x10_best(0, 0, false), {"E": 59.87, "L": 30.56, "M": 9.56}],
 			"typical": [Summon.x10_best_stationary(), {"E": 43.56, "L": 42.99, "M": 13.45}]}
@@ -948,6 +964,12 @@ func _max_dev(a: Dictionary, b: Dictionary) -> float:
 	for k2 in b:
 		d = maxf(d, absf(float(b[k2]) - float(a.get(str(k2), 0.0))))
 	return d
+
+
+## `acc` with its free welcome x10 marked used (Beacon summons wait for it, review F4).
+static func _welcomed(acc: Dictionary) -> Dictionary:
+	(acc["summon"] as Dictionary)["welcome_done"] = true
+	return acc
 
 
 ## [name, account, {id: disclosed %}] for the §7.2 per-hero stages A-D.
@@ -1029,7 +1051,7 @@ func _test_summon_mc() -> void:
 				fz = maxf(fz, _z(int(cnt.get(kv[1], 0)), int(gem_cnt.get(kv[0], 0)), PortalData.FOCUS_TOTAL))
 			_ok(fz <= 4.0, "Focus = exactly 60%% of its gem's results (max |z| %.2f)" % fz)
 	# The integrated summon (state, Seals, fragments, history) on stage D: per-hero counts |z| <= 4.
-	var acc2: Dictionary = _stages()[3][1]
+	var acc2: Dictionary = _welcomed(_stages()[3][1])
 	var m := 50000 if not _full else 200000
 	MetaAcc.add(acc2, "beacons", m)
 	rng.seed = 77
@@ -1083,6 +1105,21 @@ func _test_summon_rules() -> void:
 	print("== Portal rules: duplicate protection, blocks, Seals, Beacons, determinism")
 	var acc := _acc(21, ["bolt", "titan"])
 	_ok(Summon.block(_acc(20), 1) == "locked", "Portal opens with the L20 win")
+	# Review F4: Beacon summons wait for the free welcome x10, so it always starts from fresh pity and
+	# its disclosed row (78.46 / 21.54) is exact.
+	MetaAcc.add(acc, "beacons", 30)
+	_ok(Summon.block(acc, 1) == "welcome_first" and Summon.block(acc, 10) == "welcome_first"
+			and str(Summon.summon(acc, 10, RandomNumberGenerator.new()).get("reason", "")) == "welcome_first"
+			and MetaAcc.amount(acc, "beacons") == 30 and int(acc["summon"]["total"]) == 0,
+			"Beacon summons wait for the welcome x10 (nothing spent, no pity moved)")
+	_ok(_max_dev(Summon.welcome_odds(acc), PortalData.ODDS_X10_WELCOME) < 1e-12, "welcome odds before it: the disclosed fresh-pity row")
+	MetaAcc.add(acc, "beacons", -30)
+	_welcomed(acc)
+	_ok(Summon.block(acc, 10, "welcome") == "welcome", "the welcome is used once")
+	(acc["summon"] as Dictionary)["since_l"] = 20
+	_ok(_max_dev(Summon.welcome_odds(acc), Summon.x10_best(0, 20, true)) < 1e-12
+			and absf(float(Summon.welcome_odds(acc)["M"]) - 0.2476) < 5e-4, "welcome odds follow the pity state if it ever moved (Opal 24.76% at 20)")
+	(acc["summon"] as Dictionary)["since_l"] = 0
 	_ok(Summon.block(acc, 1) == "beacons" and Summon.block(acc, 3) == "count", "needs Beacons; x1 or x10 only")
 	_ok(not Summon.pool(acc, "E").has("seer") and Summon.pool(acc, "C").has("titan"), "starters join the pool only once owned")
 	MetaAcc.add(acc, "beacons", 1)
@@ -1097,8 +1134,8 @@ func _test_summon_rules() -> void:
 		dp = dp and Summon.pick_hero(acc, "C", rng) == "arin" and ["vesta", "vartan"].has(Summon.pick_hero(acc, "L", rng))
 	_ok(dp, "duplicate protection: unowned first")
 	# Determinism: the same account + RNG state gives the same results; results are on the account.
-	var a1 := _acc(21, ["bolt", "titan"])
-	var a2 := _acc(21, ["bolt", "titan"])
+	var a1 := _welcomed(_acc(21, ["bolt", "titan"]))
+	var a2 := _welcomed(_acc(21, ["bolt", "titan"]))
 	MetaAcc.add(a1, "beacons", 30)
 	MetaAcc.add(a2, "beacons", 30)
 	var r1 := RandomNumberGenerator.new()

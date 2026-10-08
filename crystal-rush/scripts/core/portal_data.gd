@@ -31,6 +31,20 @@ const X10_SUMMONS: int = 10
 ## (heroes_design.md §7.4)
 const SEALS_PER_SUMMON: int = 1
 
+# ---- disclosed exact odds ((i) sheet, §7.2 / §7.5), computed by the sim (portal_exact, portal_x10_best,
+# chest_exact_best). Read at runtime instead of solving the pity chain on every sheet open (review F3);
+# Summon.solve_consolidated / x10_best / HeroChest.exact_best recompute them in tests and tools/odds_table.gd
+## Each gem's long-run share of all summons (stationary pity chain).
+const ODDS_CONSOLIDATED: Dictionary[String, float] = {"C": 0.5209373930684413, "R": 0.26520449101666094, "E": 0.1435342403492899, "L": 0.056259100452445, "M": 0.01406477511311125}
+## Best gem of a ×10 from fresh pity.
+const ODDS_X10_FRESH: Dictionary[String, float] = {"E": 0.5987369392383782, "L": 0.30564513577042535, "M": 0.09561792499119544}
+## Best gem of the free welcome ×10 (fresh pity: Beacon summons wait for it, Summon.block).
+const ODDS_X10_WELCOME: Dictionary[String, float] = {"L": 0.7846346871611276, "M": 0.21536531283887114}
+## Best gem of a typical ×10 (stationary pity start).
+const ODDS_X10_TYPICAL: Dictionary[String, float] = {"E": 0.4356325289188595, "L": 0.429883009902738, "M": 0.1344844611783501}
+## Best card of a Hero / Grand chest without pity.
+const CHEST_BEST: Dictionary = {"hero": {"C": 0.3844, "R": 0.4077, "E": 0.1682999999999999, "L": 0.03960000000000008}, "grand": {"C": 0.0, "R": 0.0, "E": 0.785781818181818, "L": 0.21421818181818197}}
+
 # ---- Hero Chests (§7.5; unlock UNLOCK_CHESTS)
 const UNLOCK_CHESTS: int = 14
 const CHEST_ODDS: Dictionary[String, float] = {"C": 0.62, "R": 0.27, "E": 0.09, "L": 0.02}
@@ -78,6 +92,11 @@ const SOURCE_KEYS: Dictionary[String, String] = {
 	"BEACONS_PER_SUMMON": "doc:§7.1",
 	"X10_SUMMONS": "doc:§7.1",
 	"SEALS_PER_SUMMON": "doc:§7.4",
+	"ODDS_CONSOLIDATED": "roster:oracle.portal_consolidated",
+	"ODDS_X10_FRESH": "roster:oracle.portal_x10_fresh",
+	"ODDS_X10_WELCOME": "roster:oracle.portal_x10_welcome",
+	"ODDS_X10_TYPICAL": "roster:oracle.portal_x10_stationary",
+	"CHEST_BEST": "roster:oracle.chest_best",
 	"UNLOCK_CHESTS": "consts:unlocks.champions",
 	"CHEST_ODDS": "consts:chests.CHEST_ODDS",
 	"CHEST_PITY_L": "consts:chests.CHEST_PITY_L",

@@ -67,7 +67,7 @@ func _stage(name: String) -> Dictionary:
 
 
 func _portal() -> void:
-	var cons := Summon.consolidated()
+	var cons := Summon.solve_consolidated()
 	print("## Portal — consolidated odds (exact, stationary pity chain)")
 	print("| Gem | Base | Consolidated | 1 in |")
 	print("|---|---|---|---|")
@@ -104,7 +104,7 @@ func _x10(kind: String) -> Dictionary:
 			return Summon.x10_best(0, 0, true)
 		"fresh":
 			return Summon.x10_best(0, 0, false)
-	return Summon.x10_best_stationary()
+	return Summon.solve_x10_best_stationary()
 
 
 func _chest() -> void:
@@ -140,7 +140,7 @@ func _ok(cond: bool, what: String) -> void:
 
 func _diff() -> void:
 	print("\n## --diff: exact tables vs the disclosed rows")
-	var cons := Summon.consolidated()
+	var cons := Summon.solve_consolidated()
 	for g: String in DISCLOSED_GEMS:
 		_ok(absf(100.0 * float(cons[g]) - float(DISCLOSED_GEMS[g])) <= 0.005, "consolidated %s" % g)
 	for k: String in DISCLOSED_X10:
