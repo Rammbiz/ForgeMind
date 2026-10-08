@@ -39,7 +39,7 @@ const CLIP_HEROES := {
 		},
 		"upper": ["Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
 				"RightShoulder", "RightArm", "RightForeArm", "RightHand"],
-		"portrait_dz": 1.6, "face_up": 0.1, "lift": 0.3,
+		"portrait_dz": 1.6, "face_up": 0.1, "lift": 0.0,
 	},
 }
 
