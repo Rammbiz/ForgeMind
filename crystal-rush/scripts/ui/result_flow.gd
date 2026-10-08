@@ -540,11 +540,11 @@ func _build_crowns() -> void:
 	calm.texture = UIKit.glow_texture()
 	calm.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	calm.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	calm.size = Vector2(minf(_vp.x * 0.9, 560.0), 200)
-	calm.position = Vector2((_vp.x - calm.size.x) * 0.5, _ins.y + TITLE_Y + 156 + 48 - 100)
+	calm.size = Vector2(minf(_vp.x * 1.05, 700.0), 280)
+	calm.position = Vector2((_vp.x - calm.size.x) * 0.5, _ins.y + TITLE_Y + 156 + 60 - 140)
 	calm.modulate = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
 	root.add_child(calm)
-	calm.create_tween().tween_property(calm, "modulate:a", 0.55, 0.4)
+	calm.create_tween().tween_property(calm, "modulate:a", 0.82, 0.4)
 	_crown_row = HBoxContainer.new()
 	_crown_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_crown_row.add_theme_constant_override("separation", 22)
