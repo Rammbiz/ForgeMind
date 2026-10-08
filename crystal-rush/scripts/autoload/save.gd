@@ -38,7 +38,7 @@ var language := ""
 var quality := "high"
 var vibration := true
 var readonly := false          # dev/test runs must not touch the player's save
-## Save v2 account (all meta sections). {} in readonly runs (Meta builds a synthetic one).
+## Save v3 account (all meta sections). {} in readonly runs (Meta builds a synthetic one).
 var account: Dictionary = {}
 ## 1 / 2 when this session migrated a v1 / v2 save (the hub shows MIGRATION_CARD for v1 via
 ## Meta.pending_unlocks).
@@ -104,11 +104,13 @@ func load_from_disk(live := -1) -> void:
 		save_data()
 
 
-## Copies the file being migrated to `backup` (next to `path`) unless a copy exists already.
+## Copies the file being migrated (the main file, or the .bak it was read from) to `backup`
+## (next to `path`) unless a copy exists already.
 func _backup_once(backup: String) -> void:
+	var src := path + ".bak" if loaded_from == "bak" else path
 	var b := path.get_base_dir().path_join(backup.get_file())
-	if FileAccess.file_exists(path) and not FileAccess.file_exists(b):
-		DirAccess.copy_absolute(path, b)
+	if FileAccess.file_exists(src) and not FileAccess.file_exists(b):
+		DirAccess.copy_absolute(src, b)
 
 
 func save_data() -> void:
