@@ -74,7 +74,12 @@ const T := {
 	"RECUT_PATH_NATIVE": ["корінний", "native"],
 	"RECUT_PATH_NOW": ["зараз", "now"],
 	"RECUT_PATH_NEXT": ["далі", "next"],
-	"RECUT_AT_MAX": ["Найвища огранка: далі нікуди — і це чесно", "The highest cut: nothing beyond it"],
+	"RECUT_AT_MAX": ["Найвища огранка. Далі ростуть грані й навички.", "The highest cut. Facets and skills keep growing."],
+	"RECUT_TOP_NATIVE": ["Корінний %s · найвищий самоцвіт", "Native %s · the highest gem"],
+	"RECUT_TOP_RECUT": ["Огранений із %s · найвищий самоцвіт", "Recut from %s · the highest gem"],
+	"RECUT_TOP_FULL": ["Повні грані", "Full facets"],
+	"RECUT_TOP_AWAKEN": ["Пробудження: ранг %d / %d", "Awakening: rank %d / %d"],
+	"RECUT_STONE_NATIVE": ["серце: %s", "heart: %s"],
 	"RECUT_SKIP_HINT": ["Торкнись, щоб пропустити", "Tap to skip"],
 	# ------------------------------------------------------------ Champion Showcase (§4, §9.3, part U §2.6)
 	"CHAMP_UI_SHARED": ["спільний для всіх чемпіонів", "shared by every champion"],
