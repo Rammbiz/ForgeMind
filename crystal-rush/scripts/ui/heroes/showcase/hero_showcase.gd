@@ -27,7 +27,7 @@ signal closed
 
 const COL_W := 340.0
 ## Where a live 3D hero stands across the screen in the art view (right of the info column).
-const STAGE_FOCUS := 0.73
+const STAGE_FOCUS := 0.72
 
 var hub: Hub
 var hero_id := "vesta"
@@ -219,7 +219,10 @@ func _fill_info() -> void:
 	var owned := bool(h["owned"])
 	var recut := bool(h["is_recut"])
 	var show_facets := owned and (int(h["facets"]) > 0 or int(h["frags"]) > 0)
-	var lg := HeroLivingGem.make_living(gem, 200, int(h["facets"]) if show_facets else 0, str(h["native"]) if recut else "")
+	# 200 px Living Gem; 168 px beside a painted splash, so the face leads.
+	var em_px := 168 if HeroArt.state(hero_id) == "splash" else 200
+	var lg := HeroLivingGem.make_living(gem, em_px, int(h["facets"]) if show_facets else 0, str(h["native"]) if recut else "")
+	lg.set_meta("base_px", float(em_px))
 	if not owned:
 		lg.modulate.a = 0.7
 	lg.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -536,7 +539,7 @@ func _layout() -> void:
 	if em and not _mode3d:
 		var over := y0 + _info.get_combined_minimum_size().y - (sk_y - 14.0)
 		var cur := em.custom_minimum_size.x
-		var want := clampf(cur - over, 140.0, 200.0)
+		var want := clampf(cur - over, 140.0, float(em.get_meta("base_px", 200.0)))
 		if absf(want - cur) > 0.5:
 			em.custom_minimum_size = Vector2(want, want)
 			_info.size = Vector2(COL_W, 0)

@@ -119,23 +119,33 @@ func _frame() -> void:
 		return
 	var d := _cam.position.distance_to(_look)
 	var aspect := size.x / size.y
-	var right := maxf(0.15, 1.0 - focus_x)
+	var fx := focus_x
+	var margin := CLEAR_PX / maxf(1.0, size.x)
+	var half := _model_px * 0.36
+	var clear := left_clear > 0.0 and focus_x > left_clear + 0.05
+	if clear and half > 0.0:
+		# Balance the two width needs (the dais' right half against the right edge, the model's
+		# left half against the info column) by sliding the focus a little: a wide hero (a cape,
+		# a golem's arms) moves right and stays large instead of shrinking.
+		var k := region.x * 0.37
+		var f_opt := (half + k * (left_clear + margin)) / (half + k)
+		fx = clampf(f_opt, focus_x - 0.03, focus_x + 0.06)
+	var right := maxf(0.15, 1.0 - fx)
 	var v_need := 2.0 * atan(region.y * 0.5 / d)
 	# The visible width holds most of the subject's right half between the focus and the edge
 	# (with the focus off-centre the dais may run off the right edge of the screen a little).
-	var vis_w_need := region.x / (2.0 * right) * (1.0 if focus_x <= 0.5 else 0.74)
-	if left_clear > 0.0 and focus_x > left_clear + 0.05:
-		# The widest point (the model's arms or the dais rim) starts CLEAR_PX right of the info
-		# column: focus - half / vis_w >= left_clear + margin.
-		var half := maxf(_model_px * 0.42, DAIS_W * 0.5)
-		var room := focus_x - left_clear - CLEAR_PX / maxf(1.0, size.x)
+	var vis_w_need := region.x / (2.0 * right) * (1.0 if fx <= 0.5 else 0.74)
+	if clear:
+		# The widest point of the model (arms, cape; the dais sits below the column) starts
+		# CLEAR_PX right of the info column: focus - half / vis_w >= left_clear + margin.
+		var room := fx - left_clear - margin
 		if room > 0.02:
 			vis_w_need = maxf(vis_w_need, half / room)
 	var v_from_h := 2.0 * atan(vis_w_need * 0.5 / d / aspect)
 	_cam.fov = clampf(rad_to_deg(maxf(v_need, v_from_h)), 14.0, 70.0)
 	var vis_h := 2.0 * d * tan(deg_to_rad(_cam.fov) * 0.5)
 	var vis_w := vis_h * aspect
-	_cam.h_offset = (0.5 - focus_x) * vis_w
+	_cam.h_offset = (0.5 - fx) * vis_w
 	# A wide hero framed by width leaves spare height: stand it lower (on the skill band's
 	# horizon) instead of floating in the middle of the art column.
 	# (The dais keeps ~150 px above the stage's bottom edge, which the Showcase sets 40 px under
