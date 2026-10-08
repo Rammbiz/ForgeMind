@@ -162,6 +162,12 @@ class _Over extends Control:
 				var col := SummonFx.hex(g)
 				SummonFx.draw_glow(self, p, s * (1.6 + 0.6 * ring.lit_k), col, 0.75 * ring.lit_k)
 			HeroGemEmblem.draw_emblem(self, g, "", p, s, true, ring.t)
+			if g == "C" and not (g == ring.lit and ring.lit_k > 0.0):
+				# Quartz is near-white: settle it to the other sockets' level (rim #D6DEE6) so it
+				# never reads as a button on the ring.
+				var qc := Color("#8E9BAD")
+				draw_colored_polygon(GemDraw.cut_points("round", p, s * 0.98), Color(qc.r, qc.g, qc.b, 0.32))
+				GemDraw.outline(self, GemDraw.cut_points("round", p, s * 0.98), Color("#D6DEE6"), 1.4)
 		if ring.crawl > 0.0:
 			var c := ring.centre()
 			var R := ring.radius()

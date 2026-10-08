@@ -255,3 +255,151 @@ static func draw_ring_pulse(ci: CanvasItem, c: Vector2, r0: float, r1: float, k:
 		return
 	var e := out3(k)
 	ci.draw_arc(c, lerpf(r0, r1, e), 0.0, TAU, 64, Color(col.r, col.g, col.b, col.a * (1.0 - k)), w * (1.0 - k) + 1.0, true)
+
+
+# ------------------------------------------------------------------ the large ceremony crystal
+
+## The walkout crystal / revealed stone at ceremony scale (>= 200 px): a brilliant-cut crown
+## (kite + star facets per girdle edge) with per-facet gradients from the deep girdle to the lit
+## table, a fanned table with pavilion arrows, a moving caustic band clipped to the cut, a LIGHT
+## rim (never a dark outline) and an inner glow `glow` 0..1. Lit from the upper left (GemDraw).
+static func draw_crystal_lux(ci: CanvasItem, g: String, c: Vector2, s: float, alpha := 1.0, t := 0.0, glow := 0.0) -> void:
+	if alpha <= 0.001:
+		return
+	var b: Array = BODY.get(g, BODY["L"])
+	var base: Color = b[0]
+	var light: Color = b[1]
+	var deep: Color = b[2]
+	var ct := cut(g)
+	var outer := GemDraw.cut_points(ct, c, s)
+	var n := outer.size()
+	if n < 3:
+		return
+	var tk := 0.5
+	match ct:
+		"star": tk = 0.42
+		"eye": tk = 0.46
+		"triangle": tk = 0.46
+	var tc := c + Vector2(0, -s * 0.03)
+	var inner := PackedVector2Array()
+	for p in outer:
+		inner.append(tc + (p - c) * tk)
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	var ld := GemDraw.LIGHT_DIR
+	var add_tri := func(p0: Vector2, p1: Vector2, p2: Vector2, c0: Color, c1: Color, c2: Color) -> void:
+		var k := pts.size()
+		pts.append_array([p0, p1, p2])
+		c0.a = alpha
+		c1.a = alpha
+		c2.a = alpha
+		cols.append_array([c0, c1, c2])
+		idx.append_array([k, k + 1, k + 2])
+	# Crown: per girdle edge a kite facet split by the edge midpoint, and a star facet between.
+	for i in n:
+		var j := (i + 1) % n
+		var m := (outer[i] + outer[j]) * 0.5
+		var dir := ((outer[i] + outer[j]) * 0.5 - c).normalized()
+		var lam := clampf(dir.dot(ld) * 0.5 + 0.5, 0.0, 1.0)
+		var lo := deep.lerp(base, smoothstep(0.05, 0.6, lam))
+		var hi := base.lerp(light, 0.25 + 0.65 * smoothstep(0.35, 1.0, lam))
+		var alt := 0.08 if i % 2 == 0 else -0.04
+		add_tri.call(outer[i], m, inner[i], lo, lo.lerp(hi, 0.35), hi.lightened(alt))
+		add_tri.call(m, outer[j], inner[j], lo.lerp(hi, 0.35), lo.darkened(0.06), hi)
+		var sl := base.lerp(light, 0.15 + 0.7 * lam)
+		add_tri.call(inner[i], m, inner[j], sl.lightened(0.1), sl.darkened(0.12), sl)
+	# Table: fanned from the centre, alternate wedges lighter (pavilion arrows seen through it).
+	var tcen := base.lerp(light, 0.8)
+	for i in n:
+		var j := (i + 1) % n
+		var dir := ((inner[i] + inner[j]) * 0.5 - tc).normalized()
+		var lam := clampf(dir.dot(ld) * 0.5 + 0.5, 0.0, 1.0)
+		var w := base.lerp(light, 0.3 + 0.45 * lam)
+		if i % 2 == 1:
+			w = w.lerp(deep, 0.18)
+		add_tri.call(tc, inner[i], inner[j], tcen, w, w.lerp(base, 0.2))
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols)
+	if g == "M":
+		draw_opal_fire(ci, tc, s, t, alpha)
+	# Facet lines: thin light hairlines (crown edges and the table).
+	var fl := Color(light.r, light.g, light.b, 0.38 * alpha)
+	var lw := maxf(1.0, s * 0.004)
+	var lines := PackedVector2Array()
+	for i in n:
+		if n > 10 and i % 2 == 1:
+			continue
+		lines.append_array([outer[i], inner[i]])
+	ci.draw_multiline(lines, fl, lw, true)
+	GemDraw.outline(ci, inner, Color(1, 1, 1, 0.42 * alpha), lw * 1.2)
+	# Caustic band sweeping across the stone, clipped to the cut.
+	var sw := fposmod(t * 0.32, 1.7) - 0.35
+	if sw > -0.3 and sw < 1.3:
+		var ax := Vector2(0.82, -0.57)
+		var nx := Vector2(-ax.y, ax.x)
+		var o := c + ax * lerpf(-0.75, 0.75, sw) * s
+		var bw := s * 0.09
+		var band := PackedVector2Array([o - nx * s - ax * bw, o + nx * s - ax * bw, o + nx * s + ax * bw, o - nx * s + ax * bw])
+		for poly in Geometry2D.intersect_polygons(outer, band):
+			ci.draw_colored_polygon(poly, Color(1, 1, 1, 0.16 * alpha))
+		var band2 := PackedVector2Array([o - nx * s + ax * bw * 1.6, o + nx * s + ax * bw * 1.6, o + nx * s + ax * bw * 2.1, o - nx * s + ax * bw * 2.1])
+		for poly in Geometry2D.intersect_polygons(outer, band2):
+			ci.draw_colored_polygon(poly, Color(1, 1, 1, 0.1 * alpha))
+	# Inner glow (charge) from the table.
+	if glow > 0.0:
+		var ig := light.lerp(Color(1, 1, 1), 0.3)
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(tc - Vector2(s, s) * 0.42, Vector2(s, s) * 0.84), false, Color(ig.r, ig.g, ig.b, 0.55 * glow * alpha))
+	# Light rim: a bright girdle line plus a faint inner echo (no dark outline).
+	var rim := light.lerp(Color(1, 1, 1), 0.35)
+	GemDraw.outline(ci, outer, Color(rim.r, rim.g, rim.b, 0.9 * alpha), maxf(1.5, s * 0.007))
+	var echo := PackedVector2Array()
+	for p in outer:
+		echo.append(c + (p - c) * 0.965)
+	GemDraw.outline(ci, echo, Color(1, 1, 1, 0.22 * alpha), maxf(1.0, s * 0.004))
+	GemDraw.draw_glint(ci, tc + Vector2(-s * 0.15, -s * 0.13), s * 0.3, Color(1, 1, 1, 0.85 * alpha))
+
+
+## The tips of a cut where a gold claw holds the stone (ceremony stone setting).
+static func prong_points(g: String, c: Vector2, s: float) -> PackedVector2Array:
+	var outer := GemDraw.cut_points(cut(g), c, s)
+	var out := PackedVector2Array()
+	match cut(g):
+		"star":
+			for i in range(0, outer.size(), 2):
+				out.append(outer[i])
+		"triangle":
+			for i in 3:
+				out.append((outer[i * 2] + outer[i * 2 + 1]) * 0.5)
+		"square":
+			for i in 4:
+				out.append((outer[i * 2 + 1] + outer[(i * 2 + 2) % 8]) * 0.5)
+		"eye":
+			out.append(outer[0])
+			out.append(outer[12])
+		_:
+			for i in range(0, outer.size(), 2):
+				out.append(outer[i])
+	return out
+
+
+## A gold claw prong at `p` pointing out of the stone centre `c`.
+static func draw_prong(ci: CanvasItem, c: Vector2, p: Vector2, s: float, alpha := 1.0) -> void:
+	var d := (p - c).normalized()
+	var nrm := Vector2(-d.y, d.x)
+	var L := s * 0.055
+	var W := s * 0.028
+	var tip := p + d * L * 0.55
+	var poly := PackedVector2Array([p - d * L * 0.7 + nrm * W, tip + nrm * W * 0.35, tip + d * L * 0.35, tip - nrm * W * 0.35, p - d * L * 0.7 - nrm * W])
+	var metal := Color("#E3C67E")
+	ci.draw_polygon(poly, PackedColorArray([Color(metal.lightened(0.35), alpha), Color(metal.lightened(0.2), alpha), Color(metal, alpha), Color(metal.darkened(0.25), alpha), Color(metal.darkened(0.35), alpha)]))
+	GemDraw.outline(ci, poly, Color(1.0, 0.95, 0.8, 0.6 * alpha), 1.0)
+
+
+## A line glyph in raised gold relief (shadow below, gold body, a light top edge).
+static func draw_relief_glyph(ci: CanvasItem, icon: String, r: Rect2, alpha := 1.0, shadow := Color(0.1, 0.06, 0.02)) -> void:
+	var s := r.size.x
+	var w := maxf(3.0, s * 0.055)
+	KitIcons.line(ci, icon, Rect2(r.position + Vector2(0, s * 0.03), r.size), Color(shadow.r, shadow.g, shadow.b, 0.5 * alpha), w * 1.25)
+	KitIcons.line(ci, icon, r, Color(0.62, 0.45, 0.18, alpha), w * 1.1)
+	KitIcons.line(ci, icon, Rect2(r.position + Vector2(-s * 0.006, -s * 0.01), r.size), Color(0.93, 0.79, 0.47, alpha), w * 0.72)
+	KitIcons.line(ci, icon, Rect2(r.position + Vector2(-s * 0.012, -s * 0.02), r.size), Color(1.0, 0.96, 0.84, 0.75 * alpha), w * 0.26)

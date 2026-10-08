@@ -11,6 +11,8 @@ const T := {
 	"PORTAL_POOL_COUNT": ["%d героїв", "%d heroes"],
 	"PORTAL_DUP_SHORT": ["Повтор: +%d фрагм.", "Repeat: +%d frag."],
 	"PORTAL_BEACONS_A11Y": ["Маяки: %d", "Beacons: %d"],
+	"PORTAL_POOL_NEW": ["новий", "new"],
+	"PORTAL_POOL_FIRST": ["спершу %s", "%s first"],
 	# ---- Odds sheet
 	"PORTAL_ODDS_GEMS": ["Рідкість", "Rarity"],
 	"PORTAL_ODDS_RULES": ["Гарантії і правила", "Guarantees and rules"],
@@ -18,6 +20,9 @@ const T := {
 	"PORTAL_ODDS_NOW": ["Зараз: Топаз або краще — %s наступного призову", "Now: Topaz or better — %s on the next summon"],
 	"PORTAL_ODDS_SEAL_PRICES": ["Вибір за печатками: %s", "Seal picks: %s"],
 	"PORTAL_ODDS_SEAL_ROW": ["%s — %d", "%s — %d"],
+	"PORTAL_ODDS_FREQ": ["Частота", "Frequency"],
+	"PORTAL_ODDS_TOPAZ_PLUS": ["Топаз+", "Topaz+"],
+	"PORTAL_ODDS_AMETHYST_PLUS": ["Аметист+", "Amethyst+"],
 	"PORTAL_ODDS_CHEST": ["Скриня героїв (чемпіони)", "Hero Chest (champions)"],
 	# ---- History sheet
 	"PORTAL_HISTORY_TITLE": ["Історія призовів", "Summon history"],

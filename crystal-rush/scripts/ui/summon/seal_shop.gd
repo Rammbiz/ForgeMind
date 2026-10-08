@@ -85,12 +85,26 @@ func _cell(r: Dictionary, seals: int) -> Control:
 	v.add_child(gl)
 	var price := int(r["price"])
 	var can := bool(r["affordable"])
-	var txt := HeroesText.t("SEAL_PICK_CTA", [HeroesText.count(price, "seal")]) if can else HeroesText.t("SEAL_NEED", [HeroesText.count(price - seals, "seal")])
+	if not can:
+		# Not affordable: one quiet 22 px line with the seal icon, not a dead button.
+		var need := HBoxContainer.new()
+		need.add_theme_constant_override("separation", 6)
+		need.alignment = BoxContainer.ALIGNMENT_CENTER
+		need.custom_minimum_size.y = 40
+		var ic := HeroIcons.make("seal", 28.0)
+		ic.custom_minimum_size = Vector2(28, 28)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		need.add_child(ic)
+		var nl := UIKit.label(HeroesText.t("SEAL_NEED", [HeroesText.count(price - seals, "seal")]), 22, UITokens.INK_DIM)
+		nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		need.add_child(nl)
+		v.add_child(need)
+		return v
+	var txt := HeroesText.t("SEAL_PICK_CTA", [HeroesText.count(price, "seal")])
 	var btn := UIKit.button(txt, false, 196)
 	btn.custom_minimum_size = Vector2(196, 88)
 	btn.add_theme_font_size_override("font_size", 22)
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	btn.disabled = not can
 	btn.pressed.connect(func(): _press(id, btn, price))
 	v.add_child(btn)
 	return v

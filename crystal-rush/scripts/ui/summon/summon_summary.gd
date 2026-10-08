@@ -11,7 +11,7 @@ extends Control
 
 const ARRIVE := 0.55             ## part U §3.3: the summary arrives in 0.55 s
 const STAGGER := 0.04            ## UITokens.CARD_STAGGER
-const BEST_SCALE := 1.24
+const BEST_SCALE := 1.36
 
 var results: Array[Dictionary] = []
 var before: Dictionary = {}
@@ -154,12 +154,15 @@ func _layout() -> void:
 	_panel.size = Vector2(W - 2.0 * UITokens.GUTTER, 0)
 	_panel.reset_size()
 	var ph := _panel.get_combined_minimum_size().y
-	var block := 104.0 + cs.y * 2.0 + 64.0 + 44.0 + ph
+	# The rows sit a little apart (the larger best card needs the room) and the frame sits low,
+	# close to the dock, instead of floating with a quarter of the screen empty under it.
+	var gap_rows := 84.0
+	var block := 120.0 + cs.y * 2.0 + gap_rows + 44.0 + ph
 	var room_top := ins.y + 96.0
 	var room_bot := H - ins.w - 150.0
-	var top := room_top + maxf(0.0, (room_bot - room_top - block) * 0.45)
+	var top := room_top + maxf(0.0, (room_bot - room_top - block) * 0.72)
 	_title.position = Vector2((W - _title.get_combined_minimum_size().x) * 0.5, top)
-	var row_y := [top + 104.0 + cs.y * 0.5 + 18.0, top + 104.0 + cs.y * 1.5 + 64.0]
+	var row_y := [top + 120.0 + cs.y * 0.5 + 18.0, top + 120.0 + cs.y * 1.5 + gap_rows]
 	_slots.clear()
 	for slot in _order.size():
 		var row := slot / 5
@@ -201,7 +204,8 @@ func render(u: float) -> void:
 		if s:
 			# The seal presses in after the cards land (0.14 s squash, then settle).
 			var sk := SummonFx.seg(u, ARRIVE + 0.1 + float(slot) * 0.06, 0.32)
-			var p := (sl["pos"] as Vector2) + Vector2(cs.x * 0.5 * sc - 22.0, -cs.y * 0.5 * sc + 6.0)
+			# Seals sit 8 px further inside the card so they never cover the neighbour's top.
+			var p := (sl["pos"] as Vector2) + Vector2(cs.x * 0.5 * sc - 30.0, -cs.y * 0.5 * sc + 10.0)
 			s.position = p - s.size * 0.5
 			s.pivot_offset = s.size * 0.5
 			var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.45) if sk < 0.45 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.45) / 0.55))

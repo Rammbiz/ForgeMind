@@ -7,7 +7,7 @@ extends SummonSheet
 ## portal_state() read PortalData; the sentences are Loc templates filled from it.
 ## Route "odds" (HeroesNav modal) or embedded over the Portal.
 
-const COL := [120.0, 176.0, 104.0]
+const COL := [124.0, 178.0, 112.0]
 
 
 func _title() -> String:
@@ -23,7 +23,9 @@ func _fill(b: VBoxContainer) -> void:
 		b.add_child(_gem_row(str(r["gem"]), HeroesText.gem_name(str(r["gem"])), float(r["base"]), float(r["total"]), float(r["one_in"])))
 	for r: Dictionary in od["groups"]:
 		var g := "L" if str(r["key"]) == "PORTAL_TOPAZ_PLUS" else "E"
-		b.add_child(_gem_row(g, HeroesText.t(str(r["key"])), float(r["base"]), float(r["total"]), float(r["one_in"]), true))
+		# The table uses the short group names («Топаз+»), the sentences below keep the long ones.
+		var short := "PORTAL_ODDS_TOPAZ_PLUS" if g == "L" else "PORTAL_ODDS_AMETHYST_PLUS"
+		b.add_child(_gem_row(g, HeroesText.t(short), float(r["base"]), float(r["total"]), float(r["one_in"]), true))
 	var now := SummonSheet.para(HeroesText.t("PORTAL_ODDS_NOW", [HeroesText.pct(float(ps["topaz_chance_next"]))]), 22, UITokens.INK)
 	b.add_child(now)
 	b.add_child(UIKit.gap(6))
@@ -57,17 +59,24 @@ func _fill(b: VBoxContainer) -> void:
 
 
 func _head() -> Control:
+	# One line of 20 px caps per column (no wrapping): РІДКІСТЬ · ЗА ПРИЗОВ · З ГАРАНТІЯМИ · ЧАСТОТА.
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
-	var n := UIKit.caps(HeroesText.t("RARITY"), 22)
+	var n := UIKit.caps(HeroesText.t("RARITY"), 20)
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	n.clip_text = true
 	h.add_child(n)
 	for i in 3:
-		var k: String = ["PORTAL_ODDS_BASE", "PORTAL_ODDS_TOTAL", ""][i]
-		var l := UIKit.caps(HeroesText.t(k) if k != "" else "", 22)
+		var k: String = ["PORTAL_ODDS_BASE", "PORTAL_ODDS_TOTAL", "PORTAL_ODDS_FREQ"][i]
+		var txt := HeroesText.t(k)
+		var l := UIKit.caps(txt, 20)
+		var f := UIKit.font_caps(20)
+		var fs := 20
+		while fs > 16 and f.get_string_size(txt.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > COL[i] + 6.0:
+			fs -= 1
+		l.add_theme_font_size_override("font_size", fs)
 		l.custom_minimum_size.x = COL[i]
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		h.add_child(l)
 	return h
 

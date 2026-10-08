@@ -29,6 +29,7 @@ var _pity: HeroEngravedBar
 var _seals: HeroEngravedBar
 var _seal_btn: Button
 var _seals_label: Label
+var _hint: Label
 var _chips: HBoxContainer
 var _rule: PanelContainer
 var _dock: Control
@@ -135,6 +136,11 @@ func _build() -> void:
 	_seal_btn.custom_minimum_size = Vector2(150, 88)
 	_seal_btn.pressed.connect(func(): open_sheet("seals"))
 	srow.add_child(_seal_btn)
+	# Out of Beacons: one quiet line on where they come from (never a shop link).
+	_hint = UIKit.label(HeroesText.t("CUR_BEACON_NOTE"), 22, UITokens.INK_DIM)
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.custom_minimum_size.x = 300
+	col.add_child(_hint)
 	# Chips.
 	_chips = HBoxContainer.new()
 	_chips.add_theme_constant_override("separation", 14)
@@ -209,7 +215,7 @@ func refresh() -> void:
 			return ga > gb
 		return int(HeroData.HEROES[str(a)]["no"]) < int(HeroData.HEROES[str(b)]["no"]))
 	for id in pool:
-		_pool_row.add_child(_pool_cell(str(id), float(pct.get(str(id), 0.0))))
+		_pool_row.add_child(_pool_cell(str(id), float(pct.get(str(id), 0.0)), _first_of(str(id), pool)))
 	# Pity: one bar, Topaz-or-better countdown; the Amethyst+ countdown engraved on the right.
 	_pity.gem = "L"
 	_pity.max_value = float(ps["pity_l_hard"])
@@ -254,12 +260,13 @@ func refresh() -> void:
 		_dock.add_child(_x1)
 		_dock.add_child(_x10)
 	_rule.visible = welcome
+	_hint.visible = not welcome and have < c1
 	_panel.visible = true
 	if is_node_ready():
 		_layout()
 
 
-func _pool_cell(id: String, p: float) -> Control:
+func _pool_cell(id: String, p: float, first: String) -> Control:
 	var h := HeroesUIModel.hero(id)
 	var d := h.duplicate()
 	# The Portal shows who CAN appear: never a lock disc here (unowned = what a summon brings).
@@ -268,18 +275,41 @@ func _pool_cell(id: String, p: float) -> Control:
 	d["facets"] = 0
 	d["frags"] = 0
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
 	var card := HeroCard.make(d, "S")
 	card.mouse_filter = Control.MOUSE_FILTER_PASS
-	var foot := HeroesText.t("SUMMON_FRAGS", [HeroData.dup_frags(HeroData.native(id))]) if bool(h["owned"]) else HeroesText.t("SEAL_GIVES_HERO")
-	card.ready.connect(func(): card.card.footer = foot)
+	# No 14 px footer sub-line on the S card: what a summon gives moves to the 22 px lines below.
+	card.ready.connect(func(): card.card.footer = "")
 	card.pressed.connect(func(_id): open_sheet("odds"))
 	box.add_child(card)
-	var l := UIKit.scene_label(HeroesText.pct(p), 22)
+	var l := UIKit.scene_label(HeroesText.pct(p), 24)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(l)
+	var what := ""
+	if p <= 0.0 and first != "":
+		# Correct but reads like a bug without the rule: unowned heroes of a gem come first.
+		what = HeroesText.t("PORTAL_POOL_FIRST", [HeroesText.hero_name(first)])
+	elif bool(h["owned"]):
+		what = HeroesText.t("SUMMON_FRAGS", [HeroData.dup_frags(HeroData.native(id))])
+	else:
+		what = HeroesText.t("PORTAL_POOL_NEW")
+	var w := UIKit.label(what, 22, UITokens.GOLD_HI if not bool(h["owned"]) else UITokens.ON_SCENE, false)
+	UIKit.soft_shadow(w, 22)
+	w.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	w.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	w.custom_minimum_size.x = HeroCard.SIZES["S"].x
+	box.add_child(w)
 	return box
+
+
+## The unowned hero of the same native gem that the Portal brings first (or "").
+func _first_of(id: String, pool: Array) -> String:
+	var g := HeroData.native(id)
+	for o in pool:
+		if HeroData.native(str(o)) == g and not bool(HeroesUIModel.hero(str(o))["owned"]):
+			return str(o)
+	return ""
 
 
 # ------------------------------------------------------------------ layout
@@ -297,7 +327,7 @@ func _layout() -> void:
 	_beacons.position = Vector2(W - 14.0 - _beacons.size.x - ins.z, top + 22)
 	_pool_label.position = Vector2(g, top + 100)
 	_pool_scroll.position = Vector2(0, top + 136)
-	_pool_scroll.size = Vector2(W, 186 + 34)
+	_pool_scroll.size = Vector2(W, 186 + 64)
 	_pool_row.add_theme_constant_override("separation", 12)
 	_pool_scroll.get_h_scroll_bar().visible = false
 	# Margins inside the carousel (gutter left and right).

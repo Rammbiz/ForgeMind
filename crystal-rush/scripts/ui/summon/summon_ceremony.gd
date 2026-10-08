@@ -90,12 +90,12 @@ var _card: HeroCard
 var _card_seal: HeroWaxSeal
 var _card_dup: VBoxContainer
 var _card_dup_bar: HeroEngravedBar
-var _ribbon: PanelContainer
+var _ribbon: VBoxContainer         ## the name block, set straight on the art (Genshin wish style)
 var _name: Label
 var _rtitle: Label
 var _chips: HBoxContainer
 var _rseal: HeroWaxSeal
-var _rdup: VBoxContainer
+var _rdup: PanelContainer
 var _rdup_label: Label
 var _rdup_bar: HeroEngravedBar
 var _emblem: HeroGemEmblem
@@ -178,7 +178,8 @@ func _walk_len(kind: String, g: String) -> float:
 			var key := "seal_pick_new" if bool(results[0]["is_new"]) else "seal_pick_owned"
 			var tbl := CeremonyData.CEREMONY_FAST if _fast else CeremonyData.CEREMONY
 			return float(tbl.get(key, CeremonyData.CEREMONY[key]))
-		"static": return float(CeremonyData.CEREMONY_REDUCED["walkout_static_max"])
+		# Reduce Motion: the static walkout ends (buttons up) by 0.8 s, inside the 1.0 s cap.
+		"static": return minf(0.8, float(CeremonyData.CEREMONY_REDUCED["walkout_static_max"]))
 	return 1.2
 
 
@@ -326,7 +327,8 @@ func _ready() -> void:
 	gt.fill_to = Vector2(0, 1)
 	var gr := Gradient.new()
 	gr.set_color(0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0))
-	gr.set_color(1, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.6))
+	gr.set_color(1, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.66))
+	gr.add_point(0.5, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.4))
 	gt.gradient = gr
 	gt.width = 4
 	gt.height = 64
@@ -336,9 +338,10 @@ func _ready() -> void:
 	add_child(_scrim)
 	_build_card()
 	_build_ribbon()
+	# The cut already names the gem: no 12 px rarity caption under the medallion (critic P2).
 	_emblem = HeroGemEmblem.make("L", 112.0)
-	_emblem.show_name = true
-	_emblem.size = Vector2(112, 112 * 1.26)
+	_emblem.show_name = false
+	_emblem.size = Vector2(112, 112)
 	_emblem.custom_minimum_size = _emblem.size
 	add_child(_emblem)
 	if mode == "x10":
@@ -349,7 +352,12 @@ func _ready() -> void:
 	_tap = UIKit.scene_label(HeroesText.t("SUMMON_TAP"), 24, false)
 	_tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_tap)
-	_skip = UIKit.ghost_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 24, true)
+	# «Пропустити»: a light cream-glass ghost with ink text (a dark box reads generic on the sky).
+	_skip = UIKit.ghost_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 22, false)
+	for st: String in ["normal", "hover", "pressed", "hover_pressed"]:
+		_skip.add_theme_stylebox_override(st, UIKit.lux("cream_glass", Vector2(18, 8)))
+	for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		_skip.add_theme_color_override(k, UITokens.INK)
 	_skip.pressed.connect(skip_to_end)
 	add_child(_skip)
 	_dock = HBoxContainer.new()
@@ -398,47 +406,67 @@ func _build_card() -> void:
 	_card_dup.add_theme_constant_override("separation", 6)
 	_card_dup.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var h := HeroesUIModel.hero(str(r["id"]))
-	var fl := UIKit.scene_label(HeroesText.t("SUMMON_FRAGS", [int(r["fragments"])]) if int(r["tomes"]) <= 0 else HeroesText.t("SUMMON_TOMES", [int(r["tomes"])]), 30)
+	# The duplicate's fragments on one cream-glass slip (never white text over the bright dais).
+	var pnl := UIKit.panel("cream_glass", Vector2(20, 10))
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 6)
+	pnl.add_child(pv)
+	var fl := UIKit.label(HeroesText.t("SUMMON_FRAGS", [int(r["fragments"])]) if int(r["tomes"]) <= 0 else HeroesText.t("SUMMON_TOMES", [int(r["tomes"])]), 28, UITokens.INK, true)
 	fl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_card_dup.add_child(fl)
-	var pnl := UIKit.panel("cream_glass", Vector2(18, 10))
+	pv.add_child(fl)
 	_card_dup_bar = HeroEngravedBar.make(str(h["gem"]), float(h["frags"]), float(maxi(1, int(h["frags_need"]))), 300)
 	_card_dup_bar.label = HeroesText.t("CUR_FRAGS")
 	_card_dup_bar.value_text = "%d / %d" % [int(h["frags"]), int(h["frags_need"])]
-	pnl.add_child(_card_dup_bar)
+	pv.add_child(_card_dup_bar)
 	_card_dup.add_child(pnl)
 	add_child(_card_dup)
 
 
 func _build_ribbon() -> void:
-	_ribbon = UIKit.panel("banner", Vector2(30, 16))
+	# The name sits straight on the art (scene type + soft shadow over the bottom scrim), a gold
+	# hairline under it, the title in GOLD_HI and the identity chips on one line - no cream card
+	# over the cinematic (critic P1). The duplicate's fragments ride a slim cream-glass slip.
+	_ribbon = VBoxContainer.new()
+	_ribbon.add_theme_constant_override("separation", 6)
 	_ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_ribbon)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	_ribbon.add_child(row)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(v)
-	_name = UIKit.heading("", 60, UITokens.INK)
-	v.add_child(_name)
-	_rtitle = UIKit.label("", 26, UITokens.GOLD_TEXT, true)
-	v.add_child(_rtitle)
+	_name = UIKit.scene_label("", 72)
+	_ribbon.add_child(_name)
+	var hl := Control.new()
+	hl.custom_minimum_size = Vector2(0, 14)
+	hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hl.draw.connect(func():
+		var w := minf(hl.size.x, maxf(260.0, _name_w() + 40.0))
+		GemDraw.draw_hairline(hl, Vector2(0, 7), Vector2(w, 7), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.95), 1.6, false, false))
+	_ribbon.add_child(hl)
+	_rtitle = UIKit.label("", 28, UITokens.GOLD_HI, true)
+	UIKit.soft_shadow(_rtitle, 28, 1.4)
+	_ribbon.add_child(_rtitle)
 	_chips = HBoxContainer.new()
-	_chips.add_theme_constant_override("separation", 14)
-	v.add_child(_chips)
-	_rdup = VBoxContainer.new()
-	_rdup.add_theme_constant_override("separation", 4)
-	_rdup.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(_rdup)
-	_rdup_label = UIKit.label("", 28, UITokens.INK, true)
-	_rdup_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_rdup.add_child(_rdup_label)
-	_rdup_bar = HeroEngravedBar.make("L", 0, 1, 190)
-	_rdup.add_child(_rdup_bar)
-	_rseal = HeroWaxSeal.make(108)
+	_chips.add_theme_constant_override("separation", 18)
+	_ribbon.add_child(_chips)
+	_rdup = UIKit.panel("cream_glass", Vector2(18, 8))
+	_rdup.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rdup.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	_rdup.add_child(row)
+	_rdup_label = UIKit.label("", 24, UITokens.INK, true)
+	_rdup_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(_rdup_label)
+	_rdup_bar = HeroEngravedBar.make("L", 0, 1, 220)
+	_rdup_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_rdup_bar)
+	_ribbon.add_child(_rdup)
+	_rseal = HeroWaxSeal.make(96)
 	add_child(_rseal)
+
+
+func _name_w() -> float:
+	if _name == null:
+		return 0.0
+	var fs := _name.get_theme_font_size("font_size")
+	return _name.get_theme_font("font").get_string_size(_name.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 
 ## The stage content of result `i` (splash / bust / sigil, ribbon, emblem).
@@ -479,11 +507,11 @@ func _show_result(i: int) -> void:
 			["el_" + str(h.get("element", "")), HeroesText.element_label(str(h.get("element", ""))), true],
 			["fac_" + str(h.get("faction", "")), HeroesText.faction_label(str(h.get("faction", ""))), false]]:
 		var hb := HBoxContainer.new()
-		hb.add_theme_constant_override("separation", 6)
+		hb.add_theme_constant_override("separation", 8)
 		var so := UIKit.socket(str(tag[0]), 40, bool(tag[2]))
 		so.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hb.add_child(so)
-		var l := UIKit.label(str(tag[1]), 22, UITokens.INK)
+		var l := UIKit.scene_label(str(tag[1]), 24)
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		hb.add_child(l)
 		_chips.add_child(hb)
@@ -498,6 +526,7 @@ func _show_result(i: int) -> void:
 		_rdup_bar.value_text = "%d / %d" % [int(h.get("frags", 0)), int(h.get("frags_need", 0))]
 	_emblem.gem = str(h.get("gem", g))
 	_emblem.native = str(h.get("native", g)) if bool(h.get("is_recut", false)) else ""
+	_name.add_theme_font_size_override("font_size", UIKit.fit_size(_name.text, _W - 2.0 * UITokens.GUTTER - 120.0, 72, 48))
 	_ribbon.reset_size()
 	_layout_ribbon()
 
@@ -538,8 +567,8 @@ func _layout() -> void:
 	_sigil.position = Vector2((_W - _sigil.size.x) * 0.5, _cc.y - _sigil.size.y * 0.5 - _H * 0.03)
 	_skip.size = _skip.custom_minimum_size
 	_skip.position = Vector2(_W - _skip.size.x - 16.0 - _ins.z, _ins.y + 18.0)
-	_scrim.size = Vector2(_W, _H * 0.24)
-	_scrim.position = Vector2(0, _H * 0.76)
+	_scrim.size = Vector2(_W, _H * 0.46)
+	_scrim.position = Vector2(0, _H * 0.54)
 	_tap.size = Vector2(_W, 40)
 	_tap.position = Vector2(0, _H - _ins.w - 96.0)
 	var dm := _dock.get_combined_minimum_size()
@@ -557,8 +586,9 @@ func _layout_ribbon() -> void:
 	if _ribbon == null:
 		return
 	var rs := _ribbon.get_combined_minimum_size()
-	_ribbon.size = Vector2(_W - 2.0 * 16.0, rs.y)
-	_ribbon.position.y = _H * 0.69
+	_ribbon.size = Vector2(_W - 2.0 * UITokens.GUTTER, rs.y)
+	# Bottom-left on the art, clear of the end-state dock.
+	_ribbon.position.y = _H - _ins.w - 28.0 - 88.0 - 34.0 - rs.y
 
 
 ## Splash rect (the art fills ~90 % of the height; its body sits on focus_x).
@@ -935,12 +965,9 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 	if _sigil.visible:
 		_sigil.pivot_offset = _sigil.size * 0.5
 		_sigil.scale = Vector2(sc, sc)
-		_sigil.position = Vector2((_W - _sigil.size.x) * 0.5 + px, _cc.y - _sigil.size.y * 0.5 - _H * 0.03 + sin(_t * 1.4) * 4.0)
-		_sigil.rotation = deg_to_rad(-2.0) * SummonFx.out3(mv)
+		_sigil.position = Vector2((_W - _sigil.size.x) * 0.5 + px, _cc.y - _sigil.size.y * 0.5 + _H * 0.015 + sin(_t * 1.4) * 4.0)
 		_sigil.reveal = wk
 		_sigil.t = _t
-		_sigil._card.modulate.a = clampf(wk * 4.0, 0.0, 1.0)
-		_sigil._frame.modulate.a = clampf(wk * 2.0 - 0.6, 0.0, 1.0)
 		_sigil.queue_redraw()
 	out["step_k"] = mv
 	out["wipe"] = wk
@@ -956,13 +983,13 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 		_emblem.scale = Vector2(es, es)
 		_emblem.modulate.a = clampf(em * 4.0, 0.0, 1.0)
 		_emblem.live = false
-	out["emblem_ring"] = SummonFx.seg(u, float(bt["emblem"]) + 0.35, 0.5)
-	out["emblem_c"] = Vector2(UITokens.GUTTER + 6.0, _ins.y + 112.0) + _emblem.size * Vector2(0.5, 0.4)
+	out["emblem_ring"] = SummonFx.seg(u, float(bt["emblem"]) + 0.35, 0.5) if not stat else 0.0
+	out["emblem_c"] = Vector2(UITokens.GUTTER + 6.0, _ins.y + 112.0) + _emblem.size * 0.5
 	# Name ribbon: slides in, the name slams 1.3 -> 1.0, title +0.12 s, chips 60 ms apart.
 	var nk := SummonFx.seg(u, float(bt["name"]), 0.18) if not stat else SummonFx.seg(u, 0.0, 0.3)
 	_ribbon.visible = nk > 0.0
 	if _ribbon.visible:
-		_ribbon.position.x = lerpf(-_W, 16.0, SummonFx.out3(nk))
+		_ribbon.position.x = lerpf(UITokens.GUTTER - 90.0, UITokens.GUTTER, SummonFx.out3(nk))
 		_ribbon.modulate.a = clampf(nk * 2.0, 0.0, 1.0)
 		var ns := lerpf(1.3, 1.0, SummonFx.out3(nk)) if not stat else 1.0
 		_name.pivot_offset = Vector2(0, _name.size.y * 0.5)
@@ -979,7 +1006,8 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 	_rseal.visible = bool(r.get("is_new", false)) and sk > 0.0 and _ribbon.visible
 	if _rseal.visible:
 		_rseal.pivot_offset = _rseal.size * 0.5
-		_rseal.position = Vector2(_ribbon.position.x + _ribbon.size.x - _rseal.size.x * 1.1, _ribbon.position.y - _rseal.size.y * 0.5)
+		var nx := minf(_ribbon.position.x + _name_w() + 22.0, _W - _rseal.size.x - 12.0)
+		_rseal.position = Vector2(nx, _ribbon.position.y + _name.size.y * 0.5 - _rseal.size.y * 0.5)
 		var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
 		_rseal.scale = Vector2.ONE * sq
 		_rseal.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
@@ -1003,33 +1031,37 @@ func _render_card(u: float, L: float, st: Dictionary) -> void:
 	st["crack_u"] = u - float(b["crack"]) * k if not reduce else -1.0
 	st["card_gem"] = g
 	_card.visible = ck > 0.0
+	# The L card at 1.3x: the ×1 Кварц / Сапфір reveal fills the stage, not a thumbnail in the ring.
 	var cs: Vector2 = HeroCard.SIZES["L"]
+	var big := 1.3
+	var vs := cs * big
 	var dest := _cc - cs * 0.5 + Vector2(0, -10)
 	var from := _cc - cs * 0.5
 	_card.size = cs
+	_card.pivot_offset = cs * 0.5
 	_card.position = from.lerp(dest, SummonFx.out3(ck))
 	var pop := 1.0 + 0.04 * sin(PI * clampf(ck, 0.0, 1.0)) if not reduce else 1.0
-	_card.scale = Vector2.ONE * lerpf(0.5, 1.0, SummonFx.out3(ck)) * pop if not reduce else Vector2.ONE
+	_card.scale = Vector2.ONE * big * (lerpf(0.5, 1.0, SummonFx.out3(ck)) * pop if not reduce else 1.0)
 	_card.modulate.a = clampf(ck * 3.0, 0.0, 1.0)
-	st["card_rect"] = Rect2(_card.position, cs)
+	var vis := Rect2(_card.position + cs * 0.5 - vs * 0.5, vs)
+	st["card_rect"] = vis
 	st["card_new"] = SummonFx.seg(u, float(b["new"]) * k, 0.3) if bool(r["is_new"]) and not reduce else (1.0 if bool(r["is_new"]) else 0.0)
 	st["card_glint"] = SummonFx.seg(u, float(b.get("glint", 99.0)) * k, 0.4)
 	var sk := SummonFx.seg(u, float(b["stamp"]) * k, 0.3) if not reduce else 1.0
 	_card_seal.visible = bool(r["is_new"]) and sk > 0.0
 	if _card_seal.visible:
 		_card_seal.pivot_offset = _card_seal.size * 0.5
-		_card_seal.position = dest + Vector2(cs.x - _card_seal.size.x * 0.6, -_card_seal.size.y * 0.38)
+		var vd := Rect2(dest + cs * 0.5 - vs * 0.5, vs)
+		_card_seal.position = vd.position + Vector2(vs.x - _card_seal.size.x * 0.66, -_card_seal.size.y * 0.34)
 		var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
 		_card_seal.scale = Vector2.ONE * sq
 		_card_seal.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
 	_card_dup.visible = not bool(r["is_new"]) and ck >= 1.0
 	if _card_dup.visible:
 		_card_dup.reset_size()
-		_card_dup.position = Vector2((_W - _card_dup.size.x) * 0.5, dest.y + cs.y + 30.0)
+		_card_dup.position = Vector2((_W - _card_dup.size.x) * 0.5, dest.y + cs.y * 0.5 + vs.y * 0.5 + 30.0)
 		_card_dup.modulate.a = SummonFx.seg(u, float(b["card"]) * k + 0.25, 0.2) if not reduce else 1.0
 
-
-# ================================================================== drawn layers
 
 ## A deterministic FX layer: "back" (additive light behind the art), "mid" (seeds, crystal, cracks,
 ## shards, identity glyphs) and "front" (additive motes, glints, the emblem ring).
@@ -1074,9 +1106,10 @@ func _draw_layer(ci: Control, layer: String, st: Dictionary) -> void:
 					ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 				# The placeholder plate's rim light.
 				if _sigil.visible and float(w["wipe"]) > 0.0:
-					var cr := Rect2(_sigil.position + _sigil._card.position, _sigil._card.size)
+					var sc2 := _sigil.position + _sigil.size * 0.5
+					var sr := _sigil.stone_px() * 1.25
 					var gl := col.lightened(0.3)
-					ci.draw_texture_rect(UIKit.glow_texture(), cr.grow(90.0), false, Color(gl.r, gl.g, gl.b, 0.55 * float(w["wipe"])))
+					ci.draw_texture_rect(UIKit.glow_texture(), Rect2(sc2 - Vector2(sr, sr), Vector2(sr, sr) * 2.0), false, Color(gl.r, gl.g, gl.b, 0.6 * float(w["wipe"])))
 				# God rays behind the crystal / hero.
 				var ra := 0.35 * SummonFx.seg(u, 0.0, 0.4) + 0.65 * float(w["rays"])
 				SummonFx.draw_rays(ci, _cc, _H * 0.62, col.lightened(0.2), ra, t * 0.05, 11)
@@ -1106,15 +1139,6 @@ func _draw_layer(ci: Control, layer: String, st: Dictionary) -> void:
 				var swu := float(w["shard_u"])
 				if swu >= 0.0 and swu < 0.6:
 					SummonFx.draw_ring_pulse(ci, _cc, 60.0, _W * 0.7, swu / 0.6, col.lightened(0.3), 10.0)
-				# A slow light sweep across the placeholder plate.
-				if _sigil.visible and float(w["wipe"]) >= 1.0:
-					var cr2 := Rect2(_sigil.position + _sigil._card.position, _sigil._card.size)
-					var sw := fposmod((float(w["u"]) - float((w["bt"] as Dictionary)["step"])) * 0.45, 1.6)
-					if sw < 1.0:
-						var x := cr2.position.x + cr2.size.x * (sw * 1.6 - 0.3)
-						var c0 := Color(1, 1, 1, 0.0)
-						var c1 := Color(1, 1, 1, 0.22)
-						ci.draw_polygon(PackedVector2Array([Vector2(x - 40, cr2.position.y), Vector2(x + 30, cr2.position.y), Vector2(x - 60, cr2.end.y), Vector2(x - 130, cr2.end.y)]), PackedColorArray([c0, c1, c1, c0]))
 				var er := float(w["emblem_ring"])
 				SummonFx.draw_ring_pulse(ci, w["emblem_c"], 40.0, 120.0, er, col.lightened(0.4), 4.0)
 				# Shatter glints.
@@ -1157,11 +1181,12 @@ func _draw_layer(ci: Control, layer: String, st: Dictionary) -> void:
 					ci.draw_polygon(PackedVector2Array([Vector2(x - 30, rr.position.y), Vector2(x + 10, rr.position.y), Vector2(x - 50, rr.end.y), Vector2(x - 90, rr.end.y)]),
 							PackedColorArray([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.35), Color(1, 1, 1, 0.35), Color(1, 1, 1, 0.0)]))
 			if float(st["stage_a"]) > 0.0 and mode in ["x1", "x10"]:
-				# Seed glow (additive) once told.
+				# Seed sparkle (additive) once told: a small glint, never a bloom over the cut.
 				for sd in _seeds(t):
-					var g2 := str(sd["gem"])
 					var a2 := float(sd["a"]) * float(st["told"]) * float(st["stage_a"])
-					SummonFx.draw_glow(ci, sd["pos"], float(sd["size"]) * (1.3 + 0.4 * float(Ladder.gem_index(g2) >= 3)), SummonFx.hex(g2), 0.6 * a2)
+					if a2 > 0.0:
+						var ss := float(sd["size"])
+						GemDraw.draw_glint(ci, (sd["pos"] as Vector2) + Vector2(-ss * 0.18, -ss * 0.2), ss * 0.42, Color(1, 1, 1, 0.55 * a2 * (0.6 + 0.4 * sin(t * 5.0 + float(sd["i"])))))
 
 
 ## Seeds: positions, sizes and alphas at time t (the ring stage of ×1 / ×10).
@@ -1222,11 +1247,23 @@ func _draw_stage(ci: Control, st: Dictionary) -> void:
 	if sa <= 0.0 or not mode in ["x1", "x10"]:
 		return
 	var told := float(st["told"])
-	for sd in _seeds(t):
+	var seeds := _seeds(t)
+	# The gem-light halo goes UNDER the stones (normal blend, capped), so the cut stays readable.
+	for sd in seeds:
+		var a := float(sd["a"]) * sa * told
+		if a > 0.0:
+			var g2 := str(sd["gem"])
+			var hc := SummonFx.hex(g2)
+			ci.draw_texture_rect(UIKit.glow_texture(), Rect2((sd["pos"] as Vector2) - Vector2.ONE * float(sd["size"]) * 1.05, Vector2.ONE * float(sd["size"]) * 2.1), false, Color(hc.r, hc.g, hc.b, (0.45 if Ladder.gem_index(g2) >= 2 else 0.3) * a))
+	for sd in seeds:
 		var a := float(sd["a"]) * sa
 		if a <= 0.0:
 			continue
 		SummonFx.draw_crystal(ci, str(sd["gem"]), sd["pos"], float(sd["size"]), told, a, t)
+		if told > 0.5:
+			# A light rim on top of everything so the cut reads against the ring's light.
+			var rp := GemDraw.cut_points(SummonFx.cut(str(sd["gem"])), sd["pos"], float(sd["size"]) * 1.02)
+			GemDraw.outline(ci, rp, Color(1, 1, 1, 0.75 * a), 1.6)
 	# ×10 batch crack: the Кварц and Сапфір seeds crack together and burst into shards.
 	for sgm in _segs:
 		if str(sgm["kind"]) != "crack":
@@ -1315,14 +1352,13 @@ func _draw_walk_mid(ci: Control, st: Dictionary) -> void:
 				gather = 0.05 * absf(sin(gu * TAU * 2.0))
 		var s := size * lerpf(0.35, 1.0, land) * (1.0 + gather)
 		var c := _cc + Vector2(0, -60.0 * (1.0 - SummonFx.out3(ck)))
-		SummonFx.draw_crystal(ci, g, c, s, 1.0, clampf(ck * 3.0, 0.0, 1.0), t)
-		# A slow light sweep across the facets.
-		var sw := fposmod(u * 0.7, 1.0)
-		GemDraw.draw_glint(ci, c + Vector2(lerpf(-0.28, 0.28, sw) * s, lerpf(-0.22, 0.05, sw) * s), s * 0.34, Color(1, 1, 1, 0.85 * sin(PI * sw) * clampf(ck * 3.0, 0.0, 1.0)))
-		# Inner light that swells towards the shatter.
+		# Soft gem-light halo behind the stone, then the shaded crystal (light rim, facet
+		# gradients, caustic band, inner glow swelling towards the shatter).
 		var ik := float(w["crack"])
-		var inner := SummonFx.hex(g).lightened(0.55)
-		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(s, s) * 0.32, Vector2(s, s) * 0.64), false, Color(inner.r, inner.g, inner.b, 0.25 + 0.5 * ik))
+		var ca := clampf(ck * 3.0, 0.0, 1.0)
+		var hl := SummonFx.hex(g).lightened(0.35)
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(s, s) * 0.85, Vector2(s, s) * 1.7), false, Color(hl.r, hl.g, hl.b, 0.32 * ca))
+		SummonFx.draw_crystal_lux(ci, g, c, s, ca, t, 0.25 + 0.6 * ik + 0.15 * sin(t * 3.0) * (1.0 - ik))
 		SummonFx.draw_cracks(ci, g, c, s * 0.5, ik, Color(1.0, 0.98, 0.92, 0.95))
 		var hot := float(w.get("hot", 0.0))
 		if hot > 0.0:
@@ -1336,15 +1372,16 @@ func _draw_walk_mid(ci: Control, st: Dictionary) -> void:
 					["el_" + str(h.get("element", "")), HeroesText.element_label(str(h.get("element", "")))],
 					["fac_" + str(h.get("faction", "")), HeroesText.faction_label(str(h.get("faction", "")))]]
 			var keys := ["cls", "el", "fac"]
-			var orbit := 0.35 * u if g != "E" else 0.0
+			# A symmetric arc under the stone: Class (left) -> Element (centre) -> Faction (right).
+			var R := minf(size * 0.8, _W * 0.4)
 			for i in 3:
 				var bk := SummonFx.seg(u, float(bt[keys[i]]), 0.3)
 				if bk <= 0.0:
 					continue
-				var ang := deg_to_rad([-150.0, -30.0, 90.0][i]) + orbit
-				var p := c + Vector2(cos(ang), sin(ang)) * s * 0.78
-				var a := bk * clampf(ck * 3.0, 0.0, 1.0)
-				_draw_identity(ci, p, str(tags[i][0]), str(tags[i][1]), g, a, i == 2)
+				var ang := deg_to_rad([150.0, 90.0, 30.0][i])
+				var p := _cc + Vector2(cos(ang) * R, sin(ang) * R * (0.62 if i != 1 else 0.86)) + Vector2(0, 12.0 * (1.0 - SummonFx.out3(bk)))
+				var a := SummonFx.out3(bk) * clampf(ck * 3.0, 0.0, 1.0)
+				_draw_identity(ci, p, str(tags[i][0]), str(tags[i][1]), g, a)
 				# The glyph also lights inside the crystal (the current beat only).
 				var nxt := float(bt[keys[i + 1]]) if i < 2 else float(bt["shatter"])
 				var inside := SummonFx.window(u, float(bt[keys[i]]), nxt, 0.12)
@@ -1356,115 +1393,85 @@ func _draw_walk_mid(ci: Control, st: Dictionary) -> void:
 		SummonFx.draw_shards(ci, g, _cc, size * 0.5, su, 0.5 if g != "M" else 0.6, 18 if g == "E" else (22 if g == "L" else 24))
 
 
-## An identity glyph in a thin gold ring with its label (on the night scene: warm white + shadow).
-func _draw_identity(ci: Control, p: Vector2, icon: String, label: String, g: String, a: float, below: bool) -> void:
-	var r := 30.0
+## An identity glyph on a light pillar: a cream socket with a gem-light ring and an ink glyph,
+## its label on a small cream slip under it (readable on any pillar colour; no dark holes).
+func _draw_identity(ci: Control, p: Vector2, icon: String, label: String, g: String, a: float) -> void:
+	var r := 34.0
 	var col := SummonFx.hex(g)
-	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(r, r) * 1.6, Vector2(r, r) * 3.2), false, Color(col.r, col.g, col.b, 0.35 * a))
-	ci.draw_circle(p, r, Color(UITokens.SOCKET.r, UITokens.SOCKET.g, UITokens.SOCKET.b, 0.75 * a))
-	ci.draw_arc(p, r, 0.0, TAU, 40, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, a), 1.6, true)
-	KitIcons.line(ci, icon, Rect2(p - Vector2(r, r) * 0.62, Vector2(r, r) * 1.24), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, a), 2.2)
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(r, r) * 1.7, Vector2(r, r) * 3.4), false, Color(col.r, col.g, col.b, 0.4 * a))
+	ci.draw_circle(p + Vector2(0, 3), r + 2.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.18 * a))
+	var p0 := UITokens.PAPER_0
+	ci.draw_circle(p, r, Color(p0.r, p0.g, p0.b, 0.97 * a))
+	var lc := col.lightened(0.25)
+	ci.draw_arc(p, r + 1.0, 0.0, TAU, 48, Color(lc.r, lc.g, lc.b, a), 3.0, true)
+	ci.draw_arc(p, r - 4.0, 0.0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8 * a), 1.2, true)
+	KitIcons.line(ci, icon, Rect2(p - Vector2(r, r) * 0.6, Vector2(r, r) * 1.2), Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, a), 2.6)
 	var f := UIKit.font_w("bold")
-	var fs := 26
+	var fs := 22
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	var tp := p + (Vector2(-tw * 0.5, r + 34.0) if below else Vector2(-tw * 0.5, -r - 14.0))
-	ci.draw_string(f, tp + Vector2(0, 2), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.55 * a))
-	ci.draw_string(f, tp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UITokens.ON_SCENE.r, UITokens.ON_SCENE.g, UITokens.ON_SCENE.b, a))
+	var sr := Rect2(p + Vector2(-tw * 0.5 - 14.0, r + 10.0), Vector2(tw + 28.0, 36.0))
+	sr.position.x = clampf(sr.position.x, 6.0, _W - sr.size.x - 6.0)
+	var slip := GemDraw.chamfer_rect(sr, 6.0)
+	ci.draw_colored_polygon(slip, Color(p0.r, p0.g, p0.b, 0.96 * a))
+	GemDraw.outline(ci, slip, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9 * a), 1.2)
+	ci.draw_string(f, Vector2(sr.position.x + 14.0, sr.position.y + 26.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, a))
 
 
-## The walkout art of a hero without a splash yet (§9.6): a tall gem card with no footer (the
-## Genshin-like "unknown" card at walkout scale) - the gem ground with its fracture pattern, the
-## engraved class emblem in its gem cut (HeroArt.draw_placeholder), the thin gold frame - lit
-## from behind and revealed facet by facet. An elegant plate, never a grey blob.
+## The walkout art of a hero without a splash yet (§9.6; critic P0): the STONE itself is revealed -
+## the hero's gem at ceremony scale in its cut, shaded facet by facet (SummonFx.draw_crystal_lux),
+## held by gold claws, the class sigil raised in gold relief on its table, a double engraved cut
+## halo behind it and the opal's play of colour. It cools from white-hot as it crystallises
+## (`reveal` 0..1). No empty card: the rarest moment pays off with the gem. A real splash, card
+## crop or silhouette replaces it automatically through HeroArt.
 class _Sigil extends Control:
-	var cls := "warrior":
-		set(v):
-			cls = v
-			if _ph:
-				_ph.queue_redraw()
-	var gem := "L":
-		set(v):
-			gem = v
-			if _card:
-				_card.gem = v
+	var cls := "warrior"
+	var gem := "L"
 	var reveal := 1.0
 	var t := 0.0
-	var _card: KitGemCard
-	var _ph: Control
-	var _frame: Control
 
-	func _init() -> void:
-		_card = KitGemCard.new()
-		_card.footer_ratio = 0.0
-		_card.show_mark = false
-		_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_card)
-		_ph = Control.new()
-		_ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_ph.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_ph.draw.connect(func(): HeroArt.draw_placeholder(_ph, Rect2(Vector2.ZERO, _ph.size), cls, gem, 1.0))
-		_card.content.add_child(_ph)
-		_frame = Control.new()
-		_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_frame.draw.connect(_draw_frame)
-		add_child(_frame)
-		resized.connect(func():
-			var cs := Vector2(size.x * 0.56, size.x * 0.56 * 1.4)
-			_card.size = cs
-			_card.position = (size - cs) * 0.5
-			_frame.position = _card.position
-			_frame.size = cs)
-
-	## An ornate frame over the plate: inner vignette, a double gold hairline set 10 px out with
-	## crystal keystones at the corners and marquise terminals mid-edge.
-	func _draw_frame() -> void:
-		var r := Rect2(Vector2.ZERO, _frame.size)
-		var sc := UITokens.SCRIM
-		var e := 34.0
-		var ca := Color(sc.r, sc.g, sc.b, 0.32)
-		var cz := Color(sc.r, sc.g, sc.b, 0.0)
-		var w := r.size.x
-		var h := r.size.y
-		_frame.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w - e, e), Vector2(e, e)]), PackedColorArray([ca, ca, cz, cz]))
-		_frame.draw_polygon(PackedVector2Array([Vector2(0, h), Vector2(e, h - e), Vector2(w - e, h - e), Vector2(w, h)]), PackedColorArray([ca, cz, cz, ca]))
-		_frame.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(e, e), Vector2(e, h - e), Vector2(0, h)]), PackedColorArray([ca, cz, cz, ca]))
-		_frame.draw_polygon(PackedVector2Array([Vector2(w, 0), Vector2(w, h), Vector2(w - e, h - e), Vector2(w - e, e)]), PackedColorArray([ca, ca, cz, cz]))
-		var gold := UITokens.GOLD_HI
-		for k: float in [10.0, 15.0]:
-			var fr := GemDraw.chamfer_rect(r.grow(k), 14.0 + k * 0.5)
-			GemDraw.outline(_frame, fr, Color(gold.r, gold.g, gold.b, 0.95 if k < 12.0 else 0.55), 1.6 if k < 12.0 else 1.0)
-		var o := r.grow(12.5)
-		for p: Vector2 in [o.position, Vector2(o.end.x, o.position.y), o.end, Vector2(o.position.x, o.end.y)]:
-			GemDraw.draw_keystone(_frame, p, 18.0, 1.0, Color(1.0, 0.92, 0.72))
-		for m: Array in [[Vector2(o.get_center().x, o.position.y), Vector2.UP], [Vector2(o.get_center().x, o.end.y), Vector2.DOWN],
-				[Vector2(o.position.x, o.get_center().y), Vector2.LEFT], [Vector2(o.end.x, o.get_center().y), Vector2.RIGHT]]:
-			GemDraw.draw_marquise(_frame, m[0], m[1], 16.0, gold)
+	func stone_px() -> float:
+		# The marquise is long and low: it gets more width than the other cuts.
+		return minf(size.x * 0.8, 540.0) if gem == "M" else minf(size.x * 0.62, 440.0)
 
 	func _draw() -> void:
-		# Facet veil over the card while it crystallises (white-gem triangles dissolving outward).
-		if reveal >= 1.0:
+		var c := size * 0.5
+		var S := stone_px()
+		var a := clampf(reveal * 3.0, 0.0, 1.0)
+		if a <= 0.0:
 			return
-		var rr := Rect2(_card.position, _card.size)
-		var col := SummonFx.hex(HeroesText.gem_letter(gem)).lerp(Color(1, 1, 1), 0.55)
-		var cols := 7
-		var rows := 10
-		var cw := rr.size.x / cols
-		var chh := rr.size.y / rows
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 23
-		for yy in rows:
-			for xx in cols:
-				var c := rr.position + Vector2((xx + 0.5) * cw, (yy + 0.5) * chh)
-				var d := c.distance_to(rr.get_center()) / rr.size.length() * 2.0
-				var p0 := c + Vector2(-cw, -chh) * 0.5
-				var p1 := c + Vector2(cw, -chh) * 0.5
-				var p2 := c + Vector2(cw, chh) * 0.5
-				var p3 := c + Vector2(-cw, chh) * 0.5
-				var tris := [PackedVector2Array([p0, p1, p2]), PackedVector2Array([p0, p2, p3])] if (xx + yy) % 2 == 0 else [PackedVector2Array([p0, p1, p3]), PackedVector2Array([p1, p2, p3])]
-				for tri: PackedVector2Array in tris:
-					var thr := d * 0.75 + rng.randf() * 0.25
-					var a := 1.0 - SummonFx.seg(reveal, thr, 0.18)
-					if a <= 0.0:
-						continue
-					draw_colored_polygon(tri, Color(col.r, col.g, col.b, 0.92 * a))
-					GemDraw.outline(self, tri, Color(1, 1, 1, 0.55 * a), 1.0)
+		var g := gem
+		var ct := SummonFx.cut(g)
+		# Engraved cut halo (double stroke), the "soul gem" outline behind the stone.
+		var gh := UITokens.GOLD_HI
+		for k: Array in [[1.42, 0.34, 2.0], [1.5, 0.18, 1.2], [1.86, 0.1, 1.0]]:
+			GemDraw.outline(self, GemDraw.cut_points(ct, c, S * float(k[0])), Color(gh.r, gh.g, gh.b, float(k[1]) * a), float(k[2]))
+		# Small keystones on the halo's tips.
+		for p in SummonFx.prong_points(g, c, S * 1.46):
+			GemDraw.draw_keystone(self, p, 14.0, a, Color(1.0, 0.93, 0.75))
+		# Gold bezel just outside the girdle.
+		var bez := GemDraw.cut_points(ct, c, S * 1.05)
+		var metal := Color("#E3C67E")
+		var bc := PackedColorArray()
+		for p in bez:
+			var k2 := clampf((p.y - c.y + S * 0.55) / (S * 1.1), 0.0, 1.0)
+			bc.append(Color(metal.lightened(0.3).lerp(metal.darkened(0.3), k2), a))
+		draw_polygon(bez, bc)
+		GemDraw.outline(self, bez, Color(1.0, 0.95, 0.8, 0.7 * a), 1.4)
+		SummonFx.draw_crystal_lux(self, g, c, S, a, t, 0.35 + 0.25 * sin(t * 1.6))
+		for p in SummonFx.prong_points(g, c, S * 1.0):
+			SummonFx.draw_prong(self, c, p, S, a)
+		# The class sigil raised in gold relief on the table.
+		var outer := GemDraw.cut_points(ct, c, S)
+		var cen := Vector2.ZERO
+		for p in outer:
+			cen += p
+		cen /= float(outer.size())
+		if ct == "star":
+			cen = c + Vector2(0, S * 0.02)
+		var gs := S * {"triangle": 0.3, "star": 0.3, "eye": 0.26}.get(ct, 0.36) as float
+		var deep: Color = (SummonFx.BODY.get(g, SummonFx.BODY["L"]) as Array)[2]
+		SummonFx.draw_relief_glyph(self, "cls_" + cls, Rect2(cen - Vector2(gs, gs) * 0.5, Vector2(gs, gs)), a, deep.darkened(0.5))
+		# White-hot while it crystallises, cooling into colour.
+		var hot := 1.0 - SummonFx.out3(reveal)
+		if hot > 0.0:
+			draw_colored_polygon(GemDraw.cut_points(ct, c, S * 1.06), Color(1.0, 0.97, 0.9, 0.75 * hot))
