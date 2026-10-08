@@ -54,6 +54,7 @@ General rules for all bitmaps:
 | `edge_button` | round edge button disc (cream, thin gold ring) | 76×76 | the line icon is drawn on top in code |
 | `socket_cream` / `socket_slate` | class / element / faction socket discs | 64×64 | slate = `#2B3245` with a gold ring |
 | `badge_notify` | gold "!" badge disc | 28×28 | the glyph is drawn on top in code |
+| `badge_gem` | small gold cut gem for the bottom-nav tab badges | 40×40 | drawn at 20×20 with a soft glow behind it |
 | `nav_medallion` | **raised round amber medallion** of the active nav tab | 104×104 | the painted tab icon is drawn on top |
 | `card_quartz`, `card_sapphire`, `card_amethyst`, `card_topaz`, `card_opal` | gem-card **grounds** (gradient + that gem's fracture pattern) | 216×300 | stretched to the card; the bust, footer, pips, mark and frame are drawn on top |
 | `fx_glint` | particle sprite: our refraction glint (4 rays, one long) | 64×64 | white, additive |

@@ -52,7 +52,9 @@ func _ready() -> void:
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	m.add_child(col)
 	# Tall phones: the content sits in the vertical centre of the page (no empty bottom third).
-	sc.resized.connect(func(): m.custom_minimum_size.y = sc.size.y)
+	var fit_h := func(): m.custom_minimum_size.y = sc.size.y
+	sc.resized.connect(fit_h)
+	fit_h.call_deferred()
 	# Title + promise
 	var head := VBoxContainer.new()
 	head.add_theme_constant_override("separation", 2)
