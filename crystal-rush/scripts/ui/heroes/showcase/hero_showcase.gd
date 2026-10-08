@@ -158,8 +158,10 @@ func _build_hero(entrance: bool) -> void:
 	var gt := GradientTexture2D.new()
 	var grad := Gradient.new()
 	var cr := UITokens.PAPER_1
-	grad.set_color(0, Color(cr.r, cr.g, cr.b, 0.5))
-	grad.add_point(0.55, Color(cr.r, cr.g, cr.b, 0.22))
+	# Art that reaches under the info column asks for a stronger veil (META "veil").
+	var va := float(HeroArt.meta(hero_id).get("veil", 0.5))
+	grad.set_color(0, Color(cr.r, cr.g, cr.b, va))
+	grad.add_point(0.55, Color(cr.r, cr.g, cr.b, va * 0.44))
 	grad.set_color(grad.get_point_count() - 1, Color(cr.r, cr.g, cr.b, 0.0))
 	gt.gradient = grad
 	gt.fill_from = Vector2(0, 0)
@@ -559,15 +561,20 @@ func _layout() -> void:
 		var aspect := float(tex.get_width()) / float(tex.get_height())
 		# Tall phones: the art band grows, but the splash stops at 1380 px tall (its feet stay on
 		# the floor), so the face never slides under the info column.
-		var sh := minf(H, 1380.0)
-		var sw := sh * aspect
+		var full := minf(H, 1380.0)
 		var meta := HeroArt.meta(hero_id)
+		# Wide art (a golem's fist and shoulders) is drawn smaller: the eye line stays where a
+		# full-height splash puts it and the cut bottom edge stays under the skills band.
+		var sc := float(meta.get("scale", 1.0))
+		var sh := full * sc
+		var sw := sh * aspect
 		var eye: Vector2 = meta.get("eye", Vector2(0.6, 0.3))
 		var ex := W * 0.64 - eye.x * sw
 		ex = clampf(ex, W - sw - 40.0, 40.0)
+		var sy := H - full + eye.y * (full - sh)
 		_splash.size = Vector2(sw, sh)
-		_splash.position = Vector2(ex, H - sh)
-		_splash.set_meta("y0", H - sh)
+		_splash.position = Vector2(ex, sy)
+		_splash.set_meta("y0", sy)
 		_splash.pivot_offset = Vector2(sw * 0.6, sh)
 		_bg.focus = Vector2((ex + eye.x * sw) / W, eye.y * 0.9)
 	if _stage:
