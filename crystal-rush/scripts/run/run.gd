@@ -142,11 +142,37 @@ var _hk := 0
 var _foe: Dictionary = {}
 var _tick := 0.0
 var _atk_cd := 0.0
-var _ult_left := 0.0
-var _ult_tick := 0.0
-var _quake_d := 0.0
-var _quake_wave := 99
+## The ult clock (HeroKinds.Clock, shared rules with LevelSim; heroes design §10.4). The four
+## fields below forward to it.
+var ult_clock := HeroKinds.Clock.new()
+var _ult_left: float:
+	get:
+		return ult_clock.left
+	set(v):
+		ult_clock.left = v
+var _ult_tick: float:
+	get:
+		return ult_clock.tick
+	set(v):
+		ult_clock.tick = v
+var _quake_d: float:
+	get:
+		return ult_clock.wave_d
+	set(v):
+		ult_clock.wave_d = v
+var _quake_wave: int:
+	get:
+		return ult_clock.wave
+	set(v):
+		ult_clock.wave = v
 var _armor := 0.0
+## The hero's kinds (HeroKinds.KINDS): the run reads behaviour through them, never the id.
+var _ult_kind: StringName = &"storm"
+var _attack_kind: StringName = HeroKinds.ATTACK_DART
+## The rules' window on this run (HeroKinds / ChampionKinds act through it).
+var kind_view: RunKindView
+## Champion slots (empty until the heroes phase H2; Champions.setup reads profile.team).
+var champions := Champions.new()
 ## Hazard clock (WS2b): blades and sweepers move on it; the Seer's rift slows it (hazard_slow).
 var hz_t := 0.0
 var _carry_placed := false            ## profile.new_carry: the first crate became the NEW crate
@@ -210,8 +236,12 @@ func setup(p_level: int, p_hero: String) -> void:
 	hero_type = p_hero
 	def = Balance.HEROES[hero_type]
 	ult = def["ult"]
+	_ult_kind = HeroKinds.ult_kind(hero_type)
+	_attack_kind = HeroKinds.attack_kind(hero_type)
+	kind_view = RunKindView.new(self)
 	world = Worlds.for_level(level)
 	profile = _load_profile(level)
+	champions.setup(profile, level)
 	_pick_rng.seed = 7919 * level + 31 * int(profile.get("run_id", 0)) + 17
 	# Levels and the start army ignore account power (§6.4); Reinforcements add soldiers.
 	army = Balance.START_ARMY + int((profile.get("assist", {}) as Dictionary).get("soldiers", 0))
@@ -1941,14 +1971,14 @@ func _hero_attack(dt: float) -> void:
 
 func _shot_fx(at: Vector3, k: int) -> void:
 	var from := hero.muzzle() + Vector3(0.18 * k, 0, 0)
-	if hero_type == "seer":
+	if _attack_kind == HeroKinds.ATTACK_ORBS:
 		# Twin violet orbs from her hands, curling onto their targets.
 		from = hero.muzzle() + Vector3(-0.22 if k % 2 == 0 else 0.22, 0.12, 0.0)
 		effects.projectile(from, at, "arcane", from.distance_to(at) / 17.0, Callable())
 		effects.muzzle(from, Effects.ARCANE)
 		if k == 0:
 			Audio.play("laser", -16.0, 0.3)
-	elif hero_type == "bolt":
+	elif _attack_kind == HeroKinds.ATTACK_DART:
 		effects.lightning([from, from.lerp(at, 0.5) + Vector3(randf_range(-0.3, 0.3), 0.3, 0), at], Color(0.55, 0.85, 1.0), 0.14, 0.06, false)
 		effects.hit_spark(at, Color(0.65, 0.9, 1.0))
 		effects.muzzle(from, Color(0.6, 0.9, 1.0))
@@ -2003,69 +2033,69 @@ func use_ult() -> bool:
 	_ult_uses += 1
 	juice.hitstop(0.07)
 	juice.haptic("ult")
-	if hero_type == "seer":
-		_ult_left = float(ult["duration"])
-		_ult_tick = 0.25
-		hero.cast_ult(_ult_left)
-		_rift = effects.rift_open(_rift_pos())
-		effects.flash(hero.muzzle(), Effects.ARCANE, 2.2, 0.4)
-		juice.add_trauma(0.45)
-		Audio.play("upgrade", -2.0)
-		Audio.play("tesla", -6.0)
-	elif hero_type == "bolt":
-		_ult_left = float(ult["duration"])
-		hero.cast_ult(_ult_left)
-		effects.flash(hero.muzzle(), Color(0.6, 0.9, 1.0), 2.4, 0.35)
-		effects.shockwave(Vector3(hx, 0.0, -d), Color(0.5, 0.8, 1.0), 3.0)
-		juice.add_trauma(0.55)
-		Audio.play("tesla", 0.0)
-	else:
-		_quake_d = d
-		_quake_wave = 0
-		_ult_tick = 0.43
-		_armor = float(ult.get("armor_time", 6.0))
-		hero.cast_ult(1.6)
-		juice.add_trauma(0.8)
-		effects.shockwave(Vector3(hx, 0.0, -d), EMERALD, 3.2)
-		Audio.play("explosion", -2.0)
+	HeroKinds.ult_cast(kind_view, _ult_kind, ult)
 	_emit_ult()
 	return true
 
 
 func _ult_step(dt: float) -> void:
-	if _ult_left > 0.0:
-		_ult_left -= dt
-		_ult_tick -= dt
-		if _rift:
-			_rift.position = _rift_pos()
-		while _ult_tick <= 0.0 and _ult_left > -dt:
-			_ult_tick += float(ult["tick"])
-			if hero_type == "seer":
-				_rift_tick()
+	if ult_clock.active():
+		HeroKinds.ult_step(kind_view, _ult_kind, ult, dt)
+
+
+## The run side of the ult rules' fx events (RunKindView.fx): poses, VFX, SFX, HUD.
+func _ult_fx(event: StringName, data: Dictionary) -> void:
+	match event:
+		&"ult_cast":
+			_ult_cast_fx()
+		&"ult_step":
+			if _rift:
+				_rift.position = _rift_pos()
+		&"ult_tick":
+			if _ult_kind == &"rift":
+				_rift_tick_fx()
 			else:
-				_storm_tick()
-		if _ult_left <= 0.0:
-			_ult_left = 0.0
+				_storm_tick_fx()
+		&"ult_tick_done":
+			if _ult_kind == &"rift":
+				_rift_tick_done_fx()
+			else:
+				_storm_tick_done_fx()
+		&"ult_end":
 			if _rift:
 				effects.rift_close(_rift)
 				_rift = null
 			_emit_ult()
-	elif _quake_wave < 99:
-		_ult_tick -= dt
-		var waves := int(ult["waves"])
-		var spacing := float(ult["spacing"])
-		while _ult_tick <= 0.0 and _quake_wave < waves:
-			_ult_tick += float(ult["gap"])
-			var near := _quake_d + 1.0 + spacing * _quake_wave
-			_quake_wave_fx(near, spacing)
-			_ult_hit(near - 0.5, near + spacing, false)
-			_quake_wave += 1
-		if _quake_wave >= waves:
-			_quake_wave = 99
+		&"ult_wave":
+			_quake_wave_fx(float(data["near"]), float(data["spacing"]), int(data["wave"]))
+		&"ult_waves_end":
 			_emit_ult()
 
 
-func _storm_tick() -> void:
+func _ult_cast_fx() -> void:
+	match _ult_kind:
+		&"rift":
+			hero.cast_ult(_ult_left)
+			_rift = effects.rift_open(_rift_pos())
+			effects.flash(hero.muzzle(), Effects.ARCANE, 2.2, 0.4)
+			juice.add_trauma(0.45)
+			Audio.play("upgrade", -2.0)
+			Audio.play("tesla", -6.0)
+		&"storm":
+			hero.cast_ult(_ult_left)
+			effects.flash(hero.muzzle(), Color(0.6, 0.9, 1.0), 2.4, 0.35)
+			effects.shockwave(Vector3(hx, 0.0, -d), Color(0.5, 0.8, 1.0), 3.0)
+			juice.add_trauma(0.55)
+			Audio.play("tesla", 0.0)
+		_:
+			hero.cast_ult(HeroKinds.WAVES_CAST_POSE)
+			juice.add_trauma(0.8)
+			effects.shockwave(Vector3(hx, 0.0, -d), EMERALD, 3.2)
+			Audio.play("explosion", -2.0)
+
+
+## Bolt storm tick, before the hit: bolts on what is in range, spare bolts on the bridge.
+func _storm_tick_fx() -> void:
 	var bolts := 5 if quality_high else 3
 	effects.ring(Vector3(hx, 0.05, -d), Color(0.45, 0.75, 1.0), 3.0, 0.3)
 	for it in _ult_targets(d - 0.5, d + float(ult["range"])):
@@ -2081,14 +2111,17 @@ func _storm_tick() -> void:
 		effects.flash(at2 + Vector3(0, 0.3, 0), Color(0.6, 0.85, 1.0), 1.6, 0.22)
 		effects.shockwave(at2, Color(0.5, 0.8, 1.0), 1.1)
 		effects.burst(at2 + Vector3(0, 0.2, 0), Color(0.75, 0.92, 1.0), 10, 3.0, 0.06, 0.35, -6.0)
-	_ult_hit(d - 0.5, d + float(ult["range"]), true)
+
+
+func _storm_tick_done_fx() -> void:
 	Audio.play("tesla", -7.0, 0.2)
 	juice.add_trauma(0.12)
 
 
 ## Seer ult "Star Rift": the arcane barrage (orbs falling out of the rift onto everything in
-## range; hits squads, turrets, crates, barricades and additive gates like the storm).
-func _rift_tick() -> void:
+## range; the hit, HeroKinds.ult_step, takes squads, turrets, crates, barricades and additive
+## gates like the storm).
+func _rift_tick_fx() -> void:
 	var reach := float(ult["range"])
 	var n := 5 if quality_high else 3
 	for it in _ult_targets(d - 0.5, d + reach):
@@ -2100,7 +2133,9 @@ func _rift_tick() -> void:
 		var at := aim_point(it)
 		var src := _rift_pos() + Vector3(randf_range(-2.4, 2.4), randf_range(2.6, 4.0), randf_range(-0.6, 0.6))
 		effects.projectile(src, at, "arcane", src.distance_to(at) / 24.0, Callable())
-	_ult_hit(d - 0.5, d + reach, true)
+
+
+func _rift_tick_done_fx() -> void:
 	# A slow-time pulse rolls out of the rift on every tick.
 	effects.shockwave(_rift_pos(), Effects.ARCANE, 2.6)
 	Audio.play("laser", -10.0, 0.3)
@@ -2112,11 +2147,11 @@ func _rift_pos() -> Vector3:
 	return Vector3(hx * 0.35, 0.0, -(d + float(ult.get("ahead", 7.0))))
 
 
-## Speed of enemies and hazards (1 normally; 1 - slow while the Seer's rift is open).
+## Speed of enemies and hazards (1 normally; 1 - slow while a slowing ult, the Seer's rift, runs).
 func hazard_slow() -> float:
-	if hero_type == "seer" and _ult_left > 0.0:
-		return 1.0 - float(ult.get("slow", 0.0))
-	return 1.0
+	if _ult_left <= 0.0:
+		return 1.0
+	return HeroKinds.hazard_slow(_ult_kind, ult, _ult_left)
 
 
 func _ult_targets(a: float, b: float) -> Array[Dictionary]:
@@ -2131,27 +2166,29 @@ func _ult_targets(a: float, b: float) -> Array[Dictionary]:
 	return out
 
 
-func _ult_hit(a: float, b: float, gates: bool) -> void:
+## An ult hit on everything alive in [a, b] (RunKindView.area_hit; kills / breaks already x
+## the Ult Rank power).
+func _ult_hit(a: float, b: float, gates: bool, kills: float, breaks: float) -> void:
 	for it in _ult_targets(a, b):
 		match str(it["kind"]):
 			"squad":
-				hurt(it, float(ult["kills"]) * hero.ult_power(), "ult")
+				hurt(it, kills, "ult")
 			"gate":
 				if gates and float(it["d"]) >= d:
 					_hit_gate(it, float(_hero_damage()))
 			_:
-				hurt(it, float(ult["breaks"]) * hero.ult_power(), "ult")
+				hurt(it, breaks, "ult")
 
 
-func _quake_wave_fx(near: float, spacing: float) -> void:
+func _quake_wave_fx(near: float, spacing: float, wave: int) -> void:
 	var pts: Array[Vector3] = []
 	var zc := -(near + spacing * 0.5)
 	for k in 9:
 		pts.append(Vector3(-Balance.BRIDGE_HALF + 0.4 + k * (Balance.BRIDGE_HALF * 2.0 - 0.8) / 8.0, 0.0, zc + randf_range(-0.6, 0.6)))
 	effects.crystal_spikes(pts, Vector3(hx, 0, -_quake_d + 2.0), Color(0.12, 0.85, 0.4))
 	effects.shockwave(Vector3(hx * 0.5, 0.0, zc), EMERALD, 2.4)
-	juice.add_trauma(0.3 if _quake_wave == 0 else 0.18)
-	Audio.play("explosion" if _quake_wave == 0 else "cannon", -3.0 if _quake_wave == 0 else -6.0, 0.15)
+	juice.add_trauma(0.3 if wave == 0 else 0.18)
+	Audio.play("explosion" if wave == 0 else "cannon", -3.0 if wave == 0 else -6.0, 0.15)
 
 
 # ------------------------------------------------------------------ clash and siege

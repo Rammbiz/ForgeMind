@@ -739,7 +739,7 @@ static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> voi
 	var corridor := float(def.get("corridor", Balance.CORRIDOR))
 	var base := int(def.get("targets", 1)) + s.p_multi
 	var shots := base
-	if s.aspect == "forked_fox" and (s.casts + 1) % 3 == 0:
+	if HeroKinds.forks(s.aspect, s.casts + 1):
 		shots += 1
 	var targets := _targets(lv, s, s.hx, corridor, float(def["range"]), shots, true)
 	# Extra shots never split onto the partner of a crate pair (Run._hero_attack).
@@ -1204,70 +1204,26 @@ static func ult_ready(s: State) -> bool:
 	return s.ult >= cap - 0.001 and s.ult_left <= 0.0 and s.quake_wave >= 99
 
 
-## The auto policy: is there enough to hit right now? The titan also fires it for the armour
-## when a hazard is about to cut into a decent army.
+## The auto policy (HeroKinds.ult_worth over a SimKindView; one rule for Run, bot and sim):
+## is there enough to hit right now? The quake also fires for its armour when a hazard is about
+## to cut into a decent army.
 static func ult_worth(lv: Level, s: State) -> bool:
-	if s.mode == Mode.CLASH or s.mode == Mode.SIEGE:
-		return true
-	var reach := float(((Balance.HEROES[s.hero] as Dictionary)["ult"] as Dictionary).get("range", 13.0)) if s.hero != "titan" else 13.0
-	if s.hero == "titan" and s.army >= 25.0:
-		var c := army_center_d(s)
-		var lo_h := _first_at(lv.d, lv.haz, c)
-		if lo_h < lv.haz.size() and lv.d[lv.haz[lo_h]] < s.d + 6.0 and s.alive[lv.haz[lo_h]] == 1:
-			return true
-	var total := 0.0
-	var lo := _first_at(lv.d, lv.targ, s.d)
-	for j in range(lo, lv.targ.size()):
-		var i := lv.targ[j]
-		if lv.d[i] > s.d + reach:
-			break
-		if s.alive[i] == 0:
-			continue
-		if lv.kind[i] == K.SQUAD and absf(lv.x[i] - s.hx) <= Balance.blob_radius(s.army) + lv.hw[i] + 0.5:
-			total += s.hp[i]
-		elif lv.kind[i] == K.FORTRESS:
-			total += 99.0
-	return total >= maxf(8.0, s.army * 0.35)
+	return HeroKinds.ult_worth(HeroKinds.ult_kind(s.hero), SimKindView.new(lv, s), Balance.HEROES[s.hero]["ult"]) >= 1.0
 
 
 static func use_ult(lv: Level, s: State) -> bool:
 	if not ult_ready(s):
 		return false
-	var u: Dictionary = Balance.HEROES[s.hero]["ult"]
 	s.ult = 0.0
-	if u.has("duration"):
-		s.ult_left = float(u["duration"])
-		s.ult_tick = 0.25 if s.hero == "seer" else 0.0
-	else:
-		s.quake_d = s.d
-		s.quake_wave = 0
-		s.ult_tick = 0.43
-		s.armor = float(u["armor_time"])
+	HeroKinds.ult_cast(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), Balance.HEROES[s.hero]["ult"])
 	_log(s, "ult at %d" % int(s.d))
 	return true
 
 
+## A running ult (HeroKinds.ult_step: timed ticks or travelling bands).
 static func _ult_step(lv: Level, s: State, def: Dictionary, dt: float) -> void:
-	var u: Dictionary = def["ult"]
-	if s.ult_left > 0.0:
-		s.ult_left -= dt
-		s.ult_tick -= dt
-		while s.ult_tick <= 0.0 and s.ult_left > -dt:
-			s.ult_tick += float(u["tick"])
-			_ult_hit(lv, s, s.d - 0.5, s.d + float(u["range"]), float(u["kills"]) * s.ult_pow, float(u["breaks"]) * s.ult_pow, true)
-		if s.ult_left <= 0.0:
-			s.ult_left = 0.0
-	elif s.quake_wave < 99:
-		s.ult_tick -= dt
-		var waves := int(u["waves"])
-		var spacing := float(u["spacing"])
-		while s.ult_tick <= 0.0 and s.quake_wave < waves:
-			s.ult_tick += float(u["gap"])
-			var near := s.quake_d + 1.0 + spacing * s.quake_wave
-			_ult_hit(lv, s, near - 0.5, near + spacing, float(u["kills"]) * s.ult_pow, float(u["breaks"]) * s.ult_pow, false)
-			s.quake_wave += 1
-		if s.quake_wave >= waves:
-			s.quake_wave = 99
+	if s.ult_left > 0.0 or s.quake_wave < 99:
+		HeroKinds.ult_step(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), def["ult"], dt)
 
 
 static func _ult_hit(lv: Level, s: State, a: float, b: float, kills: float, breaks: float, gates: bool) -> void:
@@ -1458,11 +1414,11 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 
 # ------------------------------------------------------------------ fights
 
-## Speed of hazards and squads: 1, or 1 - slow while the Seer's rift is open.
+## Speed of hazards and squads: 1, or 1 - slow while a slowing ult (the Seer's rift) runs.
 static func hazard_slow(s: State) -> float:
-	if s.ult_left > 0.0 and s.hero == "seer":
-		return 1.0 - float(((Balance.HEROES["seer"] as Dictionary)["ult"] as Dictionary).get("slow", 0.0))
-	return 1.0
+	if s.ult_left <= 0.0:
+		return 1.0
+	return HeroKinds.hazard_slow(HeroKinds.ult_kind(s.hero), Balance.HEROES[s.hero]["ult"], s.ult_left)
 
 
 ## Barracks Drill multiplier for a clash with squad `i` (hero hit within Balance.DRILL_WINDOW s).

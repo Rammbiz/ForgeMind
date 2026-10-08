@@ -7,8 +7,8 @@ extends Node3D
 
 const VAULT_TIME := 0.42
 const VAULT_H := 0.75
-## Forked Fox: every Nth cast of Bolt chains to one more target.
-const FORK_EVERY := 3
+## Forked Fox: every Nth cast of Bolt chains to one more target (HeroKinds.forks).
+const FORK_EVERY := HeroKinds.FORK_EVERY
 
 var type := "bolt"
 var def: Dictionary
@@ -89,7 +89,7 @@ func aspect() -> String:
 func cast_shots() -> int:
 	_casts += 1
 	var n := int(def.get("targets", 1))
-	if aspect() == "forked_fox" and _casts % FORK_EVERY == 0:
+	if HeroKinds.forks(aspect(), _casts):
 		n += 1
 	return n
 
