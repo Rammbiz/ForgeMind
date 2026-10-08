@@ -969,7 +969,9 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 		_sigil.pivot_offset = _sigil.size * 0.5
 		_sigil.scale = Vector2(sc, sc)
 		_sigil.position = Vector2((_W - _sigil.size.x) * 0.5 + px, _cc.y - _sigil.size.y * 0.5 + _H * 0.015 + sin(_t * 1.4) * 4.0)
-		_sigil.reveal = wk
+		# Reduce Motion: no white-hot cooling, a plain cross-fade.
+		_sigil.reveal = wk if not stat else 1.0
+		_sigil.modulate.a = 1.0 if not stat else wk
 		_sigil.t = _t
 		_sigil.queue_redraw()
 	out["step_k"] = mv
@@ -992,7 +994,7 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 	var nk := SummonFx.seg(u, float(bt["name"]), 0.18) if not stat else SummonFx.seg(u, 0.0, 0.3)
 	_ribbon.visible = nk > 0.0
 	if _ribbon.visible:
-		_ribbon.position.x = lerpf(UITokens.GUTTER - 90.0, UITokens.GUTTER, SummonFx.out3(nk))
+		_ribbon.position.x = lerpf(UITokens.GUTTER - 90.0, UITokens.GUTTER, SummonFx.out3(nk)) if not stat else UITokens.GUTTER
 		_ribbon.modulate.a = clampf(nk * 2.0, 0.0, 1.0)
 		var ns := lerpf(1.3, 1.0, SummonFx.out3(nk)) if not stat else 1.0
 		_name.pivot_offset = Vector2(0, _name.size.y * 0.5)
