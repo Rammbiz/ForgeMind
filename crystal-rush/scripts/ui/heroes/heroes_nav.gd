@@ -23,10 +23,10 @@ extends RefCounted
 const ROUTES := {
 	"hall": {"script": "res://scripts/ui/heroes/hall/heroes_hall.gd", "host": "tab"},
 	"hero": {"script": "res://scripts/ui/heroes/showcase/hero_showcase.gd", "host": "screen"},
-	"champion": {"script": "res://scripts/ui/heroes/showcase/champion_showcase.gd", "host": "screen"},
+	"champion": {"script": "res://scripts/ui/heroes/champion/champion_showcase.gd", "host": "screen"},
 	"manage": {"script": "res://scripts/ui/heroes/showcase/manage_sheet.gd", "host": "modal"},
 	"recut": {"script": "res://scripts/ui/heroes/recut/recut_screen.gd", "host": "screen"},
-	"team": {"script": "res://scripts/ui/heroes/team/team_screen.gd", "host": "page"},
+	"team": {"script": "res://scripts/ui/heroes/team/team_screen.gd", "host": "screen"},
 	"portal": {"script": "res://scripts/ui/summon/portal_screen.gd", "host": "screen"},
 	"odds": {"script": "res://scripts/ui/summon/odds_sheet.gd", "host": "modal"},
 	"seals": {"script": "res://scripts/ui/summon/seal_shop.gd", "host": "modal"},
