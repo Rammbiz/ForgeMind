@@ -13,7 +13,7 @@ var hero_id := "bolt"
 var gem := "R"
 var interactive := false
 ## Subject region (w, h) in world units the camera keeps in frame.
-var region := Vector2(1.9, 2.3)
+var region := Vector2(2.2, 2.4)
 var _vp: SubViewport
 var _cam: Camera3D
 var _turn: Node3D

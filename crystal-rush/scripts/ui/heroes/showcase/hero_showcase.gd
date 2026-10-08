@@ -478,6 +478,7 @@ func _make_none3d() -> Control:
 	var t := UIKit.label(HeroesText.t("SHOW_3D_NONE"), 26, UITokens.INK, true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.custom_minimum_size = Vector2(420, 0)
 	v.add_child(t)
 	var s := UIKit.label(HeroesText.t("SHOW_3D_NONE_SUB"), 22, UITokens.INK_DIM)
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -524,7 +525,9 @@ func _layout() -> void:
 	if _splash:
 		var tex := _splash.texture
 		var aspect := float(tex.get_width()) / float(tex.get_height())
-		var sh := H * 1.0
+		# Tall phones: the art band grows, but the splash stops at 1380 px tall (its feet stay on
+		# the floor), so the face never slides under the info column.
+		var sh := minf(H, 1380.0)
 		var sw := sh * aspect
 		var meta := HeroArt.meta(hero_id)
 		var eye: Vector2 = meta.get("eye", Vector2(0.6, 0.3))
@@ -547,8 +550,7 @@ func _layout() -> void:
 		_bg.focus = Vector2((_card.position.x + cw * 0.5) / W, (_card.position.y + ch * 0.42) / H)
 	_hint3d.size = _hint3d.get_combined_minimum_size()
 	_hint3d.position = Vector2((W - _hint3d.size.x) * 0.5, dock_y - 30.0 - _hint3d.size.y)
-	_none3d.size = Vector2(minf(560.0, W - 64.0), 0)
-	_none3d.size = _none3d.get_combined_minimum_size().max(Vector2(minf(560.0, W - 64.0), 0))
+	_none3d.size = Vector2(minf(520.0, W - 64.0), _none3d.get_combined_minimum_size().y)
 	_none3d.position = Vector2((W - _none3d.size.x) * 0.5, H * 0.42 - _none3d.size.y * 0.5)
 
 
@@ -561,7 +563,8 @@ func _stage_rect(three_d: bool) -> Rect2:
 	if three_d:
 		return Rect2(Vector2(0, y0 + 60.0), Vector2(W, dock_y - y0 - 120.0))
 	var sk_y := dock_y - 16.0 - (_skills.get_combined_minimum_size().y if _skills else 260.0)
-	return Rect2(Vector2(W * 0.4, y0 + 40.0), Vector2(W * 0.66, sk_y - y0))
+	var top := maxf(y0 + 40.0, sk_y - 880.0)
+	return Rect2(Vector2(W * 0.41, top), Vector2(W * 0.59, sk_y - top + 40.0))
 
 
 # ------------------------------------------------------------------ motion
