@@ -24,7 +24,8 @@ Every generated constant is listed in its class's SOURCE_KEYS ("consts:<path>", 
 Usage
   python3 tools/gen_heroes_data.py                  # regenerate the six blocks
   python3 tools/gen_heroes_data.py --check          # exit 1 when any block (or a json copy) is out of date
-  python3 tools/gen_heroes_data.py --refresh <dir>  # re-copy heroes_consts.json, rebuild heroes_roster.json, regenerate
+  python3 tools/gen_heroes_data.py --refresh [dir]  # rebuild heroes_roster.json from the sims in dir (default tools/;
+                                                    # a dir holding heroes_consts.json also re-copies it), regenerate
 """
 from __future__ import annotations
 
@@ -124,19 +125,28 @@ def _parse_roster_tables(md: str) -> tuple[dict, dict]:
     return heroes, champs
 
 
+def _gem_dict(d: dict) -> dict:
+    """{gem: p} in gem order with every gem of the table present (0.0 when absent)."""
+    keys = [g for g in GEMS if g in d] if len(d) < 5 else GEMS
+    return {g: float(d.get(g, 0.0)) for g in keys}
+
+
 def _low(s: str) -> str:
     s = s.lower()
     return "celestial" if s == "celestials" else s
 
 
 def refresh(src_dir: str) -> None:
-    """Copies heroes_consts.json and rebuilds heroes_roster.json from the sim, the tables script and §6.0."""
+    """Rebuilds heroes_roster.json from the sim, the tables script and §6.0 (and copies heroes_consts.json when
+    `src_dir` holds one; the repo copies of the sims in tools/ do not, so tools/data/heroes_consts.json stays)."""
     sim_path = os.path.join(src_dir, "heroes_sim.py")
-    for p in (sim_path, os.path.join(src_dir, "heroes_tables.py"), os.path.join(src_dir, "heroes_consts.json")):
+    for p in (sim_path, os.path.join(src_dir, "heroes_tables.py")):
         if not os.path.exists(p):
             sys.exit("--refresh: %s not found" % p)
     os.makedirs(DATA, exist_ok=True)
-    shutil.copyfile(os.path.join(src_dir, "heroes_consts.json"), CONSTS_JSON)
+    src_consts = os.path.join(src_dir, "heroes_consts.json")
+    if os.path.exists(src_consts):
+        shutil.copyfile(src_consts, CONSTS_JSON)
     sys.path.insert(0, src_dir)
     sys.dont_write_bytecode = True
     argv, sys.argv = sys.argv, [sim_path]
@@ -183,6 +193,8 @@ def refresh(src_dir: str) -> None:
     for w, f in sorted(H.HOME.items()):
         home[f].append(w)
     rng5 = range(5)
+    import economy_sim as E  # noqa: E402  (the sim's own import; Meta-1 power weights)
+    portal_cons, portal_dist = H.portal_exact()
     oracle = {
         "ladder": [[[H.ladder(n, g, f) if g >= n else None for f in range(H.F + 1)] for g in rng5] for n in rng5],
         "skill_cap": [[[H.skill_cap(n, g, f) if g >= n else None for f in range(H.F + 1)] for g in rng5] for n in rng5],
@@ -192,7 +204,20 @@ def refresh(src_dir: str) -> None:
         "champ_level_cost": [H.champ_level_cost(L) for L in range(1, H.CHAMP_LEVEL_MAX)],
         "chest_hero_card_frags": [int(H.CHEST_HERO_CARD * d + 0.5) for d in H.DUP_FRAGS],
         "portal_pl": [H.portal_pl(s) for s in range(H.PITY_L_HARD + 1)],
+        # exact odds tables the sim prints (§7.2, §7.5): consolidated gems over the stationary pity chain, best gem of a
+        # x10 (fresh pity, the welcome rule, the stationary start), best chest card; Summon / HeroChest must match them
+        "portal_consolidated": {g: v for g, v in sorted(portal_cons.items(), key=lambda kv: H.GI[kv[0]])},
+        "portal_x10_fresh": _gem_dict(H.portal_x10_best((0, 0), False)),
+        "portal_x10_welcome": _gem_dict(H.portal_x10_best((0, 0), True)),
+        "portal_x10_stationary": _gem_dict(H.portal_x10_best_stationary(portal_dist)),
+        "chest_best": {k: _gem_dict(H.chest_exact_best(k)) for k in ("hero", "grand")},
     }
+    # power-index terms the sim keeps in code (team_power / _synergy), for Team.score (Auto-team)
+    pair = {}
+    for cls in ("guardian", "ranger"):
+        pair.update(H._synergy([(cls, "a", "x"), (cls, "b", "y")])["champ_cls"])
+    index_terms = {"power_w": {"mach": E.W_MACH, "hero": E.W_HERO, "army": E.W_ARMY, "b2_eff": H.B2_EFF},
+                   "champ_cls_pair": pair}
     data = {
         "_source": "heroes_sim.py v2 + heroes_tables.py + heroes_design.md §6.0 via tools/gen_heroes_data.py --refresh",
         "gems": {"keys": H.G, "uk": H.GEM_UK, "en": H.GEM_EN},
@@ -206,7 +231,7 @@ def refresh(src_dir: str) -> None:
                             "second": H.SCRIPTED_SECOND},
         "factions": list(H.FACTIONS), "faction_home": home,
         "aura_share": dict(T.AURA_SHARE), "aura_cap": T.AURA_CAP,
-        "heroes": heroes, "champions": champs, "oracle": oracle,
+        "heroes": heroes, "champions": champs, "index_terms": index_terms, "oracle": oracle,
     }
     with open(ROSTER_JSON, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=1, ensure_ascii=False)
@@ -426,6 +451,10 @@ def block_team(b: Block) -> None:
                                   "AFFINITY_PER": "Affinity: fielded machines of element E +AFFINITY_PER x living members\n"
                                                   "of E (bucket 2), cap AFFINITY_CAP.",
                                   "TEAM_B2_CAP": "Celestials + Affinity + Rally machine hooks add at most this to one machine."}.get(k, ""))
+    b.roster("CHAMP_CLS_PAIR", "index_terms.champ_cls_pair",
+             "Class pair -> champion index x for that class (Guardian: Block cooldown -20%, Ranger: cooldown -15%).")
+    b.roster("POWER_W", "index_terms.power_w", "Account power weights of the sim (§8.1: machines · hero · army) and the\n"
+                                               "bucket-2 efficiency of machine synergy (Team.score / Auto-team).")
     b.head("synergy effects in the run (§5.1, §5.3)")
     b.docv("FACTION_RUN", "Faction -> {stat, tiers [none, I, II, III]}.")
     b.docv("FACTION_MEMBERS_FOR_TIER", "Living members needed for tier 0..III.")
@@ -537,7 +566,7 @@ def render_all() -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
-    ap.add_argument("--refresh", metavar="DIR")
+    ap.add_argument("--refresh", metavar="DIR", nargs="?", const=os.path.join(ROOT, "tools"))
     a = ap.parse_args()
     if a.refresh:
         refresh(a.refresh)

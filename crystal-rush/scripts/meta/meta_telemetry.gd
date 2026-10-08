@@ -10,6 +10,47 @@ class_name MetaTelemetry
 const MAX_EVENTS := 400
 const MAX_SESSIONS := 200
 const EXPORT_PATH := "user://telemetry.json"
+## Heroes & Champions events (heroes_design.md §12.5; local only): event -> the keys its data
+## carries. The rule classes (WS-A) and Rewards / Meta (WS-B) write them with note();
+## missing_keys() is the schema check test_meta runs on every event the hero flows produce.
+const HERO_EVENTS := {
+	"summon": ["n", "best", "e_left", "l_left", "seals", "welcome"],
+	"seal_pick": ["id", "gem", "cost", "owned"],
+	"chest": ["type", "best", "scripted", "inline"],
+	"facet": ["kind", "id", "gem", "f"],
+	"recut": ["kind", "id", "from", "to"],
+	"skill_rank": ["id", "skill", "rank", "form"],
+	"rewrite": ["id", "tomes_back"],
+	"awaken": ["id", "born"],
+	"hero_level": ["id", "lvl", "synced"],
+	"champion_level": ["lvl"],
+	"craft": ["item"],
+	"temper": ["item", "rank"],
+	"chronicle": ["id", "page"],
+	"team_set": ["hero", "champions", "synergies"],
+	"team_run": ["level", "hero", "champions", "synergies", "won", "lost_ids"],
+	"champion_lost": ["id", "level", "t", "cause"],
+	"ceremony": ["kind", "s", "skipped"],
+	"migration": ["from_level", "grant"],
+}
+
+
+## Keys of HERO_EVENTS[event] missing from `data` ([] when complete or for a non-hero event).
+static func missing_keys(event: String, data: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	for k: String in HERO_EVENTS.get(event, []):
+		if not data.has(k):
+			out.append(k)
+	return out
+
+
+## The logged rows of `event`, oldest first (tests, the debug export).
+static func events_of(acc: Dictionary, event: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for r in (_tel(acc).get("events", []) as Array):
+		if r is Dictionary and str((r as Dictionary).get("e", "")) == event:
+			out.append(r)
+	return out
 
 
 static func _tel(acc: Dictionary) -> Dictionary:
