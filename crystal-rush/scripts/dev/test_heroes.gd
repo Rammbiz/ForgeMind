@@ -356,9 +356,10 @@ func _test_rule3() -> void:
 	_ok(caps, "test_rule3_caps: recut cap = native cap - 1 at every (n < g, f)")
 	_ok(forms, "test_rule3_forms: a recut's max form < the native's")
 	_ok(awk, "test_rule3_awaken: recut Awakening cap < native's (Amethyst+)")
-	_ok(Ladder.can_awaken("L", "L", 0) and Ladder.can_awaken("M", "M", 0) and not Ladder.can_awaken("E", "E", 0)
-			and not Ladder.can_awaken("C", "R", 5), "native Topaz / Opal born awakened; no Awakening below Amethyst")
-	_ok(Ladder.born_awakened("L") and not Ladder.born_awakened("E"), "born_awakened")
+	_ok(Ladder.can_awaken("L", "L", 0) and Ladder.can_awaken("M", "M", 0) and Ladder.can_awaken("E", "E", 0)
+			and not Ladder.can_awaken("R", "E", 4) and Ladder.can_awaken("R", "E", 5)
+			and not Ladder.can_awaken("C", "R", 5), "native Amethyst / Topaz / Opal born awakened; a recut opens it at Full facets; none below Amethyst")
+	_ok(Ladder.born_awakened("E") and Ladder.born_awakened("L") and not Ladder.born_awakened("R"), "born_awakened (Amethyst+, review F1)")
 	_ok(mono, "test_monotone: no stat or cap drops along any path")
 
 
@@ -434,7 +435,7 @@ static func _max_ranks(n: int, g: int, f: int) -> Array:
 	var ng: String = Ladder.GEMS[n]
 	var gg: String = Ladder.GEMS[g]
 	var c := Ladder.skill_cap(ng, gg, f)
-	var reached := g >= 2 and (f == Ladder.FACETS_PER_GEM or g > maxi(n, 2) or n >= 3)
+	var reached := g >= 2 and (f == Ladder.FACETS_PER_GEM or g > maxi(n, 2) or Ladder.born_awakened(ng))
 	return [c, c, c, Ladder.awaken_cap(ng, gg) if reached else 0]
 
 
@@ -556,6 +557,37 @@ func _test_power_rule3() -> void:
 					var sk := [c5, c5, c5, r]
 					eqr = eqr and HeroesMeta.index(n5, g5, f5, 30, sk, mg, 3, true) < HeroesMeta.index(g5, g5, f5, 30, sk, mg, 3, true)
 	_ok(eqr, "test_rule3_equal_ranks: recut < native at every shared Awakening rank")
+	# Review F1 (H1 gate): across facet counts. A recut at any facet count with every cap of its own
+	# stays below a native of its current gem at any facet count, (a) the native at its own caps,
+	# (b) the native at the recut's ranks (equal Tomes) and an Awakening rank only where its own is
+	# open. Before BORN_AWAKENED_MIN = "E", Sapphire -> Amethyst at Full facets beat a native Amethyst
+	# at 0-3 facets (1.0225 at Lv30).
+	var w_xa := 0.0
+	var w_xb := 0.0
+	var beats: Array[String] = []
+	for n8 in 4:
+		for g8 in range(n8 + 1, 5):
+			for lv8 in [1, 10, 20, 30]:
+				for fr in Ladder.FACETS_PER_GEM + 1:
+					var rc8 := _max_ranks(n8, g8, fr)
+					var rec8 := HeroesMeta.index(n8, g8, fr, lv8, rc8, mg, 3, true)
+					for fn in Ladder.FACETS_PER_GEM + 1:
+						var ra := rec8 / HeroesMeta.index(g8, g8, fn, lv8, _max_ranks(g8, g8, fn), mg, 3, true)
+						var open := Ladder.can_awaken(Ladder.GEMS[g8], Ladder.GEMS[g8], fn)
+						var nb := [rc8[0], rc8[1], rc8[2], mini(int(rc8[3]), Ladder.awaken_cap(Ladder.GEMS[g8], Ladder.GEMS[g8])) if open else 0]
+						var rb8 := rec8 / HeroesMeta.index(g8, g8, fn, lv8, nb, mg, 3, true)
+						w_xa = maxf(w_xa, ra)
+						w_xb = maxf(w_xb, rb8)
+						if maxf(ra, rb8) >= 1.0:
+							beats.append("%s->%s f%d vs f%d Lv%d" % [Ladder.GEMS[n8], Ladder.GEMS[g8], fr, fn, lv8])
+	print("  cross-facet: worst own caps %.4f · equal ranks %.4f" % [w_xa, w_xb])
+	_ok(w_xa < 1.0, "test_rule3_cross_facet: recut (any f, own caps) < native (any f, own caps) (worst %.4f) %s" % [w_xa, str(beats.slice(0, 4))])
+	_ok(w_xb < 1.0, "test_rule3_cross_facet: recut (any f, own caps) < native (any f, the recut's ranks) (worst %.4f)" % w_xb)
+	var rv := HeroesMeta.index(1, 2, 5, 30, _max_ranks(1, 2, 5), mg, 3, true)
+	var rv_ok := true
+	for fn2 in 4:
+		rv_ok = rv_ok and rv < HeroesMeta.index(2, 2, fn2, 30, [6, 6, 6, 1], mg, 3, true)
+	_ok(rv_ok and _max_ranks(2, 2, 0)[3] == 2, "review F1 case: Sapphire -> Amethyst f5 < a native Amethyst at f0-3 holding only its born Awakening rank")
 	# Champions (§2.3 end; §2.5 13): recut <= 0.96 native; cross-class with KIT_INDEX +-3% < 1.
 	var wc := 0.0
 	var wx := 0.0
@@ -762,6 +794,41 @@ func _test_skills() -> void:
 	_ok(bool(fr["ok"]) and bool(fr["free"]) and not MetaAcc.free_steps(acc5).has("skill_rank")
 			and HeroesMeta.rank_cost(acc5, "bolt", "ult") == 3, "free rank consumed")
 	_ok(HeroesMeta.skill_ranks_total(acc5) == 1 and int(HeroesMeta.feat_counters(acc5)["skill_ranks"]) == 1, "F-65 counter")
+	# Review F5: a Rewrite gives back exactly the Tomes paid; free ranks (the free first Ult rank,
+	# ranks carried over from 2.2.1, a born Awakening) stay and are never paid out.
+	var acc6 := _acc(31, ["bolt", "eira"])
+	(acc6["team"] as Dictionary)["hero"] = "eira"
+	MetaAcc.free_steps(acc6)["skill_rank"] = true
+	MetaAcc.add(acc6, "tomes", 100)
+	HeroesMeta.rank_up(acc6, "eira", "ult")                      # free: 1 -> 2
+	HeroesMeta.rank_up(acc6, "eira", "ult")                      # paid: 2 -> 3
+	HeroesMeta.rank_up(acc6, "eira", "attack")                   # paid: 1 -> 2
+	var paid6 := int(HeroData.TOME_COST[2]) + int(HeroData.TOME_COST[1])
+	(acc6["team"] as Dictionary)["hero"] = "bolt"
+	_ok(HeroesMeta.rewrite_refund(acc6, "eira") == paid6, "Rewrite refund = Tomes paid (%d), not the free rank" % paid6)
+	var t6 := MetaAcc.amount(acc6, "tomes")
+	var rw6 := HeroesMeta.rewrite(acc6, "eira")
+	_ok(bool(rw6["ok"]) and MetaAcc.amount(acc6, "tomes") == t6 + paid6 and HeroesMeta.skill_rank(acc6, "eira", "ult") == 2
+			and HeroesMeta.skill_rank(acc6, "eira", "attack") == 1 and HeroesMeta.rewrite_refund(acc6, "eira") == 0,
+			"Rewrite keeps the free Ult rank and takes back only the bought ranks")
+	(Roster.entry(acc6, "eira")["skills"] as Dictionary)["ult"] = 4  # ranks carried over from 2.2.1 (never paid)
+	_ok(HeroesMeta.rewrite_block(acc6, "eira") == "nothing" and HeroesMeta.rewrite_refund(acc6, "eira") == 0,
+			"migrated ranks: nothing to rewrite, no Tomes minted")
+	var acc7 := _acc(31, ["bolt", "seer"])
+	_ok(HeroesMeta.skill_rank(acc7, "seer", "awakened") == 1 and HeroesMeta.rewrite_block(acc7, "seer") == "nothing",
+			"a born Awakening is not a paid rank")
+	# Review F8: chest Tomes follow the level rule, not the session-paced skills row.
+	EconData.phase_override = EconData.HEROES_LIVE_PHASE       # the session-paced rows exist only live
+	var acc8 := _acc(31, ["bolt"], ChampionData.CHAMPION_ORDER)
+	(acc8["chests"] as Dictionary)["scripted"] = 2
+	var un8: Dictionary = acc8["unlocks"]
+	un8["done"] = (un8["done"] as Array).filter(func(x: Variant) -> bool: return str(x) != "skills")
+	un8["session_count"] = 99                                 # this session's tutorial slots are used up
+	var held := Roster.system_open(acc8, "champions") and not Roster.system_open(acc8, "skills")
+	var gc8 := HeroChest.open(acc8, "grand", RandomNumberGenerator.new())
+	EconData.phase_override = -1
+	_ok(held and bool(gc8.get("ok", false)) and int(gc8.get("tomes", 0)) == int(PortalData.CHEST_TOMES["grand"][0]),
+			"a Grand chest opened while the skills row waits for its session still pays its Tomes (held %s, tomes %s)" % [held, gc8.get("tomes", "-")])
 
 
 # ------------------------------------------------------------------ levels and Hero Sync
@@ -1316,6 +1383,22 @@ func _test_chests() -> void:
 	(acc8["chests"] as Dictionary)["since_l"] = PortalData.CHEST_PITY_L - 1
 	var pc := HeroChest.open(acc8, "hero", rng)
 	_ok(str(pc["best"]) == "L" and int(acc8["chests"]["since_l"]) == 0 and int(acc8["chests"]["total"]) == 1, "the 15th chest holds a Topaz card")
+	# Review F6: a gem without an eligible champion gives its card from the nearest gem that has one.
+	var no_l: Array = []
+	for cid2 in ChampionData.CHAMPION_ORDER:
+		if Roster.native(cid2) != "L":
+			no_l.append(cid2)
+	var keep_cards := true
+	for i5 in 200:
+		var acc9 := _acc(31, ["bolt"], ChampionData.CHAMPION_ORDER)
+		(acc9["chests"] as Dictionary)["scripted"] = 2
+		(acc9["chests"] as Dictionary)["since_l"] = PortalData.CHEST_PITY_L - 1
+		var c9 := HeroChest.open(acc9, "hero", rng, 0, "", true, no_l)
+		for cd: Dictionary in c9["cards"]:
+			keep_cards = keep_cards and no_l.has(str(cd["id"])) and str(cd["gem"]) == Roster.native(str(cd["id"]))
+		keep_cards = keep_cards and (c9["cards"] as Array).size() == int(PortalData.CHEST_CARDS["hero"])
+	_ok(keep_cards, "no eligible Topaz champion: the chest keeps both cards, the Topaz card comes from the nearest gem")
+	_ok(HeroChest._gem_with_pool("L", no_l) == "E" and HeroChest._gem_with_pool("C", no_l) == "C", "nearest gem with a pool: lower first")
 
 
 # ------------------------------------------------------------------ two-track property (§12.6 7)

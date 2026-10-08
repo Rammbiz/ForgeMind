@@ -14,7 +14,7 @@ class_name SaveMigrate
 ##     heroes a v2 player had met (EconData.HERO_UNLOCK_V2: the Seer from the L5 win) become owned
 ##     (via "migration"); lvl kept; gem = native; Ult rank from the Meta-1 level ranks capped at
 ##     skill_cap(n, n, 0), the ranks above it refunded as Tomes; Attack = Rally = 1; native
-##     Topaz / Opal born awakened; Glory above 1 -> Star Ore owed at the Workshop unlock;
+##     Amethyst+ born awakened (BORN_AWAKENED_MIN: the Seer gets Awakening rank 1); Glory above 1 -> Star Ore owed at the Workshop unlock;
 ##     lump grant at frontier L (Beacons, Hero Chests + Grand Hero Chests into vault.hero_chests,
 ##     Tomes, Champion Level); the one-time MIGRATION_HEROES_CARD; telemetry `migration`.
 ## sanitize_v3(acc) repairs the v3 sections on every load (unknown ids -> _orphans, nested keys
@@ -297,6 +297,16 @@ static func _sanitize_heroes(acc: Dictionary) -> void:
 		var acap := awaken_cap(n, g)
 		sk["awakened"] = clampi(int(sk["awakened"]), 1 if born_awakened(n) else 0, maxi(acap, 1 if born_awakened(n) else 0))
 		_peak(h)
+		# skills_paid {skill: [ranks bought, Tomes paid]} (Rewrite refunds exactly what was paid):
+		# never more bought ranks than the skill holds above its base.
+		var sp: Dictionary = h["skills_paid"]
+		for k2 in SKILLS:
+			var row: Variant = sp.get(k2)
+			var floor_r := 0 if k2 == "awakened" and int(sk["awakened"]) == 0 else 1
+			if not row is Array or (row as Array).size() != 2 or not _num((row as Array)[0]) or not _num((row as Array)[1]):
+				sp[k2] = [0, 0]
+				continue
+			sp[k2] = [clampi(int((row as Array)[0]), 0, maxi(0, int(sk[k2]) - floor_r)), maxi(0, int((row as Array)[1]))]
 		var lo: Dictionary = h["loadout"]
 		for slot in GEAR_SLOTS:
 			lo[slot] = str(lo[slot]) if lo[slot] != null else ""

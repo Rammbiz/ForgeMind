@@ -30,9 +30,9 @@ static func state(acc: Dictionary) -> Dictionary:
 
 ## Adds the charge of `wins` qualifying wins (the caller applies the replay rule: only the first
 ## CHEST_REPLAYS_PER_DAY replay wins a day). Returns the whole Hero Chests completed (taken off the
-## charge); 0 before the champions unlock.
+## charge); 0 before the champions unlock level (Roster.income_open, the rule Rewards uses; review F8).
 static func add_charge(acc: Dictionary, wins := 1) -> int:
-	if not is_open(acc) or wins <= 0:
+	if not Roster.income_open(acc, "champions") or wins <= 0:
 		return 0
 	var w: Dictionary = acc["wallet"]
 	var ch := float(w.get("chest_charge", 0.0)) + PortalData.CHEST_CHARGE_PER_WIN * wins
@@ -215,8 +215,11 @@ static func open(acc: Dictionary, kind: String, rng: RandomNumberGenerator, now_
 		if bool(gr["new"]):
 			new_ids.append(cid)
 			Team.place(acc, cid)
-	for g in gems:
-		var id := pick_champion(acc, g, rng, eligible)
+	for g0 in gems:
+		# A gem with no eligible champion (HeroArt gating, review F6) gives its card from the nearest
+		# lower gem that has one (else the nearest higher), so a chest never loses a card.
+		var g := _gem_with_pool(g0, eligible)
+		var id := pick_champion(acc, g, rng, eligible) if g != "" else ""
 		if id == "":
 			continue
 		var gr2 := Roster.grant(acc, id, "chest", now_s)
@@ -237,7 +240,7 @@ static func open(acc: Dictionary, kind: String, rng: RandomNumberGenerator, now_
 		hc_tomes = int(Roster.add_frags(acc, str(hc["id"]), int(hc["frags"]), "chest")["tomes"])
 	hc["tomes"] = hc_tomes
 	var tomes := 0
-	if Roster.system_open(acc, "skills"):
+	if Roster.income_open(acc, "skills"):          # level rule, not the session-paced row (review F8)
 		var tr: Array = PortalData.CHEST_TOMES[kind]
 		tomes = int(tr[0]) if int(tr[0]) == int(tr[1]) else rng.randi_range(int(tr[0]), int(tr[1]))
 		MetaAcc.add(acc, "tomes", tomes)
@@ -246,6 +249,20 @@ static func open(acc: Dictionary, kind: String, rng: RandomNumberGenerator, now_
 			"source": source}, now_s)
 	return {"ok": true, "reason": "", "kind": kind, "scripted": scripted, "cards": cards, "hero_card": hc,
 			"tomes": tomes, "best": best, "new_ids": new_ids}
+
+
+## `gem` when its champion pool (filtered by `eligible`) is not empty, else the nearest lower gem
+## with one, else the nearest higher; "" when no gem has any.
+static func _gem_with_pool(gem: String, eligible: Array) -> String:
+	if not pool(gem, eligible).is_empty():
+		return gem
+	var gi := Ladder.gem_index(gem)
+	for d in range(1, Ladder.GEMS.size()):
+		for gj in [gi - d, gi + d]:
+			if gj >= 0 and gj < Ladder.GEMS.size() and PortalData.CHEST_ODDS.has(Ladder.GEMS[gj]) \
+					and not pool(Ladder.GEMS[gj], eligible).is_empty():
+				return Ladder.GEMS[gj]
+	return ""
 
 
 # ------------------------------------------------------------------ disclosure

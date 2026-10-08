@@ -234,6 +234,10 @@ static func rank_up(acc: Dictionary, id: String, skill: String, now_s := 0) -> D
 	var e := Roster.entry(acc, id)
 	var sk: Dictionary = e["skills"]
 	sk[skill] = skill_rank(acc, id, skill) + 1
+	if not free:
+		var bp := _paid(e, skill)
+		bp[0] = int(bp[0]) + 1
+		bp[1] = int(bp[1]) + c
 	Roster.sync_peak(e)
 	var form := ult_form(acc, id)
 	var r := int(sk[skill])
@@ -242,13 +246,37 @@ static func rank_up(acc: Dictionary, id: String, skill: String, now_s := 0) -> D
 			"form_up": skill == "ult" and form > form0, "tomes": c, "free": free}
 
 
-## Tomes that ranks above 1 cost (the refund of a Rewrite): every rank of ult / attack / rally above
-## 1 and every Awakening rank above 1.
+## Ranks bought with Tomes and the Tomes paid, per skill: hero.skills_paid {skill: [ranks, tomes]}
+## (created on first use; Save v3 sanitize keeps it consistent).
+static func _paid(e: Dictionary, skill: String) -> Array:
+	if not e.get("skills_paid") is Dictionary:
+		e["skills_paid"] = {}
+	var sp: Dictionary = e["skills_paid"]
+	if not sp.get(skill) is Array or (sp[skill] as Array).size() != 2:
+		sp[skill] = [0, 0]
+	return sp[skill]
+
+
+## Ranks of `skill` bought with Tomes (what a Rewrite takes back).
+static func paid_ranks(acc: Dictionary, id: String, skill: String) -> int:
+	var sp: Variant = Roster.entry(acc, id).get("skills_paid", {})
+	if not sp is Dictionary or not (sp as Dictionary).get(skill) is Array or ((sp as Dictionary)[skill] as Array).size() != 2:
+		return 0
+	return int(((sp as Dictionary)[skill] as Array)[0])
+
+
+## The refund of a Rewrite: exactly the Tomes paid for ranks (hero.skills_paid). Ranks that cost no
+## Tomes (the free first Ult rank, ranks carried over from 2.2.1, a born Awakening) are kept by the
+## Rewrite and never pay Tomes back (review F5: counting the refund from ranks minted Tomes).
 static func rewrite_refund(acc: Dictionary, id: String) -> int:
+	var sp: Variant = Roster.entry(acc, id).get("skills_paid", {})
+	if not sp is Dictionary:
+		return 0
 	var t := 0
 	for s in SKILLS:
-		for r in range(1, skill_rank(acc, id, s)):
-			t += HeroData.TOME_COST[clampi(r, 0, HeroData.TOME_COST.size() - 1)]
+		var row: Variant = (sp as Dictionary).get(s)
+		if row is Array and (row as Array).size() == 2:
+			t += maxi(0, int((row as Array)[1]))
 	return t
 
 
@@ -258,24 +286,32 @@ static func rewrite_block(acc: Dictionary, id: String) -> String:
 		return "owned"
 	if Team.uses_hero(acc, id):
 		return "team"
-	if rewrite_refund(acc, id) == 0:
+	var bought := 0
+	for s in SKILLS:
+		bought += paid_ranks(acc, id, s)
+	if bought == 0 and rewrite_refund(acc, id) == 0:
 		return "nothing"
 	return ""
 
 
-## «Переписати навички / Rewrite skills»: every Tome spent on the hero's ranks comes back (100%),
-## ranks return to 1 (an open / born Awakening to 1). skills_peak is kept (F-65 never re-counts).
-## {ok, reason, id, tomes_back}.
+## «Переписати навички / Rewrite skills»: every Tome spent on the hero's ranks comes back (100%)
+## and exactly the ranks bought with Tomes go; free ranks stay (the free first Ult rank, 2.2.1 ranks,
+## a born Awakening), so nothing is minted and nothing the player did not pay for is lost.
+## skills_peak is kept (F-65 never re-counts). {ok, reason, id, tomes_back}.
 static func rewrite(acc: Dictionary, id: String, now_s := 0) -> Dictionary:
 	var why := rewrite_block(acc, id)
 	if why != "":
 		return {"ok": false, "reason": why, "id": id, "tomes_back": 0}
 	var back := rewrite_refund(acc, id)
-	var sk: Dictionary = Roster.entry(acc, id)["skills"]
-	for s in RANKED:
-		sk[s] = 1
-	if int(sk.get("awakened", 0)) > 0:
-		sk["awakened"] = 1
+	var e := Roster.entry(acc, id)
+	var sk: Dictionary = e["skills"]
+	for s in SKILLS:
+		var base := 0 if s == "awakened" else 1
+		if s == "awakened" and int(sk.get(s, 0)) > 0:
+			base = 1
+		sk[s] = maxi(base, skill_rank(acc, id, s) - paid_ranks(acc, id, s))
+		_paid(e, s)
+		(e["skills_paid"] as Dictionary)[s] = [0, 0]
 	MetaAcc.add(acc, "tomes", back)
 	MetaTelemetry.note(acc, "rewrite", {"id": id, "tomes_back": back}, now_s)
 	return {"ok": true, "reason": "", "id": id, "tomes_back": back}

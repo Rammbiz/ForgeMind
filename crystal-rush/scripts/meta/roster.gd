@@ -129,6 +129,13 @@ static func frontier(acc: Dictionary) -> int:
 
 ## A hero system (HeroData.UNLOCK_AT key) is open: through UnlockQueue once Save / Meta (WS-B) adds
 ## its row to EconData.UNLOCKS, by the level rule (after_win) until then.
+## Income rule (review F8): a hero system pays its earned income (Beacons, chest charge, chest
+## Tomes) once the frontier passed its unlock level (SaveV3Data.UNLOCK_AT; heroes_sim and the
+## migration lump grant use the same rule). UnlockQueue only paces when its row and tutorial show.
+static func income_open(acc: Dictionary, sys: String) -> bool:
+	return MetaAcc.level(acc) > int(SaveV3Data.UNLOCK_AT[sys])
+
+
 static func system_open(acc: Dictionary, sys: String) -> bool:
 	if not EconData.unlock_entry(sys).is_empty():
 		return UnlockQueue.is_open(acc, sys)
@@ -138,7 +145,7 @@ static func system_open(acc: Dictionary, sys: String) -> bool:
 # ------------------------------------------------------------------ grants
 
 ## One copy of `id` (Portal, Seal pick, chest card, progress, migration, start). A new character
-## becomes owned at its native gem (a native Topaz / Opal hero with Awakening rank 1, F-AWK2); a
+## becomes owned at its native gem (a native Amethyst+ hero with Awakening rank 1, F-AWK2); a
 ## copy of an owned one gives DUP_FRAGS[native] fragments (overflow to Tomes at the absolute max).
 ## Returns {id, kind, new, gem, frags, tomes, awakened}.
 static func grant(acc: Dictionary, id: String, via: String, now_s := 0) -> Dictionary:

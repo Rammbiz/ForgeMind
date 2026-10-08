@@ -67,7 +67,7 @@ in place).
 
 | # | Pillar | What it means in numbers / rules |
 |---|---|---|
-| P1 | **Rarity is felt, the ceiling is honest** (decision 3, addendum 1) | A recut character never reaches a native of its current gem: stats ≤ 0.96×, rank cap −1, ult forms capped by the native gem, Awakening cap −1 — at equal AND at max investment, with real kits (§2). Native Topaz / Opal heroes show four skills the moment they arrive. |
+| P1 | **Rarity is felt, the ceiling is honest** (decision 3, addendum 1) | A recut character never reaches a native of its current gem: stats ≤ 0.96×, rank cap −1, ult forms capped by the native gem, Awakening cap −1 — at equal AND at max investment, with real kits (§2). Native Amethyst / Topaz / Opal heroes show four skills the moment they arrive. |
 | P2 | **Random only from play** (decision 5, arsenal two-track rule) | Beacons, Seals, Hero Chests, Tomes, fragments-from-random and pity are earned only. At launch money buys **cosmetics only** (skins, champion skins, Portal themes); no hero SKU, no Hero Edition, no fragment SKU. No Feat, Track node or Road node pays Beacons (§7.3). |
 | P3 | **Machines stay the backbone** (arsenal pillar) | Machines ≥ 50% of power growth at L60 for every archetype and the largest share at L112; hero axes spend their own resources, never coins (skills = Tomes, recut = fragments, Workshop = Star Ore); mean machine level at L112 ≈ Meta-1's (§8). |
 | P4 | **The free floor is today's game** | Level difficulty is re-baked once (`TEAM_DEMAND`) on the EXPECTED profile (starters + the welcome Topaz + two scripted champions); a player who ignores every random result plays ≈ Meta-1's difficulty (casual win 79% vs Meta-1's 78%); luck is upside (≤ 8 pp), the luck gap ≤ 6 pp (§8). |
@@ -88,7 +88,7 @@ in place).
 | 6 | Shards → stars → gem ascension | Фрагменти → **Грані** (5 per gem) → **Огранка** (recut); stars stay reserved for star-shards | 3.2 | ✓ (naming: §15 Q6 — your UI answer used «Зірки») |
 | 7 | Pity + choice | Amethyst+ by the 10th, Topaz+ soft 21 / hard 30, Seals 40 / 100 / 200, welcome ×10 «щонайменше Топаз» | 7 | ✓ |
 | 8 | Portal + Chests; Caches stay for machines | Portal (Beacons), Hero Chest / Grand Hero Chest; Caches untouched | 7 | ✓ |
-| 9 | 3 skills + an awakened 4th at high stars | Ульта · Атака · Клич + Пробудження; Amethyst natives and every recut open it at Full facets; **native Topaz / Opal are born awakened** (rarity visibly has more, addendum 1) | 3.3 | ✓ (F-AWK2, §15 Q2) |
+| 9 | 3 skills + an awakened 4th at high stars | Ульта · Атака · Клич + Пробудження; every recut opens it at Full facets in Amethyst+; **native Amethyst / Topaz / Opal are born awakened** (rarity visibly has more, addendum 1; Amethyst added at the H1 gate, F-AWK3) | 3.3 | ✓ (F-AWK2, §15 Q2) |
 | 10 | Class + Element + Faction, readable | 5 classes · 6 elements (= machine families) · 4 factions; progressive disclosure | 5, 11.3 | ✓ |
 | 11 | Level · stars & gem · skill ranks · gear | coins · fragments · Tomes · Star Ore (each axis its own resource) | 3 | ✓ |
 | 12 | Bolt, Titan, Seer are starters | Руді (Sapphire), Горан (Quartz), Мейра (Amethyst); Seer guest level at L5, joins at the World 3 boss (L24) | 6, 11 | ✓ (§15 Q7) |
@@ -100,7 +100,7 @@ in place).
 | 18 | Name + title, readable in uk and en | 22 names; 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
 | 19 | Forge + trophies, little randomness | «Майстерня / Workshop» (your "Forge"): craft exactly what is shown, one material «Зоряна руда», 7 boss trophies (+3 ranks from each night boss), zero randomness | 3.4 | ✓ (name: §15 Q6) |
 | 20 | Design now, code after APK 2.1 + prompts now | this doc; prompts in `heroes/heroes_prompts.md` (next workflow step) | 13, 14 | ✓ |
-| A1 | Second reference: top tier visibly has more | 4 skills on native Topaz / Opal at pull, gem-washed full screens, more particles per gem | 2, 9 | ✓ |
+| A1 | Second reference: top tier visibly has more | 4 skills on native Amethyst / Topaz / Opal at pull, gem-washed full screens, more particles per gem | 2, 9 | ✓ |
 | A2 | Pre-committed Vesta, Lumen, owl, healer, tortoise | Веста (Topaz), Люмен (Opal), Альба, Міла, Отто | 6 | ✓ |
 | A3 | Gemini Vesta = style reference; COLOR LOCK | every prompt locks crystals to the native gem | 14 | ✓ |
 | A4 | Prompt format | FORMAT · ART STYLE · CHARACTER · COLOR LOCK · POSE · AVOID + uk tool note; complete text, never patches | 14 | ✓ |
@@ -149,7 +149,7 @@ names in the same release (recommended; §15 Q5).
 | Item | Framework (v1) | This document | Why (finding) |
 |---|---|---|---|
 | Skill cap formula B2 | `2 + n + g + [f5]` | `SKILL_BASE[g] − [g > n] + [f5]` (F-CAP) | a recut always one cap below a native; multi-gem recuts become worth it (E06) |
-| Awakening B4 | opens at Full cut in Amethyst+ for everyone | + native Topaz / Opal heroes are **born awakened** (F-AWK2) | removes the transient rule-#3 breach; top tier visibly has 4 skills (E02, X01) |
+| Awakening B4 | opens at Full cut in Amethyst+ for everyone | + native Amethyst / Topaz / Opal heroes are **born awakened** (F-AWK2; Amethyst added by F-AWK3 at the H1 gate) | removes the transient rule-#3 breach and the cross-facet one (a Sapphire recut to Amethyst at Full facets beat a native Amethyst at 0–3 facets, 1.0225); top tier visibly has 4 skills (E02, X01) |
 | Ult power | no level term | `× lv_ult(L) = 1 + 0.036 (L − 1)` | no-loss migration of Meta-1 Ult Rank II–IV (S CI-1) |
 | Clash damage | `ceil(hit × 0.25)` per tick | fractional accumulator | champions would lose ≥ 14 HP/s (X10) |
 | Aura share | measured from soldier positions | fixed per slot (front 0.35 · side 0.30 · rear 0.25) | LevelSim has no positions (X09) |
@@ -197,9 +197,9 @@ B1 stats   ladder(n, g, f) = NATIVE_MULT[n] × RECUT_STEP^(g − n) × (1 + a·f
 B2 skills  skill_cap(n, g, f) = SKILL_BASE[g] − [g > n] + [f == 5]      SKILL_BASE = [2, 4, 6, 8, 10]      (F-CAP)
            → a recut is always exactly ONE rank cap below a native of its current gem
 B3 ults    ult_form(n, rank) = min(n + 1, #{FORM_AT_RANK ≤ rank}),  FORM_AT_RANK = [1, 3, 5, 7, 9]  (max form = native gem)
-B4 4th     can_awaken(n, g, f) = g ≥ Аметист and (f == 5  or  (g == n and n ≥ Топаз))                     (F-AWK2)
+B4 4th     can_awaken(n, g, f) = g ≥ Аметист and (f == 5  or  (g == n and n ≥ Аметист))                   (F-AWK2/3)
            awaken_cap(n, g) = AWAKEN_CAP[g] − [g > n],  AWAKEN_CAP = {Аметист 2, Топаз 3, Опал 4}
-           native Topaz / Opal heroes are obtained with Awakening rank 1 already open
+           native Amethyst / Topaz / Opal heroes are obtained with Awakening rank 1 already open
 Champions  same B1; Action tier = native + 1 (I…IV), fixed at birth; champion recut stops at Topaz
 ```
 
@@ -212,7 +212,7 @@ multiplies rates, ranges, radii, cooldowns or counts (kit identity).
 |---|---|---|---|---|---|
 | Кварц | 2/3 · I · — | 3/4 · I · — | 5/6 · I · 1 | 7/8 · I · 2 | 9/10 · I · 3 |
 | Сапфір | | 4/5 · II · — | 5/6 · II · 1 | 7/8 · II · 2 | 9/10 · II · 3 |
-| Аметист | | | 6/7 · III · 2 | 7/8 · III · 2 | 9/10 · III · 3 |
+| Аметист | | | 6/7 · III · 2 (born) | 7/8 · III · 2 | 9/10 · III · 3 |
 | Топаз | | | | 8/9 · IV · 3 (born) | 9/10 · IV · 3 |
 | Опал | | | | | 10/11 · V · 4 (born) |
 
@@ -240,8 +240,11 @@ ranks both may hold, same Awakening rank, same full gear); max = each at f5 with
 | Топаз → Опал | 1 / 30 | 0.950 / 0.948 | 0.950 / 0.948 | 2.914 / 7.075 | 2.622 / 6.344 | 0.900 / 0.897 |
 
 Measured over every path, f 0–5, Lv 1 / 10 / 20 / 30: **worst equal-investment 0.9504, worst max-investment 0.9306,
-transient case 0.9504** (F-AWK2 removes it: a native Topaz / Opal always holds at least the Awakening ranks a recut can
-hold; recut and native Amethysts open it at the same moment, Full facets). Champions (n < g ≤ Topaz, Champion Lv
+transient case 0.9504** (F-AWK2 removes it: a native Amethyst / Topaz / Opal always holds at least the Awakening ranks
+a recut can hold). **Across facet counts** (H1 gate, F-AWK3): a recut at any facet count with every cap of its own stays
+below a native of its gem at any facet count, worst 0.9849 (native at its own caps or at the recut's ranks); with
+Awakening born only from Topaz, a Sapphire recut to Amethyst at Full facets beat a native Amethyst at 0–3 facets
+(1.0225 at Lv30), because the f5-vs-f0 ladder gap (0.9947) is smaller than one Awakening rank (`test_rule3_cross_facet`). Champions (n < g ≤ Topaz, Champion Lv
 1 / 10 / 20, relic +12): worst 0.9254, and the recut keeps its lower Action tier.
 
 **With real kits (critique B2).** The index above is kit-blind. Real kits differ, so the binding test is a **kit profile
@@ -382,7 +385,7 @@ Roster at native max: 1 960 Tomes; all 10 at Opal f5 (recut caps 10): 3 930 Tome
 | Ульта / Ultimate | **+5% ult effect** | forms II–V at ranks 3 / 5 / 7 / 9, capped by the native gem; forms add RULES, never a numeric step | form +3% ult (Opal V +5%) |
 | Атака / Attack | **+1% hero damage** | beats at ranks 3 / 6 / 9 (class template + hero twist); mostly utility (stagger, mark, reveal, pierce) | beat +1% index |
 | Клич / Rally | **+10% of the hook base** | one hook per hero, base = S parity (§5.4) | ±5% parity |
-| Пробудження / Awakening | rule per rank | Amethyst natives and every recut: opens at Full facets in Amethyst+; native Topaz / Opal: born with rank 1 | +4% index / rank |
+| Пробудження / Awakening | rule per rank | every recut: opens at Full facets in Amethyst+; native Amethyst / Topaz / Opal: born with rank 1 | +4% index / rank |
 
 - The skills unlock at L30; before that every rank is 1 except a born Awakening (and migrated Ult ranks). Free first
   step: one free Ult rank on the team hero.
@@ -1769,7 +1772,7 @@ Portal plate never has a badge**).
 | Screen | Final rule (finding) |
 |---|---|
 | Hero Showcase | Left column = emblem 200 px · name 68 px · title · 3 badges · **one combined facets + fragments row** («Грані 3 / 5 · 32 / 30 фрагм.»). **Gear is not on the Showcase**; it lives in the Manage sheet «Спорядження» tab (X43). Power line reads «Міць 12 480» (X40). Dock: ‹ · one contextual CTA · «3D» · book icon (Chronicle, L30+). Skin chip lists **owned skins only** — never an offer after a walkout (X36). |
-| Skill plates | Only unlocked skills are drawn (§11.3): Ult + Attack from L4, Rally from L30, Awakening plate from the first Full facets in Amethyst+ (always present on native Topaz / Opal: born awakened). The Ult bezel stone = the current form's gem; a recut hero's bezel can never pass its native gem (rule #3 visible on the plate). |
+| Skill plates | Only unlocked skills are drawn (§11.3): Ult + Attack from L4, Rally from L30, Awakening plate from the first Full facets in Amethyst+ (always present on native Amethyst / Topaz / Opal: born awakened). The Ult bezel stone = the current form's gem; a recut hero's bezel can never pass its native gem (rule #3 visible on the plate). |
 | Facets | presented as **progress, not stats**: micro 0.35 s, batched across characters on one screen, each engraves a facet line on the Living Gem; no stat count-up; card text «Грані 3 / 5 → +1 межа навичок» (X26); the Manage sheet's facet row still prints the
 true value in small text («+0,73% до характеристик», generated from `Ladder.FACET_STEP`) so nothing is hidden (E12). The luxe sits on Full facets (1.6 s) and the first rank bought in the new cap. |
 | Recut | own screen; leads with **what it unlocks** («+2 межі навичок · форма IV · Пробудження»), then the honesty table **Зараз · Після огранки · Корінний** (Might, skill cap, ult form, Awakening, Action tier for champions), the native-ceiling bar, cost (fragments only), two-tap «Огранити». The ceiling block is never collapsed. |
@@ -1991,7 +1994,7 @@ take a slot. `test_meta._test_unlock_queue` per-session lists are updated with t
 | L14 | Champions sub-tab, Team (2 slots), faction badge; **role line first** on every cameo, slot and medallion («Збиває летунів»); **synergy simple mode** (one plain line per active bonus) | class-pair and Affinity columns · Champion Level row (when 2 champions are owned) · chest Focus (when a gem is complete) |
 | First hero-fragment card | the hero's facets + fragments row appears with the in-place beat «Фрагменти → Грані» | — |
 | L20 (the welcome ×10 gives 4–6 heroes, so choices exist) | element badges, Affinity line, the **full 3-column synergy panel** with possible tags | — |
-| L30 | Rally plate, hallmarks, Tomes chip, rank caps, Chronicle | Awakening plate: always on native Topaz / Opal (born awakened); others after their first Full facets in Amethyst+ |
+| L30 | Rally plate, hallmarks, Tomes chip, rank caps, Chronicle | Awakening plate: always on native Amethyst / Topaz / Opal (born awakened); others after their first Full facets in Amethyst+ |
 | L32 | Workshop; gear lives in the Manage sheet «Спорядження» tab | relic socket until hero Lv 12 |
 | First Full facets / first recut | Recut screen («Відкриває» block first), doublet emblem, Awakening beat | — |
 
@@ -2081,8 +2084,8 @@ nested keys filled, `gem` clamped to `[native, max_gem]`, facets 0..5, ranks cla
 1. `load_data()`: `version 3` → `account_from_cfg`; `version 2` → `account_from_cfg` + `migrate_v2(acc)`; no version →
    `migrate_v1` + `migrate_v2` (audit F1: v2 saves must never route into `migrate_v1`). `save_v2_backup.cfg` once.
 2. Heroes: every v2 hero → `owned`, `lvl` kept, `gem = native`, facets 0, frags 0; `skills.ult` = min(max(1, Meta-1
-   `ult_rank(lvl)`), `skill_cap(n, n, 0)`), excess ranks refunded as Tomes; attack = rally = 1; native Topaz / Opal
-   born awakened (none among v2 heroes); aspect dropped; Glory ◆ above 1 → 10 Star Ore each (credited at the Workshop
+   `ult_rank(lvl)`), `skill_cap(n, n, 0)`), excess ranks refunded as Tomes; attack = rally = 1; native Amethyst+
+   born awakened (the Seer, a native Amethyst, gets Awakening rank 1); aspect dropped; Glory ◆ above 1 → 10 Star Ore each (credited at the Workshop
    unlock); a v2-owned Seer stays owned. The Ult level term `lv_ult` keeps every migrated Ult ≥ its v2 value
    (`test_no_loss_migration`: damage, HP and ult power ≥ v2; Горан Lv5 measured ×1.20).
 3. **Lump grant** at frontier level L (what the content already played would have paid since each unlock):
@@ -2251,7 +2254,7 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 | Q | Question | Default |
 |---|---|---|
 | Q1 | F-CAP: a recut is always one skill-rank cap below a native of the same gem (changes a FROZEN formula) | yes |
-| Q2 | F-AWK2: native Topaz / Opal heroes are born awakened (four skills at pull) | yes |
+| Q2 | F-AWK2: native Topaz / Opal heroes are born awakened (four skills at pull); **F-AWK3 (H1 gate): native Amethysts too** (Мейра, Іскар), else rule #3 breaks across facet counts — the alternative is to accept that case in writing | yes (Amethyst included) |
 | Q3 | Update cadence: a regular player owns all 10 heroes around day 25–100; this assumes ≥ 1 new hero a month | record the assumption |
 | Q4 | Launch shop = cosmetics only (no hero SKUs, no Editions), stricter than decision 5 allows | yes |
 | Q5 | Machine rarity labels adopt the gem names in the same release | yes |

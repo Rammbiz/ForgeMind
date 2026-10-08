@@ -842,7 +842,8 @@ func _test_save_v3() -> void:
 	_ok(not f["heroes"]["bolt"].has("native"), "native is never saved")
 	var born := EconData.new_hero_state("lumen")
 	_ok(int(born["skills"]["awakened"]) == 1 and str(born["gem"]) == "M" and int(EconData.new_hero_state("vesta")["skills"]["awakened"]) == 1
-			and int(EconData.new_hero_state("seer")["skills"]["awakened"]) == 0, "native Topaz / Opal born awakened (F-AWK2)")
+			and int(EconData.new_hero_state("seer")["skills"]["awakened"]) == 1 and int(EconData.new_hero_state("bolt")["skills"]["awakened"]) == 0,
+			"native Amethyst / Topaz / Opal born awakened (F-AWK2, H1 gate F1); Sapphire not")
 	# Generated consts in sync with heroes_consts.json (skipped when python3 is missing).
 	var out: Array = []
 	var code := OS.execute("python3", [ProjectSettings.globalize_path("res://tools/gen_save_v3_data.py"), "--check"], out, true)
@@ -1270,6 +1271,10 @@ func _test_hero_income() -> void:
 			_ok(str(p["hero"]["id"]) == "seer" and bool(p["hero"]["guest"]) and int(p["hero"]["lvl"]) == 5 and str(p["guest"]) == "seer"
 					and (p["team"]["champions"] as Array).is_empty() and Meta.run_hero(5) == "seer", "L5: Meira leads as a guest at Lv5, no team")
 		var b := Meta.finish_run(_res(lvl, true, {"run_id": p["run_id"]}))
+		if lvl == 5:
+			var gl: Dictionary = b.get("guest", {})
+			_ok(str(gl.get("line", "")) == "GUEST_SEER_RETURN" and gl.get("args", []) == [3]
+					and Loc.f("GUEST_SEER_RETURN", gl["args"]).contains("3"), "L5 result: the guest line carries its world number (review F10)")
 		for pu in Meta.pending_unlocks():
 			Meta.ack_unlock(str(pu["id"]))
 		for j in b.get("hero_joined", []):
@@ -1570,6 +1575,11 @@ func _test_two_track() -> void:
 		if (fn.contains("shop") or fn.contains("billing") or fn.begins_with("ads")) and (src.contains("beacon") or src.contains("seals") or src.contains("hero_chest")):
 			bad.append(f2 + " (shop)")
 	_ok(bad.is_empty(), "Beacons / Seals are credited only by Rewards, Summon and the migration: %s" % str(bad))
+	# Review F9: the generic currency helper refuses the earned-only currencies.
+	var w0 := var_to_str(Meta.account["wallet"])
+	for cur in ["beacons", "tomes", "ore", "seals"]:
+		Meta.add_currency(cur, 50, "test_shop")
+	_ok(var_to_str(Meta.account["wallet"]) == w0, "Meta.add_currency refuses Beacons, Tomes, Star Ore and Seals")
 	_live(false)
 
 

@@ -2,7 +2,7 @@
 """Crystal Rush — Heroes & Champions systems + economy sim, v2 (heroes/heroes_design.md §8; v1 = heroes_sim_v1.py).
 
 v2 applies the critics' accepted findings (heroes/decision_log.md): q 1.08 / a 0.0073, F-CAP skill caps, F-AWK2 (native
-Topaz/Opal born awakened, Awakening +4%/rank), Ult +6%/rank, Attack +1%/rank, LV_ULT 0.035, coin-free hero axes
+Amethyst/Topaz/Opal born awakened (H1 gate F1), Awakening +4%/rank), Ult +6%/rank, Attack +1%/rank, LV_ULT 0.035, coin-free hero axes
 (skill ranks = Tomes only, recut = fragments only, Workshop = Star Ore only), Tome income ~x0.5, one material
 (Star Ore), Feats pay Tomes only, Focus = exactly 60% of its gem, owned Seal pick = 2 x DUP, welcome x10 Topaz+ rule,
 champions at L14 and the Portal at L20, CeremonyData, TEAM_B2_CAP 0.20, champion uptime 0.94, migration lump grant,
@@ -81,12 +81,15 @@ AWAKEN_MIN_GEM = 2                                  # Аметист (FROZEN)
 AWAKEN_CAP = {2: 2, 3: 3, 4: 4}                     # FROZEN
 
 
-BORN_AWAKENED_MIN = 3                               # F-AWK2: native Topaz / Opal heroes are born awakened
+# F-AWK2: native heroes from this gem up are born awakened. H1 gate (review F1): Amethyst (2), not Topaz (3). With 3, a
+# Sapphire recut to Amethyst at Full facets opened Awakening while a native Amethyst at 0-3 facets had none yet, and the
+# recut beat it (1.0225 at Lv30, 16 states): the ladder gap at f5 vs f0 (0.9947) is smaller than one Awakening rank.
+BORN_AWAKENED_MIN = 2
 
 
 def can_awaken(n: int, g: int, f: int) -> bool:
-    """F-AWK2 (critique B2/X1, owner sign-off): Awakening opens at Full facets in Amethyst+, and native Topaz / Opal
-    heroes hold it from the moment they are obtained (rank 1 at f0)."""
+    """F-AWK2 (critique B2/X1, owner sign-off; H1 gate F1): Awakening opens at Full facets in Amethyst+, and native
+    Amethyst / Topaz / Opal heroes hold it from the moment they are obtained (rank 1 at f0)."""
     return g >= AWAKEN_MIN_GEM and (f == F or (g == n and n >= BORN_AWAKENED_MIN))
 
 
@@ -853,7 +856,7 @@ class HPlayer(E.Player):
             s.update(owned=True, gem=HEROES[hid]["n"], f=0, frags=0, lvl=1)
             s["rnd"] = via in ("portal", "chest")
             if HEROES[hid]["n"] >= BORN_AWAKENED_MIN and s["sk"][3] == 0:
-                s["sk"][3] = 1                    # F-AWK2: native Topaz / Opal heroes are born awakened
+                s["sk"][3] = 1                    # F-AWK2: native Amethyst+ heroes are born awakened
                 self.note("first_awakening")
             n = HEROES[hid]["n"]
             for gi in range(n + 1):
@@ -1911,7 +1914,7 @@ MAX_GEAR = {"dmg": 0.11 + 0.022 + 0.03, "hp": 0.156 + 0.05 + 0.05, "ult": 0.10 +
 
 def awk_reached(n, g, f):
     """Awakening is open if the character reached Full facets in some gem >= Amethyst on its path, or it is a native
-    Topaz / Opal hero (born awakened, F-AWK2)."""
+    Amethyst+ hero (born awakened, F-AWK2)."""
     return g >= AWAKEN_MIN_GEM and (f == F or g > max(n, AWAKEN_MIN_GEM) or n >= BORN_AWAKENED_MIN)
 
 
@@ -1997,6 +2000,24 @@ def section_ladder():
     inv("transient (recut keeps its path Awakening; native holds what it can) <= 0.96 x native (F-AWK2 removes the case)",
         worst_tr <= CEILING + 1e-9, "worst %.4f" % worst_tr)
     inv("power index at max investment < native (all paths, Lv 1/10/20/30)", worst_mx < 1.0, "worst %.4f" % worst_mx)
+    # H1 gate (review F1): across facet counts. A recut at ANY facet count with every cap of its own stays below a native
+    # of its current gem at ANY facet count, (a) the native at every cap of its own, (b) the native at the recut's ranks
+    # (equal Tomes), its Awakening rank only if its own Awakening is open at that facet count.
+    worst_xa, worst_xb = 0.0, 0.0
+    for n in range(4):
+        for g in range(n + 1, 5):
+            for L in (1, 10, 20, 30):
+                for fr in range(F + 1):
+                    rc = max_ranks(n, g, fr)
+                    rec = hero_index(n, g, fr, L, rc, MAX_GEAR, 3, True)
+                    for fn in range(F + 1):
+                        worst_xa = max(worst_xa, rec / hero_index(g, g, fn, L, max_ranks(g, g, fn), MAX_GEAR, 3, True))
+                        nb = rc[:3] + [min(rc[3], awaken_cap(g, g)) if awk_reached(g, g, fn) else 0]
+                        worst_xb = max(worst_xb, rec / hero_index(g, g, fn, L, nb, MAX_GEAR, 3, True))
+    inv("cross-facet: recut (any f, own caps) < native (any f, own caps), all paths, Lv 1/10/20/30", worst_xa < 1.0,
+        "worst %.4f" % worst_xa)
+    inv("cross-facet: recut (any f, own caps) < native (any f, the recut's ranks; Awakening only if open)",
+        worst_xb < 1.0, "worst %.4f" % worst_xb)
     section_rule3_tolerance()
     # Champions
     wc = 0.0
@@ -2777,7 +2798,7 @@ def export_consts(path, tf=None):
     d = {
         "ladder": {"Q_NATIVE": Q_NATIVE, "FACET_STEP": FACET_STEP, "NATIVE_MULT": NATIVE_MULT, "RECUT_STEP": RECUT_STEP,
                    "CEILING": CEILING, "FACETS_PER_GEM": F, "SKILL_BASE": SKILL_BASE, "FORM_AT_RANK": FORM_AT_RANK,
-                   "AWAKEN_MIN_GEM": "E", "AWAKEN_CAP": {"E": 2, "L": 3, "M": 4}, "BORN_AWAKENED_MIN": "L",
+                   "AWAKEN_MIN_GEM": "E", "AWAKEN_CAP": {"E": 2, "L": 3, "M": 4}, "BORN_AWAKENED_MIN": G[BORN_AWAKENED_MIN],
                    "ULT_RANK_STEP": ULT_RANK_STEP, "ATK_RANK_STEP": ATK_RANK_STEP, "RALLY_RANK_STEP": RALLY_RANK_STEP,
                    "LV_DMG": LV_DMG, "LV_HP": LV_HP, "LV_RATE": LV_RATE, "LV_ULT": LV_ULT},
         "budgets": {"AWK_STEP": AWK_STEP, "AWK_TOL": AWK_TOL, "FORM_STEP": FORM_STEP, "FORM_TOL": FORM_TOL,

@@ -268,7 +268,7 @@ static func hero_open_before(sys: String, before_level: int) -> bool:
 ## The account's hero system `sys` is open by level now (frontier past its after_win; income follows
 ## the level rule like heroes_sim, the session queue only paces the tutorial lines).
 static func hero_open(acc: Dictionary, sys: String) -> bool:
-	return MetaAcc.level(acc) > int(SaveV3Data.UNLOCK_AT[sys])
+	return Roster.income_open(acc, sys)
 
 
 ## Step 5b of level_end (live phase): fills bundle {hero_joined [{id, gem, new}], beacons {add,
@@ -332,7 +332,7 @@ static func hero_level_end(acc: Dictionary, bundle: Dictionary, result: Dictiona
 		var row := {"type": d["type"], "source": d["source"], "inline": false, "reveal": {}, "vault_index": -1,
 				"scripted": 0}
 		if i2 == best:
-			var rev := open_chest(acc, d, rng, now_s, true)
+			var rev := open_chest(acc, d, rng, now_s, true, result.get("eligible", []) as Array)
 			if bool(rev.get("ok", false)):
 				row["inline"] = true
 				row["reveal"] = rev
@@ -344,7 +344,10 @@ static func hero_level_end(acc: Dictionary, bundle: Dictionary, result: Dictiona
 	bundle["hero_chests"] = rows
 	# Мейра's guest level: no ownership, one line after the result.
 	if str(result.get("guest", "")) != "":
-		bundle["guest"] = {"id": str(result["guest"]), "line": "GUEST_SEER_RETURN"}
+		# GUEST_SEER_RETURN = «Мейра повернеться біля Боса Світу %d»: args = the world whose boss
+		# level she joins after (review F10).
+		bundle["guest"] = {"id": str(result["guest"]), "line": "GUEST_SEER_RETURN",
+				"args": [ArsenalData.world_of(int(HeroData.STARTER_AT.get(str(result["guest"]), 0)))]}
 	_team_run(acc, result, lvl, won, now_s)
 	return inline_done
 
@@ -467,8 +470,9 @@ static func _team_run(acc: Dictionary, result: Dictionary, lvl: int, won: bool, 
 ## Opens Hero Chest entry `d` ({type, source, level}) at once through the HeroChest roller (WS-A)
 ## and returns its reveal ({ok false} when the roller refuses, e.g. the champions row still waits
 ## for its session slot: the caller keeps the chest in the Vault). Booked before any animation.
-static func open_chest(acc: Dictionary, d: Dictionary, rng: RandomNumberGenerator, now_s := 0, inline := false) -> Dictionary:
-	var rev := HeroChest.open(acc, Vault.kind_of(str(d.get("type", ""))), rng, now_s, str(d.get("source", "")), inline)
+static func open_chest(acc: Dictionary, d: Dictionary, rng: RandomNumberGenerator, now_s := 0, inline := false,
+		eligible: Array = []) -> Dictionary:
+	var rev := HeroChest.open(acc, Vault.kind_of(str(d.get("type", ""))), rng, now_s, str(d.get("source", "")), inline, eligible)
 	rev["type"] = str(d.get("type", ""))
 	rev["source"] = str(d.get("source", ""))
 	return rev

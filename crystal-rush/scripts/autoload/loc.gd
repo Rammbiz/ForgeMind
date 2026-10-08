@@ -1120,7 +1120,7 @@ const STRINGS := {
 	"RECUT_OPAL_HEROES": ["Опал — лише для героїв", "Opal is for heroes only"],
 	"RECUT_NO_DROP": ["Жодне число не падає: грані починаються з нуля", "No number drops: facets restart at zero"],
 	"AWAKEN_OPEN": ["Пробудження відкрито", "Awakening open"],
-	"AWAKEN_BORN": ["Корінні Топази й Опали народжуються пробудженими", "Native Topaz and Opal are born awakened"],
+	"AWAKEN_BORN": ["Корінні Аметисти, Топази й Опали народжуються пробудженими", "Native Amethyst, Topaz and Opal are born awakened"],
 	"AWAKEN_NEEDS": ["Пробудження: Повні грані в Аметисті або вище", "Awakening: Full facets in Amethyst or higher"],
 	"AWAKEN_CAP_NATIVE": ["Пробудження %s — лише для корінних %s", "Awakening %s — native %s only"],
 	# Team (§4.1, §5.5, §9.3)

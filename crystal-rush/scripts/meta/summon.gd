@@ -317,9 +317,10 @@ static func seal_pick(acc: Dictionary, id: String, now_s := 0, eligible: Array =
 
 ## Credits Beacon income from `source` (BEACON_SOURCES) `times` over: fractions bank in
 ## wallet.beacon_charge and whole Beacons move to the wallet. Returns the whole Beacons added.
-## 0 for any other source (Track, Road, shop, ads, ...) and before the Portal opens.
+## 0 for any other source (Track, Road, shop, ads, ...) and before the Portal's unlock level (the
+## income rule Roster.income_open, the same as Rewards; review F8).
 static func credit(acc: Dictionary, source: String, times := 1.0) -> int:
-	if not BEACON_SOURCES.has(source) or not is_open(acc) or times <= 0.0:
+	if not BEACON_SOURCES.has(source) or not Roster.income_open(acc, "portal") or times <= 0.0:
 		return 0
 	var w: Dictionary = acc["wallet"]
 	var ch := float(w.get("beacon_charge", 0.0)) + float(PortalData.BEACON[source]) * times

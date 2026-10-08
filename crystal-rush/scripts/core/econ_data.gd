@@ -582,7 +582,7 @@ static func fresh_account() -> Dictionary:
 
 
 ## Hero state (Save v3, heroes_design.md §12.1). `native` is never saved (SaveV3Data.HERO_NATIVE).
-## Native Topaz / Opal heroes are born awakened (F-AWK2). The Meta-1 keys lvl, glory, boss_wins,
+## Native Amethyst / Topaz / Opal heroes are born awakened (F-AWK2, BORN_AWAKENED_MIN). The Meta-1 keys lvl, glory, boss_wins,
 ## aspect and skin keep their 2.2.1 meaning.
 static func new_hero_state(id: String, owned := false, via := "", t := 0) -> Dictionary:
 	var native := str(SaveV3Data.HERO_NATIVE.get(id, "C"))
@@ -591,6 +591,7 @@ static func new_hero_state(id: String, owned := false, via := "", t := 0) -> Dic
 	var sk := {"ult": 1, "attack": 1, "rally": 1, "awakened": 1 if born else 0}
 	return {"lvl": 1, "glory": 1, "boss_wins": 0, "aspect": str(aspects[0]), "skin": "",
 			"owned": owned, "gem": native, "facets": 0, "frags": 0, "skills": sk, "skills_peak": sk.duplicate(),
+			"skills_paid": {"ult": [0, 0], "attack": [0, 0], "rally": [0, 0], "awakened": [0, 0]},
 			"loadout": {"weapon": "", "armour": "", "charm": ""}, "seen": owned, "chronicle": 0,
 			"got": {"t": t, "via": via}}
 

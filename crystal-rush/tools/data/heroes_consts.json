@@ -32,7 +32,7 @@
    "L": 3,
    "M": 4
   },
-  "BORN_AWAKENED_MIN": "L",
+  "BORN_AWAKENED_MIN": "E",
   "ULT_RANK_STEP": 0.05,
   "ATK_RANK_STEP": 0.01,
   "RALLY_RANK_STEP": 0.1,

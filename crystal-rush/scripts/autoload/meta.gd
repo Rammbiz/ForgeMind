@@ -322,8 +322,17 @@ func wild(r: String) -> int:
 	return MetaAcc.amount(account, "wild_" + r)
 
 
+## Currencies only earned income may credit (Meta.add_currency refuses them, review F9).
+const EARNED_ONLY: Array[String] = ["beacons", "seals", "tomes", "ore"]
+
+
 ## Adds (or with n < 0 removes, never below 0) currency. `source` feeds telemetry.
 func add_currency(cur: String, n: int, source := "") -> void:
+	if n > 0 and cur in EARNED_ONLY:
+		# Two-track rule (§7.3, review F9): Beacons, Seals, Tomes and Star Ore come only from earned
+		# sources (Rewards, Summon, HeroChest, migration), never from a shop / IAP / dev helper.
+		push_warning("Meta.add_currency refused %s (earned-only currency, source %s)" % [cur, source])
+		return
 	var before := MetaAcc.wallet_snapshot(account)
 	MetaAcc.add(account, cur, n)
 	_emit_wallet(before)
@@ -882,7 +891,7 @@ func can_awaken(id: String) -> bool:
 
 
 ## One Awakening rank (Awakening opens by itself at Full facets in Amethyst+, or at birth for a
-## native Topaz / Opal): rank_skill(id, "awakened").
+## native Amethyst / Topaz / Opal): rank_skill(id, "awakened").
 func awaken(id: String) -> Dictionary:
 	return rank_skill(id, "awakened")
 
@@ -1268,7 +1277,7 @@ func open_hero_chest(index := 0) -> Dictionary:
 	var c: Dictionary = (hc[index] as Dictionary).duplicate()
 	var owned0 := Roster.owned_ids(account, Roster.KIND_CHAMPION)
 	var fn := func() -> Dictionary:
-		var r := Rewards.open_chest(account, c, _rng, _now(), false)
+		var r := Rewards.open_chest(account, c, _rng, _now(), false, eligible())
 		if bool(r.get("ok", false)):
 			Vault.take(account, index)
 		return r
@@ -1593,6 +1602,8 @@ func finish_run(result: Dictionary) -> Dictionary:
 		res["run_id"] = _open_run_id
 	if heroes_on() and _open_guest != "" and not res.has("guest") and int(res.get("run_id", _open_run_id)) == _open_run_id:
 		res["guest"] = _open_guest
+	if heroes_on():
+		res["eligible"] = eligible()          # HeroArt gating for chests opened inline (review F6)
 	if int(res.get("run_id", 0)) > 0 and int(res["run_id"]) == int(_last_bundle.get("run_id", -1)):
 		var dup := _last_bundle.duplicate(true)
 		dup["duplicate"] = true
@@ -1605,6 +1616,12 @@ func finish_run(result: Dictionary) -> Dictionary:
 	if bool(bundle.get("duplicate", false)):
 		return bundle
 	_open_run_id = 0
+	# Saved before any signal: every reveal a listener shows is already on disk (review F7). A failed
+	# write keeps the result in memory (the 2.2.1 behaviour; the next save retries) instead of
+	# taking back a win the player just watched.
+	Save.level = level()
+	save()
+	_last_bundle = bundle
 	_emit_wallet(before)
 	for dr in bundle["drip"]:
 		machine_changed.emit(str((dr as Dictionary)["id"]))
@@ -1630,9 +1647,6 @@ func finish_run(result: Dictionary) -> Dictionary:
 			cache_added.emit(str(hcd["type"]))
 	if lead() != lead_before:
 		deck_changed.emit()
-	Save.level = level()
-	save()
-	_last_bundle = bundle
 	run_finished.emit(bundle)
 	return bundle
 
