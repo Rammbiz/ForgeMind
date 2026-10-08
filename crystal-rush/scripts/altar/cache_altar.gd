@@ -1068,7 +1068,7 @@ func _process(delta: float) -> void:
 
 ## The odds (i) button on the night altar (§7.9): a porcelain glass disc that reads as glass on a
 ## dark scene (cream 0.86, not the 0.72 hub disc that turns grey over night skies), ONE 1 dpx
-## deep-gold ring, a 1 dpx light arc on its lit upper-left edge, one soft halo, an ink line glyph.
+## deep-gold ring, a 1 dpx light arc on its lit upper-left edge, one soft halo, a bare ink "i".
 class InfoDisc extends RoundButton:
 	func _draw() -> void:
 		var c := _circle_center()
@@ -1081,5 +1081,7 @@ class InfoDisc extends RoundButton:
 		var gold := UITokens.LINE_GOLD_DEEP
 		draw_arc(c, r - lw * 0.5, 0, TAU, 96, gold, lw, true)
 		draw_arc(c, r - lw * 1.5, PI * 1.05, PI * 1.75, 40, Color(1, 1, 1, 0.85), UIKit.px(1.0), true)
-		var s := r * 1.04
-		Icons.draw_icon(self, icon_kind, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.INK)
+		# A bare ink "i" (the line glyph's own circle would ring the ring): a stem and a dot.
+		var k := r / 26.0
+		draw_line(c + Vector2(0, -2.5) * k, c + Vector2(0, 10.0) * k, UITokens.INK, 2.2 * k, true)
+		draw_circle(c + Vector2(0, -9.0) * k, 1.9 * k, UITokens.INK, true, -1.0, true)

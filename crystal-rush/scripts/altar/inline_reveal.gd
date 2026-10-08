@@ -107,7 +107,9 @@ func _layout() -> void:
 	_rays.size = Vector2(EGG * 2.2, EGG * 2.2)
 	_rays.position = Vector2(w * 0.5, EGG * 0.5) - _rays.size * 0.5
 	_hint.size = Vector2(w, 34)
-	_hint.position = Vector2(0, EGG + (52 if compact else 40))
+	# Under the egg's frame (it reaches 1.225 x EGG), so the hint and its chevron never sit on
+	# the dais (the full-size reveal on the loss screen used to print over it).
+	_hint.position = Vector2(0, EGG * 1.225 + 20.0)
 	for i in _cards.size():
 		_cards[i].position = slot(i)
 	_coins_row.size = Vector2(w, 44)
