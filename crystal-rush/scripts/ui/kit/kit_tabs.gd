@@ -34,6 +34,9 @@ func _ready() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.flat = true
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# Width follows the label, so the gaps between labels are even (a long label no
+		# longer crowds whatever sits next to the tab row).
+		b.size_flags_stretch_ratio = UIKit.font_w("bold").get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + 56.0
 		b.add_theme_font_size_override("font_size", font_size)
 		for st: String in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
 			b.add_theme_stylebox_override(st, StyleBoxEmpty.new())

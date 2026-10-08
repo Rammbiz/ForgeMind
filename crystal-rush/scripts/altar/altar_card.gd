@@ -244,7 +244,20 @@ var _name_two := false
 func _bar_rect() -> Rect2:
 	var b := _body()
 	var seam := b.end.y - _foot_h()
-	return Rect2(Vector2(b.position.x + 14, seam + _foot_h() * (0.64 if _name_two else 0.46)), Vector2(b.size.x - 28, 9))
+	# The bar shares its row with the "n/need" count (right), on every card: a two-line name
+	# no longer drops the count.
+	var w := b.size.x - 28.0 - _count_w() - 8.0
+	return Rect2(Vector2(b.position.x + 14, seam + _foot_h() * (0.66 if _name_two else 0.62) - 4.5), Vector2(w, 9))
+
+
+const COUNT_FS := 15
+
+
+func _count_w() -> float:
+	if _is_wild():
+		return 0.0
+	var need := maxi(int(data.get("bp_need", 0)), 1)
+	return UIKit.font_w("bold").get_string_size("%d/%d" % [need, need], HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_FS).x
 
 
 func _draw() -> void:
@@ -297,7 +310,6 @@ func _draw_back(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 ## and the gem-cut mark.
 func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary) -> void:
 	var f := UIKit.font_w("bold")
-	var fm := UIKit.font_w("medium")
 	var top: Color = g["top"]
 	var bot: Color = g["bot"]
 	var cols := PackedColorArray()
@@ -343,7 +355,7 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 		_text_c(f, lines[0], Vector2(cx, seam + 19.0), fs, UITokens.INK)
 		_text_c(f, lines[1], Vector2(cx, seam + 19.0 + fs + 1.0), fs, UITokens.INK)
 	else:
-		var name_y := seam + (fh * 0.36 if not wild else fh * 0.62)
+		var name_y := seam + (fh * 0.40 if not wild else fh * 0.62)
 		_text_c(f, lines[0], Vector2(cx, name_y), fs, UITokens.INK)
 	# Count chip (top-right of the art).
 	var ct := "×%d" % int(data.get("count", 1))
@@ -375,8 +387,8 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.0)
 		if _bar_hit > 0.0:
 			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(1.0, 0.82, 0.45, _bar_hit * 0.7))
-		if not _name_two:
-			_text_c(fm, "%d/%d" % [int(round(shown)), need], Vector2(cx, br.end.y + 18.0), 16, UITokens.INK_DIM)
+		draw_string(UIKit.font_w("bold"), Vector2(body.end.x - 14.0 - _count_w(), br.get_center().y + 5.5), "%d/%d" % [int(round(shown)), need],
+				HORIZONTAL_ALIGNMENT_RIGHT, _count_w(), COUNT_FS, UITokens.GOLD_TEXT if up else UITokens.INK_DIM)
 		if up:
 			# The gold "!" sits in the card's top-right corner over the art (as on the Arsenal),
 			# never on the name / bar row.

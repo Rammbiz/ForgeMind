@@ -53,6 +53,7 @@ func _ready() -> void:
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col.add_child(sc)
+	UIKit.scroll_fade(sc, Color("#F8F3E9"), 48.0, 18.0)
 	var list := VBoxContainer.new()
 	_list = list
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL

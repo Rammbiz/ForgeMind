@@ -82,42 +82,18 @@ func _ready() -> void:
 	col.add_child(_vault_banner())
 	# Odds row
 	col.add_child(_odds_row())
-	# Coming products: one quiet cream row (a shop that is mostly "coming soon" reads unfinished).
-	var soon := UIKit.panel("card", Vector2(18, 10))
-	soon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var srow := HBoxContainer.new()
-	srow.add_theme_constant_override("separation", 16)
-	srow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ss := UIKit.socket("lock", 52.0)
-	ss.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	srow.add_child(ss)
-	var stl := UIKit.label(Loc.t("SHOP_SOON_ROW"), 22, UIKit.INK_SOFT, true)
-	stl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	stl.size_flags_vertical = Control.SIZE_FILL
-	srow.add_child(stl)
-	soon.add_child(srow)
-	col.add_child(soon)
-	var cards: Array = [soon]
-	# The promise as an engraved plate: no random paid chests.
-	var plate := UIKit.panel("plate", Vector2(18, 14))
-	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var prow := HBoxContainer.new()
-	prow.add_theme_constant_override("separation", 14)
-	prow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var pck := UIKit.socket("check", 52.0)
-	pck.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	prow.add_child(pck)
-	var nr := UIKit.label(Loc.t("NO_RANDOM"), 22, UIKit.GOLD_TEXT, true)
-	nr.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	nr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nr.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	nr.size_flags_vertical = Control.SIZE_FILL
-	prow.add_child(nr)
-	plate.add_child(prow)
-	col.add_child(plate)
-	cards.append(plate)
+	# Coming products and the no-random promise are notes, not cards: a framed row on this page
+	# means "tap me", so these sit as quiet engraved lines under a hairline.
+	var notes := VBoxContainer.new()
+	notes.add_theme_constant_override("separation", 10)
+	notes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hl := UIKit.divider(560.0)
+	hl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	notes.add_child(hl)
+	notes.add_child(_note("lock", Loc.t("SHOP_SOON_ROW"), UIKit.INK_SOFT))
+	notes.add_child(_note("check", Loc.t("NO_RANDOM"), UIKit.GOLD_TEXT))
+	col.add_child(notes)
+	var cards: Array = [notes]
 	# The restore link sits at the foot of the page (the spare height above it reads as air).
 	var foot_gap := Control.new()
 	foot_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -248,6 +224,25 @@ func _grow_banner(extra: float) -> void:
 	var clip := _banner_host.get_child(0) as Control
 	clip.size = sz + Vector2(20, 20)
 	_vault_card.size = sz
+
+
+## One quiet note line: a small line icon in a thin ring and an engraved caption (no panel).
+func _note(icon: String, text: String, color: Color) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(UIKit.gap(6))
+	var s := UIKit.socket(icon, 40.0)
+	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(s)
+	var l := UIKit.label(text, 21, color, true)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.custom_minimum_size.x = 400.0
+	row.add_child(l)
+	return row
 
 
 ## The odds and guarantees entry: a quiet cream row (socket, title, the pity line, chevron).

@@ -63,6 +63,7 @@ func _ready() -> void:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	col.add_child(sc)
+	UIKit.scroll_fade(sc, Color("#F8F3E9"), 40.0, 18.0)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", 0)
@@ -102,7 +103,7 @@ static func pct(p: float) -> String:
 	if p < 0.00005:
 		return "—"
 	var v := p * 100.0
-	var s := ("%.2f" % v) if v < 10.0 else ("%.1f" % v)
+	var s := ("%.2f" % v) if v < 1.0 else ("%.1f" % v)
 	if Loc.lang == "uk":
 		s = s.replace(".", ",")
 	return s + "%"

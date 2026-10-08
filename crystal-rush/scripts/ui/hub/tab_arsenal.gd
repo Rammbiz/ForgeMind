@@ -126,6 +126,7 @@ func _ready() -> void:
 		_scroll.scroll_vertical = 0, 22)
 	_filters.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	frow.add_child(_filters)
+	frow.add_child(UIKit.gap(8))
 	_count_lbl = UIKit.label("", 20, UIKit.INK_DIM, true)
 	_count_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frow.add_child(_count_lbl)
@@ -136,6 +137,7 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_machines_view.add_child(_scroll)
+	UIKit.scroll_fade(_scroll, Color("#F2EBDF"), 30.0, 16.0)
 	var cc := CenterContainer.new()
 	cc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(cc)

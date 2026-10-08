@@ -132,7 +132,7 @@ func _ready() -> void:
 	_build_drip()
 	_cache_box = Control.new()
 	_cache_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cache_box.position = Vector2(0, _ins.y + SHEET_Y + 318 + _gx * 3.5)
+	_cache_box.position = Vector2(0, _ins.y + SHEET_Y + 318 + _gx * 3.5 + _cache_shift())
 	_cache_box.size = Vector2(_vp.x, 470)
 	root.add_child(_cache_box)
 	_next_btn = UIKit.cta_button(Loc.t("NEXT"), "", Vector2(440, 96), 40)
@@ -155,6 +155,20 @@ func _ready() -> void:
 	_at(TAP_FROM, func(): _next_btn.create_tween().tween_property(_next_btn, "modulate:a", 1.0, 0.2))
 	_build_placeholders()
 	_at(0.35, _step_odometer)
+
+
+## A (non-inline) cache card sits midway between the drip row and the best-upgrade row (or
+## "Далі"), so the spare height is shared above and below it instead of pooling under it.
+## The inline Stone reveal is tall and keeps its place.
+func _cache_shift() -> float:
+	var caches: Array = bundle.get("caches", [])
+	if caches.is_empty() or bool((caches[0] as Dictionary).get("inline", false)):
+		return 0.0
+	var top := _ins.y + SHEET_Y + 332 + _gx * 3.5
+	var below := _vp.y - 124 - _ins.w
+	if not (bundle.get("best_upgrade", {}) as Dictionary).is_empty():
+		below -= 102
+	return clampf((below - (top + 252.0)) * 0.5 - 6.0, 0.0, 90.0)
 
 
 func _at(t: float, fn: Callable) -> void:
@@ -181,7 +195,7 @@ func _build_placeholders() -> void:
 	if not drip.is_empty():
 		rects.append(Rect2(Vector2(24, _ins.y + SHEET_Y + 244 + _gx * 2.5), Vector2(_vp.x - 48, 76)))
 	if not (bundle.get("caches", []) as Array).is_empty():
-		rects.append(Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252)))
+		rects.append(Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5 + _cache_shift()), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252)))
 	if not (bundle.get("best_upgrade", {}) as Dictionary).is_empty():
 		rects.append(Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84)))
 	ph.draw.connect(func():

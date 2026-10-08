@@ -927,21 +927,28 @@ static func button(text: String, primary := false, min_width := 280.0) -> Button
 static func secondary_button(text: String, icon := "", min_size := Vector2(240, 72), font_size := 26) -> Button:
 	var b := styled_button(text, "button", min_size, font_size)
 	if icon != "":
-		# The line icon sits in the (widened) left margin; text stays centred.
-		var pad := Vector2(64, 10)
-		for st: String in ["normal", "hover"]:
-			b.add_theme_stylebox_override(st, lux("button", pad))
-		b.add_theme_stylebox_override("pressed", lux("button_pressed", pad))
-		b.add_theme_stylebox_override("hover_pressed", lux("button_pressed", pad))
-		b.add_theme_stylebox_override("disabled", lux("button_disabled", pad))
-		# Anchored to the vertical centre (no position maths that runs while size is still 0).
+		# Icon and label read as one centred group: the label's box is shifted right by half
+		# the icon slot and the icon sits just before the label (never stranded at the edge).
+		var slot := 44.0
+		for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+			var kind := "button" if st in ["normal", "hover"] else ("button_disabled" if st == "disabled" else "button_pressed")
+			var sb: StyleBox = lux(kind, Vector2(20, 10)).duplicate()
+			sb.content_margin_left = 20.0 + slot
+			sb.content_margin_right = 20.0
+			b.add_theme_stylebox_override(st, sb)
 		var ic := Icons.make(icon, 34.0, INK)
 		ic.anchor_top = 0.5
 		ic.anchor_bottom = 0.5
-		ic.offset_left = 22.0
-		ic.offset_right = 56.0
 		ic.offset_top = -17.0
 		ic.offset_bottom = 17.0
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var place := func() -> void:
+			var tw := b.get_theme_font("font").get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, b.get_theme_font_size("font_size")).x
+			var x0 := roundf(b.size.x * 0.5 - minf(tw, b.size.x - 40.0 - slot) * 0.5 - slot * 0.5)
+			if not is_equal_approx(ic.offset_left, x0):
+				ic.offset_left = x0
+				ic.offset_right = x0 + 34.0
+		b.draw.connect(place)
 		b.add_child(ic)
 	return b
 
@@ -1250,6 +1257,12 @@ static func gap(px: float) -> Control:
 
 
 ## Gold hairline divider with marquise terminals and a crystal keystone at the centre.
+## Soft surface-coloured fades at a ScrollContainer's edges (only while content runs past them),
+## so a list melts into its frame instead of being cut through a row.
+static func scroll_fade(sc: ScrollContainer, color := CREAM, bottom := 44.0, top := 22.0) -> KitScrollFade:
+	return KitScrollFade.attach(sc, color, bottom, top)
+
+
 static func divider(width := 420.0, keystone := true) -> Control:
 	var d := Divider.new()
 	d.keystone = keystone

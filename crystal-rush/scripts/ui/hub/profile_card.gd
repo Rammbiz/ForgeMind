@@ -81,9 +81,10 @@ func _ready() -> void:
 	col.add_child(pr)
 	var bar := UIKit.progress(done, ArsenalData.LEVELS_PER_WORLD, W - 48.0, 12, ArsenalData.LEVELS_PER_WORLD)
 	col.add_child(bar)
-	var div := UIKit.divider(W - 60.0)
-	div.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	col.add_child(div)
+	# A plain hairline like the rows' own (a keystone divider right under the bar read as a
+	# second slider).
+	col.add_child(UIKit.gap(6))
+	col.add_child(UIKit.hairline(W - 48.0))
 	# Rows.
 	var heroes_locked := hub.tab_bar.is_locked("heroes")
 	if not heroes_locked:
