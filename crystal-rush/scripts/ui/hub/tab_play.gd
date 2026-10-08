@@ -144,21 +144,23 @@ func on_show() -> void:
 	refresh()
 	if UITokens.reduce_motion():
 		return
-	# Soft arrival: chrome fades in (ribbon, rails, level path; PLAY the first time). Driven by
-	# the wall clock from the first drawn frame, not by tweens: slow first frames (shader
-	# compiles, a heavy scene swap) can no longer leave the chrome half-faded, and when the
-	# first frame takes longer than FADE_SKIP the fade is skipped altogether.
+	# Soft arrival on a tab switch back to Home: ribbon, rails and level path fade in. Driven
+	# by the wall clock from the first drawn frame, not by tweens, and any frame slower than
+	# FADE_SKIP ends it at once: slow frames can no longer leave the chrome half-faded.
 	var first := not _shown_once
 	_shown_once = true
 	_fade.clear()
+	# A freshly built hub arrives under the router's scene fade, on the slowest frames of all
+	# (shader compiles, the 3D stage): its chrome is there from the first drawn frame.
+	if first:
+		_end_fade()
+		return
 	_fade.append([_ribbon, 0.05, UITokens.MENU_IN])
 	for i in _rails.size():
 		var r: Control = _rails[i]
 		if r.visible:
 			_fade.append([r, 0.08 + 0.04 * (i % 2), UITokens.MENU_IN])
 	_fade.append([_path, 0.12, UITokens.MENU_IN])
-	if first:
-		_fade.append([_cta, 0.1, UITokens.MENU_IN + 0.06])
 	for f: Array in _fade:
 		(f[0] as Control).modulate.a = 0.0
 	_fade_req = Time.get_ticks_msec()
@@ -170,10 +172,12 @@ func _step_fade() -> void:
 	if _fade.is_empty():
 		return
 	var now := Time.get_ticks_msec()
+	# A slow frame (the hub's first frame compiles shaders and builds the 3D stage: its delta,
+	# or the time since on_show, runs to seconds) skips the fade: the chrome is simply there.
+	if get_process_delta_time() > FADE_SKIP or (_fade_t0 < 0 and now - _fade_req > int(FADE_SKIP * 1000.0)):
+		_end_fade()
+		return
 	if _fade_t0 < 0:
-		if now - _fade_req > int(FADE_SKIP * 1000.0):
-			_end_fade()
-			return
 		_fade_t0 = now
 	var t := (now - _fade_t0) / 1000.0
 	var done := true

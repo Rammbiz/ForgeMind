@@ -31,6 +31,7 @@ var root: Control
 var _t := 0.0
 var _ins := Vector4.ZERO
 var _ins0 := Vector4.ZERO      ## safe insets without the tall-phone band (top bar)
+var _gx := 0.0                  ## tall phones: extra gap between the sheet's rows (the rest of the excess)
 var _vp := Vector2(720, 1280)
 var _events: Array = []
 var _clock := 0.0
@@ -84,6 +85,10 @@ func _ready() -> void:
 	# Tall phones: the scene band above the sheet grows (half the extra height); the top bar
 	# stays put and the sheet's chrome keeps its size.
 	_ins.y += tall_band(_vp, _ins)
+	# The other half of the excess spreads the sheet's rows (coins, stats, drip, cache) so the
+	# cache card does not float far above the bottom-anchored best-upgrade row.
+	var inner := (_vp.y - _ins0.y - _ins0.w - 1280.0) - (_ins.y - _ins0.y)
+	_gx = clampf(inner / 4.0, 0.0, 48.0)
 	root.add_child(scrim(_vp, 0.45, 0.62))
 	# Victory light: a warm pool and slow soft rays behind the title (juicy, never loud).
 	var pool := TextureRect.new()
@@ -127,7 +132,7 @@ func _ready() -> void:
 	_build_drip()
 	_cache_box = Control.new()
 	_cache_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cache_box.position = Vector2(0, _ins.y + SHEET_Y + 318)
+	_cache_box.position = Vector2(0, _ins.y + SHEET_Y + 318 + _gx * 3.5)
 	_cache_box.size = Vector2(_vp.x, 470)
 	root.add_child(_cache_box)
 	_next_btn = UIKit.cta_button(Loc.t("NEXT"), "", Vector2(440, 96), 40)
@@ -174,9 +179,9 @@ func _build_placeholders() -> void:
 	var rects: Array[Rect2] = []
 	var drip: Array = bundle.get("drip", [])
 	if not drip.is_empty():
-		rects.append(Rect2(Vector2(24, _ins.y + SHEET_Y + 244), Vector2(_vp.x - 48, 76)))
+		rects.append(Rect2(Vector2(24, _ins.y + SHEET_Y + 244 + _gx * 2.5), Vector2(_vp.x - 48, 76)))
 	if not (bundle.get("caches", []) as Array).is_empty():
-		rects.append(Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252)))
+		rects.append(Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252)))
 	if not (bundle.get("best_upgrade", {}) as Dictionary).is_empty():
 		rects.append(Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84)))
 	ph.draw.connect(func():
@@ -465,7 +470,7 @@ func _build_coins() -> void:
 	_coin_block = Control.new()
 	_coin_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_coin_block.size = Vector2(_vp.x, 130)
-	_coin_block.position = Vector2(0, _ins.y + SHEET_Y + 26)
+	_coin_block.position = Vector2(0, _ins.y + SHEET_Y + 26 + _gx * 0.5)
 	root.add_child(_coin_block)
 	var glow := TextureRect.new()
 	glow.texture = UIKit.glow_texture()
@@ -538,7 +543,7 @@ func _build_crowns() -> void:
 func _build_stats() -> void:
 	_stats = Control.new()
 	_stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_stats.position = Vector2(UITokens.GUTTER + 20, _ins.y + SHEET_Y + 172)
+	_stats.position = Vector2(UITokens.GUTTER + 20, _ins.y + SHEET_Y + 172 + _gx * 1.5)
 	_stats.size = Vector2(_vp.x - (UITokens.GUTTER + 20) * 2.0, 56)
 	root.add_child(_stats)
 	var surv := UIKit.list_row(Loc.t("RESULT_SURVIVORS").replace(": %d", "").replace(":%d", ""), Loc.num(int(result.get("survivors", 0))), "soldier")
@@ -551,7 +556,7 @@ func _build_stats() -> void:
 func _build_drip() -> void:
 	var rows: Array = bundle.get("drip", [])
 	_drip = drip_strip(rows, _vp.x - 48.0)
-	_drip.position = Vector2(24, _ins.y + SHEET_Y + 240)
+	_drip.position = Vector2(24, _ins.y + SHEET_Y + 240 + _gx * 2.5)
 	_drip.modulate.a = 0.0
 	root.add_child(_drip)
 

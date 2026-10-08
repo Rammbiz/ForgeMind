@@ -421,7 +421,10 @@ func _grid_slot(rank: int) -> Vector2:
 	var gap := 18.0
 	var w := in_row * cs.x + (in_row - 1) * gap
 	var rows := int(ceil(float(n) / per))
-	var top := vp.y * 0.74 - rows * (cs.y + gap) + 10.0
+	# Anchored to the bottom buttons (not to a share of the height): on tall phones the extra
+	# height goes to the altar scene above, never to a gap between the cards and the buttons.
+	var ins := UIKit.safe_insets(get_viewport())
+	var top := minf(vp.y * 0.74, vp.y - ins.w - 333.0) - rows * (cs.y + gap) + 10.0
 	return Vector2((vp.x - w) * 0.5 + col * (cs.x + gap), top + row * (cs.y + gap))
 
 
@@ -748,6 +751,9 @@ func _summary() -> void:
 		tw.tween_property(c, "scale", Vector2.ONE, 0.3).set_delay(i * 0.04)
 	var vp := get_viewport().get_visible_rect().size
 	_rays.position = Vector2(vp.x * 0.5, _grid_slot(0).y + _card_size().y) - _rays.size * 0.5
+	# The cards settle first (last one lands at `settle` s); then the cream sheet slides in
+	# under them, then the coins and the buttons (nothing fades in under moving cards).
+	var settle := 0.4 + maxf(order.size() - 1, 0) * 0.04
 	# The summary lands on a cream sheet (arched top + keystone) behind the card grid.
 	if _sum_sheet == null:
 		_sum_sheet = UIKit.sheet()
@@ -756,13 +762,16 @@ func _summary() -> void:
 		_sum_sheet.size = Vector2(vp.x, vp.y - _sum_sheet.position.y + 24.0)
 		_root_ui.add_child(_sum_sheet)
 		_root_ui.move_child(_sum_sheet, _cards[0].get_index() if not _cards.is_empty() else _coins_row.get_index())
-		UIJuice.sheet_in(_sum_sheet)
+		_sum_sheet.modulate.a = 0.0
+		UIJuice.sheet_in(_sum_sheet, maxf(settle - 0.08, 0.0))
 	var coins := int(rev.get("coins", 0))
 	if coins > 0:
 		_coins_row.position.y = _grid_slot(order.size() - 1).y + _card_size().y + 8
 		_coins_row.modulate.a = 1.0
-		UIJuice.pop(_coins_row, 0.2)
-		_after(0.55, func():
+		UIJuice.pop(_coins_row, settle + 0.12)
+		get_tree().create_timer(settle + 0.5).timeout.connect(func():
+			if not is_inside_tree():
+				return
 			_chip.expect_fly()
 			_chip.set_amount(Meta.currency("coins"), false)
 			RewardFly.layer(get_tree()).fly(_coins_row.get_global_rect().get_center(), "coins", coins, _chip))
@@ -775,7 +784,7 @@ func _summary() -> void:
 			best_t = CacheModels.tier(c.rarity())
 			up_id = id
 	_done_btn.visible = true
-	UIJuice.pop(_done_btn, 0.25)
+	UIJuice.pop(_done_btn, settle + 0.2)
 	if up_id != "":
 		_up_btn.text = Loc.f("UPGRADE_MACHINE", [Loc.t(str((ArsenalData.MACHINES[up_id] as Dictionary)["name"]))])
 		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 18))
@@ -783,7 +792,7 @@ func _summary() -> void:
 		for cn in _up_btn.pressed.get_connections():
 			_up_btn.pressed.disconnect(cn["callable"])
 		_up_btn.pressed.connect(func(): _leave("upgrade", up_id))
-		UIJuice.pop(_up_btn, 0.35)
+		UIJuice.pop(_up_btn, settle + 0.28)
 	Audio.chord(5, true, -9.0)
 
 

@@ -17,6 +17,9 @@ const CARD := Vector2(216, 296)
 var hub: Hub
 var _vault_card: KitGemCard
 var _banner_host: Control
+var _sc: ScrollContainer
+var _col: VBoxContainer
+var _fit_queued := false
 var _vault_eggs: HBoxContainer
 var _vault_count: Label
 var _vault_btn: Button
@@ -54,17 +57,11 @@ func _ready() -> void:
 	m.add_child(col)
 	# Tall phones: the title stays at the top like every tab; the extra height grows the Vault
 	# banner (the art) and then opens the gaps a little (no empty bottom third, no floating title).
-	var fit_h := func():
-		# Spare = page height - the content at its base size (banner 300, gaps 14).
-		var grown := (_banner_host.custom_minimum_size.y - BANNER.y) if _banner_host else 0.0
-		var gaps := maxf(col.get_child_count() - 1, 1)
-		var base_h := col.get_combined_minimum_size().y - grown - (col.get_theme_constant("separation") - 14) * gaps
-		var extra := maxf(sc.size.y - 20.0 - base_h, 0.0)
-		var grow := minf(extra * 0.6, 180.0)
-		_grow_banner(grow)
-		col.add_theme_constant_override("separation", int(14.0 + minf((extra - grow) / gaps, 26.0)))
-	sc.resized.connect(fit_h)
-	fit_h.call_deferred()
+	_sc = sc
+	_col = col
+	sc.resized.connect(_queue_fit)
+	col.minimum_size_changed.connect(_queue_fit)
+	_queue_fit()
 	# Title + promise
 	var head := VBoxContainer.new()
 	head.add_theme_constant_override("separation", 2)
@@ -121,6 +118,11 @@ func _ready() -> void:
 	plate.add_child(prow)
 	col.add_child(plate)
 	cards.append(plate)
+	# The restore link sits at the foot of the page (the spare height above it reads as air).
+	var foot_gap := Control.new()
+	foot_gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	foot_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(foot_gap)
 	var rrow := HBoxContainer.new()
 	rrow.alignment = BoxContainer.ALIGNMENT_CENTER
 	var restore := UIKit.text_button(Loc.t("RESTORE"), Vector2(0, 72), 22)
@@ -206,6 +208,33 @@ func _vault_banner() -> Control:
 	host.mouse_filter = Control.MOUSE_FILTER_PASS
 	_banner_host = host
 	return host
+
+
+func _queue_fit() -> void:
+	if _fit_queued:
+		return
+	_fit_queued = true
+	_fit.call_deferred()
+
+
+## Spare = page height - the content at its base size (banner 300, gaps 14): 60 % grows the
+## Vault banner (max 180), the rest opens the gaps (max +26 each). Re-runs when the content's
+## minimum changes (an autowrapped label reports a huge minimum before its first layout).
+func _fit() -> void:
+	_fit_queued = false
+	if _banner_host == null or _sc.size.y <= 0.0:
+		return
+	var grown := _banner_host.custom_minimum_size.y - BANNER.y
+	var gaps := maxf(_col.get_child_count() - 2, 1)
+	var sep := _col.get_theme_constant("separation")
+	var base_h := _col.get_combined_minimum_size().y - grown - (sep - 14) * gaps
+	var extra := maxf(_sc.size.y - 20.0 - base_h, 0.0)
+	var grow := minf(extra * 0.6, 180.0)
+	_grow_banner(grow)
+	(_col.get_parent() as Control).custom_minimum_size.y = _sc.size.y
+	var want := int(14.0 + minf((extra - grow) / gaps, 26.0))
+	if want != sep:
+		_col.add_theme_constant_override("separation", want)
 
 
 ## Tall phones: the banner (host, its clip and the card) grows by `extra` px.
