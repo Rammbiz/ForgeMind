@@ -1,20 +1,45 @@
 class_name MachineCard
 extends Control
-## A machine card of the Arsenal grid (arsenal_design.md §7.1-7.2, card data §6.2): three
-## layers - a backdrop lit in the family accent, the machine render (MachineThumbs; the vector
-## icon until it is ready), then frame and FX. Rarity frame (Epic+ animated), Prestige frames
-## from Lv13, rarity pips, family glyph, Lead crown, Deck ribbon, Focus mark, level pill and the
-## blueprint bar (green when the upgrade is affordable). Badges per §7.4: green arrow (Deck
-## machine or Best upgrade affordable) or gold "!" (talent pick). Unowned: a dark silhouette
-## and "Світ 1, рівень 5"; Meta-2 machines: the family glyph and "Скоро".
+## A machine card of the Arsenal grid (arsenal_design.md §7.1-7.2, card data §6.2), UI v2
+## (Genshin-style rarity card, ui_v2_contract §3.8): a KitGemCard ground in the rarity's gem
+## gradient with its fracture pattern, thin gold frame and the gem-cut mark top-left; the
+## machine render (MachineThumbs; the vector icon until it is ready) standing in a soft light
+## pool; a cream name strip with "Рів. 7" and the blueprint count; the blueprint progress as a
+## thin amber bar on the seam. Family = slate socket top-right, Lead = crown over the top edge,
+## Deck / Focus = small cream sockets above the seam, upgradable / talent pick = the gold notify
+## badge (an up chevron / "!"; no green arrows). Prestige frames (Lv13+) add a metal hairline.
+## Unowned: desaturated ground, slate silhouette, lock socket, "Світ 1, рівень 5"; Meta-2: the
+## family glyph and "Скоро".
 
 signal pressed(id: String)
 
-const SIZE := Vector2(214, 292)
+const SIZE := Vector2(156, 200)
+const FOOTER_RATIO := 0.28
+const PRESTIGE := {"bronze": Color("#C98B5A"), "silver": Color("#C9D2DC"), "gold": Color("#E8B84A")}
 
 var card: Dictionary = {}
-var compact := false            ## deck editor list: no blueprint bar
-var selected := false
+var compact := false:           ## deck editor list: no blueprint bar
+	set(v):
+		compact = v
+		_sync()
+var selected := false:
+	set(v):
+		if v == selected:
+			return
+		selected = v
+		queue_redraw()
+		if _over:
+			_over.queue_redraw()
+var picked := false:            ## deck list: already in the deck (dimmed + check)
+	set(v):
+		picked = v
+		_sync()
+var _gem: KitGemCard
+var _art: _Art
+var _over: _Over
+var _fam: KitSocket
+var _badge: KitSocket
+var _badge_icon: Icons
 var _tex: Texture2D
 var _t := 0.0
 var _press := false
@@ -26,21 +51,97 @@ func _init(p_card := {}) -> void:
 	# PASS: a drag over the card still scrolls the grid; a tap without movement selects.
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_t = randf() * 10.0
+	_gem = KitGemCard.new()
+	_gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gem.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_gem.footer_ratio = FOOTER_RATIO
+	_gem.pips = -1
+	add_child(_gem)
+	_art = _Art.new()
+	_art.mc = self
+	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_gem.content.add_child(_art)
+	_fam = KitSocket.new()
+	_fam.slate = true
+	_fam.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_fam)
+	_over = _Over.new()
+	_over.mc = self
+	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_over.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_over)
+	_badge = KitSocket.new()
+	_badge.badge_text = "!"
+	_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_badge.visible = false
+	add_child(_badge)
+	_badge_icon = Icons.make("arrow_up", 18.0, UIKit.BROWN)
+	_badge_icon.visible = false
+	_badge.add_child(_badge_icon)
+	resized.connect(_layout)
 
 
 func _ready() -> void:
 	UIJuice.press(self, true)
+	_sync()
 	_load_thumb()
+	_layout()
 
 
 func set_card(c: Dictionary) -> void:
 	card = c
+	_sync()
 	_load_thumb()
-	queue_redraw()
 
 
 func _id() -> String:
 	return str(card.get("id", ""))
+
+
+func _locked() -> String:
+	return str(card.get("locked", ""))
+
+
+func _footer_h() -> float:
+	return roundf(size.y * FOOTER_RATIO)
+
+
+func _seam() -> float:
+	return size.y - _footer_h()
+
+
+func _layout() -> void:
+	var s := clampf(size.x * 0.2, 26.0, 40.0)
+	_fam.size = Vector2(s, s)
+	_fam.position = Vector2(size.x - s - 6.0, 7.0)
+	var bs := clampf(size.x * 0.17, 26.0, 32.0)
+	_badge.size = Vector2(bs, bs)
+	_badge.position = Vector2(size.x - bs * 0.55, -bs * 0.45)
+	_badge_icon.size = Vector2(bs, bs) * 0.62
+	_badge_icon.position = Vector2(bs, bs) * 0.19
+	if _over:
+		_over.queue_redraw()
+
+
+func _sync() -> void:
+	if card.is_empty() or _gem == null:
+		return
+	var locked := _locked()
+	_gem.gem = str(card.get("rarity", "C"))
+	_gem.dim = locked != ""
+	_gem.title = ""
+	_gem.footer = ""
+	_fam.icon = "el_" + str(card.get("family", "kinetic"))
+	_fam.modulate.a = 0.55 if locked != "" else 1.0
+	var badge := str(card.get("badge", "")) if locked == "" else ""
+	_badge.visible = badge != ""
+	_badge_icon.visible = badge == "arrow"
+	_badge.badge_text = " " if badge == "arrow" else "!"
+	modulate = Color(1, 1, 1, 0.55) if picked else Color.WHITE
+	_art.queue_redraw()
+	_over.queue_redraw()
+	queue_redraw()
 
 
 func _load_thumb() -> void:
@@ -53,19 +154,23 @@ func _load_thumb() -> void:
 		var svc := MachineThumbs.service(get_tree())
 		if not svc.rendered.is_connected(_on_rendered):
 			svc.rendered.connect(_on_rendered)
+	_art.queue_redraw()
 
 
 func _on_rendered(key: String, tex: Texture2D) -> void:
 	if key == MachineThumbs.key_of(_id(), int(card.get("lvl", 0)) >= ArsenalData.ASCENSION_LEVEL):
 		_tex = tex
-		queue_redraw()
+		_art.queue_redraw()
+
+
+func _animated() -> bool:
+	return _locked() == "" and (selected or str(card.get("rarity", "C")) in ["E", "L", "M"])
 
 
 func _process(delta: float) -> void:
 	_t += delta
-	var r := str(card.get("rarity", "C"))
-	if str(card.get("badge", "")) != "" or r in ["E", "L", "M"] or selected:
-		queue_redraw()
+	if _animated():
+		_over.queue_redraw()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -84,217 +189,211 @@ func _gui_input(event: InputEvent) -> void:
 			_press = false
 
 
+## Behind the card: the selection glow (warm, soft).
 func _draw() -> void:
+	if selected and _locked() == "":
+		var r := Rect2(Vector2.ZERO, size)
+		draw_texture_rect(UIKit.glow_texture(), r.grow(size.x * 0.22), false, Color(UITokens.TOPAZ_HI.r, UITokens.TOPAZ_HI.g, UITokens.TOPAZ_HI.b, 0.5))
+
+
+# ------------------------------------------------------------------ layers
+
+## Art layer (inside the card's clip, above the gem ground): light pool, contact shadow and the
+## machine render, or the silhouette / family glyph of a locked machine.
+func draw_art(ci: CanvasItem) -> void:
 	if card.is_empty():
 		return
-	var f := UIKit.font(true)
-	var r := str(card.get("rarity", "C"))
-	var rc := UITokens.rarity(r)
-	var fam := str(card.get("family", "kinetic"))
-	var fc := UITokens.family(fam)
-	var locked := str(card.get("locked", ""))
-	var lvl := int(card.get("lvl", 0))
-	var body := Rect2(Vector2(4, 10), size - Vector2(8, 16))
-	var rad := 24
-	# Shadow
-	draw_style_box(UIKit.box(Color(0, 0, 0.03, 0.5), Color(0, 0, 0, 0), rad + 2, 0, 0, Vector2.ZERO), Rect2(body.position + Vector2(0, 6), body.size))
-	if selected:
-		draw_texture_rect(UIKit.glow_texture(), body.grow(26), false, Color(1.0, 0.8, 0.35, 0.55))
-	# Frame: rarity metal (prestige frames override), darker for locked cards.
-	var frame_hi := rc.lightened(0.35)
-	var frame_lo := rc.darkened(0.45)
-	match str(card.get("frame", "")):
-		"bronze":
-			frame_hi = Color(1.0, 0.75, 0.5)
-			frame_lo = Color(0.5, 0.26, 0.1)
-		"silver":
-			frame_hi = Color(1.0, 1.0, 1.0)
-			frame_lo = Color(0.48, 0.52, 0.62)
-		"gold":
-			frame_hi = Color(1.0, 0.96, 0.7)
-			frame_lo = Color(0.78, 0.46, 0.08)
-	if locked != "":
-		frame_hi = frame_hi.lerp(Color(0.35, 0.38, 0.48), 0.65)
-		frame_lo = frame_lo.lerp(Color(0.1, 0.11, 0.16), 0.65)
-	_grad_box(body, frame_hi, frame_lo, rad)
-	var inner := body.grow(-5)
-	# Backdrop: family-lit render zone over deep navy.
-	var split := inner.position.y + inner.size.y * (0.62 if not compact else 0.7)
-	var zone := Rect2(inner.position, Vector2(inner.size.x, split - inner.position.y))
-	var top_c := fc.darkened(0.45) if locked == "" else Color(0.08, 0.09, 0.14)
-	var bot_c := Color(0.04, 0.05, 0.12)
-	_grad_box(inner, top_c, bot_c, rad - 4)
+	var w := size.x
+	var seam := _seam()
+	var locked := _locked()
+	var g: Dictionary = UITokens.gem(str(card.get("rarity", "C")))
+	var lc: Color = g["light"]
+	var side := minf(w * 0.96, seam * 0.98)
+	var c := Vector2(w * 0.5, seam * 0.56)
 	if locked == "":
-		draw_texture_rect(UIKit.glow_texture(), Rect2(zone.get_center() - Vector2(zone.size.x, zone.size.y) * 0.62, zone.size * 1.24), false, Color(fc.r, fc.g, fc.b, 0.55))
-		if r in ["E", "L", "M"]:
-			_rays(zone.get_center(), zone.size.x * 0.62, Color(rc.r, rc.g, rc.b, 0.22))
-		draw_texture_rect(UIKit.glow_texture(), Rect2(zone.get_center() + Vector2(-zone.size.x * 0.4, zone.size.y * 0.22), Vector2(zone.size.x * 0.8, zone.size.y * 0.3)), false, Color(0, 0, 0.02, 0.6))
-	# Render (or icon / silhouette).
-	var ir := Rect2(zone.position + Vector2(8, 16), zone.size - Vector2(16, 18))
-	var sq := minf(ir.size.x, ir.size.y)
-	ir = Rect2(ir.get_center() - Vector2(sq, sq) * 0.5, Vector2(sq, sq))
+		var pr := side * 0.62
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(pr, pr), Vector2(pr, pr) * 2.0), false, Color(lc.r, lc.g, lc.b, 0.4))
+	# Contact shadow under the machine.
+	var sh := Rect2(Vector2(c.x - side * 0.36, c.y + side * 0.2), Vector2(side * 0.72, side * 0.2))
+	ci.draw_texture_rect(UIKit.glow_texture(), sh, false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.32 if locked == "" else 0.14))
+	var ir := Rect2(c - Vector2(side, side) * 0.5, Vector2(side, side))
 	if locked == "phase":
-		Icons.draw_icon(self, "fam_" + fam, ir.grow(-sq * 0.2), Color(0.25, 0.27, 0.36, 0.9))
-	elif _tex:
-		var mod := Color.WHITE if locked == "" else Color(0.0, 0.0, 0.02, 0.92)
-		draw_texture_rect(_tex, ir.grow(sq * 0.12), false, mod)
+		Icons.line(ci, "el_" + str(card.get("family", "kinetic")), ir.grow(-side * 0.3), Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.45))
+		return
+	if _tex:
 		if locked != "":
-			draw_texture_rect(_tex, Rect2(ir.grow(sq * 0.12).position + Vector2(0, -2), ir.grow(sq * 0.12).size), false, Color(0.4, 0.5, 0.8, 0.18))
+			ci.draw_texture_rect(_tex, ir, false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.42))
+		else:
+			ci.draw_texture_rect(_tex, ir, false)
 	else:
-		Icons.draw_icon(self, _id(), ir.grow(-sq * 0.12), Color.WHITE if locked == "" else Color(0.05, 0.05, 0.1, 0.95))
-	# Plate
-	var plate := Rect2(Vector2(inner.position.x, split), Vector2(inner.size.x, inner.end.y - split))
-	draw_rect(Rect2(plate.position, Vector2(plate.size.x, 2)), Color(frame_hi.r, frame_hi.g, frame_hi.b, 0.55))
-	# Name
+		var icon_r := ir.grow(-side * 0.16)
+		Icons.draw_icon(ci, _id(), icon_r, Color.WHITE if locked == "" else Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.42))
+
+
+## Overlay layer (above the card frame): footer text, seam bar, marks, selection outline.
+func draw_over(ci: CanvasItem) -> void:
+	if card.is_empty():
+		return
+	var w := size.x
+	var fh := _footer_h()
+	var seam := _seam()
+	var locked := _locked()
+	var lvl := int(card.get("lvl", 0))
+	var fb := UIKit.font_w("bold")
+	var fm := UIKit.font_w("medium")
+	# Name (footer line 1).
 	var name := Loc.t(str(card.get("name", "")))
-	var fs := UIKit.fit_size(name, plate.size.x - 16, 22, 15)
-	var tw := f.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	var ny := plate.position.y + 26
-	var ncol := Color(1, 1, 1) if locked == "" else Color(0.6, 0.62, 0.7)
-	draw_string_outline(f, Vector2(plate.get_center().x - tw * 0.5, ny), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color(0.01, 0.02, 0.06))
-	draw_string(f, Vector2(plate.get_center().x - tw * 0.5, ny), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ncol)
+	var ns := int(clampf(fh * 0.34, 15.0, 24.0))
+	while ns > 13 and fb.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x > w - 14.0:
+		ns -= 1
+	var nw := fb.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+	var line2 := not compact or locked != ""
+	var ny := seam + (fh * 0.47 if line2 else fh * 0.62) + (4.0 if not compact and locked == "" else 0.0)
+	ci.draw_string(fb, Vector2((w - nw) * 0.5, ny), name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, UITokens.INK if locked == "" else UITokens.INK_DIM)
+	# Footer line 2: level + blueprint count, or where to find it.
+	var ss := int(clampf(fh * 0.27, 14.0, 19.0))
+	var y2 := size.y - fh * 0.16
 	if locked == "world":
 		var home := int(card.get("home_level", 0))
 		var txt := Loc.f("LOCKED_WORLD", [ArsenalData.world_of(home), ArsenalData.level_in_world(home)]) if home > 0 else Loc.t("LOCKED_SOON")
-		_small_center(txt, plate.get_center().x, ny + 30, 17, Color(0.7, 0.75, 0.9))
-		_lock(ir.get_center())
+		_center_text(ci, txt, w * 0.5, y2, ss, UITokens.INK_SOFT, w - 12.0)
 	elif locked == "phase":
-		_small_center(Loc.t("LOCKED_SOON"), plate.get_center().x, ny + 30, 18, Color(0.62, 0.66, 0.82))
+		_center_text(ci, Loc.t("LOCKED_SOON"), w * 0.5, y2, ss, UITokens.INK_SOFT, w - 12.0)
+	elif compact:
+		_center_text(ci, Loc.f("LV", [lvl]), w * 0.5, y2, ss, UITokens.GOLD_TEXT, w - 12.0)
 	else:
-		_level_row(plate, ny + 10, lvl)
-	# Corner marks: rarity pips, family glyph, Lead crown, Deck ribbon, Focus.
-	for i in int(card.get("pips", 1)):
-		var pc := inner.position + Vector2(14 + i * 15, 16)
-		var dm := PackedVector2Array([pc + Vector2(0, -7), pc + Vector2(6, 0), pc + Vector2(0, 7), pc + Vector2(-6, 0)])
-		draw_colored_polygon(dm, Color(0, 0, 0.04, 0.7))
-		var dm2 := PackedVector2Array([pc + Vector2(0, -5.5), pc + Vector2(4.5, 0), pc + Vector2(0, 5.5), pc + Vector2(-4.5, 0)])
-		draw_colored_polygon(dm2, rc if locked == "" else rc.darkened(0.5))
-	var gc := Vector2(inner.end.x - 22, zone.end.y - 22)
-	draw_circle(gc, 17, Color(0.02, 0.03, 0.08, 0.8))
-	Icons.draw_icon(self, "fam_" + fam, Rect2(gc - Vector2(13, 13), Vector2(26, 26)), Color.WHITE if locked == "" else Color(0.5, 0.5, 0.6))
-	if bool(card.get("in_deck", false)) and locked == "":
-		var rb := Rect2(Vector2(body.position.x - 2, zone.end.y - 30), Vector2(56, 24))
-		draw_colored_polygon(PackedVector2Array([rb.position, rb.position + Vector2(rb.size.x, 0), rb.position + Vector2(rb.size.x - 10, rb.size.y * 0.5), rb.position + Vector2(rb.size.x, rb.size.y), rb.position + Vector2(0, rb.size.y)]), Color(1.0, 0.76, 0.28))
-		Icons.draw_icon(self, "deck", Rect2(rb.position + Vector2(10, 1), Vector2(22, 22)), Color(1, 1, 1))
-	if bool(card.get("is_lead", false)):
-		var bob := sin(fmod(_t, 100.0) * 2.0) * 1.5
-		Icons.draw_icon(self, "crown", Rect2(Vector2(size.x * 0.5 - 22, -10 + bob), Vector2(44, 44)))
-	if bool(card.get("is_focus", false)):
-		var fp := inner.position + Vector2(18, 44)
-		draw_circle(fp, 14, Color(0.02, 0.03, 0.08, 0.8))
-		Icons.draw_icon(self, "focus", Rect2(fp - Vector2(11, 11), Vector2(22, 22)))
-	# Epic+ animated frame: a light running around the border.
-	if r in ["E", "L", "M"] and locked == "":
+		var maxed := lvl >= ArsenalData.MAX_LEVEL
+		var lt := Loc.f("LV", [lvl])
+		ci.draw_string(fb, Vector2(10.0, y2), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.GOLD_TEXT)
+		var bt := Loc.t("LV_MAX") if maxed else "%d/%d" % [maxi(int(card.get("bp", 0)), 0), int(card.get("bp_need", 0))]
+		var bw := fm.get_string_size(bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
+		ci.draw_string(fm, Vector2(w - 10.0 - bw, y2), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK if bool(card.get("can_upgrade", false)) else UITokens.INK_DIM)
+		_seam_bar(ci, seam, maxed)
+	# Above the seam: Deck and Focus marks (small cream sockets).
+	if locked == "":
+		var ms := clampf(w * 0.15, 20.0, 30.0)
+		var my := seam - ms * 0.5 - 7.0
+		if bool(card.get("in_deck", false)):
+			_mini_socket(ci, Vector2(8.0 + ms * 0.5, my), ms, "deck")
+		if bool(card.get("is_focus", false)):
+			_mini_socket(ci, Vector2(w - 8.0 - ms * 0.5, my), ms, "target")
+	# Locked: a lock socket in the middle of the art.
+	if locked == "world":
+		var lc := Vector2(w * 0.5, seam * 0.52)
+		var lr := clampf(w * 0.14, 16.0, 26.0)
+		_mini_socket(ci, lc, lr * 2.0, "lock")
+	# Prestige frame: a metal hairline just inside the gold one.
+	var fr := str(card.get("frame", ""))
+	if PRESTIGE.has(fr) and locked == "":
+		GemDraw.outline(ci, GemDraw.chamfer_rect(Rect2(Vector2(1.5, 1.5), size - Vector2(3, 3)), _gem._cham() - 1.0), PRESTIGE[fr], 2.0)
+	# Rarity motion (restrained): Epic+ a soft light travels along the frame; Legendary+ a glint
+	# blinks on the gem mark now and then.
+	var r := str(card.get("rarity", "C"))
+	if locked == "" and r in ["E", "L", "M"]:
+		var body := Rect2(Vector2(1, 1), size - Vector2(2, 2))
 		var per := 2.0 * (body.size.x + body.size.y)
-		var d := fposmod(_t * 160.0, per)
-		var p := _perimeter(body, d)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 1, 1, 0.75))
-		draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(40, 40), Vector2(80, 80)), false, Color(rc.r, rc.g, rc.b, 0.4))
-	# Badge
-	var badge := str(card.get("badge", ""))
-	if badge != "" and locked == "":
-		var bc := Vector2(size.x - 14, 14 + sin(fmod(_t, 100.0) * 4.0) * 3.0)
-		draw_circle(bc + Vector2(0, 3), 19, Color(0, 0, 0, 0.45))
-		if badge == "arrow":
-			draw_circle(bc, 19, Color(0.05, 0.32, 0.08))
-			draw_circle(bc, 16.5, Color(0.36, 0.88, 0.34))
-			Icons.draw_icon(self, "arrow_up", Rect2(bc - Vector2(13, 14), Vector2(26, 26)))
-		else:
-			draw_circle(bc, 19, Color(0.5, 0.25, 0.02))
-			draw_circle(bc, 16.5, Color(1.0, 0.8, 0.25))
-			draw_string(f, bc + Vector2(-5, 10), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.32, 0.12, 0.0))
+		var p := _perimeter(body, fposmod(_t * 70.0, per))
+		var lc2: Color = (UITokens.gem(r) as Dictionary)["light"]
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(16, 16), Vector2(32, 32)), false, Color(lc2.r, lc2.g, lc2.b, 0.55))
+		if r in ["L", "M"]:
+			var k := fposmod(_t, 4.0)
+			if k < 0.6:
+				var a := sin(k / 0.6 * PI)
+				var mc := Vector2(_gem._cham() + clampf(w * 0.15, 18.0, 40.0) * 0.5 + 2.0, _gem._cham() + clampf(w * 0.15, 18.0, 40.0) * 0.5 + 2.0)
+				GemDraw.draw_glint(ci, mc + Vector2(-4, -4), 18.0 * a + 4.0, Color(1, 1, 1, 0.9 * a))
+	# Selected: a warm double hairline + keystone at the top.
+	if selected and locked == "":
+		var pts := GemDraw.chamfer_rect(Rect2(Vector2(-2, -2), size + Vector2(4, 4)), _gem._cham() + 1.0)
+		GemDraw.outline(ci, pts, UITokens.CTA, 2.0)
+		GemDraw.draw_keystone(ci, Vector2(w * 0.5, -2.0), 14.0, 1.0, Color(1.0, 0.86, 0.5))
+	# Lead: a painted crown over the top edge.
+	if bool(card.get("is_lead", false)) and locked == "":
+		var cs := clampf(w * 0.26, 30.0, 46.0)
+		var bob := sin(fmod(_t, 100.0) * 1.6) * 1.0 if selected else 0.0
+		Icons.draw_icon(ci, "crown", Rect2(Vector2(w * 0.5 - cs * 0.5, -cs * 0.52 + bob), Vector2(cs, cs)))
+	# Deck list: a check over a picked card.
+	if picked:
+		_mini_socket(ci, Vector2(w * 0.5, seam * 0.5), clampf(w * 0.3, 36.0, 52.0), "check")
 
 
-func _level_row(plate: Rect2, y: float, lvl: int) -> void:
-	var f := UIKit.font(true)
-	var lv_txt := str(lvl)
-	var maxed := lvl >= ArsenalData.MAX_LEVEL
-	# Level gem
-	var lc := Vector2(plate.position.x + 26, y + 22)
-	draw_circle(lc + Vector2(0, 2), 19, Color(0, 0, 0.03, 0.6))
-	draw_circle(lc, 19, Color(0.55, 0.36, 0.1))
-	draw_circle(lc + Vector2(0, -1), 17, Color(1.0, 0.86, 0.45))
-	draw_circle(lc, 14.5, Color(0.1, 0.13, 0.3))
-	var lw := f.get_string_size(lv_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-	draw_string(f, lc + Vector2(-lw * 0.5, 7), lv_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1))
-	if compact:
-		return
-	# Blueprint bar
-	var bar := Rect2(Vector2(lc.x + 22, y + 10), Vector2(plate.end.x - lc.x - 32, 24))
-	draw_style_box(UIKit.box(Color(0.01, 0.015, 0.04, 0.95), Color(1, 1, 1, 0.12), 10, 1, 0, Vector2.ZERO), bar)
-	var need := int(card.get("bp_need", 0))
-	var have := int(card.get("bp", 0))
+## The blueprint progress: a thin amber bar on a cream bed straddling the seam.
+func _seam_bar(ci: CanvasItem, seam: float, maxed: bool) -> void:
+	var w := size.x
+	var bed_h := 12.0
+	var bed := Rect2(Vector2(10.0, seam - bed_h * 0.5), Vector2(w - 20.0, bed_h))
+	ci.draw_colored_polygon(GemDraw.chamfer_rect(bed, 4.0), UITokens.PAPER_1)
+	GemDraw.outline(ci, GemDraw.chamfer_rect(bed, 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0)
+	var tr := bed.grow_individual(-4.0, -3.5, -4.0, -3.5)
+	ci.draw_colored_polygon(GemDraw.chamfer_rect(tr, 2.0), UITokens.PAPER_3)
+	var need := maxi(int(card.get("bp_need", 0)), 1)
+	var have := maxi(int(card.get("bp", 0)), 0)
 	var wild := int(card.get("wild", 0))
-	var can := bool(card.get("can_upgrade", false))
-	var k := 1.0 if maxed else clampf(float(have) / float(maxi(need, 1)), 0.0, 1.0)
-	var fill := Rect2(bar.position + Vector2(2, 2), Vector2(maxf((bar.size.x - 4) * k, 0.0), bar.size.y - 4))
-	if fill.size.x > 4:
-		var c1 := Color(0.45, 0.95, 0.4) if can else (Color(1.0, 0.78, 0.3) if have >= need or maxed else Color(0.3, 0.62, 1.0))
-		_grad_box(fill, c1.lightened(0.25), c1.darkened(0.2), 8)
-		draw_rect(Rect2(fill.position + Vector2(3, 2), Vector2(fill.size.x - 6, 4)), Color(1, 1, 1, 0.3))
+	var k := 1.0 if maxed else clampf(float(have) / float(need), 0.0, 1.0)
 	if not maxed and wild > 0 and have < need:
-		var wk := clampf(float(have + wild) / float(maxi(need, 1)), 0.0, 1.0)
+		var wk := clampf(float(have + wild) / float(need), 0.0, 1.0)
 		if wk > k:
-			draw_rect(Rect2(Vector2(fill.end.x, fill.position.y), Vector2((bar.size.x - 4) * (wk - k), fill.size.y)), Color(0.75, 0.5, 1.0, 0.4))
-	var txt := Loc.t("LV_MAX") if maxed else "%d/%d" % [have, need]
-	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
-	var tp := Vector2(bar.get_center().x - tw * 0.5 + (6 if can else 0), bar.position.y + 18)
-	draw_string_outline(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, 4, Color(0, 0.02, 0.06, 0.95))
-	draw_string(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 1, 1))
-	if can:
-		Icons.draw_icon(self, "arrow_up", Rect2(Vector2(bar.position.x - 2, bar.position.y - 3), Vector2(28, 28)))
-	else:
-		Icons.draw_icon(self, "blueprint", Rect2(Vector2(bar.position.x - 6, bar.position.y - 4), Vector2(28, 28)))
+			var wr := Rect2(tr.position, Vector2(tr.size.x * wk, tr.size.y))
+			var am: Dictionary = UITokens.GEMS["amethyst"]
+			ci.draw_colored_polygon(GemDraw.chamfer_rect(wr, 2.0), am["light"])
+	if k > 0.0:
+		var can := bool(card.get("can_upgrade", false))
+		var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * k, 4.0), tr.size.y))
+		var pts := GemDraw.chamfer_rect(fr, 2.0)
+		var top := UITokens.CTA_HI if (can or maxed) else UITokens.CTA.lightened(0.25)
+		var bot := UITokens.CTA_LO if (can or maxed) else UITokens.CTA
+		var cols := PackedColorArray()
+		for p in pts:
+			cols.append(top.lerp(bot, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
+		ci.draw_polygon(pts, cols)
+	if k >= 0.999:
+		GemDraw.draw_keystone(ci, Vector2(bed.end.x - 1.0, seam), 10.0, 1.0, Color(1.0, 0.86, 0.5))
 
 
-func _small_center(txt: String, cx: float, y: float, fs: int, col: Color) -> void:
-	var f := UIKit.font(true)
-	fs = UIKit.fit_size(txt, size.x - 28, fs, 13)
+func _mini_socket(ci: CanvasItem, c: Vector2, s: float, icon: String) -> void:
+	var r := s * 0.5
+	for i in 3:
+		ci.draw_circle(c + Vector2(0, 1.0 + i), r - 0.5 + i * 0.5, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.07))
+	ci.draw_circle(c, r, UITokens.PAPER_1)
+	ci.draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0)
+	ci.draw_arc(c, r - 0.75, 0, TAU, 40, UITokens.HAIRLINE, 1.5, true)
+	var isz := r * 1.15
+	Icons.line(ci, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), UITokens.INK)
+
+
+func _center_text(ci: CanvasItem, txt: String, cx: float, y: float, fs: int, col: Color, max_w: float) -> void:
+	var f := UIKit.font_w("medium")
+	while fs > 12 and f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+		fs -= 1
 	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	draw_string_outline(f, Vector2(cx - tw * 0.5, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0.01, 0.02, 0.06))
-	draw_string(f, Vector2(cx - tw * 0.5, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	ci.draw_string(f, Vector2(cx - tw * 0.5, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
-func _lock(c: Vector2) -> void:
-	draw_circle(c + Vector2(0, 3), 26, Color(0, 0, 0, 0.5))
-	draw_circle(c, 26, Color(0.25, 0.27, 0.36))
-	draw_circle(c, 23, Color(0.08, 0.09, 0.15))
-	Icons.draw_icon(self, "lock", Rect2(c - Vector2(15, 16), Vector2(30, 30)), Color(0.85, 0.88, 1.0))
+class _Art extends Control:
+	var mc: MachineCard
+
+	func _draw() -> void:
+		mc.draw_art(self)
 
 
-func _grad_box(r: Rect2, top: Color, bot: Color, rad: int) -> void:
-	grad_box(self, r, top, bot, rad)
+class _Over extends Control:
+	var mc: MachineCard
+
+	func _draw() -> void:
+		mc.draw_over(self)
 
 
-## A rounded box with a vertical gradient (top colour over the upper ~half, blended into
-## `bot`), drawn on any CanvasItem.
+# ------------------------------------------------------------------ shared helpers (legacy API)
+
+## A box with a vertical gradient (top colour over the upper ~half, blended into `bot`), drawn
+## on any CanvasItem. v2: chamfered (45-degree cuts, `rad` capped at 12) instead of rounded.
 static func grad_box(ci: CanvasItem, r: Rect2, top: Color, bot: Color, rad: int) -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bot
-	sb.set_corner_radius_all(rad)
-	sb.corner_detail = 8
-	sb.anti_aliasing = true
-	ci.draw_style_box(sb, r)
-	var h := r.size.y
-	var sb2 := StyleBoxFlat.new()
-	sb2.bg_color = top
-	sb2.set_corner_radius_all(mini(rad, int(h * 0.4)))
-	sb2.corner_detail = 8
-	sb2.anti_aliasing = true
-	sb2.corner_radius_bottom_left = 0
-	sb2.corner_radius_bottom_right = 0
-	ci.draw_style_box(sb2, Rect2(r.position, Vector2(r.size.x, h * 0.4)))
-	ci.draw_polygon(PackedVector2Array([r.position + Vector2(0, h * 0.4 - 0.5), r.position + Vector2(r.size.x, h * 0.4 - 0.5), r.position + Vector2(r.size.x, h * 0.75), r.position + Vector2(0, h * 0.75)]),
-			PackedColorArray([top, top, Color(top.r, top.g, top.b, 0.0), Color(top.r, top.g, top.b, 0.0)]))
-
-
-func _rays(c: Vector2, R: float, col: Color) -> void:
-	var n := 10
-	for i in n:
-		var a := fmod(_t, 1000.0) * 0.12 + TAU * i / n
-		var d0 := Vector2(cos(a - 0.08), sin(a - 0.08))
-		var d1 := Vector2(cos(a + 0.08), sin(a + 0.08))
-		draw_polygon(PackedVector2Array([c, c + d0 * R, c + d1 * R]), PackedColorArray([col, Color(col.r, col.g, col.b, 0.0), Color(col.r, col.g, col.b, 0.0)]))
+	var pts := GemDraw.chamfer_rect(r, minf(float(mini(rad, 12)), minf(r.size.x, r.size.y) * 0.4))
+	var cols := PackedColorArray()
+	var h := maxf(r.size.y, 1.0)
+	for p in pts:
+		var t := clampf((p.y - r.position.y) / h, 0.0, 1.0)
+		cols.append(top.lerp(bot, smoothstep(0.3, 0.8, t)))
+	ci.draw_polygon(pts, cols)
 
 
 static func _perimeter(r: Rect2, d: float) -> Vector2:
