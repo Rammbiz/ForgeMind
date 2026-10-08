@@ -88,7 +88,7 @@ func _ready() -> void:
 	# The other half of the excess spreads the sheet's rows (coins, stats, drip, cache) so the
 	# cache card does not float far above the bottom-anchored best-upgrade row.
 	var inner := (_vp.y - _ins0.y - _ins0.w - 1280.0) - (_ins.y - _ins0.y)
-	_gx = clampf(inner / 4.0, 0.0, 48.0)
+	_gx = clampf(inner / 3.5, 0.0, 56.0)
 	root.add_child(scrim(_vp, 0.45, 0.62))
 	# Victory light: a warm pool and slow soft rays behind the title (juicy, never loud).
 	var pool := TextureRect.new()
