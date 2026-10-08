@@ -103,7 +103,7 @@ func _rail(icon: String, on_press: Callable, caption := "", soon := false) -> Ro
 	b.caption = caption
 	if soon:
 		b.icon_tint = Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.45)
-		b.caption_color = UITokens.INK_DIM
+		b.caption_color = UITokens.INK_DIM_GLASS
 	b.pressed.connect(func():
 		UIJuice.haptic("CLICK", 0.4)
 		on_press.call())

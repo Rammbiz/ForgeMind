@@ -1,11 +1,12 @@
 class_name Hub
 extends Node3D
-## The home screen of the meta (arsenal_design.md §7; replaces Menu). UI v2 (Genshin x AFK
-## Journey): the bright 3D Home stage behind the Play tab (HubStage), a light warm backdrop on
-## the other tabs, the top bar (portrait ring, cream currency plates), the arched cream bottom
-## nav with the rising amber medallion (Магазин · Арсенал · Грати · Герої · Казарми), soft
-## tab cross-fades, and a modal layer for sheets (machine detail, vault, odds, settings,
-## unlock cards) over a light slate scrim.
+## The home screen of the meta (arsenal_design.md §7; replaces Menu). UI v3.1 "porcelain glass"
+## (ui_v3_spec.md): the bright 3D Home stage behind the Play tab (HubStage), the frosted Home still
+## behind the other tabs (KitGlass; re-shot on arriving at / leaving Play, on a world, hero or
+## Deck change and on app resume), the top bar, the frosted bottom nav (Магазин · Арсенал ·
+## Грати · Герої · Казарми), soft tab cross-fades, and a modal layer for sheets (machine detail,
+## vault, odds, settings, unlock cards) over a 0.42 slate scrim (ceremonies 0.56) with the frost
+## leaning toward the page colour (§4.6).
 ## Reads only Meta (and ArsenalData / EconData constants); refreshes on Meta signals.
 ##
 ##   var hub := Hub.new("arsenal")      # start tab (default "play")
@@ -591,10 +592,11 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ inner widgets
 
-## Full-screen painted backdrop per tab (UI v2: light and warm everywhere). Play = clear (the
-## 3D Home) with a whisper of slate under the top plates, a warm floor fade under the nav and
-## soft light shafts from the sun side; Arsenal = a pale ivory gallery with a cool-white
-## spotlight; Heroes / Barracks / Shop = a warm parchment haze with a golden spotlight.
+## Full-screen backdrop per tab. Play = clear (the 3D Home) with a whisper of slate under the
+## top plates, a warm floor fade under the nav and soft light shafts from the sun side. The cream
+## tabs (UI v3.1 §4.3 "frosted backdrop") = the blurred Home still (KitGlass) under the cream
+## BACKDROP_VEIL, cross-faded in when the still is ready; the painted v2 looks (ivory gallery,
+## parchment haze with a spotlight) remain only as the no-snapshot fallback.
 class Backdrop extends Control:
 	var _from := {}
 	var _to := {}
