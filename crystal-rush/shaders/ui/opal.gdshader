@@ -7,6 +7,9 @@ uniform vec4 bottom_color : source_color = vec4(0.227, 0.176, 0.388, 1.0);
 uniform float fleck_scale = 10.0;
 uniform float fleck_alpha = 0.38;
 uniform float speed = 0.25;
+// Chamfer mask (45-degree corners) so the opal fits the card shape without clip_children.
+uniform vec2 rect_size = vec2(0.0);
+uniform float chamfer_px = 0.0;
 
 vec2 hash2(vec2 p) {
 	p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -19,6 +22,13 @@ vec3 hue(float h) {
 
 void fragment() {
 	vec2 uv = UV;
+	if (chamfer_px > 0.0 && rect_size.x > 0.0) {
+		vec2 p = uv * rect_size;
+		vec2 q = min(p, rect_size - p);
+		if (q.x + q.y < chamfer_px) {
+			discard;
+		}
+	}
 	vec3 base = mix(top_color.rgb, bottom_color.rgb, uv.y);
 	vec2 g = uv * vec2(fleck_scale, fleck_scale * 1.4);
 	vec2 cell = floor(g);

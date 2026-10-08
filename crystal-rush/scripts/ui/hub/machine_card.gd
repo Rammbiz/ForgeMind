@@ -10,6 +10,11 @@ extends Control
 ## badge (an up chevron / "!"; no green arrows). Prestige frames (Lv13+) add a metal hairline.
 ## Unowned: desaturated ground, slate silhouette, lock socket, "Світ 1, рівень 5"; Meta-2: the
 ## family glyph and "Скоро".
+## Draw-call budget: every static layer (ground, fracture, art, frame, footer text, seam bar,
+## sockets, badges, crown) is rendered once into a per-card SubViewport at the screen's pixel
+## scale and shown as ONE premultiplied texture; it is re-rendered only when the card data, the
+## selection, the thumb or the size changes. Only the selection glow behind the card and the
+## Epic+ frame light (_Fx) stay live.
 
 signal pressed(id: String)
 
@@ -17,6 +22,7 @@ const SIZE := Vector2(156, 200)
 const FOOTER_RATIO := 0.36
 const NAME_SIZE := 18               ## one name size for the whole grid (2 lines allowed)
 const SMALL_SIZE := 18              ## footer line 2 (never below 18 px)
+const PAD := 30.0                   ## bake margin: selection glow ring, crown above the top edge
 const PRESTIGE := {"bronze": Color("#C98B5A"), "silver": Color("#C9D2DC"), "gold": Color("#E8B84A")}
 
 var card: Dictionary = {}
@@ -32,10 +38,16 @@ var selected := false:
 		queue_redraw()
 		if _over:
 			_over.queue_redraw()
+		_rebake()
 var picked := false:            ## deck list: already in the deck (dimmed + check)
 	set(v):
 		picked = v
 		_sync()
+static var _premult: CanvasItemMaterial
+var _vp: SubViewport                ## the bake (static layers), rendered on change only
+var _root: Control                  ## the card's static layers inside the bake, at PAD
+var _img: _Baked                    ## the baked texture, drawn in the grid
+var _bake_queued := false
 var _gem: KitGemCard
 var _art: _Art
 var _over: _Over
@@ -54,12 +66,31 @@ func _init(p_card := {}) -> void:
 	# PASS: a drag over the card still scrolls the grid; a tap without movement selects.
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_t = randf() * 10.0
+	_vp = SubViewport.new()
+	_vp.transparent_bg = true
+	_vp.disable_3d = true
+	_vp.gui_disable_input = true
+	_vp.size_2d_override_stretch = true
+	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_vp)
+	_root = Control.new()
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.position = Vector2(PAD, PAD)
+	_vp.add_child(_root)
+	_img = _Baked.new()
+	_img.mc = self
+	_img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _premult == null:
+		_premult = CanvasItemMaterial.new()
+		_premult.blend_mode = CanvasItemMaterial.BLEND_MODE_PREMULT_ALPHA
+	_img.material = _premult
+	add_child(_img)
 	_gem = KitGemCard.new()
 	_gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gem.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_gem.footer_ratio = FOOTER_RATIO
 	_gem.pips = -1
-	add_child(_gem)
+	_root.add_child(_gem)
 	_art = _Art.new()
 	_art.mc = self
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -68,17 +99,17 @@ func _init(p_card := {}) -> void:
 	_fam = KitSocket.new()
 	_fam.slate = false
 	_fam.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_fam)
+	_root.add_child(_fam)
 	_over = _Over.new()
 	_over.mc = self
 	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_over.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_over)
+	_root.add_child(_over)
 	_badge = KitSocket.new()
 	_badge.badge_text = "!"
 	_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_badge.visible = false
-	add_child(_badge)
+	_root.add_child(_badge)
 	_badge_icon = Icons.make("arrow_up", 18.0, UIKit.BROWN)
 	_badge_icon.visible = false
 	_badge.add_child(_badge_icon)
@@ -93,6 +124,7 @@ func _init(p_card := {}) -> void:
 
 func _ready() -> void:
 	UIJuice.press(self, true)
+	get_viewport().size_changed.connect(_rebake)
 	_sync()
 	_load_thumb()
 	_layout()
@@ -121,6 +153,9 @@ func _seam() -> float:
 
 
 func _layout() -> void:
+	_root.size = size
+	_img.position = -Vector2(PAD, PAD)
+	_img.size = size + Vector2(PAD, PAD) * 2.0
 	var s := clampf(size.x * 0.2, 26.0, 40.0)
 	_fam.size = Vector2(s, s)
 	_fam.position = Vector2(size.x - s - 6.0, 7.0)
@@ -132,6 +167,34 @@ func _layout() -> void:
 	_badge_icon.position = Vector2(bs, bs) * 0.19
 	if _over:
 		_over.queue_redraw()
+	_rebake()
+
+
+## Re-renders the static layers once (coalesced to one bake per frame).
+func _rebake() -> void:
+	if _bake_queued:
+		return
+	_bake_queued = true
+	_do_bake.call_deferred()
+
+
+func _do_bake() -> void:
+	_bake_queued = false
+	if not is_inside_tree() or size.x < 2.0 or size.y < 2.0:
+		return
+	# Bake at the screen's pixel density (canvas_items stretch), so the card stays crisp.
+	var k := clampf(get_viewport().get_final_transform().get_scale().x, 0.5, 4.0)
+	var logical := Vector2i(ceili(size.x + PAD * 2.0), ceili(size.y + PAD * 2.0))
+	var px := Vector2i(ceili(logical.x * k), ceili(logical.y * k))
+	if _vp.size != px:
+		_vp.size = px
+	_vp.size_2d_override = logical
+	_root.size = size
+	_gem.queue_redraw()
+	_art.queue_redraw()
+	_over.queue_redraw()
+	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	_img.queue_redraw()
 
 
 func _sync() -> void:
@@ -152,6 +215,7 @@ func _sync() -> void:
 	_art.queue_redraw()
 	_over.queue_redraw()
 	queue_redraw()
+	_rebake()
 
 
 func _load_thumb() -> void:
@@ -165,12 +229,14 @@ func _load_thumb() -> void:
 		if not svc.rendered.is_connected(_on_rendered):
 			svc.rendered.connect(_on_rendered)
 	_art.queue_redraw()
+	_rebake()
 
 
 func _on_rendered(key: String, tex: Texture2D) -> void:
 	if key == MachineThumbs.key_of(_id(), int(card.get("lvl", 0)) >= ArsenalData.ASCENSION_LEVEL):
 		_tex = tex
 		_art.queue_redraw()
+		_rebake()
 
 
 func _animated() -> bool:
@@ -222,7 +288,7 @@ func draw_art(ci: CanvasItem) -> void:
 	var c := Vector2(w * 0.5, seam * 0.56)
 	if locked == "":
 		var pr := side * 0.62
-		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(pr, pr), Vector2(pr, pr) * 2.0), false, Color(lc.r, lc.g, lc.b, 0.4))
+		KitGemCard.glow_in(ci, Rect2(c - Vector2(pr, pr), Vector2(pr, pr) * 2.0), Rect2(Vector2.ZERO, Vector2(w, seam)), Color(lc.r, lc.g, lc.b, 0.4))
 	# Contact shadow under the machine.
 	var sh := Rect2(Vector2(c.x - side * 0.36, c.y + side * 0.2), Vector2(side * 0.72, side * 0.2))
 	ci.draw_texture_rect(UIKit.glow_texture(), sh, false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.32 if locked == "" else 0.14))
@@ -308,8 +374,7 @@ func draw_over(ci: CanvasItem) -> void:
 	# Lead: a painted crown over the top edge (the state badge slot: not with the "!").
 	if bool(card.get("is_lead", false)) and locked == "" and not _badge.visible:
 		var cs := clampf(w * 0.26, 30.0, 46.0)
-		var bob := sin(fmod(_t, 100.0) * 1.6) * 1.0 if selected else 0.0
-		Icons.draw_icon(ci, "crown", Rect2(Vector2(w * 0.5 - cs * 0.5, -cs * 0.52 + bob), Vector2(cs, cs)))
+		Icons.draw_icon(ci, "crown", Rect2(Vector2(w * 0.5 - cs * 0.5, -cs * 0.52), Vector2(cs, cs)))
 	# Deck list: a check over a picked card.
 	if picked:
 		_mini_socket(ci, Vector2(w * 0.5, seam * 0.5), clampf(w * 0.3, 36.0, 52.0), "check")
@@ -404,6 +469,13 @@ static func _name_lines(name: String, f: Font, fs: int, max_w: float) -> PackedS
 	while cut.length() > 2 and f.get_string_size(cut + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
 		cut = cut.substr(0, cut.length() - 1)
 	return PackedStringArray([cut + "…"])
+
+
+class _Baked extends Control:
+	var mc: MachineCard
+
+	func _draw() -> void:
+		draw_texture_rect(mc._vp.get_texture(), Rect2(Vector2.ZERO, size), false)
 
 
 class _Fx extends Control:

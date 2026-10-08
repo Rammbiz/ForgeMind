@@ -87,6 +87,9 @@ func _ready() -> void:
 
 
 func _layout() -> void:
+	if _opal and _opal.material:
+		(_opal.material as ShaderMaterial).set_shader_parameter("rect_size", size)
+		(_opal.material as ShaderMaterial).set_shader_parameter("chamfer_px", _cham())
 	var fh := _footer_h()
 	art.offset_bottom = -fh * 0.5
 	content.offset_bottom = -fh
@@ -149,12 +152,25 @@ func draw_ground(ci: CanvasItem) -> void:
 	# A soft light pool behind the bust (upper middle).
 	var lc: Color = g["light"]
 	var R := size.x * 0.75
-	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(size.x * 0.5 - R, size.y * 0.36 - R), Vector2(R, R) * 2.0), false, Color(lc.r, lc.g, lc.b, 0.22))
+	# Cut to the card rect geometrically (also correct where clip_children is unavailable, e.g.
+	# the MachineCard bake viewport).
+	glow_in(ci, Rect2(Vector2(size.x * 0.5 - R, size.y * 0.36 - R), Vector2(R, R) * 2.0), Rect2(Vector2.ZERO, size), Color(lc.r, lc.g, lc.b, 0.22))
 	if gem == "quartz":
 		# Crafted rock crystal: a frosted diagonal sheen (brushed light) over the planes.
 		ci.draw_polygon(PackedVector2Array([Vector2(0, size.y * 0.1), Vector2(size.x * 0.55, 0), Vector2(size.x, 0), Vector2(size.x, size.y * 0.12), Vector2(0, size.y * 0.62)]),
 				PackedColorArray([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.0)]))
 	_draw_fracture(ci, gem, Rect2(Vector2.ZERO, size), pts)
+
+
+## The soft glow texture in `dest`, cut to `bounds` (texture region maps the cut exactly).
+static func glow_in(ci: CanvasItem, dest: Rect2, bounds: Rect2, col: Color) -> void:
+	var cut := dest.intersection(bounds)
+	if cut.size.x <= 0.0 or cut.size.y <= 0.0:
+		return
+	var tex := UIKit.glow_texture()
+	var ts := tex.get_size()
+	var src := Rect2((cut.position - dest.position) / dest.size * ts, cut.size / dest.size * ts)
+	ci.draw_texture_rect_region(tex, cut, src, col)
 
 
 ## The gem's faint fracture pattern in `r`, clipped to `clip` (the card shape) when given, all
@@ -222,7 +238,7 @@ static func _draw_fracture(ci: CanvasItem, gk: String, r: Rect2, clip := PackedV
 		var cut := PackedVector2Array()
 		var i := 0
 		while i + 1 < lines.size():
-			for seg in Geometry2D.clip_polyline_with_polygon(PackedVector2Array([lines[i], lines[i + 1]]), clip):
+			for seg in Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([lines[i], lines[i + 1]]), clip):
 				var sg := seg as PackedVector2Array
 				for j in sg.size() - 1:
 					cut.append_array([sg[j], sg[j + 1]])
