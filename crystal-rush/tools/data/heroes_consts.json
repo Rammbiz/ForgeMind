@@ -1,0 +1,613 @@
+{
+ "ladder": {
+  "Q_NATIVE": 1.08,
+  "FACET_STEP": 0.0073,
+  "NATIVE_MULT": [
+   1.0,
+   1.08,
+   1.1664,
+   1.2597120000000002,
+   1.3604889600000003
+  ],
+  "RECUT_STEP": 1.0365,
+  "CEILING": 0.96,
+  "FACETS_PER_GEM": 5,
+  "SKILL_BASE": [
+   2,
+   4,
+   6,
+   8,
+   10
+  ],
+  "FORM_AT_RANK": [
+   1,
+   3,
+   5,
+   7,
+   9
+  ],
+  "AWAKEN_MIN_GEM": "E",
+  "AWAKEN_CAP": {
+   "E": 2,
+   "L": 3,
+   "M": 4
+  },
+  "BORN_AWAKENED_MIN": "L",
+  "ULT_RANK_STEP": 0.05,
+  "ATK_RANK_STEP": 0.01,
+  "RALLY_RANK_STEP": 0.1,
+  "LV_DMG": 0.035,
+  "LV_HP": 0.04,
+  "LV_RATE": 0.01,
+  "LV_ULT": 0.036
+ },
+ "budgets": {
+  "AWK_STEP": 0.04,
+  "AWK_TOL": 0.005,
+  "FORM_STEP": 0.03,
+  "FORM_TOL": 0.005,
+  "ATK_BEAT": 0.01,
+  "BEAT_TOL": 0.003,
+  "RELIC_BEAT": 0.03,
+  "RELIC_TOL": 0.005,
+  "KIT_TOL": 0.015,
+  "CHAMP_KIT_TOL": 0.03,
+  "SET4_VALUE": 0.05,
+  "U_SHARE": 0.3,
+  "HP_W": 0.05,
+  "RALLY_W": 0.03,
+  "W_C": 0.012,
+  "CHAMP_UPTIME": 0.94,
+  "ACTION_TIER_STEP": 0.04,
+  "CL_STEP": 0.04,
+  "C_RELIC": [
+   0.03,
+   0.01
+  ]
+ },
+ "progress": {
+  "DUP_FRAGS": [
+   10,
+   15,
+   25,
+   50,
+   100
+  ],
+  "FACET_FRAGS": [
+   [
+    5,
+    5,
+    10,
+    10,
+    20
+   ],
+   [
+    10,
+    10,
+    15,
+    15,
+    25
+   ],
+   [
+    15,
+    15,
+    20,
+    20,
+    30
+   ],
+   [
+    20,
+    20,
+    30,
+    30,
+    50
+   ],
+   [
+    30,
+    30,
+    40,
+    40,
+    60
+   ]
+  ],
+  "RECUT_FRAGS": [
+   40,
+   60,
+   100,
+   150
+  ],
+  "RECUT_COINS": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "OVERFLOW_FRAGS_PER_TOME": 20,
+  "TOME_COST": [
+   0,
+   2,
+   3,
+   5,
+   8,
+   12,
+   16,
+   20,
+   25,
+   30,
+   40
+  ],
+  "SKILL_COINS": 0,
+  "HERO_SYNC_BEHIND": 3,
+  "GEAR_SLOT_AT": {
+   "weapon": 1,
+   "armour": 4,
+   "charm": 8,
+   "relic": 12
+  },
+  "CHAMP_LEVEL_MAX": 20,
+  "CHAMP_LEVEL_COST": [
+   40,
+   110,
+   210,
+   320,
+   450,
+   590,
+   740,
+   910,
+   1080,
+   1260,
+   1460,
+   1660,
+   1870,
+   2100,
+   2320,
+   2560,
+   2800,
+   3050,
+   3310
+  ],
+  "CHRONICLE_PRICES": [
+   10,
+   15,
+   20,
+   30,
+   40
+  ]
+ },
+ "portal": {
+  "BASE_ODDS": {
+   "C": 0.55,
+   "R": 0.28,
+   "E": 0.12,
+   "L": 0.04,
+   "M": 0.01
+  },
+  "PITY_E": {
+   "hard": 10
+  },
+  "PITY_L": {
+   "soft_from": 21,
+   "step": 0.07,
+   "hard": 30
+  },
+  "OPAL_SHARE_IN_L": 0.2,
+  "FOCUS_TOTAL": 0.6,
+  "SEAL_PRICES": {
+   "E": 40,
+   "L": 100,
+   "M": 200
+  },
+  "OWNED_SEAL_PICK_MULT": 2,
+  "WELCOME_X10": {
+   "free": true,
+   "rule": "topaz_plus_in_10"
+  },
+  "BEACON": {
+   "first_clear": 0.2,
+   "boss": 2,
+   "mission": 0.3333333333333333,
+   "weekly": 4,
+   "exp3": 1,
+   "exp5": 2,
+   "login7": 1,
+   "track_nodes": [
+    5,
+    10
+   ],
+   "track": 0
+  }
+ },
+ "chests": {
+  "CHEST_ODDS": {
+   "C": 0.62,
+   "R": 0.27,
+   "E": 0.09,
+   "L": 0.02
+  },
+  "CHEST_PITY_L": 15,
+  "CHEST_CHARGE_PER_WIN": 0.3333333333333333,
+  "CHEST_REPLAYS_PER_DAY": 3,
+  "CHEST_TOMES": {
+   "hero": [
+    0,
+    0
+   ],
+   "grand": [
+    2,
+    2
+   ]
+  },
+  "CHEST_HERO_CARD": 0.15,
+  "CHEST_CARDS": {
+   "hero": 2,
+   "grand": 3
+  },
+  "CHEST_HERO_FRAG_MULT": {
+   "hero": 1,
+   "grand": 2
+  },
+  "CHEST_FOCUS_TOTAL": 0.6,
+  "TOMES_BOSS": 1,
+  "TOMES_WEEKLY": 2,
+  "TOMES_EXP5": 2
+ },
+ "team": {
+  "FACTION_TIERS": {
+   "dawn": [
+    0,
+    0.02,
+    0.04,
+    0.07
+   ],
+   "wildfang": [
+    1.0,
+    1.06,
+    1.12,
+    1.2
+   ],
+   "stoneheart": [
+    0,
+    0.02,
+    0.04,
+    0.06
+   ],
+   "celestial": [
+    0,
+    0.03,
+    0.06,
+    0.1
+   ]
+  },
+  "AFFINITY_PER": 0.03,
+  "AFFINITY_CAP": 0.09,
+  "TEAM_B2_CAP": 0.2,
+  "AURA_CAP": 0.4,
+  "CLASS_PAIR": {
+   "warrior": [
+    "army",
+    0.03
+   ],
+   "ranger": [
+    "rate",
+    1.05
+   ],
+   "mage": [
+    "ultp",
+    1.08
+   ],
+   "guardian": [
+    "champ_all",
+    1.05
+   ],
+   "healer": [
+    "army",
+    0.02
+   ]
+  }
+ },
+ "gear": {
+  "ITEM_STAT": {
+   "weapon": {
+    "dmg": [
+     0.01,
+     0.005,
+     [
+      0.01,
+      0.01,
+      0.02
+     ]
+    ]
+   },
+   "armour": {
+    "hp": [
+     0.02,
+     0.008,
+     [
+      0.01,
+      0.01,
+      0.02
+     ]
+    ]
+   },
+   "charm": {
+    "ult": [
+     0.01,
+     0.005,
+     [
+      0.01,
+      0.01,
+      0.01
+     ]
+    ],
+    "charge": [
+     0.01,
+     0.003,
+     [
+      0.005,
+      0.005,
+      0.01
+     ]
+    ]
+   }
+  },
+  "HERO_RELIC_STAT": {
+   "dmg": [
+    0.01,
+    0.001
+   ],
+   "hp": [
+    0.02,
+    0.0025
+   ]
+  },
+  "SET2": {
+   "dawn": [
+    "dmg",
+    0.03
+   ],
+   "wildfang": [
+    "charge",
+    0.05
+   ],
+   "stoneheart": [
+    "hp",
+    0.05
+   ],
+   "celestial": [
+    "ult",
+    0.05
+   ]
+  },
+  "CRAFT_ORE": {
+   "item": 40,
+   "hero_relic": 60,
+   "champ_relic": 30
+  },
+  "TEMPER_ORE": "8 + 4 r (champion relic: ceil(half))",
+  "TEMPER_MAX": 12,
+  "TIER_AT": [
+   0,
+   3,
+   6,
+   9,
+   12
+  ],
+  "TEMPER_CAP_PER_WORLD": 2,
+  "TROPHIES": {
+   "8": "dawn_weapon",
+   "16": "wildfang_charm",
+   "24": "wildfang_weapon",
+   "32": "stoneheart_armour",
+   "40": "stoneheart_charm",
+   "48": "dawn_armour",
+   "56": "celestial_weapon",
+   "64": "dawn_weapon",
+   "72": "wildfang_charm",
+   "80": "wildfang_weapon",
+   "88": "stoneheart_armour",
+   "96": "stoneheart_charm",
+   "104": "dawn_armour",
+   "112": "celestial_weapon"
+  },
+  "TROPHY_RANK": 3,
+  "MAT_BOSS": {
+   "campaign": 14,
+   "invasion": 20
+  },
+  "MAT_PER_WIN": {
+   "campaign": [
+    2.0,
+    3.0,
+    3.0,
+    4.0,
+    4.0,
+    5.0,
+    7.0
+   ],
+   "invasion": [
+    3.0,
+    4.0,
+    4.0,
+    5.0,
+    5.0,
+    5.0,
+    9.0
+   ],
+   "replay_share": 0.6
+  }
+ },
+ "ceremony": {
+  "prologue": 0.6,
+  "x1": [
+   1.2,
+   1.8
+  ],
+  "walkout": {
+   "2": 2.6,
+   "3": 3.6,
+   "4": 5.0
+  },
+  "short_walkout": 1.2,
+  "x10_frame": 1.2,
+  "batch_crack": 0.5,
+  "seal_pick_new": 1.8,
+  "seal_pick_owned": 1.2,
+  "chest_inline": 1.6,
+  "chest_inline_dup": 1.2,
+  "cameo": 1.5,
+  "cameo_next": 1.0,
+  "vault_batch": 0.3,
+  "facet": 0.35,
+  "full_facets": 1.6,
+  "recut": 3.0,
+  "skill": 0.6,
+  "form": 1.6,
+  "awaken": 3.0,
+  "hero_level": 0.35,
+  "clevel": 0.35,
+  "craft": 1.2,
+  "temper": 0.35,
+  "temper_tier": 1.2,
+  "temper_beat": 1.2,
+  "chronicle": 0.35,
+  "migration_summary": 3.0
+ },
+ "feats": {
+  "F-61": {
+   "counter": "heroes_owned",
+   "tiers": [
+    4,
+    7,
+    10
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  },
+  "F-62": {
+   "counter": "recuts",
+   "tiers": [
+    1,
+    6,
+    20
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  },
+  "F-63": {
+   "counter": "full_cuts",
+   "tiers": [
+    2,
+    10,
+    30
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  },
+  "F-64": {
+   "counter": "champions_owned",
+   "tiers": [
+    4,
+    8,
+    12
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  },
+  "F-65": {
+   "counter": "skill_ranks",
+   "tiers": [
+    10,
+    40,
+    100
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  },
+  "F-66": {
+   "counter": "awakenings",
+   "tiers": [
+    1,
+    3,
+    6
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  },
+  "F-70": {
+   "counter": "champion_level",
+   "tiers": [
+    5,
+    12,
+    20
+   ],
+   "reward": [
+    "tomes",
+    [
+     2,
+     4,
+     8
+    ]
+   ]
+  }
+ },
+ "unlocks": {
+  "champions": 14,
+  "portal": 20,
+  "seer": 24,
+  "skills": 30,
+  "workshop": 32,
+  "slot3": 40
+ },
+ "team_demand": {
+  "1": 1.028,
+  "2": 1.03,
+  "3": 1.054,
+  "4": 1.07,
+  "5": 1.111,
+  "6": 1.123,
+  "7": 1.158,
+  "8": 1.133,
+  "9": 1.124,
+  "10": 1.135,
+  "11": 1.135,
+  "12": 1.131,
+  "13": 1.132,
+  "14": 1.122
+ }
+}

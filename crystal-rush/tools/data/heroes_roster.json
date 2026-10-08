@@ -1,0 +1,1425 @@
+{
+ "_source": "heroes_sim.py v2 + heroes_tables.py + heroes_design.md §6.0 via tools/gen_heroes_data.py --refresh",
+ "gems": {
+  "keys": [
+   "C",
+   "R",
+   "E",
+   "L",
+   "M"
+  ],
+  "uk": [
+   "Кварц",
+   "Сапфір",
+   "Аметист",
+   "Топаз",
+   "Опал"
+  ],
+  "en": [
+   "Quartz",
+   "Sapphire",
+   "Amethyst",
+   "Topaz",
+   "Opal"
+  ]
+ },
+ "hero_max_gem": "M",
+ "champion_max_gem": "L",
+ "atk_beats": [
+  3,
+  6,
+  9
+ ],
+ "hero_order": [
+  "titan",
+  "arin",
+  "bolt",
+  "eira",
+  "seer",
+  "iskar",
+  "vesta",
+  "vartan",
+  "lumen",
+  "pava"
+ ],
+ "champion_order": [
+  "mila",
+  "ivo",
+  "borko",
+  "alba",
+  "otto",
+  "taya",
+  "brant",
+  "teo",
+  "olena",
+  "nimb",
+  "dara",
+  "menhir"
+ ],
+ "starters": [
+  "titan",
+  "bolt",
+  "seer"
+ ],
+ "start_owned": [
+  "bolt"
+ ],
+ "starter_at": {
+  "titan": 4,
+  "bolt": 0,
+  "seer": 24
+ },
+ "scripted_chests": {
+  "first": {
+   "bolt": "alba",
+   "titan": "otto"
+  },
+  "first_default": "otto",
+  "second": "mila"
+ },
+ "factions": [
+  "dawn",
+  "wildfang",
+  "stoneheart",
+  "celestial"
+ ],
+ "faction_home": {
+  "dawn": [
+   1,
+   6
+  ],
+  "wildfang": [
+   2,
+   3
+  ],
+  "stoneheart": [
+   4,
+   5
+  ],
+  "celestial": [
+   7
+  ]
+ },
+ "aura_share": {
+  "front": 0.35,
+  "left": 0.3,
+  "right": 0.3,
+  "rear": 0.25
+ },
+ "aura_cap": 0.4,
+ "heroes": {
+  "titan": {
+   "no": 1,
+   "native": "C",
+   "class": "guardian",
+   "element": "kinetic",
+   "element2": "",
+   "faction": "stoneheart",
+   "niche": "structures",
+   "ult": "quake",
+   "kit": {
+    "hp": 32,
+    "rate": 1.2,
+    "dmg": 4,
+    "splash": 3,
+    "range": 12,
+    "targets": 1,
+    "ult_charge": 40
+   },
+   "ult_main": {
+    "value": 12,
+    "note": "kills & breaks per band (4 bands)"
+   },
+   "ult2": {},
+   "rally": {
+    "hook": "army_scrape",
+    "param": "",
+    "base": 3.0,
+    "note": "soldiers spared per hazard contact"
+   }
+  },
+  "arin": {
+   "no": 2,
+   "native": "C",
+   "class": "warrior",
+   "element": "kinetic",
+   "element2": "",
+   "faction": "dawn",
+   "niche": "armored",
+   "ult": "anchor",
+   "kit": {
+    "hp": 26,
+    "rate": 1.6,
+    "dmg": 3,
+    "splash": 2,
+    "range": 11,
+    "targets": 1,
+    "ult_charge": 36
+   },
+   "ult_main": {
+    "value": 22,
+    "note": "impact kills & breaks"
+   },
+   "ult2": {},
+   "rally": {
+    "hook": "army_drill",
+    "param": "",
+    "base": 0.075,
+    "note": "extra clash loss of squads he hit"
+   }
+  },
+  "bolt": {
+   "no": 3,
+   "native": "R",
+   "class": "ranger",
+   "element": "volt",
+   "element2": "",
+   "faction": "wildfang",
+   "niche": "flying",
+   "ult": "storm",
+   "kit": {
+    "hp": 14,
+    "rate": 3.6,
+    "dmg": 1,
+    "splash": 0,
+    "range": 15,
+    "targets": 1,
+    "ult_charge": 35
+   },
+   "ult_main": {
+    "value": 5,
+    "note": "storm kills per tick (12 ticks)"
+   },
+   "ult2": {},
+   "rally": {
+    "hook": "machines_element",
+    "param": "volt",
+    "base": 0.03,
+    "note": "Volt machine damage, bucket 2"
+   }
+  },
+  "eira": {
+   "no": 4,
+   "native": "R",
+   "class": "healer",
+   "element": "frost",
+   "element2": "",
+   "faction": "dawn",
+   "niche": "shielded",
+   "ult": "rime",
+   "kit": {
+    "hp": 20,
+    "rate": 2.0,
+    "dmg": 1,
+    "splash": 0,
+    "range": 14,
+    "targets": 1,
+    "ult_charge": 34
+   },
+   "ult_main": {
+    "value": 4,
+    "note": "Litany kills per squad"
+   },
+   "ult2": {},
+   "rally": {
+    "hook": "champions_hp",
+    "param": "",
+    "base": 0.15,
+    "note": "champion HP x(1+v)"
+   }
+  },
+  "seer": {
+   "no": 5,
+   "native": "E",
+   "class": "mage",
+   "element": "rune",
+   "element2": "",
+   "faction": "wildfang",
+   "niche": "",
+   "ult": "rift",
+   "kit": {
+    "hp": 18,
+    "rate": 2.0,
+    "dmg": 1,
+    "splash": 0,
+    "range": 16,
+    "targets": 2,
+    "ult_charge": 38
+   },
+   "ult_main": {
+    "value": 5,
+    "note": "rift kills per tick (8 ticks)"
+   },
+   "ult2": {},
+   "rally": {
+    "hook": "ult_start",
+    "param": "",
+    "base": 0.1,
+    "note": "ult charge at level start"
+   }
+  },
+  "iskar": {
+   "no": 6,
+   "native": "E",
+   "class": "ranger",
+   "element": "volt",
+   "element2": "",
+   "faction": "celestial",
+   "niche": "",
+   "ult": "comet",
+   "kit": {
+    "hp": 13,
+    "rate": 3.2,
+    "dmg": 1,
+    "splash": 0,
+    "range": 16,
+    "targets": 1,
+    "ult_charge": 36
+   },
+   "ult_main": {
+    "value": 6,
+    "note": "comet kills per tick (6 ticks)"
+   },
+   "ult2": {},
+   "rally": {
+    "hook": "machines_verb",
+    "param": "lane",
+    "base": 0.025,
+    "note": "LANE machine damage, bucket 2"
+   }
+  },
+  "vesta": {
+   "no": 7,
+   "native": "L",
+   "class": "warrior",
+   "element": "plasma",
+   "element2": "",
+   "faction": "dawn",
+   "niche": "",
+   "ult": "sunglaive",
+   "kit": {
+    "hp": 27,
+    "rate": 1.5,
+    "dmg": 3,
+    "splash": 2,
+    "range": 12,
+    "targets": 1,
+    "ult_charge": 38
+   },
+   "ult_main": {
+    "value": 10,
+    "note": "Sunrise kills & breaks per pulse (4 pulses)"
+   },
+   "ult2": {
+    "value": 8,
+    "note": "Sunstride slam (form IV)",
+    "rank": 7
+   },
+   "rally": {
+    "hook": "army_reserves",
+    "param": "",
+    "base": 6.0,
+    "note": "soldiers joining at the siege"
+   }
+  },
+  "vartan": {
+   "no": 8,
+   "native": "L",
+   "class": "guardian",
+   "element": "tech",
+   "element2": "",
+   "faction": "stoneheart",
+   "niche": "",
+   "ult": "forgewall",
+   "kit": {
+    "hp": 33,
+    "rate": 1.1,
+    "dmg": 4,
+    "splash": 3,
+    "range": 12,
+    "targets": 1,
+    "ult_charge": 42
+   },
+   "ult_main": {
+    "value": 8,
+    "note": "wall contact kills (wall HP 30 scales the same)"
+   },
+   "ult2": {
+    "value": 8,
+    "note": "Landslide (form IV)",
+    "rank": 7
+   },
+   "rally": {
+    "hook": "army_volleys",
+    "param": "",
+    "base": 0.15,
+    "note": "army volley damage x(1+v)"
+   }
+  },
+  "lumen": {
+   "no": 9,
+   "native": "M",
+   "class": "mage",
+   "element": "plasma",
+   "element2": "rune",
+   "faction": "celestial",
+   "niche": "",
+   "ult": "spectrum",
+   "kit": {
+    "hp": 17,
+    "rate": 2.2,
+    "dmg": 1,
+    "splash": 1,
+    "range": 15,
+    "targets": 2,
+    "ult_charge": 42
+   },
+   "ult_main": {
+    "value": 2,
+    "note": "fan kills & breaks per ray per tick (10 ticks)"
+   },
+   "ult2": {
+    "value": 4,
+    "note": "Crown Shard hit (form IV)",
+    "rank": 7
+   },
+   "rally": {
+    "hook": "machines_element",
+    "param": "plasma",
+    "base": 0.03,
+    "note": "Plasma machine damage, bucket 2"
+   }
+  },
+  "pava": {
+   "no": 10,
+   "native": "M",
+   "class": "healer",
+   "element": "rune",
+   "element2": "frost",
+   "faction": "wildfang",
+   "niche": "",
+   "ult": "eyes",
+   "kit": {
+    "hp": 21,
+    "rate": 1.9,
+    "dmg": 1,
+    "splash": 0,
+    "range": 14,
+    "targets": 1,
+    "ult_charge": 44
+   },
+   "ult_main": {
+    "value": 8,
+    "note": "fan base return (+30% of the revive pool)"
+   },
+   "ult2": {
+    "value": 4,
+    "note": "Eyes Wide kills (form IV)",
+    "rank": 7
+   },
+   "rally": {
+    "hook": "champions_aura",
+    "param": "",
+    "base": 0.06,
+    "note": "champion aura value x(1+v)"
+   }
+  }
+ },
+ "champions": {
+  "mila": {
+   "no": 11,
+   "native": "C",
+   "class": "healer",
+   "element": "tech",
+   "faction": "dawn",
+   "slot": "left",
+   "kit": {
+    "hp": 30,
+    "action": 3,
+    "aura": 0.12,
+    "radius": 1.3
+   },
+   "action_note": "soldiers returned per pulse (every 3 s)",
+   "aura_note": "hazard losses -"
+  },
+  "ivo": {
+   "no": 12,
+   "native": "C",
+   "class": "guardian",
+   "element": "plasma",
+   "faction": "dawn",
+   "slot": "front",
+   "kit": {
+    "hp": 60,
+    "action": 3,
+    "aura": 0.1,
+    "radius": 1.0
+   },
+   "action_note": "blocked-barricade damage (Block every 5 s)",
+   "aura_note": "clash losses -"
+  },
+  "borko": {
+   "no": 13,
+   "native": "C",
+   "class": "warrior",
+   "element": "kinetic",
+   "faction": "wildfang",
+   "slot": "front",
+   "kit": {
+    "hp": 48,
+    "action": 3,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "Undermine kills (every 5 s)",
+   "aura_note": "squad clash loss +"
+  },
+  "alba": {
+   "no": 14,
+   "native": "R",
+   "class": "ranger",
+   "element": "frost",
+   "faction": "wildfang",
+   "slot": "rear",
+   "kit": {
+    "hp": 26,
+    "action": 1.0,
+    "aura": 0.15,
+    "radius": 1.4
+   },
+   "action_note": "shot damage (every 1.2 s; x1.5 vs Flying)",
+   "aura_note": "army volleys +"
+  },
+  "otto": {
+   "no": 15,
+   "native": "R",
+   "class": "guardian",
+   "element": "kinetic",
+   "faction": "stoneheart",
+   "slot": "front",
+   "kit": {
+    "hp": 60,
+    "action": 1,
+    "aura": 0.1,
+    "radius": 1.0
+   },
+   "action_note": "kills per Block (Block every 5 s)",
+   "aura_note": "clash losses -"
+  },
+  "taya": {
+   "no": 16,
+   "native": "R",
+   "class": "mage",
+   "element": "rune",
+   "faction": "celestial",
+   "slot": "rear",
+   "kit": {
+    "hp": 26,
+    "action": 4,
+    "aura": 0.15,
+    "radius": 1.2
+   },
+   "action_note": "Spell kills per squad (every 4 s)",
+   "aura_note": "volley status proc x"
+  },
+  "brant": {
+   "no": 17,
+   "native": "E",
+   "class": "warrior",
+   "element": "plasma",
+   "faction": "stoneheart",
+   "slot": "front",
+   "kit": {
+    "hp": 48,
+    "action": 3,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "leap kills (every 5 s)",
+   "aura_note": "squad clash loss +"
+  },
+  "teo": {
+   "no": 18,
+   "native": "E",
+   "class": "ranger",
+   "element": "tech",
+   "faction": "celestial",
+   "slot": "rear",
+   "kit": {
+    "hp": 26,
+    "action": 1.0,
+    "aura": 0.15,
+    "radius": 1.4
+   },
+   "action_note": "shot damage (every 1.2 s, homing)",
+   "aura_note": "army volleys +"
+  },
+  "olena": {
+   "no": 19,
+   "native": "E",
+   "class": "healer",
+   "element": "frost",
+   "faction": "wildfang",
+   "slot": "right",
+   "kit": {
+    "hp": 30,
+    "action": 3,
+    "aura": 0.12,
+    "radius": 1.3
+   },
+   "action_note": "soldiers returned per pulse (every 3 s)",
+   "aura_note": "hazard losses -"
+  },
+  "nimb": {
+   "no": 20,
+   "native": "L",
+   "class": "guardian",
+   "element": "volt",
+   "faction": "celestial",
+   "slot": "front",
+   "kit": {
+    "hp": 60,
+    "action": 2,
+    "aura": 0.1,
+    "radius": 1.0
+   },
+   "action_note": "Lightning Rod damage x3 targets (per Block)",
+   "aura_note": "clash losses -"
+  },
+  "dara": {
+   "no": 21,
+   "native": "L",
+   "class": "ranger",
+   "element": "volt",
+   "faction": "dawn",
+   "slot": "rear",
+   "kit": {
+    "hp": 26,
+    "action": 1.0,
+    "aura": 0.15,
+    "radius": 1.4
+   },
+   "action_note": "shot damage (every 1.2 s; harpoon every 3rd)",
+   "aura_note": "army volleys +"
+  },
+  "menhir": {
+   "no": 22,
+   "native": "L",
+   "class": "mage",
+   "element": "rune",
+   "faction": "stoneheart",
+   "slot": "right",
+   "kit": {
+    "hp": 26,
+    "action": 4,
+    "aura": 0.15,
+    "radius": 1.2
+   },
+   "action_note": "rune-strike kills per squad (every 4 s)",
+   "aura_note": "volley status proc x"
+  }
+ },
+ "oracle": {
+  "ladder": [
+   [
+    [
+     1.0,
+     1.0073,
+     1.0146,
+     1.0219,
+     1.0292,
+     1.0365
+    ],
+    [
+     1.0365,
+     1.04406645,
+     1.0516329,
+     1.05919935,
+     1.0667657999999998,
+     1.0743322499999999
+    ],
+    [
+     1.0743322499999999,
+     1.082174875425,
+     1.0900175008499997,
+     1.0978601262749998,
+     1.1057027516999998,
+     1.113545377125
+    ],
+    [
+     1.113545377125,
+     1.1216742583780126,
+     1.1298031396310249,
+     1.1379320208840373,
+     1.1460609021370498,
+     1.1541897833900623
+    ],
+    [
+     1.1541897833900625,
+     1.1626153688088101,
+     1.1710409542275573,
+     1.1794665396463049,
+     1.1878921250650523,
+     1.1963177104837999
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1.08,
+     1.087884,
+     1.095768,
+     1.103652,
+     1.1115359999999999,
+     1.11942
+    ],
+    [
+     1.11942,
+     1.127591766,
+     1.1357635320000001,
+     1.1439352980000002,
+     1.152107064,
+     1.16027883
+    ],
+    [
+     1.16027883,
+     1.1687488654590001,
+     1.1772189009179999,
+     1.185688936377,
+     1.194158971836,
+     1.2026290072949999
+    ],
+    [
+     1.2026290072949999,
+     1.2114081990482535,
+     1.2201873908015068,
+     1.2289665825547604,
+     1.2377457743080138,
+     1.2465249660612674
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1.1664,
+     1.1749147200000003,
+     1.18342944,
+     1.19194416,
+     1.20045888,
+     1.2089736
+    ],
+    [
+     1.2089736,
+     1.21779910728,
+     1.22662461456,
+     1.23545012184,
+     1.24427562912,
+     1.2531011364
+    ],
+    [
+     1.2531011364,
+     1.26224877469572,
+     1.27139641299144,
+     1.28054405128716,
+     1.2896916895828798,
+     1.2988393278786
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1.2597120000000002,
+     1.2689078976000003,
+     1.2781037952,
+     1.2872996928000002,
+     1.2964955904,
+     1.3056914880000001
+    ],
+    [
+     1.3056914880000001,
+     1.3152230358624002,
+     1.3247545837248,
+     1.3342861315872,
+     1.3438176794496,
+     1.353349227312
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     1.3604889600000003,
+     1.3704205294080005,
+     1.3803520988160003,
+     1.3902836682240003,
+     1.400215237632,
+     1.4101468070400003
+    ]
+   ]
+  ],
+  "skill_cap": [
+   [
+    [
+     2,
+     2,
+     2,
+     2,
+     2,
+     3
+    ],
+    [
+     3,
+     3,
+     3,
+     3,
+     3,
+     4
+    ],
+    [
+     5,
+     5,
+     5,
+     5,
+     5,
+     6
+    ],
+    [
+     7,
+     7,
+     7,
+     7,
+     7,
+     8
+    ],
+    [
+     9,
+     9,
+     9,
+     9,
+     9,
+     10
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     4,
+     4,
+     4,
+     4,
+     4,
+     5
+    ],
+    [
+     5,
+     5,
+     5,
+     5,
+     5,
+     6
+    ],
+    [
+     7,
+     7,
+     7,
+     7,
+     7,
+     8
+    ],
+    [
+     9,
+     9,
+     9,
+     9,
+     9,
+     10
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     6,
+     6,
+     6,
+     6,
+     6,
+     7
+    ],
+    [
+     7,
+     7,
+     7,
+     7,
+     7,
+     8
+    ],
+    [
+     9,
+     9,
+     9,
+     9,
+     9,
+     10
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     8,
+     8,
+     8,
+     8,
+     8,
+     9
+    ],
+    [
+     9,
+     9,
+     9,
+     9,
+     9,
+     10
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     10,
+     10,
+     10,
+     10,
+     10,
+     11
+    ]
+   ]
+  ],
+  "ult_form": [
+   [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   [
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   [
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+   ],
+   [
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   [
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    4,
+    4,
+    5,
+    5,
+    5
+   ]
+  ],
+  "can_awaken": [
+   [
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ],
+    [
+     false,
+     false,
+     false,
+     false,
+     false,
+     true
+    ]
+   ],
+   [
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   ]
+  ],
+  "awaken_cap": [
+   [
+    0,
+    0,
+    1,
+    2,
+    3
+   ],
+   [
+    null,
+    0,
+    1,
+    2,
+    3
+   ],
+   [
+    null,
+    null,
+    2,
+    2,
+    3
+   ],
+   [
+    null,
+    null,
+    null,
+    3,
+    3
+   ],
+   [
+    null,
+    null,
+    null,
+    null,
+    4
+   ]
+  ],
+  "champ_level_cost": [
+   40,
+   110,
+   210,
+   320,
+   450,
+   590,
+   740,
+   910,
+   1080,
+   1260,
+   1460,
+   1660,
+   1870,
+   2100,
+   2320,
+   2560,
+   2800,
+   3050,
+   3310
+  ],
+  "chest_hero_card_frags": [
+   2,
+   2,
+   4,
+   8,
+   15
+  ],
+  "portal_pl": [
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.05,
+   0.12000000000000001,
+   0.19,
+   0.26,
+   0.33,
+   0.4,
+   0.47000000000000003,
+   0.54,
+   0.6100000000000001,
+   0.6800000000000002,
+   1.0,
+   1.0
+  ]
+ }
+}
