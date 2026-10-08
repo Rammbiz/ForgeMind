@@ -35,10 +35,10 @@ static func unlocked(acc: Dictionary, id: String, dev := false) -> bool:
 
 ## Coins for the next level of `id` (0 while the Heroes tab's free first level is unused).
 static func cost(acc: Dictionary, id: String) -> int:
+	if EconData.heroes_live():
+		return sync_cost(acc, id)
 	if bool(MetaAcc.free_steps(acc).get("hero", false)):
 		return 0
-	if EconData.heroes_live():
-		return EconData.hero_cost(eff_level(acc, id))
 	return EconData.hero_cost(level(acc, id))
 
 
@@ -117,17 +117,24 @@ static func synced(acc: Dictionary, id: String) -> bool:
 	return eff_level(acc, id) > level(acc, id)
 
 
+## Coins for the next Hero Sync level: hero_cost(eff) (0 while the free first level is unused).
+static func sync_cost(acc: Dictionary, id: String) -> int:
+	if bool(MetaAcc.free_steps(acc).get("hero", false)):
+		return 0
+	return EconData.hero_cost(eff_level(acc, id))
+
+
 ## v3 level purchase: pays hero_cost(eff) and sets own = eff + 1.
 ## {ok, reason, id, lvl, synced, milestone ("" | gear_slot), coins, free}.
 static func level_up_synced(acc: Dictionary, id: String, dev := false) -> Dictionary:
 	var eff := eff_level(acc, id)
-	if not unlocked(acc, id, dev):
+	if not (Roster.owned(acc, id) or (dev and HeroData.HEROES.has(id))):
 		return {"ok": false, "id": id, "reason": "locked"}
 	if eff >= cap(acc):
 		return {"ok": false, "id": id, "reason": "cap"}
 	if not UnlockQueue.is_open(acc, "heroes"):
 		return {"ok": false, "id": id, "reason": "locked"}
-	var c := cost(acc, id)
+	var c := sync_cost(acc, id)
 	if not MetaAcc.spend(acc, "coins", c):
 		return {"ok": false, "id": id, "reason": "coins"}
 	var free := c == 0
