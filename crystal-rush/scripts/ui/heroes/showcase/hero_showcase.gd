@@ -428,7 +428,10 @@ func _skill_block(s: String, ranks_open: bool, bw := 152.0) -> Control:
 	var nm := UIKit.label(sn, fs, UITokens.INK, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.custom_minimum_size = Vector2(bw, 0)
-	if UIKit.font(true).get_string_size(sn, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > bw - 2.0:
+	if not " " in sn.strip_edges():
+		# One long word (e.g. «Сонцесходження») never breaks mid-word: it fits on one line instead.
+		nm.add_theme_font_size_override("font_size", UIKit.fit_size(sn, bw + 8.0, 22, 18))
+	elif UIKit.font(true).get_string_size(sn, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > bw - 2.0:
 		# A long name takes two 22 px lines rather than shrinking below the type floor.
 		nm.add_theme_font_size_override("font_size", 22)
 		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -462,6 +465,9 @@ func _build_dock() -> HBoxContainer:
 		if int(h["eff_level"]) < int(h["level_cap"]):
 			sub = HeroesText.t("MANAGE_LEVEL_TO", [int(h["eff_level"]), int(h["eff_level"]) + 1])
 			price = HeroesUIModel.level_cost(hero_id)
+		else:
+			# At the world cap the CTA still opens Manage (facets, skills); say why there is no price.
+			sub = HeroesText.t("MANAGE_LEVEL_AT_CAP", [int(HeroesUIModel.unlocks()["world"]) + 1])
 		var up := HeroPriceCTA.make(HeroesText.t("SHOW_CTA_UPGRADE"), sub, price, Vector2(0, 88), 30)
 		up.pressed.connect(func(): _open_manage("level"))
 		cta = up

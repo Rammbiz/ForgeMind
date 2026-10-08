@@ -149,6 +149,12 @@ func _build() -> void:
 		_cta.pressed.connect(_on_cta)
 		_dock.add_child(_cta)
 		_sync_cta()
+	elif HeroData.HEROES.has(char_id):
+		# The highest cut: «Далі ростуть грані й навички» leads straight to the hero's facets page.
+		var fb := UIKit.secondary_button(HeroesText.t("MANAGE_TAB_FACETS"), "", Vector2(0, 88), 28)
+		fb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		fb.pressed.connect(func(): HeroesNav.open(hub, "hero/" + char_id + "/manage/facets"))
+		_dock.add_child(fb)
 
 
 func _inner_w() -> float:

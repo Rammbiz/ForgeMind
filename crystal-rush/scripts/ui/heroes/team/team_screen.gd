@@ -549,7 +549,12 @@ class _Seat extends Control:
 			fs -= 1
 		var lines := [text]
 		if f.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x > size.x - 10.0:
+			# Two lines at the full 22 px (shrink only if a single word still does not fit).
 			lines = text.split(" ", false, 1)
+			fs = 22
+			for ln: String in lines:
+				while fs > 18 and f.get_string_size(ln, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x > size.x - 10.0:
+					fs -= 1
 		var y := size.y * 0.42 + 62.0
 		for ln: String in lines:
 			draw_string(f, Vector2(5, y), ln, HORIZONTAL_ALIGNMENT_CENTER, size.x - 10.0, fs, UITokens.INK_DIM if locked else UITokens.INK)

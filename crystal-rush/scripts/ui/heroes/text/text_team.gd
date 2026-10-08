@@ -87,7 +87,7 @@ const T := {
 	"CHAMP_UI_SLOT": ["Місце в строю: %s", "Formation slot: %s"],
 	"CHAMP_UI_TIER_HAVE": ["Ярус %s — найвищий: корінний %s", "Tier %s — the highest: a native %s"],
 	"CHAMP_UI_TIER_KEPT": ["Огранений: ярус лишається %s", "Recut: the tier stays %s"],
-	"CHAMP_UI_RELIC_LOCKED": ["Майстерня — після рівня %d", "Workshop — after level %d"],
+	"CHAMP_UI_RELIC_LOCKED": ["Майстерня — після рівня\u00A0%d", "Workshop — after level\u00A0%d"],
 	"CHAMP_UI_RELIC_RANK": ["+%d · гартування в Майстерні", "+%d · temper in the Workshop"],
 	"CHAMP_UI_AURA_VALUE": ["%s у колі", "%s inside the ring"],
 	"CHAMP_UI_RUN": ["У забігу", "In the run"],

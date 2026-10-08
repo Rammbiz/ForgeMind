@@ -112,7 +112,7 @@ const FALLBACK := {
 	"SKL_MAX": ["МАКС", "MAX"], "SKL_BORN": ["Від народження", "Born awakened"],
 	"SKL_NATIVE_ONLY": ["Ранг %d — лише для корінних %s", "Rank %d — native %s only"],
 	"SKL_FORM_NATIVE_ONLY": ["Форма %s — лише для корінних %s", "Form %s — native %s only"],
-	"SKL_LOCKED_AT": ["Відкриється на рівні %d", "Opens at level %d"],
+	"SKL_LOCKED_AT": ["Відкриється на рівні %d", "Opens at level\u00A0%d"],
 	"SKL_AFTER_FULL": ["після Повних граней", "after Full facets"],
 	"SKL_FORM": ["Форма %s", "Form %s"],
 	"FORM_C": ["Кварцова форма", "Quartz form"], "FORM_R": ["Сапфірова форма", "Sapphire form"],
@@ -203,7 +203,7 @@ const FALLBACK := {
 	"MANAGE_TAB_LEVEL": ["Рівень", "Level"], "MANAGE_TAB_FACETS": ["Грані", "Facets"],
 	"MANAGE_TAB_SKILLS": ["Навички", "Skills"], "MANAGE_TAB_GEAR": ["Спорядження", "Gear"],
 	"MANAGE_LEVEL_CAP": ["Макс. у цьому світі: %d", "Max in this world: %d"],
-	"MANAGE_LOCKED": ["Відкриється після рівня %d", "Unlocks after level %d"],
+	"MANAGE_LOCKED": ["Відкриється після рівня\u00A0%d", "Unlocks after level\u00A0%d"],
 	# ---------------------------------------------------------------- hall (part U §2.1)
 	"HALL_TITLE": ["Зала героїв", "Hall of Heroes"],
 	"HALL_TAB_HEROES": ["Герої", "Heroes"], "HALL_TAB_CHAMPIONS": ["Чемпіони", "Champions"],
@@ -215,15 +215,15 @@ const FALLBACK := {
 	"HALL_SORT_LEVEL": ["Рівень", "Level"], "HALL_SORT_NEW": ["Нові", "New"],
 	"HALL_NEW": ["НОВИЙ", "NEW"],
 	"HALL_SRC_PORTAL": ["Портал", "Portal"], "HALL_SRC_SEALS": ["Печатки · %d", "Seals · %d"],
-	"HALL_SRC_LEVEL": ["Після рівня %d", "After level %d"], "HALL_SRC_CHEST": ["Скриня героїв", "Hero Chest"],
+	"HALL_SRC_LEVEL": ["Після рівня\u00A0%d", "After level\u00A0%d"], "HALL_SRC_CHEST": ["Скриня героїв", "Hero Chest"],
 	"HALL_WAITING": ["Нові герої чекають", "New heroes are waiting"],
 	"HALL_PLATE_PORTAL": ["Портал", "Portal"], "HALL_PLATE_WORKSHOP": ["Майстерня", "Workshop"],
-	"HALL_PLATE_LOCKED": ["%s · після рівня %d", "%s · after level %d"],
+	"HALL_PLATE_LOCKED": ["%s · після рівня\u00A0%d", "%s · after level\u00A0%d"],
 	"LOCKED": ["Закрито", "Locked"],
 	# ---------------------------------------------------------------- team (§5.5, part U §2.7)
 	"TEAM_TITLE": ["Команда", "Team"], "TEAM_HERO": ["Герой", "Hero"], "TEAM_CHAMPIONS": ["Чемпіони", "Champions"],
 	"TEAM_AUTO": ["Підібрати", "Auto-team"], "TEAM_PRESET": ["Набір %d", "Preset %d"],
-	"TEAM_SLOT_EMPTY": ["Порожньо", "Empty"], "TEAM_SLOT_LOCKED": ["Після рівня %d", "After level %d"],
+	"TEAM_SLOT_EMPTY": ["Порожньо", "Empty"], "TEAM_SLOT_LOCKED": ["Після рівня\u00A0%d", "After level\u00A0%d"],
 	"TEAM_NO_MACHINE": ["%s: машин цієї стихії поки немає", "%s: no machines of this element yet"],
 	"TEAM_SYNERGY": ["Синергія", "Synergy"],
 	"SYN_DAWN": ["%s %s: +%d солдатів біля фортеці", "%s %s: +%d soldiers at the siege"],
@@ -320,7 +320,7 @@ const FALLBACK := {
 	# ---------------------------------------------------------------- generic
 	"UI_BACK": ["Назад", "Back"], "UI_CLOSE": ["Закрити", "Close"], "UI_CONFIRM": ["Підтвердити", "Confirm"],
 	"UI_NOT_BUILT": ["Екран ще будується: %s", "Screen still being built: %s"],
-	"UI_ROUTE_LOCKED": ["Відкриється після рівня %d", "Opens after level %d"],
+	"UI_ROUTE_LOCKED": ["Відкриється після рівня\u00A0%d", "Opens after level\u00A0%d"],
 }
 
 static var _extra: Dictionary = {}
