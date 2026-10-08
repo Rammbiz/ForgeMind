@@ -104,6 +104,11 @@ func _apply() -> void:
 	card.footer_ratio = float(FOOTER[size_kind])
 	card.title = str(data.get("name", ""))
 	card.dim = not owned
+	# A dimmed (unowned) opal card drops the kit's play-of-colour layer so it greys like the rest
+	# (KitGemCard keeps it on for every opal; requested as a kit fix).
+	var opal_layer := card.get("_opal") as Control
+	if opal_layer:
+		opal_layer.visible = UITokens.gem_of(gem) == "opal" and owned and UIKit.kit_texture("card_opal") == null
 	# Footer: level for owned heroes, the role line for champions (§11.3), the source when locked.
 	var foot := ""
 	if not owned:
@@ -184,8 +189,9 @@ func _load_live(id: String, px: int) -> void:
 		return
 	card.art.texture = tex
 	if not UITokens.reduce_motion():
+		var target := card.art.modulate.a
 		card.art.modulate.a = 0.0
-		create_tween().tween_property(card.art, "modulate:a", 1.0, 0.25)
+		create_tween().tween_property(card.art, "modulate:a", target, 0.25)
 
 
 func _gui_input(e: InputEvent) -> void:

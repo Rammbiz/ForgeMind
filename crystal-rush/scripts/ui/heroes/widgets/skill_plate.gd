@@ -84,7 +84,7 @@ func _resize() -> void:
 	if title != "":
 		lines += 2
 	if note != "":
-		lines += 3
+		lines += 4
 	custom_minimum_size = Vector2(maxf(plate + 16.0, UITokens.MIN_TOUCH), plate + 18.0 + lines * 22.0)
 	queue_redraw()
 
@@ -166,21 +166,21 @@ func _draw() -> void:
 	# Name and the native-ceiling note under the plate (centred, two lines max each).
 	var y := c.y + s * 0.5 + 24.0
 	if title != "":
-		y = _text_block(title, y, 22, UITokens.INK, "bold", 2)
+		y = _text_block(title, y, 20, UITokens.INK, "bold", 2)
 	if note != "":
-		_text_block(note, y, 20, UITokens.INK_SOFT, "medium")
+		_text_block(note, y, 20, UITokens.INK_SOFT, "medium", 4)
 
 
 func _text_block(txt: String, y: float, fs0: int, col: Color, weight: String, max_lines := 3) -> float:
 	var f := UIKit.font_w(weight)
 	var w := size.x
-	# Shrink (down to 18 px) until the longest single word fits the plate width.
+	# Shrink (down to 16 px) until the longest single word fits the plate width.
 	var fs := fs0
 	var longest := ""
 	for word in txt.split(" "):
 		if word.length() > longest.length():
 			longest = word
-	while fs > 18 and f.get_string_size(longest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
+	while fs > 16 and f.get_string_size(longest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
 		fs -= 1
 	var lines := PackedStringArray()
 	var cur := ""

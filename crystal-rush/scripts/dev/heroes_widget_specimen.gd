@@ -14,8 +14,8 @@ static func build(which: String) -> Control:
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	col.offset_left = UITokens.GUTTER
 	col.offset_right = -UITokens.GUTTER
-	col.offset_top = 28
-	col.add_theme_constant_override("separation", 8)
+	col.offset_top = 20
+	col.add_theme_constant_override("separation", 6)
 	root.add_child(col)
 	if which == "widgets_cards":
 		_cards_page(col)
@@ -138,10 +138,10 @@ static func _cards_page(col: VBoxContainer) -> void:
 	var r4 := _row(col, 8)
 	var v := HeroesUIModel.hero("vesta")
 	for s: String in ["ult", "attack", "awakened"]:
-		var p := HeroSkillPlate.from_model(v, s, 108)
+		var p := HeroSkillPlate.from_model(v, s, 96)
 		p.custom_minimum_size.x = 160
 		r4.add_child(p)
-	var isk := HeroSkillPlate.from_model(HeroesUIModel.hero("iskar"), "ult", 108)
+	var isk := HeroSkillPlate.from_model(HeroesUIModel.hero("iskar"), "ult", 96)
 	isk.custom_minimum_size.x = 160
 	r4.add_child(isk)
 

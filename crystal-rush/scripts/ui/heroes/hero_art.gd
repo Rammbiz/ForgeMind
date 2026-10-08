@@ -117,22 +117,32 @@ static func draw_placeholder(ci: CanvasItem, rect: Rect2, cls: String, gem: Stri
 	var g: Dictionary = UITokens.gem(gem)
 	var light: Color = g["light"]
 	var deep: Color = g["deep"]
+	var cut: String = g["cut"]
 	var c := rect.get_center() + Vector2(0, -rect.size.y * 0.02)
 	var R := minf(rect.size.x, rect.size.y) * 0.34
-	var la := 0.55 * alpha
+	var la := 0.6 * alpha
 	# Soft light pool behind the emblem.
-	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(R, R) * 1.5, Vector2(R, R) * 3.0), false, Color(light.r, light.g, light.b, 0.22 * alpha))
-	# Double ring (engraved: a deep line under a light line).
-	for k: float in [1.0, 0.86]:
-		ci.draw_arc(c + Vector2(0, 1.2), R * k, 0, TAU, 72, Color(deep.r, deep.g, deep.b, 0.35 * alpha), 1.4, true)
-		ci.draw_arc(c, R * k, 0, TAU, 72, Color(light.r, light.g, light.b, la), 1.2, true)
-	# Marquise terminals at the four cardinal points.
-	for i in 4:
-		var d := Vector2.from_angle(i * PI * 0.5 - PI * 0.5)
-		GemDraw.draw_marquise(ci, c + d * R * 1.08, d, R * 0.16, Color(light.r, light.g, light.b, 0.7 * alpha))
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(R, R) * 1.5, Vector2(R, R) * 3.0), false, Color(light.r, light.g, light.b, 0.24 * alpha))
+	# The gem's own cut, engraved large and faint (double line: a deep groove under a light lip),
+	# so the "unknown" card still names its rarity by shape.
+	var fit := {"round": [2.05, 0.0, 1.0], "square": [2.0, 0.0, 0.95], "triangle": [2.35, 0.1, 0.72],
+			"star": [2.45, 0.06, 0.66], "eye": [2.5, 0.0, 0.6]}
+	var fk: Array = fit.get(cut, [2.0, 0.0, 1.0])
+	var cc := c + Vector2(0, R * float(fk[1]))
+	for k: float in [1.0, 0.88]:
+		var pts := GemDraw.cut_points(cut, cc, R * float(fk[0]) * k)
+		var sh := PackedVector2Array()
+		for p in pts:
+			sh.append(p + Vector2(0, 1.2))
+		GemDraw.outline(ci, sh, Color(deep.r, deep.g, deep.b, 0.32 * alpha), 1.4)
+		GemDraw.outline(ci, pts, Color(light.r, light.g, light.b, la * (1.0 if k == 1.0 else 0.6)), 1.2)
+	# Marquise terminals left and right of the cut.
+	for sx: float in [-1.0, 1.0]:
+		var d := Vector2(sx, 0)
+		GemDraw.draw_marquise(ci, cc + d * R * (float(fk[0]) * 0.5 + 0.16), d, R * 0.18, Color(light.r, light.g, light.b, 0.7 * alpha))
 	# Engraved class glyph: a deep offset stroke under a light stroke.
-	var gs := R * 1.12
-	var gr := Rect2(c - Vector2(gs, gs) * 0.5, Vector2(gs, gs))
+	var gs := R * 1.12 * float(fk[2])
+	var gr := Rect2(cc - Vector2(gs, gs) * 0.5, Vector2(gs, gs))
 	var w := clampf(gs * 0.05, 1.6, 4.0)
 	KitIcons.line(ci, "cls_" + cls, Rect2(gr.position + Vector2(0, w * 0.7), gr.size), Color(deep.r, deep.g, deep.b, 0.45 * alpha), w)
 	KitIcons.line(ci, "cls_" + cls, gr, Color(light.r, light.g, light.b, 0.92 * alpha), w)
