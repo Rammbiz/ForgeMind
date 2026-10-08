@@ -20,6 +20,10 @@ var title := "":
 		if _title:
 			_title.text = v
 var own_scrim := false
+## Own scrim look: "slate" (flat SCRIM 45 %) or "warm" (a warm gradient, 0 at the top to ~30 %
+## at the bottom, ~22 % on average: the hero above the sheet stays bright, Genshin's character
+## screen keeps the character in view).
+var scrim_style := "slate"
 var hub_modal := false
 var hub: Hub
 ## Sheet height as a share of the screen (0 = fit the content, up to max_frac).
@@ -30,6 +34,7 @@ var body: VBoxContainer
 var head: HBoxContainer
 var _title: Label
 var _scrim: ColorRect
+var _warm: TextureRect
 var _closing := false
 
 
@@ -73,7 +78,30 @@ func _ready() -> void:
 		_scrim.gui_input.connect(func(e: InputEvent):
 			if UIJuice.is_tap(e):
 				close())
-		_scrim.create_tween().tween_property(_scrim, "color:a", 0.45, UITokens.MENU_IN)
+		if scrim_style == "warm":
+			_warm = TextureRect.new()
+			var gt := GradientTexture2D.new()
+			var gr := Gradient.new()
+			var wc := Color("#3A2A1A")
+			gr.set_color(0, Color(wc.r, wc.g, wc.b, 0.0))
+			gr.add_point(0.45, Color(wc.r, wc.g, wc.b, 0.16))
+			gr.set_color(gr.get_point_count() - 1, Color(wc.r, wc.g, wc.b, 0.34))
+			gt.gradient = gr
+			gt.fill_from = Vector2(0, 0)
+			gt.fill_to = Vector2(0, 1)
+			gt.width = 4
+			gt.height = 64
+			_warm.texture = gt
+			_warm.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			_warm.stretch_mode = TextureRect.STRETCH_SCALE
+			_warm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_warm.set_anchors_preset(Control.PRESET_FULL_RECT)
+			add_child(_warm)
+			move_child(_warm, 1)
+			_warm.modulate.a = 0.0
+			_warm.create_tween().tween_property(_warm, "modulate:a", 1.0, UITokens.MENU_IN)
+		else:
+			_scrim.create_tween().tween_property(_scrim, "color:a", 0.45, UITokens.MENU_IN)
 	_layout()
 	if not UITokens.reduce_motion():
 		UIJuice.sheet_in(sheet)
@@ -112,6 +140,8 @@ func close() -> void:
 	if own_scrim:
 		_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_scrim.create_tween().tween_property(_scrim, "color:a", 0.0, UITokens.MENU_OUT)
+		if _warm:
+			_warm.create_tween().tween_property(_warm, "modulate:a", 0.0, UITokens.MENU_OUT)
 	if tw:
 		tw.finished.connect(func(): closed.emit())
 	else:

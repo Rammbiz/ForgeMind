@@ -17,6 +17,7 @@ var _h: Dictionary
 var _tabs: KitTabs
 var _page_host: MarginContainer
 var _page: Control
+var _sc: ScrollContainer
 var _dirty := false
 
 
@@ -39,7 +40,11 @@ func setup(p_hub: Hub, args: PackedStringArray) -> void:
 
 
 func _ready() -> void:
-	height_frac = 0.7
+	# Sized to the page (about half the screen on Рівень / Грані, never above 72 %), with the
+	# warm bottom-weighted scrim: the hero stays bright above the sheet.
+	height_frac = 0.0
+	max_frac = 0.72
+	scrim_style = "warm"
 	_h = HeroesUIModel.hero(hero_id)
 	title = HeroesText.t("MANAGE_TITLE")
 	var em := HeroGemEmblem.make(str(_h["gem"]), 64, str(_h["native"]) if bool(_h["is_recut"]) else "")
@@ -64,6 +69,7 @@ func _ready() -> void:
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(sc)
+	_sc = sc
 	_page_host = MarginContainer.new()
 	_page_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_host.add_theme_constant_override("margin_top", 6)
@@ -119,6 +125,18 @@ func _show_page(fade: bool) -> void:
 		old.queue_free()
 	if fade and not UITokens.reduce_motion():
 		UIJuice.soft_in(_page, Vector2(0, 12))
+	_fit_to_page(fade)
+
+
+## The sheet height follows the page (the scroll only takes over past 60 % of the screen). On
+## the first build this runs before the sheet's slide-in, so the slide ends at the right height.
+func _fit_to_page(relayout := true) -> void:
+	if not is_instance_valid(_page) or _sc == null:
+		return
+	var want := _page_host.get_combined_minimum_size().y
+	_sc.custom_minimum_size.y = minf(want, _vp_h() * 0.6)
+	if relayout and is_inside_tree():
+		_layout()
 
 
 func _small(text: String, col := UITokens.INK_SOFT) -> Label:
@@ -180,18 +198,18 @@ func _level_page(page: Control) -> void:
 	page.add_child(bar)
 	if bool(h["synced"]):
 		page.add_child(_small(HeroesText.t("SYNC_LINE"), UITokens.INK))
-	page.add_child(UIKit.hairline())
-	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT))
-	page.add_child(_small(HeroesText.t("MANAGE_LEVEL_GIVES", [HeroesText.pct(Ladder.LV_DMG, 1), HeroesText.pct(Ladder.LV_HP, 0), HeroesText.pct(Ladder.LV_RATE, 0)])))
-	var ult := 1.0 + Ladder.LV_ULT * (lv - 1)
-	var us := ("%.2f" % ult)
-	if HeroesText.lang() == "uk":
-		us = us.replace(".", ",")
-	page.add_child(_small(HeroesText.t("MANAGE_LEVEL_ULT", [us])))
-	page.add_child(UIKit.gap(6))
+	# The CTA right under the bar (the key verb, with its coin price), then the exact values in
+	# small text: the page ends where the content ends, never on empty cream.
 	var cta: KitCTA
 	if lv < cap:
-		cta = UIKit.cta_button(HeroesText.t("SHOW_CTA_UPGRADE"), HeroesText.t("MANAGE_LEVEL_TO", [lv, lv + 1]), Vector2(0, 92), 32)
+		var price := HeroesUIModel.level_cost(hero_id)
+		var coins := int(HeroesUIModel.currencies()["coins"])
+		var p := HeroPriceCTA.make(HeroesText.t("SHOW_CTA_UPGRADE"), HeroesText.t("MANAGE_LEVEL_TO", [lv, lv + 1]), price, Vector2(0, 92), 32)
+		if coins < price:
+			p.disabled = true
+			p.price = 0
+			p.sub = HeroesText.t("MANAGE_LEVEL_NO_COINS", [HeroesText.num(coins), HeroesText.num(price)])
+		cta = p
 		cta.pressed.connect(func():
 			if HeroesUIModel.level_up(hero_id):
 				Audio.play("upgrade", -6.0)
@@ -200,6 +218,14 @@ func _level_page(page: Control) -> void:
 		cta = UIKit.cta_button(HeroesText.t("SHOW_CTA_UPGRADE"), HeroesText.t("MANAGE_LEVEL_AT_CAP", [int(HeroesUIModel.unlocks()["world"]) + 1]), Vector2(0, 92), 32)
 		cta.disabled = true
 	page.add_child(cta)
+	page.add_child(UIKit.hairline())
+	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT))
+	page.add_child(_small(HeroesText.t("MANAGE_LEVEL_GIVES", [HeroesText.pct(Ladder.LV_DMG, 1), HeroesText.pct(Ladder.LV_HP, 0), HeroesText.pct(Ladder.LV_RATE, 0)])))
+	var ult := 1.0 + Ladder.LV_ULT * (lv - 1)
+	var us := ("%.2f" % ult)
+	if HeroesText.lang() == "uk":
+		us = us.replace(".", ",")
+	page.add_child(_small(HeroesText.t("MANAGE_LEVEL_ULT", [us])))
 
 
 # ------------------------------------------------------------------ Грані
@@ -277,6 +303,18 @@ func _skills_page(page: Control) -> void:
 	(top.get_child(0) as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	top.add_child(HeroCurrencyChip.make("tomes", HeroesText.num(int(cur["tomes"])), 150))
 	page.add_child(top)
+	if bool(h["is_recut"]):
+		# Rule #3 once for the tab (not on every row): the recut ceiling line with its tick.
+		var cr := HBoxContainer.new()
+		cr.add_theme_constant_override("separation", 10)
+		var em := HeroGemEmblem.make(str(h["gem"]), 44, str(h["native"]))
+		em.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cr.add_child(em)
+		var cl := _small(HeroesText.t("MANAGE_SKILL_CEILING", [HeroesText.gem_name(str(h["gem"]), "PL")]), UITokens.GOLD_TEXT)
+		cl.custom_minimum_size = Vector2(0, 0)
+		cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cr.add_child(cl)
+		page.add_child(cr)
 	var sk: Dictionary = h["skills"]
 	for s: String in ["ult", "attack", "rally", "awakened"]:
 		var r: Dictionary = sk[s]
@@ -299,7 +337,10 @@ func _skills_page(page: Control) -> void:
 		if locked:
 			col.add_child(_small(HeroesText.t("SHOW_AWAKEN_LOCKED"), UITokens.INK))
 		else:
-			col.add_child(UIKit.label(HeroesText.t("SKL_RANK", [int(r["rank"]), int(r["cap"])]), 22, UITokens.INK))
+			var rk := HeroesText.t("SKL_RANK", [int(r["rank"]), int(r["cap"])])
+			if int(r["cap"]) < int(r["cap_native"]) and int(r["rank"]) >= int(r["cap"]):
+				rk = HeroesText.t("MANAGE_SKILL_CAP_ROW", [rk])
+			col.add_child(UIKit.label(rk, 22, UITokens.INK))
 			if s == "ult":
 				col.add_child(UIKit.label(HeroesText.t("SKL_FORM", [HeroesText.roman(int(r["form"]))]) + " · " + HeroesText.t("FORM_" + str(r["form_gem"])), 22, UITokens.INK_DIM))
 			var gives := ""
@@ -311,8 +352,6 @@ func _skills_page(page: Control) -> void:
 			col.add_child(_small(gives))
 			if int(r["rank"]) < int(r["cap"]) and int(r["rank"]) < HeroData.TOME_COST.size():
 				col.add_child(_small(HeroesText.t("MANAGE_SKILL_NEXT", [HeroesText.count(HeroData.TOME_COST[int(r["rank"])], "tome")])))
-			if int(r["cap"]) < int(r["cap_native"]):
-				col.add_child(_small(HeroesText.t("SKL_NATIVE_ONLY", [int(r["cap_native"]), HeroesText.gem_name(str(h["gem"]), "PL")]), UITokens.GOLD_TEXT))
 		page.add_child(row)
 		page.add_child(UIKit.hairline())
 

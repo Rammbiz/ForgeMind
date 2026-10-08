@@ -37,6 +37,7 @@ var _pad: MarginContainer
 var _page: VBoxContainer
 var _cards: Array = []
 var _dirty := false
+var _stale := false
 var _shown_once := false
 
 
@@ -85,6 +86,9 @@ func _ready() -> void:
 	_chips = HBoxContainer.new()
 	_chips.add_theme_constant_override("separation", 8)
 	_chips_sc.add_child(_chips)
+	# The chip row scrolls sideways: soft cream fades at both ends say "more", never a chip cut
+	# mid-glyph at the screen edge.
+	HeroHScrollFade.attach(_chips_sc, UITokens.PAPER_1)
 	_sc = ScrollContainer.new()
 	_sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -100,6 +104,12 @@ func _ready() -> void:
 
 
 func _on_model(_what: String) -> void:
+	# A screen covers the Hall (Showcase, Portal, a ceremony): rebuild once it is back on top,
+	# not on every level_up / facet_up fired from the screen above.
+	if HeroesNav.top() != null or not is_visible_in_tree():
+		_stale = true
+		set_process(true)
+		return
 	# Coalesce bursts of change signals (a summon emits several) into one rebuild.
 	if _dirty:
 		return
@@ -108,6 +118,16 @@ func _on_model(_what: String) -> void:
 		_dirty = false
 		if is_instance_valid(self) and is_inside_tree():
 			refresh()).call_deferred()
+
+
+func _process(_d: float) -> void:
+	if not _stale:
+		set_process(false)
+		return
+	if HeroesNav.top() == null and is_visible_in_tree():
+		_stale = false
+		set_process(false)
+		refresh()
 
 
 # ------------------------------------------------------------------ contract
@@ -143,6 +163,7 @@ func on_hide() -> void:
 func refresh() -> void:
 	if _col == null:
 		return
+	_stale = false
 	var un := HeroesUIModel.unlocks()
 	if _sub == "champions" and not bool(un["champions"]):
 		_sub = "heroes"
@@ -288,6 +309,12 @@ static func sort_rows(rows: Array[Dictionary]) -> Array[Dictionary]:
 		var gb := Ladder.gem_index(str(b["gem"]))
 		if ga != gb:
 			return ga > gb
+		# Within a gem tier, characters with art (splash, card, live 3D) lead, so the first row
+		# of the Hall is never all placeholders.
+		var aa := HeroArt.state(str(a["id"])) != "placeholder"
+		var ab := HeroArt.state(str(b["id"])) != "placeholder"
+		if aa != ab:
+			return aa
 		var la := int(a.get("eff_level", a.get("level", 0)))
 		var lb := int(b.get("eff_level", b.get("level", 0)))
 		if la != lb:
@@ -311,8 +338,10 @@ func _build_heroes() -> void:
 	for d: Dictionary in HeroesUIModel.heroes():
 		if bool(d["listed"]) and _pass(d):
 			rows.append(d)
-	_grid(sort_rows(rows), "L", 3)
-	if rows.size() < 6 and _filter == "all":
+	# First weeks (fewer than 6 listed): two columns of large cards, so the art fills the page.
+	var few := rows.size() < 6 and _filter == "all"
+	_grid(sort_rows(rows), "XL" if few else "L", 2 if few else 3)
+	if few:
 		# First weeks (§11.4 first visit): one quiet slip, never a blocking coach mark.
 		var slip := UIKit.panel("card", Vector2(22, 16))
 		var r := HBoxContainer.new()
@@ -338,11 +367,17 @@ func _build_champions() -> void:
 	var hint := UIKit.label(HeroesText.t("HALL_CHAMP_ROLE_HINT"), 22, UITokens.INK_DIM)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_page.add_child(hint)
-	var rows: Array[Dictionary] = []
+	var owned_rows: Array[Dictionary] = []
+	var other: Array[Dictionary] = []
 	for d: Dictionary in HeroesUIModel.champions():
 		if bool(d["listed"]):
-			rows.append(d)
-	_grid(sort_rows(rows), "M", 4)
+			(owned_rows if bool(d["owned"]) else other).append(d)
+	_grid(sort_rows(owned_rows), "M", 4)
+	if not other.is_empty():
+		# One section header for the unowned group (the lock sits on each card; the Champion
+		# Showcase explains the source on tap), not a «Де знайти» on every card.
+		_page.add_child(UIKit.section(HeroesText.t("SHOW_NOT_OWNED")))
+		_grid(sort_rows(other), "M", 4)
 
 
 func _grid(rows: Array[Dictionary], kind: String, cols: int) -> void:
@@ -364,15 +399,42 @@ func _grid(rows: Array[Dictionary], kind: String, cols: int) -> void:
 	g.add_theme_constant_override("h_separation", UITokens.GAP)
 	g.add_theme_constant_override("v_separation", UITokens.GAP + 6)
 	_page.add_child(g)
+	var champs := kind == "M"
+	var avail := _vp_w() - UITokens.GUTTER * 2.0
 	for d in rows:
 		var c := HeroCard.make(d, kind)
+		if kind == "XL":
+			# Scale the large card to the column (2 columns, 3:4.16).
+			var cw := floorf((avail - UITokens.GAP) * 0.5)
+			c.custom_minimum_size = Vector2(cw, roundf(cw * HeroCard.SIZES["XL"].y / HeroCard.SIZES["XL"].x))
+			c.size = c.custom_minimum_size
 		c.pressed.connect(_open)
-		if not bool(d["owned"]):
+		if not bool(d["owned"]) and not champs:
 			var tag := _WhereTag.new()
 			tag.text = HeroesText.t("HALL_WHERE")
 			c.add_child(tag)
-		g.add_child(c)
 		_cards.append(c)
+		if champs:
+			# Champions: the name in the card, the role line (or the source) under it at 20 px,
+			# never the kit's 14 px footer.
+			c.footer_mode = "name"
+			var cell := VBoxContainer.new()
+			cell.add_theme_constant_override("separation", 4)
+			cell.add_child(c)
+			var sub := str(d.get("role", "")) if bool(d["owned"]) else HeroesText.t("HALL_SRC_CHEST")
+			var rl := UIKit.label(sub, 20, UITokens.INK_SOFT)
+			rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			rl.custom_minimum_size = Vector2(c.custom_minimum_size.x, 0)
+			rl.max_lines_visible = 2
+			cell.add_child(rl)
+			g.add_child(cell)
+		else:
+			g.add_child(c)
+
+
+func _vp_w() -> float:
+	return size.x if size.x > 1.0 else get_viewport_rect().size.x
 
 
 func _champion_level_row() -> Control:
@@ -531,7 +593,8 @@ class _WhereTag extends Control:
 		var f := UIKit.font_w("bold")
 		var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 		size = Vector2(minf(tw + 26.0, ps.x - 12.0), 36)
-		var foot := ps.y * (0.21 if ps.x > 200.0 else 0.25)
+		var kind := str((p as HeroCard).size_kind) if p is HeroCard else "L"
+		var foot := roundf(ps.y * ((p as HeroCard)._footer_ratio() if p is HeroCard else 0.22))
 		position = Vector2((ps.x - size.x) * 0.5, ps.y - foot - size.y - 12.0)
 		queue_redraw()
 

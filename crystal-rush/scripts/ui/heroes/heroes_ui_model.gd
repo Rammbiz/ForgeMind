@@ -566,10 +566,25 @@ static func mark_seen(id: String) -> void:
 
 
 ## Mock hero level-up within the world cap (coins are not modelled in H3a).
+## Coin price of the next level-up of hero `id` (0 at the world cap or when not owned).
+## Mock: the shipped hero price curve EconData.hero_cost(stored level); H3b: Meta's price.
+static func level_cost(id: String) -> int:
+	var st := _state_of(id)
+	if st.is_empty() or not bool(st.get("owned", false)) or int(st["lvl"]) >= level_cap():
+		return 0
+	return EconData.hero_cost(int(st["lvl"]))
+
+
+## Mock: +1 hero level for level_cost(id) coins (false at the cap or when the coins are short).
 static func level_up(id: String) -> bool:
 	var st := _state_of(id)
 	if st.is_empty() or not bool(st.get("owned", false)) or int(st["lvl"]) >= level_cap():
 		return false
+	var cost := level_cost(id)
+	var w: Dictionary = _acc["wallet"]
+	if int(w.get("coins", 0)) < cost:
+		return false
+	w["coins"] = int(w["coins"]) - cost
 	st["lvl"] = int(st["lvl"]) + 1
 	_emit("heroes")
 	return true

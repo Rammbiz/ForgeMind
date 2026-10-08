@@ -37,6 +37,10 @@ var locked := false:
 		locked = v
 		queue_redraw()
 var born := false                ## born-awakened: a topaz keystone on the hallmark
+var show_hallmark := true:       ## false before the skill ranks open (L30, §11.3): no rank tag
+	set(v):
+		show_hallmark = v
+		queue_redraw()
 var note := "":
 	set(v):
 		note = v
@@ -85,7 +89,7 @@ func _resize() -> void:
 		lines += 2
 	if note != "":
 		lines += 4
-	custom_minimum_size = Vector2(maxf(plate + 16.0, UITokens.MIN_TOUCH), plate + 18.0 + lines * 22.0)
+	custom_minimum_size = Vector2(maxf(plate + 16.0, UITokens.MIN_TOUCH), plate + 18.0 + lines * 27.0)
 	queue_redraw()
 
 
@@ -144,7 +148,7 @@ func _draw() -> void:
 	if form_gem != "" and not locked:
 		GemDraw.draw_mark(self, UITokens.gem_of(form_gem), Vector2(c.x, c.y - s * 0.5), s * 0.22)
 	# Hallmark tag on the bottom edge.
-	if not locked:
+	if not locked and show_hallmark:
 		var maxed := rank >= cap
 		var txt := HeroesText.t("SKL_MAX") if maxed else HeroesText.t("SKL_RANK_SHORT", [rank, cap])
 		var f := UIKit.font_w("extrabold")
@@ -166,21 +170,21 @@ func _draw() -> void:
 	# Name and the native-ceiling note under the plate (centred, two lines max each).
 	var y := c.y + s * 0.5 + 24.0
 	if title != "":
-		y = _text_block(title, y, 20, UITokens.INK, "bold", 2)
+		y = _text_block(title, y, 22, UITokens.INK, "bold", 2)
 	if note != "":
-		_text_block(note, y, 20, UITokens.INK_SOFT, "medium", 4)
+		_text_block(note, y, 22, UITokens.INK_SOFT, "medium", 4)
 
 
 func _text_block(txt: String, y: float, fs0: int, col: Color, weight: String, max_lines := 3) -> float:
 	var f := UIKit.font_w(weight)
 	var w := size.x
-	# Shrink (down to 16 px) until the longest single word fits the plate width.
+	# Shrink (down to 18 px) until the longest single word fits the plate width.
 	var fs := fs0
 	var longest := ""
 	for word in txt.split(" "):
 		if word.length() > longest.length():
 			longest = word
-	while fs > 16 and f.get_string_size(longest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
+	while fs > 18 and f.get_string_size(longest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
 		fs -= 1
 	var lines := PackedStringArray()
 	var cur := ""

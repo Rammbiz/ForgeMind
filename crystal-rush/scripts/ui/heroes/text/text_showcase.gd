@@ -24,6 +24,11 @@ const T := {
 	"SHOW_AWAKEN_LOCKED": ["Пробудження: Повні грані в Аметисті або вище", "Awakening: Full facets in Amethyst or higher"],
 	"SHOW_FACETS_NONE": ["Фрагменти дають дублікати героя", "Fragments come from duplicates"],
 	"SHOW_SWIPE": ["Свайп — наступний герой", "Swipe for the next hero"],
+	"SHOW_ART_SOON": ["Арт героя — скоро", "Hero art — coming soon"],
+	"SHOW_PRICE": ["%s · %s", "%s · %s"],
+	"MANAGE_SKILL_CEILING": ["Огранений: межа кожної навички на 1 нижча, ніж у корінних %s", "Recut: every skill cap is 1 below a native %s"],
+	"MANAGE_SKILL_CAP_ROW": ["%s · межа огранки", "%s · recut cap"],
+	"MANAGE_LEVEL_NO_COINS": ["Бракує монет: %s / %s", "Not enough coins: %s / %s"],
 	# Manage sheet «Покращення» (§9.2, §9.3)
 	"MANAGE_TITLE": ["Покращення", "Upgrade"],
 	"MANAGE_LEVEL_TO": ["Рів. %d → %d", "Lv %d → %d"],

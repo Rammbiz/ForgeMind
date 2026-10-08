@@ -7,8 +7,9 @@ extends Control
 ##   backdrop  HeroShowcaseBackdrop: a bright painted sky in the hero's gem (+ element bloom),
 ##             sun rays, the gem cut engraved as a halo, light motes
 ##   art       Веста: the full-bleed splash (HeroArt), eye line placed by HeroArt.meta; starters:
-##             the live 3D hero on the ivory dais (HeroShowcaseStage); everyone else: an honest
-##             gem-ground portrait card with the engraved class emblem (no fake art)
+##             the live 3D hero on the ivory dais (HeroShowcaseStage); everyone else: the class
+##             sigil in metal relief painted straight into the sky (HeroArt.draw_relief, no frame,
+##             breathing like a splash) with the honest caps line «Арт героя — скоро»
 ##   left      Living Gem emblem 200 px (doublet for a recut) · name 68 px · title · class /
 ##             element / faction badges (as they unlock, §11.3) · Рівень + «Міць 12 480» ·
 ##             «Грані 3 / 5 · 18 / 30 фрагм.» (once there are fragments) · rule #3 line + the
@@ -26,7 +27,7 @@ signal closed
 
 const COL_W := 340.0
 ## Where a live 3D hero stands across the screen in the art view (right of the info column).
-const STAGE_FOCUS := 0.7
+const STAGE_FOCUS := 0.73
 
 var hub: Hub
 var hero_id := "vesta"
@@ -43,7 +44,7 @@ var _bg: HeroShowcaseBackdrop
 var _art: Control
 var _splash: TextureRect
 var _stage: HeroShowcaseStage
-var _card: _PortraitCard
+var _relief: _ReliefArt
 var _veil: TextureRect
 var _ui: Control
 var _info: VBoxContainer
@@ -119,7 +120,7 @@ func _build_hero(entrance: bool) -> void:
 		c.queue_free()
 	_splash = null
 	_stage = null
-	_card = null
+	_relief = null
 	_h = HeroesUIModel.hero(hero_id)
 	var gem := str(_h["gem"])
 	_bg = HeroShowcaseBackdrop.make(gem, str(_h["element"]))
@@ -148,11 +149,11 @@ func _build_hero(entrance: bool) -> void:
 			_stage.modulate = Color(0.6, 0.62, 0.7, 0.6)
 		_art.add_child(_stage)
 	else:
-		_card = _PortraitCard.new()
-		_card.gem = gem
-		_card.cls = str(_h["class"])
-		_card.dim = not owned
-		_art.add_child(_card)
+		_relief = _ReliefArt.new()
+		_relief.gem = gem
+		_relief.cls = str(_h["class"])
+		_relief.dim = not owned
+		_art.add_child(_relief)
 	_veil = TextureRect.new()
 	var gt := GradientTexture2D.new()
 	var grad := Gradient.new()
@@ -381,7 +382,7 @@ func _skill_band() -> PanelContainer:
 			continue
 		shown.append(s)
 	var inner := _vp().x - 32.0 - 36.0
-	var bw := minf(200.0, (inner - 10.0 * (shown.size() - 1)) / maxf(1.0, shown.size()))
+	var bw := minf(190.0, (inner - 10.0 * (shown.size() - 1)) / maxf(1.0, shown.size()))
 	for s in shown:
 		row.add_child(_skill_block(s, ranks_open, bw))
 	# Rule #3 on a recut hero, once for the band (the per-skill caps are in Manage > Навички).
@@ -400,22 +401,28 @@ func _skill_band() -> PanelContainer:
 func _skill_block(s: String, ranks_open: bool, bw := 152.0) -> Control:
 	var h := _h
 	var r: Dictionary = (h["skills"] as Dictionary)[s]
+	# Three tiers, never colliding: the kind as 20 px gold caps ABOVE the plate, the plate (the
+	# rank hallmark only once ranks open, L30), the name under it on ONE line at 22 px (fitted).
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
+	col.add_theme_constant_override("separation", 6)
 	col.custom_minimum_size = Vector2(bw, 0)
-	var plate := HeroShowcasePlate.make_from(h, s, 92, ranks_open)
+	var kind := UIKit.caps(HeroesText.skill_kind(s), 20, UITokens.GOLD_TEXT)
+	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(kind)
+	var plate := HeroShowcasePlate.make_from(h, s, 104, ranks_open)
 	plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	plate.pressed.connect(func(): _on_skill(s))
 	col.add_child(plate)
 	var sn := HeroesText.skill_name(hero_id, s)
-	var longest := ""
-	for w in sn.split(" "):
-		if w.length() > longest.length():
-			longest = w
-	var nm := UIKit.label(sn, UIKit.fit_size(longest, bw - 4.0, 22, 18), UITokens.INK, true)
+	var fs := UIKit.fit_size(sn, bw - 2.0, 22, 20)
+	var nm := UIKit.label(sn, fs, UITokens.INK, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.custom_minimum_size = Vector2(bw, 0)
+	if UIKit.font(true).get_string_size(sn, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > bw - 2.0:
+		# A long name takes two 22 px lines rather than shrinking below the type floor.
+		nm.add_theme_font_size_override("font_size", 22)
+		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nm.max_lines_visible = 2
 	col.add_child(nm)
 	return col
 
@@ -441,9 +448,11 @@ func _build_dock() -> HBoxContainer:
 		cta = rc
 	else:
 		var sub := ""
+		var price := 0
 		if int(h["eff_level"]) < int(h["level_cap"]):
 			sub = HeroesText.t("MANAGE_LEVEL_TO", [int(h["eff_level"]), int(h["eff_level"]) + 1])
-		var up := UIKit.cta_button(HeroesText.t("SHOW_CTA_UPGRADE"), sub, Vector2(0, 88), 30)
+			price = HeroesUIModel.level_cost(hero_id)
+		var up := HeroPriceCTA.make(HeroesText.t("SHOW_CTA_UPGRADE"), sub, price, Vector2(0, 88), 30)
 		up.pressed.connect(func(): _open_manage("level"))
 		cta = up
 	cta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -550,12 +559,16 @@ func _layout() -> void:
 		_stage.position = sr.position
 		_stage.size = sr.size
 		_stage.focus_x = 0.5 if _mode3d else STAGE_FOCUS
-	if _card:
-		var cw := W * 0.47
-		var ch := cw * 1.36
-		_card.position = Vector2(W - cw - 34.0, y0 + 96.0)
-		_card.size = Vector2(cw, ch)
-		_bg.focus = Vector2((_card.position.x + cw * 0.5) / W, (_card.position.y + ch * 0.42) / H)
+	if _relief:
+		# The sigil fills the art column right of the info column, centred between the header
+		# and the skill band; the backdrop's sun and gem halo sit right behind it.
+		var ax := UITokens.GUTTER + COL_W + 8.0
+		var top := y0 + 40.0
+		var bot := sk_y - 16.0
+		_relief.position = Vector2(ax, top)
+		_relief.size = Vector2(W - ax - 12.0, maxf(200.0, bot - top))
+		_relief.halo_px = W * 0.52
+		_bg.focus = (_relief.position + _relief.centre()) / Vector2(W, H)
 	_hint3d.size = _hint3d.get_combined_minimum_size()
 	_hint3d.position = Vector2((W - _hint3d.size.x) * 0.5, dock_y - 30.0 - _hint3d.size.y)
 	_none3d.size = Vector2(minf(520.0, W - 64.0), _none3d.get_combined_minimum_size().y)
@@ -582,7 +595,7 @@ func _entrance() -> void:
 		return
 	_bg.modulate.a = 0.0
 	create_tween().tween_property(_bg, "modulate:a", 1.0, UITokens.MENU_IN)
-	var art_item: Control = _splash if _splash else (_stage if _stage else _card)
+	var art_item: Control = _splash if _splash else (_stage if _stage else _relief)
 	if art_item:
 		var a := art_item.modulate.a
 		art_item.modulate.a = 0.0
@@ -638,7 +651,7 @@ func _set_3d(on: bool, animate: bool) -> void:
 		_hint3d.visible = on
 	else:
 		_none3d.visible = on
-		var art_item: CanvasItem = _splash if _splash else _card
+		var art_item: CanvasItem = _splash if _splash else _relief
 		if art_item:
 			var target := (0.35 if on else (1.0 if bool(_h["owned"]) else 0.55))
 			if dur > 0.0:
@@ -733,52 +746,55 @@ func _step(d: int) -> void:
 	_build_hero(true)
 
 
-## The honest portrait card for a hero whose painted art is not in yet: the gem ground with its
-## fracture pattern, a thin gold double frame and the engraved class emblem in the gem's cut
-## (HeroArt.draw_placeholder) — the Genshin "unknown" card, never a grey blob.
-class _PortraitCard extends Control:
+## The art of a hero whose painted splash is not in yet (Genshin's "unknown" look, never an
+## empty framed card): the class sigil in metal relief (HeroArt.draw_relief) painted straight
+## into the gem sky, a faint filled silhouette of the gem cut matching the backdrop's halo, a
+## slow 0.8 % breathing and a light sweep every ~7 s; the honest 20 px caps line
+## «Арт героя — скоро» under it. Static under Reduce Motion.
+class _ReliefArt extends Control:
 	var gem := "M"
 	var cls := "mage"
 	var dim := false
+	var halo_px := 360.0
 	var _t := 0.0
+	var _note: Label
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_note = UIKit.caps(HeroesText.t("SHOW_ART_SOON"), 20, UITokens.GOLD_TEXT)
+		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(_note)
+		resized.connect(_place_note)
+		_place_note()
 		set_process(not UITokens.reduce_motion())
 
 	func _process(delta: float) -> void:
 		_t += delta
 		queue_redraw()
 
+	func glyph_px() -> float:
+		return clampf(minf(size.x * 0.9, size.y * 0.62), 200.0, 440.0)
+
+	func centre() -> Vector2:
+		return Vector2(size.x * 0.5, size.y * 0.46)
+
+	func _place_note() -> void:
+		if _note == null:
+			return
+		var ns := _note.get_combined_minimum_size()
+		_note.size = Vector2(size.x, ns.y)
+		_note.position = Vector2(0, centre().y + glyph_px() * 0.62 + 18.0)
+
 	func _draw() -> void:
-		var r := Rect2(Vector2.ZERO, size)
 		var g: Dictionary = UITokens.gem(gem)
-		var pts := GemDraw.chamfer_rect(r, 16.0)
-		var sh := PackedVector2Array()
-		for p in pts:
-			sh.append(p + Vector2(0, 10))
-		draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.16))
-		var top: Color = g["top"]
-		var bot: Color = g["bot"]
-		if dim:
-			top = top.lerp(UITokens.PAPER_3, 0.6)
-			bot = bot.lerp(UITokens.PAPER_3, 0.6)
-		var cols := PackedColorArray()
-		for p in pts:
-			cols.append(top.lerp(bot, p.y / maxf(size.y, 1.0)))
-		draw_polygon(pts, cols)
-		KitGemCard.draw_stage_fracture(self, UITokens.gem_of(gem), r)
-		if g.has("flecks") and not dim:
-			var fl: Array = g["flecks"]
-			var tex := UIKit.glow_texture()
-			for i in fl.size():
-				var a := TAU * i / fl.size() + _t * 0.15
-				var c := r.get_center() + Vector2(cos(a) * size.x * 0.28, sin(a * 1.3) * size.y * 0.3)
-				var fc: Color = fl[i]
-				draw_texture_rect(tex, Rect2(c - Vector2(90, 90), Vector2(180, 180)), false, Color(fc.r, fc.g, fc.b, 0.35))
-		var art := Rect2(r.position + Vector2(0, size.y * 0.04), Vector2(size.x, size.y * 0.86))
-		HeroArt.draw_placeholder(self, art, cls, gem, 0.55 if dim else 1.0)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 2.0)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-7.0), 12.0), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.75), 1.2)
-		for cx: float in [0.0, 1.0]:
-			GemDraw.draw_keystone(self, Vector2(size.x * 0.5, size.y * cx), 14.0, 1.0, Color(1.0, 0.92, 0.7))
+		var light: Color = g["light"]
+		var a := 0.5 if dim else 1.0
+		var c := centre()
+		# The cut silhouette (the backdrop draws its engraved outline at the same size).
+		var pts := GemDraw.cut_points(str(g["cut"]), c, halo_px)
+		draw_colored_polygon(pts, Color(light.r, light.g, light.b, 0.16 * a))
+		var reduce := UITokens.reduce_motion()
+		var k := 0.0 if reduce else sin(_t * TAU / 5.2)
+		draw_set_transform(c + Vector2(0, -3.0 * k), 0.0, Vector2.ONE * (1.0 + 0.008 * k))
+		HeroArt.draw_relief(self, Vector2.ZERO, glyph_px(), cls, gem, a, -1.0 if reduce else _t, 0.0)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

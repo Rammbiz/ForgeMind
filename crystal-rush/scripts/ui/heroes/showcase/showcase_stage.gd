@@ -19,7 +19,11 @@ var _look := Vector3(0, 0.95, 0)
 ## column with a lens shift (Camera3D.h_offset), the 3D view centres it.
 ## Art view: the model's widest point stays right of this screen fraction (the info column).
 var left_clear := 0.0
+const DAIS_W := 1.2
+## Art view: px kept free between the info column and the hero's (or the dais') widest point.
+const CLEAR_PX := 24.0
 var _model_w := 0.0
+var _model_px := 0.0
 var focus_x := 0.5:
 	set(v):
 		focus_x = v
@@ -81,9 +85,13 @@ func _ready() -> void:
 	_cam.fov = 30.0
 	root.add_child(_cam)
 	_cam.look_at_from_position(Vector3(0, 1.15, 5.2), Vector3(0, 0.95, 0))
-	var dais := HubShowcase.ivory_dais(1.5, gc.lerp(Color(1, 1, 1), 0.2))
+	# The dais at 0.8 of the hub size, so the hero (not the plinth) owns the art column and the
+	# head lands near the upper third (Genshin framing).
+	var dais := HubShowcase.ivory_dais(DAIS_W, gc.lerp(Color(1, 1, 1), 0.2))
+	var dais_depth := 0.45
 	if not dais.is_empty():
 		root.add_child(dais["node"])
+		dais_depth = float(dais.get("depth", 0.45))
 	_turn = Node3D.new()
 	root.add_child(_turn)
 	if HeroArt.has_live3d(hero_id):
@@ -95,9 +103,11 @@ func _ready() -> void:
 		var box := WeaponModels._visual_aabb(_model, _model.transform)
 		if box.size != Vector3.ZERO:
 			var top := box.end.y + 0.12
-			var bottom := -0.5
+			var bottom := -dais_depth - 0.06
 			_model_w = maxf(box.size.x, box.size.z)
-			region = Vector2(maxf(_model_w, 1.75) + 0.25, top - bottom)
+			# Projected width at the idle yaw (~0.35 rad): what the info column actually meets.
+			_model_px = box.size.x * cos(0.35) + box.size.z * sin(0.35)
+			region = Vector2(maxf(_model_w, DAIS_W + 0.2) + 0.25, top - bottom)
 			_look = Vector3(0, (top + bottom) * 0.5, 0)
 	_cam.look_at_from_position(Vector3(0, _look.y + 0.2, 5.2), _look)
 	resized.connect(_frame)
@@ -115,11 +125,20 @@ func _frame() -> void:
 	# (with the focus off-centre the dais may run off the right edge of the screen a little).
 	var vis_w_need := region.x / (2.0 * right) * (1.0 if focus_x <= 0.5 else 0.74)
 	if left_clear > 0.0 and focus_x > left_clear + 0.05:
-		vis_w_need = maxf(vis_w_need, _model_w * 0.3 / (focus_x - left_clear))
+		# The widest point (the model's arms or the dais rim) starts CLEAR_PX right of the info
+		# column: focus - half / vis_w >= left_clear + margin.
+		var half := maxf(_model_px * 0.42, DAIS_W * 0.5)
+		var room := focus_x - left_clear - CLEAR_PX / maxf(1.0, size.x)
+		if room > 0.02:
+			vis_w_need = maxf(vis_w_need, half / room)
 	var v_from_h := 2.0 * atan(vis_w_need * 0.5 / d / aspect)
 	_cam.fov = clampf(rad_to_deg(maxf(v_need, v_from_h)), 14.0, 70.0)
-	var vis_w := 2.0 * d * tan(deg_to_rad(_cam.fov) * 0.5) * aspect
+	var vis_h := 2.0 * d * tan(deg_to_rad(_cam.fov) * 0.5)
+	var vis_w := vis_h * aspect
 	_cam.h_offset = (0.5 - focus_x) * vis_w
+	# A wide hero framed by width leaves spare height: stand it lower (on the skill band's
+	# horizon) instead of floating in the middle of the art column.
+	_cam.v_offset = maxf(0.0, (vis_h - region.y) * 0.4) if focus_x > 0.5 else 0.0
 
 
 func _process(delta: float) -> void:

@@ -10,19 +10,38 @@ extends Control
 ##  * the «НОВИЙ» wax seal top-right; facet pips on the seam once the character has fragments;
 ##  * locked / unowned: dimmed ground, a lock disc and the source line («Портал», «Після рівня 24»).
 ## Sizes: "S" 124x186 (x10 summary, team slots) · "M" 156x208 (champions, compact grids) ·
-## "L" 216x300 (Hall heroes). Every size keeps a >= 88 px touch target.
+## "L" 216x300 (Hall heroes) · "XL" 300x416 (the Hall while it lists < 6 heroes). Every size
+## keeps a >= 88 px touch target.
+## Footer text is drawn by HeroCard (not the kit's 14 px footer): the name at 22-28 px and the
+## sub-line (level / role / source) at 20-22 px. `footer_mode`: "full" (name + sub-line; L, M,
+## XL default) · "name" (S default, or when the screen prints the sub-line outside the card) ·
+## "none". `show_role = false` drops a champion's role line (Team prints it as its own chip).
 ##   var c := HeroCard.make(HeroesUIModel.hero("vesta"), "L")
 ##   c.pressed.connect(func(id): open_showcase(id))
 ##   c.set_data(HeroesUIModel.hero("vesta"))      # refresh in place
 
 signal pressed(id: String)
 
-const SIZES := {"S": Vector2(124, 186), "M": Vector2(156, 208), "L": Vector2(216, 300)}
-const FOOTER := {"S": 0.27, "M": 0.25, "L": 0.21}
+const SIZES := {"S": Vector2(124, 186), "M": Vector2(156, 208), "L": Vector2(216, 300), "XL": Vector2(300, 416)}
+const FOOTER := {"S": 0.26, "M": 0.3, "L": 0.22, "XL": 0.2}
+## Footer type sizes per card size: [name, name min, sub-line].
+const FOOT_TYPE := {"S": [22, 18, 20], "M": [24, 18, 20], "L": [26, 20, 22], "XL": [32, 24, 24]}
 
 var data: Dictionary = {}
 var size_kind := "L"
+## "auto" (S = "name", others "full") · "full" · "name" · "none".
+var footer_mode := "auto":
+	set(v):
+		footer_mode = v
+		if is_node_ready():
+			_apply()
+var show_role := true:
+	set(v):
+		show_role = v
+		if is_node_ready():
+			_apply()
 var card: KitGemCard
+var _foot: _Footer
 var _emblem: HeroGemEmblem
 var _sockets: HBoxContainer
 var _seal: HeroWaxSeal
@@ -61,6 +80,10 @@ func _init() -> void:
 	_lock = _LockDisc.new()
 	_lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_lock)
+	_foot = _Footer.new()
+	_foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_foot.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_foot)
 	resized.connect(_layout)
 
 
@@ -85,11 +108,15 @@ func _layout() -> void:
 	var em := clampf(s.x * 0.24, 30.0, 54.0)
 	_emblem.position = Vector2(6, 6)
 	_emblem.size = Vector2(em, em)
-	var fh := roundf(s.y * float(FOOTER[size_kind]))
-	var so := 30.0 if size_kind == "S" else (34.0 if size_kind == "M" else 40.0)
-	_sockets.position = Vector2(s.x - (so * _sockets.get_child_count() + 4.0 * maxi(0, _sockets.get_child_count() - 1)) - 8.0, s.y - fh - so - 10.0)
-	_lock.size = Vector2(s.x * 0.36, s.x * 0.36)
-	_lock.position = Vector2((s.x - _lock.size.x) * 0.5, (s.y - fh) * 0.46 - _lock.size.y * 0.5)
+	var fh := roundf(s.y * _footer_ratio())
+	var so := _socket_px()
+	var sw := so * _sockets.get_child_count() + 4.0 * maxi(0, _sockets.get_child_count() - 1)
+	# Unowned: the sockets move to the top-right corner (the bottom of the art carries the
+	# «Де знайти» cartouche) and the lock disc sits in the upper third, off the face.
+	var owned := bool(data.get("owned", true))
+	_sockets.position = Vector2(s.x - sw - 8.0, s.y - fh - so - 10.0) if owned else Vector2(s.x - sw - 8.0, 8.0)
+	_lock.size = Vector2(s.x * 0.3, s.x * 0.3)
+	_lock.position = Vector2((s.x - _lock.size.x) * 0.5, (s.y - fh) * 0.3 - _lock.size.y * 0.5)
 	if _seal:
 		_seal.position = Vector2(s.x - _seal.size.x * 0.82, -_seal.size.y * 0.18)
 
@@ -101,8 +128,9 @@ func _apply() -> void:
 	var owned := bool(data.get("owned", false))
 	var gem := str(data.get("gem", "C"))
 	card.gem = gem
-	card.footer_ratio = float(FOOTER[size_kind])
-	card.title = str(data.get("name", ""))
+	card.footer_ratio = _footer_ratio()
+	card.title = ""
+	card.footer = ""
 	card.dim = not owned
 	# A dimmed (unowned) opal card drops the kit's play-of-colour layer so it greys like the rest
 	# (KitGemCard keeps it on for every opal; requested as a kit fix).
@@ -119,19 +147,27 @@ func _apply() -> void:
 			_: foot = HeroesText.t("HALL_SRC_CHEST") if not is_hero else ""
 	elif is_hero:
 		foot = HeroesText.t("SHOW_LV", [int(data.get("eff_level", data.get("level", 1)))])
-	else:
+	elif show_role:
 		foot = str(data.get("role", ""))
-	card.footer = foot
+	var mode := footer_mode
+	if mode == "auto":
+		mode = "name" if size_kind == "S" else "full"
+	_foot.title = str(data.get("name", "")) if mode != "none" else ""
+	_foot.sub = foot if mode == "full" else ""
+	_foot.type = FOOT_TYPE[size_kind]
+	_foot.footer_ratio = _footer_ratio()
+	_foot.dim = not owned
 	# Pips only once the character has fragments or facets (progressive disclosure §11.3).
 	var show_pips := owned and (int(data.get("facets", 0)) > 0 or int(data.get("frags", 0)) > 0)
 	card.pips = int(data.get("facets", 0)) if show_pips else -1
+	_foot.pips = show_pips
 	_emblem.gem = gem
 	_emblem.native = str(data.get("native", gem)) if bool(data.get("is_recut", false)) else ""
 	_emblem.modulate.a = 0.55 if not owned else 1.0
 	# Sockets.
 	for ch in _sockets.get_children():
 		ch.queue_free()
-	var so := 30.0 if size_kind == "S" else (34.0 if size_kind == "M" else 40.0)
+	var so := _socket_px()
 	var cls := UIKit.socket("cls_" + str(data.get("class", "warrior")), so)
 	cls.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sockets.add_child(cls)
@@ -143,15 +179,31 @@ func _apply() -> void:
 	# NEW wax seal.
 	if bool(data.get("is_new", false)) and owned:
 		if _seal == null:
-			var px := 52.0 if size_kind == "S" else (58.0 if size_kind == "M" else 68.0)
+			var px := 52.0 if size_kind == "S" else (58.0 if size_kind == "M" else (68.0 if size_kind == "L" else 84.0))
 			_seal = HeroWaxSeal.make(px)
 			add_child(_seal)
 	elif _seal:
 		_seal.queue_free()
 		_seal = null
 	_lock.visible = not owned
+	_foot.queue_redraw()
 	_apply_art()
 	_layout()
+
+
+## The cream footer share of the card height: a name-only footer is a quarter shorter.
+func _footer_ratio() -> float:
+	var r := float(FOOTER[size_kind])
+	var mode := footer_mode
+	if mode == "auto":
+		mode = "name" if size_kind == "S" else "full"
+	if mode != "full" and size_kind != "S":
+		r *= 0.74
+	return r
+
+
+func _socket_px() -> float:
+	return {"S": 30.0, "M": 34.0, "L": 40.0, "XL": 48.0}[size_kind]
 
 
 func _apply_art() -> void:
@@ -164,7 +216,7 @@ func _apply_art() -> void:
 		"splash", "card":
 			card.art.texture = HeroArt.card_texture(id)
 		"live3d":
-			var px := 192 if size_kind == "S" else 256
+			var px := 192 if size_kind == "S" else (256 if size_kind != "XL" else 384)
 			var tex := HeroArt.cached_portrait(id, px)
 			if tex:
 				card.art.texture = tex
@@ -219,6 +271,44 @@ class _Placeholder extends Control:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		HeroArt.draw_placeholder(self, r, cls, gem)
+
+
+## The footer text over the kit's cream strip: the name (bold, fitted to the width) and the
+## sub-line, centred; room is left for the facet pips on the seam.
+class _Footer extends Control:
+	var title := ""
+	var sub := ""
+	var type: Array = [26, 20, 22]
+	var footer_ratio := 0.22
+	var pips := false
+	var dim := false
+
+	func _draw() -> void:
+		if title == "" and sub == "":
+			return
+		var fh := roundf(size.y * footer_ratio)
+		var seam := size.y - fh
+		var room := 7.0 if pips else 0.0
+		var f := UIKit.font_w("bold")
+		var fm := UIKit.font_w("medium")
+		var w := size.x - 14.0
+		var ts := int(type[0])
+		while ts > int(type[1]) and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x > w:
+			ts -= 1
+		var ss := int(type[2])
+		while ss > 17 and fm.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x > w:
+			ss -= 1
+		var body := fh - room
+		var th := f.get_ascent(ts) * 0.92
+		var sh := fm.get_ascent(ss) * 0.92 if sub != "" else 0.0
+		var gap := 3.0 if sub != "" else 0.0
+		var y := seam + room + (body - th - sh - gap) * 0.5
+		if title != "":
+			var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
+			draw_string(f, Vector2((size.x - tw) * 0.5, y + th), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, UITokens.INK if not dim else UITokens.INK_DIM)
+		if sub != "":
+			var sw := fm.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
+			draw_string(fm, Vector2((size.x - sw) * 0.5, y + th + gap + sh), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_SOFT)
 
 
 class _LockDisc extends Control:
