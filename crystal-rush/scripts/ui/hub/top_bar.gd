@@ -202,7 +202,7 @@ class HubChip extends KitCurrencyPlate:
 
 
 ## The hero portrait: a cream ring with a fine gold hairline inside and out, the world
-## progress as a thin amber arc on the ring, and the campaign level on a slate disc.
+## progress as a 2 dpx amber arc on a 1 dpx gold track, the level on a chamfered glass plate (v3.1).
 class Avatar extends Control:
 	var tex: Texture2D
 	var hero := ""
@@ -239,18 +239,21 @@ class Avatar extends Control:
 				uvs.append(Vector2(0.5, 0.46) + d * 0.5 / 1.08)
 			draw_polygon(pts, PackedColorArray([Color.WHITE]), uvs, tex)
 		draw_arc(c, face + lw * 0.5, 0, TAU, 72, UITokens.HAIRLINE, lw, true)
-		# World progress on the ring: a 1.5 px amber arc over a faint 1 px track.
+		# v3.1 (§7.9): world progress = a 2 dpx amber arc on a 1 dpx gold track.
 		var pr := r - 3.0
-		draw_arc(c, pr, 0, TAU, 72, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), lw, true)
+		draw_arc(c, pr, 0, TAU, 72, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.6), UIKit.line_px(1.0), true)
 		if progress > 0.0:
-			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 48, UITokens.CTA_LO, UIKit.px(2.0), true)
-		# Level disc: a gold-rimmed cream disc with an ink number (no dark navy).
+			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 72, UITokens.CTA_LO, UIKit.line_px(2.0), true)
+		# The level on a chamfered glass plate with a 1 dpx deep-gold edge (Bold ink).
 		var f := UIKit.font_w("bold")
 		var txt := str(level)
-		var fs := 18 if txt.length() < 3 else 15
-		var lc := c + Vector2(r * 0.72, r * 0.72)
-		var lr := 15.0
-		draw_circle(lc, lr, UITokens.PAPER_0)
-		draw_arc(lc, lr - lw * 0.5, 0, TAU, 48, UITokens.HAIRLINE, lw, true)
+		var fs := 20 if txt.length() < 3 else 18
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(f, Vector2(lc.x - tw * 0.5, lc.y + fs * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
+		var lc := c + Vector2(r * 0.7, r * 0.74)
+		var pw := maxf(30.0, tw + 14.0)
+		var plate := Rect2(Vector2(roundf(lc.x - pw * 0.5), roundf(lc.y - 13.0)), Vector2(roundf(pw), 26.0))
+		draw_texture_rect(UIKit.glow_texture(), plate.grow(6.0), false, Color(sc.r, sc.g, sc.b, 0.12))
+		var pp := GemDraw.chamfer_rect(plate, 5.0)
+		draw_colored_polygon(pp, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
+		GemDraw.outline(self, pp, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0))
+		draw_string(f, Vector2(roundf(lc.x - tw * 0.5), roundf(lc.y + fs * 0.36)), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)

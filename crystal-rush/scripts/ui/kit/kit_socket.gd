@@ -1,8 +1,8 @@
 class_name KitSocket
 extends Control
 ## UI v2 round socket: a cream (or slate) disc with a thin gold ring and a line icon - class /
-## element / faction sockets, info dots, the "badge ring". With `badge_text` set it is the gold
-## notify badge instead (gold disc, deep-brown glyph, white rim).
+## element / faction sockets, info dots, the "badge ring". With `badge_text` set it is the amber
+## notify badge instead (v3.1: a flat amber disc, a 1 dpx cream ring, a deep-brown glyph).
 ## Bitmap overrides: socket_cream.png / socket_slate.png / badge_notify.png (square, any size).
 
 signal pressed
@@ -62,14 +62,15 @@ func _draw() -> void:
 
 
 func _draw_badge(c: Vector2, r: float) -> void:
+	# v3.1 (§7.11): a flat amber disc with a 1 dpx cream ring and one soft halo (no gloss blob).
 	var tex := UIKit.kit_texture("badge_notify")
-	draw_circle(c + Vector2(0, 1.5), r, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.22))
+	var sc := UITokens.SCRIM
+	draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.4 + Vector2(0, 1.5), Vector2(r, r) * 2.8), false, Color(sc.r, sc.g, sc.b, 0.14))
 	if tex:
 		draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), false)
 	else:
-		draw_circle(c, r, Color(1, 0.98, 0.92))
-		draw_circle(c, r - 1.5, Color("#E39A35"))
-		draw_circle(c + Vector2(0, -r * 0.12), r * 0.78, UITokens.NOTIFY.lightened(0.12))
+		draw_circle(c, r, UITokens.NAV_BADGE, true, -1.0, true)
+		draw_arc(c, r - UIKit.px(0.5), 0, TAU, 40, Color(1, 0.98, 0.92, 0.95), UIKit.line_px(1.0), true)
 	var f := UIKit.font_w("extrabold")
 	var fs := int(r * 1.25)
 	if badge_text.length() > 1:

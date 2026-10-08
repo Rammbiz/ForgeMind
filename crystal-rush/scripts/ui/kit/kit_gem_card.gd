@@ -1,5 +1,7 @@
 class_name KitGemCard
 extends Control
+## UI v3.1 rarity card (spec §7.3: opaque gem ground for identity, a 1 dpx frame, two faint
+## shadow layers, a glass footer and pip bed at 0.86, Medium footer text >= 22 px).
 ## UI v2 rarity card (Genshin construction, our marks): a gem-coloured vertical gradient ground
 ## with that gem's faint fracture pattern (quartz 60/120 planes, sapphire 12-degree grid,
 ## amethyst triangles, topaz 5 rays, opal conchoidal arcs + play-of-colour flecks), the art in
@@ -120,9 +122,9 @@ func _shape() -> PackedVector2Array:
 
 func _draw() -> void:
 	var pts := _shape()
-	# Soft shadow under the card.
-	for i in 4:
-		var o := Vector2(0, 2.0 + i * 1.6)
+	# v3.1: two faint shadow layers (not four).
+	for i in 2:
+		var o := Vector2(0, 2.0 + i * 2.4)
 		var sp := PackedVector2Array()
 		for p in pts:
 			sp.append(p + o)
@@ -285,33 +287,38 @@ func _draw_over(ci: CanvasItem) -> void:
 	foot.append(Vector2(size.x - ch, size.y))
 	foot.append(Vector2(ch, size.y))
 	foot.append(Vector2(0, size.y - ch))
-	ci.draw_colored_polygon(foot, UITokens.PAPER_2 if not dim else UITokens.PAPER_3)
-	ci.draw_line(Vector2(0, seam), Vector2(size.x, seam), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0, true)
-	var f := UIKit.font_w("bold")
+	# v3.1: a glass footer (cream @ 0.86 over the ground), a 1 dpx seam rule.
+	var p0 := UITokens.PAPER_0
+	ci.draw_colored_polygon(foot, Color(p0.r, p0.g, p0.b, 0.86) if not dim else UITokens.PAPER_3)
+	var sy := GemDraw.pixel_y(ci, seam)
+	ci.draw_line(Vector2(0, sy), Vector2(size.x, sy), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), -1.0)
+	var f := UIKit.font_w("medium")
 	var fm := UIKit.font_w("medium")
-	var ts := int(clampf(fh * 0.36, 16.0, 26.0))
-	var ss := int(clampf(fh * 0.27, 14.0, 20.0))
+	var ts := int(clampf(fh * 0.38, 20.0, 26.0))
+	var ss := int(clampf(fh * 0.34, 20.0, 24.0))
 	var pip_room := 8.0 if pips >= 0 else 0.0
 	if title != "":
 		var fs := ts
-		while fs > 13 and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 16.0:
+		while fs > 16 and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 16.0:
 			fs -= 1
 		var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var ty := seam + pip_room + (fh - pip_room) * (0.48 if footer != "" else 0.62)
 		ci.draw_string(f, Vector2((size.x - tw) * 0.5, ty), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK if not dim else UITokens.INK_DIM)
 	if footer != "":
+		while ss > 18 and fm.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x > size.x - 12.0:
+			ss -= 1
 		var fw := fm.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
 		var fy := size.y - fh * 0.14
-		ci.draw_string(fm, Vector2((size.x - fw) * 0.5, fy), footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM)
+		ci.draw_string(fm, Vector2((size.x - fw) * 0.5, fy), footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM_GLASS)
 	# Frame: inner 1 px rim in the gem's light tone, outer gold hairline.
 	var inner := GemDraw.chamfer_rect(Rect2(Vector2(3, 3), size - Vector2(6, 6)), maxf(ch - 1.5, 1.0))
 	var rim: Color = g["rim"] if not dim else UITokens.PAPER_3
-	ci.draw_polyline(_open_top(inner, seam), Color(rim.r, rim.g, rim.b, 0.75), 1.0, true)
+	ci.draw_polyline(_open_top(inner, seam), Color(rim.r, rim.g, rim.b, 0.75), UIKit.px(1.0), true)
 	var ftex := UIKit.kit_texture("card_frame")
 	if ftex:
 		ci.draw_style_box(UIKit.lux("card_frame"), Rect2(Vector2.ZERO, size))
 	else:
-		GemDraw.outline(ci, pts, UITokens.HAIRLINE, 1.5)
+		GemDraw.outline(ci, pts, UITokens.HAIRLINE, UIKit.line_px(1.0))
 	# Facet pips on the seam.
 	if pips >= 0 and pip_count > 0:
 		var ps := clampf(size.x * 0.07, 10.0, 16.0)
@@ -320,7 +327,7 @@ func _draw_over(ci: CanvasItem) -> void:
 		var light: Color = g["rim"] if gem != "opal" else Color("#E8D8FF")
 		# Cream bed behind the pips so they read on any ground.
 		var bed := Rect2(Vector2((size.x - total) * 0.5 - ps * 0.7, seam - ps * 0.55), Vector2(total + ps * 1.4, ps * 1.1))
-		ci.draw_colored_polygon(GemDraw.chamfer_rect(bed, ps * 0.5), UITokens.PAPER_2 if not dim else UITokens.PAPER_3)
+		ci.draw_colored_polygon(GemDraw.chamfer_rect(bed, ps * 0.5), Color(p0.r, p0.g, p0.b, 0.86) if not dim else UITokens.PAPER_3)
 		for i in pip_count:
 			GemDraw.draw_pip(ci, Vector2((size.x - total) * 0.5 + i * gapx, seam), ps, i < pips, light)
 	# Gem-cut mark top-left.

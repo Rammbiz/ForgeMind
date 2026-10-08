@@ -1,5 +1,5 @@
 class_name GemDraw
-## UI v2 "precious" drawing helpers (procedural placeholders until the owner's bitmaps land):
+## UI v2 "precious" drawing helpers (v3.1: every line 1 device px, UIKit.px / line_px) (procedural placeholders until the owner's bitmaps land):
 ## faceted cut gems (round / square / triangle / star / eye / cushion), the crystal keystone,
 ## marquise hairline terminals, rhombus facet pips, the refraction glint (4 rays, one long)
 ## and chamfered-rect polygons. Everything is CanvasItem drawing, lit from the upper left.
@@ -159,7 +159,7 @@ static func draw_mark(ci: CanvasItem, gem_key: String, c: Vector2, s: float, alp
 	var cut: String = g["cut"]
 	var bez := cut_points(cut, c, s * 1.16)
 	ci.draw_colored_polygon(bez, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, alpha))
-	outline(ci, bez, Color(0.45, 0.32, 0.12, 0.6 * alpha), 1.0)
+	outline(ci, bez, Color(0.45, 0.32, 0.12, 0.6 * alpha), UIKit.px(1.0))
 	var body: Color = g["rim"]
 	if gem_key == "opal":
 		body = Color("#3A2D63")
@@ -187,30 +187,20 @@ static func draw_pip(ci: CanvasItem, c: Vector2, s: float, lit: bool, col := UIT
 		ci.draw_colored_polygon(pts, Color(col.r, col.g, col.b, alpha))
 		ci.draw_colored_polygon(PackedVector2Array([pts[0], pts[1], c, pts[3]]), Color(1, 1, 1, 0.32 * alpha))
 		ci.draw_line(c + Vector2(-w * 0.45, -h * 0.1), c + Vector2(w * 0.45, -h * 0.1), Color(1, 1, 1, 0.75 * alpha), 1.0, true)
-		outline(ci, pts, Color(col.r * 0.55, col.g * 0.55, col.b * 0.55, 0.8 * alpha), 1.0)
+		outline(ci, pts, Color(col.r * 0.55, col.g * 0.55, col.b * 0.55, 0.8 * alpha), UIKit.px(1.0))
 	else:
 		ci.draw_colored_polygon(pts, Color(1, 1, 1, 0.12 * alpha))
-		outline(ci, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9 * alpha), 1.2)
+		outline(ci, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9 * alpha), UIKit.line_px(1.0))
 
 
-## Crystal keystone: a rhombus split into 4 facets that catch the light, edged by ONE device-px
-## gold line (v3: no drop shadow, no thick outline: it is a jewel, not a sticker).
+## Crystal keystone (v2 name kept, signature unchanged). v3.1 (spec §3.3): every crystal keystone
+## is the small cut-gem diamond (9-12 px: lit left facet, shaded right facet, a 1 dpx edge); `s`
+## maps onto that range, `tint` lightly colours the stone (default: pale gold).
 static func draw_keystone(ci: CanvasItem, c: Vector2, s: float, alpha := 1.0, tint := Color(0.86, 0.96, 1.0)) -> void:
-	var h := s * 0.5
-	var w := s * 0.36
-	var t := c + Vector2(0, -h)
-	var r := c + Vector2(w, 0)
-	var b := c + Vector2(0, h)
-	var l := c + Vector2(-w, 0)
-	var k := c + Vector2(-w * 0.12, -h * 0.14)
-	var hi := Color(1, 1, 1, alpha)
-	var mid := Color(tint.r, tint.g, tint.b, alpha)
-	var lo := Color(tint.r * 0.7, tint.g * 0.86, tint.b * 0.95, alpha)
-	ci.draw_colored_polygon(PackedVector2Array([t, k, l]), hi)
-	ci.draw_colored_polygon(PackedVector2Array([t, r, k]), mid)
-	ci.draw_colored_polygon(PackedVector2Array([l, k, b]), mid.lerp(lo, 0.4))
-	ci.draw_colored_polygon(PackedVector2Array([k, r, b]), lo)
-	outline(ci, PackedVector2Array([t, r, b, l]), Color(UITokens.HAIRLINE.r * 0.88, UITokens.HAIRLINE.g * 0.82, UITokens.HAIRLINE.b * 0.74, alpha), UIKit.px(1.0))
+	var fill := Color("#F3E2B8")
+	if tint != Color(0.86, 0.96, 1.0):
+		fill = fill.lerp(Color(tint.r, tint.g, tint.b, 1.0), 0.5)
+	draw_diamond(ci, c, clampf(s * 0.7, 9.0, 12.0), fill, UITokens.LINE_GOLD_DEEP, alpha)
 
 
 ## v3 small cut-gem diamond (nav active marker, divider centre, sheet top): a slim rhombus with a
@@ -227,7 +217,7 @@ static func draw_diamond(ci: CanvasItem, c: Vector2, s: float, fill := UITokens.
 	ci.draw_colored_polygon(PackedVector2Array([t, b, l]), Color(lit.r, lit.g, lit.b, alpha))
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b]), Color(sh.r, sh.g, sh.b, alpha))
 	var e := edge if edge.a > 0.0 else fill.darkened(0.35)
-	outline(ci, PackedVector2Array([t, r, b, l]), Color(e.r, e.g, e.b, e.a * alpha), UIKit.px(1.0))
+	outline(ci, PackedVector2Array([t, r, b, l]), Color(e.r, e.g, e.b, e.a * alpha), UIKit.line_px(1.0))
 
 
 ## Tiny cut-gem marquise terminal for hairlines (pointing along `dir`): slim, flat gold.

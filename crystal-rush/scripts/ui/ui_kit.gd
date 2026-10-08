@@ -1,9 +1,11 @@
 class_name UIKit
-## UI v3 direction A "porcelain glass" (on top of the v2 Genshin x AFK Journey system): surfaces are
-## translucent cream glass (the frosted 3D world glows through, see KitGlass), every frame is ONE
-## 1-device-px gold hairline with a 1 px inner light line (KitBox paints at device resolution),
-## shadows are soft and quiet, type is a weight lighter (Medium / Bold; ExtraBold only for big
-## numbers). Everything below keeps the v2 API.
+## UI v3.1 "porcelain glass" (binding spec docs/design/ui_v3_spec.md, on top of the v2 Genshin x AFK
+## Journey system): surfaces are translucent cream glass (the frosted 3D world glows through, see
+## KitGlass), every frame is ONE 1-device-px gold hairline with a 1 px inner light line (KitBox
+## paints at device resolution; 1.25 dpx at 540-class densities, line_px()), shadows are soft and
+## never show through a translucent body, body text on frost always sits on a 94 % cream text
+## bed (TextBed), modals carry restrained top-corner flourishes, type is a weight lighter
+## (Medium / Bold; ExtraBold only for numbers >= 40 px). Everything below keeps the v2 API.
 ## v2 notes (contract: scratchpad/uiv2/ui_v2_contract.md):
 ## Light warm cream surfaces, ONE thin gold hairline, soft shadows, small 45-degree chamfered
 ## corners (gem-girdle cut), M PLUS Rounded 1c, no text outlines. The amber jewel CTA is the
@@ -16,7 +18,9 @@ class_name UIKit
 
 # ------------------------------------------------------------------ v2 semantic tokens
 const INK := UITokens.INK                 ## text on cream
-const INK_DIM := UITokens.INK_DIM         ## taupe labels on cream
+## v3.1: nearly every surface is glass now, so the kit's secondary ink is the glass-safe taupe
+## (UITokens.INK_DIM_GLASS, >= 4.5:1 on the worst frost); UITokens.INK_DIM stays for opaque cream.
+const INK_DIM := UITokens.INK_DIM_GLASS   ## taupe labels on glass / cream
 const INK_SOFT := UITokens.INK_SOFT       ## small labels (18 px)
 const ON_SCENE := UITokens.ON_SCENE       ## warm white on 3D / art (always soft_shadow())
 const PAPER_0 := UITokens.PAPER_0
@@ -26,11 +30,13 @@ const CREAM_3 := UITokens.PAPER_3
 const HAIRLINE := UITokens.HAIRLINE
 const GOLD_HI := UITokens.GOLD_HI
 const GOLD_TEXT := UITokens.GOLD_TEXT
+const GOLD_TEXT_GLASS := UITokens.GOLD_TEXT_GLASS
+const INK_DIM_GLASS := UITokens.INK_DIM_GLASS
 const CTA_HI := UITokens.CTA_HI
 const CTA := UITokens.CTA
 const CTA_LO := UITokens.CTA_LO
 const CTA_RIM := UITokens.CTA_RIM
-const CTA_TEXT := Color("#5A3212")        ## label on the amber CTA: deep amber-brown ink (~5:1), light emboss
+const CTA_TEXT := Color("#5A3212")        ## label on the amber CTA: deep amber-brown ink (~5:1), no emboss
 const SCRIM := UITokens.SCRIM
 const PLUS := UITokens.PLUS
 const ALERT := UITokens.ALERT
@@ -252,6 +258,13 @@ static func px(n := 1.0) -> float:
 	return n / ui_scale()
 
 
+## Spec §1.1a: a gold line of `n` device px on a frosted surface, in canvas units, with the
+## low-density floor (x1.25 when the device scale is < 0.9, so 540-class lines stay >= 0.8 alpha).
+static func line_px(n := 1.0) -> float:
+	var sc := ui_scale()
+	return n * (UITokens.LOW_DENSITY_LINE if sc < 0.9 else 1.0) / sc
+
+
 ## Nine-patch styles, painted once and cached (or the owner's bitmap of the same name).
 ## v2 kinds:
 ##   "panel" / "cream" / "parch"     cream document panel, outer hairline + inner hairline
@@ -293,6 +306,9 @@ static func lux(kind: String, pad := Vector2(-1, -1)) -> StyleBox:
 	s.s = sc
 	s.margin_dev = _margin(dspec)
 	s.shadow_dev = _shadow_room(dspec)
+	s.cham = float(spec.get("cham", 0.0))
+	if spec.has("flourish"):
+		s.flourish = spec["flourish"]
 	var p: Vector2 = spec["pad"] if pad.x < 0.0 else pad
 	var shift: float = spec.get("shift", 0.0)
 	s.content_margin_left = p.x
@@ -315,8 +331,14 @@ static func _device_spec(spec: Dictionary, sc: float) -> Dictionary:
 		if d.has(k):
 			d[k] = float(d[k]) * sc
 	var layers: Array = []
+	var ld := UITokens.LOW_DENSITY_LINE if sc < 0.9 else 1.0
 	for L: Dictionary in spec["layers"]:
 		var l2 := L.duplicate()
+		# §1.1a: gold rings (not the inner light line) thicken a quarter at 540-class densities.
+		if l2.has("ring") and not l2.has("inset_px") and ld > 1.0:
+			l2["ring"] = float(l2["ring"]) * ld
+		if l2.has("w") and ld > 1.0:
+			l2["w"] = float(l2["w"]) * ld
 		if l2.has("inset"):
 			l2["inset"] = float(l2["inset"]) * sc
 		if l2.has("inset_px"):
@@ -328,6 +350,9 @@ static func _device_spec(spec: Dictionary, sc: float) -> Dictionary:
 		layers.append(l2)
 	d["layers"] = layers
 	d["dev"] = sc
+	if d.has("feather"):
+		d["feather"] = float(d["feather"]) * sc
+	d.erase("flourish")
 	return d
 
 
@@ -347,15 +372,32 @@ static func _spec(kind: String) -> Dictionary:
 	var G0 := UITokens.GLASS_TOP
 	var G1 := UITokens.GLASS_BOT
 	var sa := UITokens.SHADOW_A
+	var TA := UITokens.GLASS_TEXT_A
+	var deep := UITokens.LINE_GOLD_DEEP
 	match kind:
 		"panel", "cream", "parch":
 			return _glass(12.0, G0, G1, 0.78, 0.62, 22.0, sa * 0.8, 6.0, Vector2(36, 30))
 		"modal":
-			# Flat fallback (no world snapshot): text-heavy, so near-opaque (no ghosting under text).
-			return _glass(12.0, _a(G0, 0.97), _a(G1, 0.98), 0.8, 0.7, 30.0, sa * 1.4, 10.0, Vector2(36, 32))
+			# Flat fallback (no world snapshot; run HUD, results, menus): text-heavy, 0.97.
+			var mf := _glass(12.0, _a(G0, 0.97), _a(G1, 0.97), 0.8, 0.7, 30.0, sa * 1.4, 10.0, Vector2(36, 32))
+			mf["flourish"] = _flourish("top")
+			return mf
 		"modal_frost", "panel_frost":
 			# Opaque-painted body for the KitGlass frost material (the shader mixes the world in).
-			return _glass(12.0, _a(G0, 1.0), _a(G1, 1.0), 0.85, 0.75, 30.0, sa * 1.4, 10.0, Vector2(36, 32) if kind == "modal_frost" else Vector2(36, 30))
+			# No lines here: the frame is drawn by the TextBed overlay ("<kind>_lines"), outside the
+			# material, so the gold stays pure gold instead of 38 % world.
+			return _glass(12.0, _a(G0, 1.0), _a(G1, 1.0), 0.0, 0.0, 30.0, sa * 1.4, 10.0, Vector2(36, 32) if kind == "modal_frost" else Vector2(36, 30))
+		"modal_lines", "panel_lines":
+			var fl := _glass(12.0, Color(1, 1, 1, 0), Color(1, 1, 1, 0), 0.85, 0.75, 0.0, 0.0, 0.0, Vector2(36, 32) if kind == "modal_lines" else Vector2(36, 30), UITokens.LINE_GOLD_DEEP.lerp(HAIRLINE, 0.5))
+			if kind == "modal_lines":
+				fl["flourish"] = _flourish("top")
+			return fl
+		"text_bed":
+			# §4.3: the cream bed under body text on frost (94 %), no line, no shadow, edges
+			# feathered over 28 px (TextBed draws it into the panel's content rect, grown).
+			return {"cham": 12.0, "blur": 0.0, "feather": 28.0, "pad": Vector2.ZERO, "layers": [
+				{"top": _a(PAPER_0, TA), "bot": _a(PAPER_0, TA)},
+			]}
 		"cream_glass", "glass":
 			return _glass(10.0, _a(G0, 0.62), _a(G1, 0.7), 0.72, 0.6, 16.0, sa * 0.7, 4.0, Vector2(22, 14))
 		"sheet":
@@ -363,11 +405,12 @@ static func _spec(kind: String) -> Dictionary:
 		"sheet_frost":
 			return _glass(12.0, _a(PAPER_0, 1.0), _a(UITokens.SHEET_FILL, 1.0), 0.0, 0.0, 24.0, sa * 0.6, -3.0, Vector2(26, 28))
 		"card", "parch_card":
-			return _glass(10.0, _a(PAPER_0, 0.84), _a(CREAM, 0.88), 0.62, 0.55, 12.0, sa * 0.7, 3.0, Vector2(16, 14))
+			return _glass(10.0, _a(PAPER_0, 0.86), _a(CREAM, 0.88), 0.62, 0.55, 12.0, sa * 0.7, 3.0, Vector2(16, 14))
 		"card_sel":
-			var cs := _glass(10.0, _a(PAPER_0, 0.94), _a(PAPER_0, 0.94), 0.0, 0.7, 14.0, sa, 3.0, Vector2(16, 14))
-			cs["glow"] = _a(CTA, 0.32)
-			(cs["layers"] as Array).insert(1, {"ring": UITokens.SELECT_PX, "top": Color("#E0AE52"), "bot": Color("#C98F36")})
+			# §7.3: 1.5 dpx deep-gold frame + the diagonal flourish pair; no glow slab.
+			var cs := _glass(10.0, _a(PAPER_0, 0.92), _a(PAPER_0, 0.92), 0.0, 0.7, 12.0, sa * 0.9, 3.0, Vector2(16, 14))
+			(cs["layers"] as Array).insert(1, {"ring": UITokens.SELECT_PX, "top": _a(deep, 0.95), "bot": _a(deep, 0.85)})
+			cs["flourish"] = _flourish("diag", 12.0)
 			return cs
 		"card_dim":
 			return _glass(10.0, _a(CREAM_3, 0.6), _a(Color("#DCCFB8"), 0.66), 0.42, 0.35, 0.0, 0.0, 0.0, Vector2(16, 14))
@@ -378,11 +421,15 @@ static func _spec(kind: String) -> Dictionary:
 		"chip":
 			return _glass(6.0, _a(PAPER_0, 0.82), _a(CREAM, 0.86), 0.72, 0.6, 6.0, sa * 0.6, 1.5, Vector2(14, 4))
 		"banner", "toast":
-			return _glass(10.0, _a(G0, 0.9), _a(G1, 0.92), 0.8, 0.7, 18.0, sa * 1.1, 5.0, Vector2(26, 14))
+			# §7.11: flat glass at the text alpha (body text sits on it), 1 dpx gold line.
+			return _glass(10.0, _a(G0, TA), _a(G1, TA + 0.02), 0.8, 0.7, 18.0, sa * 1.1, 5.0, Vector2(26, 14))
+		"row":
+			# §9: list rows at the text alpha (Shop, Barracks): no frame, a faint light line.
+			return _glass(8.0, _a(PAPER_0, TA), _a(CREAM, TA), 0.5, 0.6, 8.0, sa * 0.6, 2.0, Vector2(18, 10))
 		"ribbon":
 			return _glass(8.0, _a(PAPER_0, UITokens.GLASS_THIN_A + 0.1), _a(CREAM, UITokens.GLASS_THIN_A + 0.14), 0.75, 0.7, 8.0, sa * 0.7, 2.0, Vector2(30, 6))
 		"button":
-			return _glass(8.0, _a(PAPER_0, 0.84), _a(CREAM_2, 0.86), 0.72, 0.7, 8.0, sa * 0.8, 2.0, Vector2(28, 10))
+			return _glass(8.0, _a(PAPER_0, 0.86), _a(CREAM_2, 0.86), 0.72, 0.7, 8.0, sa * 0.8, 2.0, Vector2(28, 10))
 		"button_pressed":
 			var bp := _glass(8.0, _a(CREAM_3, 0.9), _a(Color("#E8DECC"), 0.9), 0.8, 0.3, 4.0, sa * 0.5, 1.0, Vector2(28, 10))
 			bp["shift"] = 2.0
@@ -400,72 +447,77 @@ static func _spec(kind: String) -> Dictionary:
 				{"top": _a(CREAM_3, 0.0 if kind == "text" else 0.45), "bot": _a(CREAM_3, 0.0 if kind == "text" else 0.45)},
 			]}
 		"primary", "green", "primary_compact":
-			# A cut topaz slab, lit not glossy: a 1 px deep-amber edge, a soft amber body (no sheen
-			# blob, no brown drop shadow), a 1 px inner light line along the top.
-			return {"cham": 12.0, "blur": 16.0, "sh_a": 0.16, "sh_dy": 4.0, "sh_col": Color("#A8662A"),
+			# The painted fallback of the CTA body (KitCTA draws its own vector cut gem; this is
+			# for old callers that style a plain Button "PrimaryButton"): flat amber in 3 stops,
+			# a 1 dpx table light and ONE 1 dpx rim, a soft warm glow (no brown drop, no sheen).
+			return {"cham": 12.0, "blur": 16.0, "sh_a": 0.18, "sh_dy": 4.0, "sh_col": Color(0.6, 0.38, 0.15),
 					"pad": Vector2(36, 10), "layers": [
-				{"top": Color("#E3A04E"), "bot": Color("#C27A33")},
-				{"inset_px": 1.0, "top": Color("#FFDE9C"), "mid": Color("#F6B451"), "bot": Color("#E79A3E")},
-				{"inset_px": 2.0, "ring": 1.0, "top": Color(1, 0.99, 0.92, 0.85), "bot": Color(1, 0.95, 0.8, 0.12)},
+				{"top": Color("#FFD98A"), "mid": CTA, "bot": Color("#E8963A")},
+				{"ring": 1.0, "top": _a(CTA_RIM, 0.7), "bot": _a(CTA_RIM, 0.7)},
+				{"line": "top", "y": 1.0, "w": 1.0, "inset_x": 12.0, "col": Color(1.0, 0.98, 0.9, 0.9)},
 			]}
 		"primary_pressed", "green_pressed":
-			return {"cham": 12.0, "blur": 8.0, "sh_a": 0.12, "sh_dy": 2.0, "sh_col": Color("#A8662A"), "shift": 2.0,
+			return {"cham": 12.0, "blur": 8.0, "sh_a": 0.10, "sh_dy": 2.0, "sh_col": Color(0.6, 0.38, 0.15), "shift": 1.0,
 					"pad": Vector2(36, 10), "layers": [
-				{"top": Color("#D18F42"), "bot": Color("#B36E2B")},
-				{"inset_px": 1.0, "top": Color("#FFD48A"), "mid": Color("#EEA544"), "bot": Color("#D9873A")},
-				{"inset_px": 2.0, "ring": 1.0, "top": Color(1, 0.95, 0.8, 0.5), "bot": Color(1, 0.9, 0.7, 0.1)},
+				{"top": Color("#F9C76A"), "mid": Color("#EEA23E"), "bot": Color("#DC8A32")},
+				{"ring": 1.0, "top": _a(CTA_RIM, 0.7), "bot": _a(CTA_RIM, 0.7)},
+				{"line": "top", "y": 1.0, "w": 1.0, "inset_x": 12.0, "col": Color(1.0, 0.98, 0.9, 0.6)},
 			]}
 		"primary_disabled":
-			return {"cham": 12.0, "blur": 0.0, "pad": Vector2(36, 10), "layers": [
-				{"top": Color("#D6CBB6"), "bot": Color("#C4B79F")},
-				{"inset_px": 1.0, "top": Color("#F1EADD"), "bot": Color("#E2D7C4")},
-			]}
+			return _glass(12.0, _a(PAPER_0, 0.9), _a(CREAM_2, 0.88), 0.6, 0.5, 0.0, 0.0, 0.0, Vector2(36, 10))
 		"parch_well", "well":
 			return _glass(6.0, _a(CREAM_3, 0.5), _a(CREAM_2, 0.45), 0.45, 0.0, 0.0, 0.0, 0.0, Vector2(12, 8))
 		"seg":
 			return _glass(8.0, _a(CREAM_3, 0.32), _a(CREAM_2, 0.36), 0.55, 0.0, 0.0, 0.0, 0.0, Vector2(4, 4))
 		"seg_sel":
-			var ss := _glass(6.0, _a(PAPER_0, 0.94), _a(PAPER_0, 0.94), 0.8, 0.7, 6.0, sa * 0.7, 1.5, Vector2(18, 6))
-			(ss["layers"] as Array).append({"line": "bottom", "y": 4.0, "w": UITokens.SELECT_PX, "inset_x": 22.0, "col": CTA_LO})
-			return ss
+			# §7.5: the selected segment = cream 0.92 with a 1 dpx gold line (no underline).
+			return _glass(6.0, _a(PAPER_0, 0.92), _a(PAPER_0, 0.92), 0.8, 0.7, 6.0, sa * 0.7, 1.5, Vector2(18, 6))
 		"tab_track":
 			return {"cham": 0.0, "blur": 0.0, "pad": Vector2(8, 6), "layers": [
-				{"line": "bottom", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.6)},
+				{"line": "bottom", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.55)},
 			]}
 		"tabbar", "nav_bar":
 			return {"cham": 0.0, "blur": 0.0, "pad": Vector2(8, 8), "layers": [
-				{"top": _a(PAPER_0, 0.82), "bot": _a(CREAM, 0.88)},
-				{"line": "top", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.7)},
-				{"line": "top", "y": 1.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 1, 1, 0.6)},
+				{"top": _a(PAPER_0, 0.84), "bot": _a(CREAM, 0.92)},
+				{"line": "top", "y": 0.0, "w": 1.0, "inset_x": 0.0, "col": _a(deep, 0.85)},
+				{"line": "top", "y": 1.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 1, 1, 0.62)},
 			]}
 		"tab_sel":
 			var ts := _glass(10.0, _a(PAPER_0, 0.9), _a(CREAM, 0.9), 0.78, 0.7, 10.0, sa * 0.8, 3.0, Vector2(8, 8))
 			(ts["layers"] as Array).append({"line": "bottom", "y": 5.0, "w": UITokens.SELECT_PX, "inset_x": 18.0, "col": CTA_LO})
 			return ts
 		"band_amber":
-			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.14, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
-				{"top": Color("#FFE1A0"), "mid": CTA, "bot": Color("#E3913A")},
-				{"line": "top", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 0.97, 0.86, 0.85)},
-				{"line": "bottom", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 0.95, 0.8, 0.65)},
+			# §7.10: 1 dpx rules (the result title band); the centre diamonds are drawn by band().
+			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.14, "sh_dy": 4.0, "sh_col": Color(0.6, 0.38, 0.15), "pad": Vector2(24, 12), "layers": [
+				{"top": Color("#FFE1A0"), "mid": CTA, "bot": Color("#E8963A")},
+				{"line": "top", "y": 6.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 0.97, 0.86, 0.85)},
+				{"line": "bottom", "y": 6.0, "w": 1.0, "inset_x": 0.0, "col": Color(1, 0.95, 0.8, 0.65)},
 			]}
 		"band_cool":
-			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.12, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
-				{"top": _a(CREAM, 0.9), "bot": _a(CREAM_2, 0.92)},
-				{"line": "top", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color("#8E98AA")},
-				{"line": "bottom", "y": 5.0, "w": 1.0, "inset_x": 0.0, "col": Color("#8E98AA")},
+			return {"cham": 0.0, "blur": 16.0, "sh_a": 0.10, "sh_dy": 4.0, "pad": Vector2(24, 12), "layers": [
+				{"top": _a(PAPER_0, 0.94), "bot": _a(CREAM, 0.94)},
+				{"line": "top", "y": 6.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.8)},
+				{"line": "bottom", "y": 6.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.8)},
 			]}
 		"tag_new":
-			return {"cham": 5.0, "blur": 3.0, "sh_a": 0.12, "sh_dy": 1.0, "pad": Vector2(8, 1), "layers": [
+			return {"cham": 5.0, "blur": 3.0, "sh_a": 0.10, "sh_dy": 1.0, "pad": Vector2(8, 1), "layers": [
 				{"top": Color("#FFDD6E"), "bot": UITokens.NEW_TAG},
 				{"ring": 1.0, "top": Color("#C99A2A"), "bot": Color("#B5861E")},
 			]}
 	return _spec("card")
 
 
+## Corner flourish parameters (§3.4): "top" corners of a modal (arms 20 px) or the "diag" pair
+## of the selected card (arms 12 px); 1 dpx LINE_GOLD_DEEP @ 0.8, inset 6 px.
+static func _flourish(corners := "top", arm := 20.0) -> Dictionary:
+	var d := UITokens.LINE_GOLD_DEEP
+	return {"corners": corners, "len": arm, "inset": 6.0, "col": Color(d.r, d.g, d.b, 0.8)}
+
+
 ## Painting in GDScript costs a few ms per style, so painted images are cached as PNGs in
 ## user://ui_cache (keyed by a hash of the spec); later launches load them instantly.
 static func _cached_paint(kind: String, spec: Dictionary) -> Image:
-	var path := "user://ui_cache/v3_%s_%s.png" % [kind, str(spec).md5_text().substr(0, 10)]
+	var path := "user://ui_cache/v31_%s_%s.png" % [kind, str(spec).md5_text().substr(0, 10)]
 	if FileAccess.file_exists(path):
 		var cached := Image.load_from_file(path)
 		if cached and not cached.is_empty():
@@ -484,7 +536,7 @@ static func _shadow_room(spec: Dictionary) -> float:
 
 
 static func _margin(spec: Dictionary) -> float:
-	return ceilf(_shadow_room(spec) + float(spec.get("cham", 0.0)) + 8.0)
+	return ceilf(_shadow_room(spec) + float(spec.get("cham", 0.0)) + float(spec.get("feather", 0.0)) + 8.0)
 
 
 ## Signed distance to a box (centre, half size) with 45-degree corner chamfers `ch`.
@@ -515,6 +567,7 @@ static func _paint(spec: Dictionary) -> Image:
 	var glow: Color = spec.get("glow", Color(0, 0, 0, 0))
 	var layers: Array = spec["layers"]
 	var sig := maxf(blur / 2.4, 0.5)
+	var feather: float = spec.get("feather", 0.0)
 	for y in h:
 		for x in w:
 			var p := Vector2(x + 0.5, y + 0.5)
@@ -529,6 +582,10 @@ static func _paint(spec: Dictionary) -> Image:
 					var ga := glow.a * exp(-(dg * dg) / (2.0 * 16.0))
 					col = _over(col, Color(glow.r, glow.g, glow.b, ga))
 			var d0 := _sd(p, center, half, ch)
+			if d0 <= 0.5:
+				# v3.1 knock-out (B): the body replaces the shadow under it, so a translucent
+				# panel never shows its own shadow through itself.
+				col = Color(col.r, col.g, col.b, col.a * clampf(d0 + 0.5, 0.0, 1.0))
 			for L: Dictionary in layers:
 				if L.has("line"):
 					var lw: float = L["w"]
@@ -545,6 +602,8 @@ static func _paint(spec: Dictionary) -> Image:
 				var inset: float = L.get("inset", 0.0)
 				var d := d0 + inset
 				var cov := clampf(0.5 - d, 0.0, 1.0)
+				if feather > 0.0:
+					cov = smoothstep(0.0, feather, -d)
 				if cov <= 0.0:
 					continue
 				var top_y := body.position.y + inset
@@ -821,15 +880,16 @@ static func scene_label(text: String, size := 24, bold := true) -> Label:
 
 
 ## Small caps label (taupe, tracked): section labels, stat names.
-static func caps(text: String, size := 20, color := INK_DIM) -> Label:
+static func caps(text: String, size := 22, color := INK_DIM_GLASS) -> Label:
 	var l := label(text.to_upper(), size, color)
 	l.add_theme_font_override("font", font_caps(size))
 	return l
 
 
-## Engraved section title on cream (gold_text, tracked caps).
+## Engraved section title (tracked caps): v3.1 in the glass-safe amber ink (GOLD_TEXT_GLASS,
+## >= 4.6:1 on the worst frost; reads as the same engraved gold on cream).
 static func section(text: String, size := 22) -> Label:
-	return caps(text, size, GOLD_TEXT)
+	return caps(text, size, GOLD_TEXT_GLASS)
 
 
 ## Big number (ExtraBold, tabular digits): ink on cream or warm white on scenes.
@@ -1051,7 +1111,8 @@ static func tabs(options: Array, selected: String, on_change := Callable(), font
 # ------------------------------------------------------------------ containers
 
 ## Cream document panel (kind: "panel" | "cream_glass" | "card" | "card_sel" | "card_dim" | "modal" ...).
-## v3: "modal" panels are frosted cream glass when the hub's world snapshot exists (KitGlass).
+## v3: "modal" panels are frosted cream glass (+ text bed + top-corner flourishes) when the hub's
+## world snapshot exists (KitGlass); flat 0.97 cream with the same lines and flourishes otherwise.
 static func panel(kind := "panel", pad := Vector2(-1, -1)) -> PanelContainer:
 	var p := PanelContainer.new()
 	if kind == "modal" and frost_into(p, kind, pad):
@@ -1061,16 +1122,42 @@ static func panel(kind := "panel", pad := Vector2(-1, -1)) -> PanelContainer:
 
 
 ## Gives an existing PanelContainer the frosted `kind` body ("modal" | "panel"): the opaque-painted
-## `<kind>_frost` style + the KitGlass frost material. Returns false (and sets the flat `kind`)
-## when there is no world snapshot.
+## `<kind>_frost` style + the KitGlass frost material at UITokens.FROST_RIM_TINT, and the 94 %
+## cream text bed under its content (§4.3: frost shows only in the rim band and the margins).
+## Returns false (and sets the flat `kind`) when there is no world snapshot.
 static func frost_into(p: PanelContainer, kind := "modal", pad := Vector2(-1, -1)) -> bool:
-	var m := KitGlass.frost(UITokens.FROST_TINT)
+	var m := KitGlass.frost(UITokens.FROST_RIM_TINT)
 	if m == null:
 		p.add_theme_stylebox_override("panel", lux(kind, pad))
 		return false
 	p.add_theme_stylebox_override("panel", lux(kind + "_frost", pad))
 	p.material = m
+	var bed := text_bed(p)
+	bed.frame_kind = kind + "_lines"
 	return true
+
+
+## Adds (once) the §4.3 text bed to a frosted container: a feathered 94 % cream bed over its
+## content rect (grown into the padding), drawn behind the content. It is an INTERNAL child, so
+## get_child(0) and the container layout are unchanged. `top_frac` leaves the top share of the
+## box as frost (sheets: 0.2, the frost ramp above the first row). Returns the bed.
+static func text_bed(p: Control, top_frac := 0.0) -> TextBed:
+	for c in p.get_children(true):
+		if c is TextBed:
+			(c as TextBed).top_frac = top_frac
+			return c
+	var bed := TextBed.new()
+	bed.top_frac = top_frac
+	p.add_child(bed, false, Node.INTERNAL_MODE_FRONT)
+	return bed
+
+
+## The text bed of a frosted container, or null (flat fallback: no bed).
+static func text_bed_of(p: Control) -> TextBed:
+	for c in p.get_children(true):
+		if c is TextBed:
+			return c
+	return null
 
 
 ## Translucent cream over 3D (porcelain), one hairline.
@@ -1079,28 +1166,30 @@ static func glass_panel(pad := Vector2(-1, -1)) -> PanelContainer:
 
 
 ## v3 frosted panel: with the hub's world snapshot (KitGlass) the body is frosted cream glass
-## (the blurred world glows through at UITokens.FROST_TINT); without it, the flat translucent
-## `kind` ("modal" | "panel").
+## (the blurred world glows through the rim at UITokens.FROST_RIM_TINT, body text sits on the
+## text bed); without it, the flat translucent `kind` ("modal" | "panel").
 static func frost_panel(kind := "modal", pad := Vector2(-1, -1)) -> PanelContainer:
 	var p := PanelContainer.new()
 	frost_into(p, kind, pad)
 	return p
 
 
-## Bottom sheet: cream body with an arched top hairline and a crystal keystone.
+## Bottom sheet: frosted cream glass (flat SHEET_FILL without a snapshot), a straight fading top
+## rule with a small centre diamond (KitSheet), the text bed below the top 20 % frost ramp.
 static func sheet(pad := Vector2(-1, -1)) -> KitSheet:
 	var s := KitSheet.new()
-	# v3: frosted cream glass (the world glows through; nothing sharp ghosts under the text).
-	var m := KitGlass.frost(0.8)
+	var m := KitGlass.frost(UITokens.FROST_RIM_TINT)
 	if m:
 		s.add_theme_stylebox_override("panel", lux("sheet_frost", pad))
 		s.material = m
+		text_bed(s, 0.2).sheet_top = true
 	else:
 		s.add_theme_stylebox_override("panel", lux("sheet", pad))
 	return s
 
 
-## Modal frame: cream panel, title plate, close disc. Body content goes into
+## Modal frame: frosted panel (text bed, top-corner flourishes), title 40 Bold ink, a 1 dpx ring
+## close disc, a fading header rule with a diamond centre. Body content goes into
 ## modal.get_meta("body") (a VBoxContainer). `on_close` runs on the close disc.
 static func modal(title: String, on_close := Callable(), width := 600.0) -> PanelContainer:
 	var p := frost_panel("modal")
@@ -1111,15 +1200,19 @@ static func modal(title: String, on_close := Callable(), width := 600.0) -> Pane
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
 	v.add_child(head)
-	var tl := heading(title, 34, INK)
-	tl.add_theme_font_override("font", font_w("medium"))
+	var tl := heading(title, 40, INK)
 	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tl.size_flags_vertical = Control.SIZE_FILL
 	head.add_child(tl)
 	if on_close.is_valid():
 		var x := edge_button("close", 26.0)
 		x.pressed.connect(on_close)
 		head.add_child(x)
 	v.add_child(divider(width - 72.0))
+	for c in p.get_children(true):
+		if c is TextBed:
+			(c as TextBed).header = head
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 10)
 	v.add_child(body)
@@ -1230,7 +1323,7 @@ static func toast(host: Control, text: String, icon := "", hold := 1.6, y := 180
 	p.add_child(row)
 	if icon != "":
 		row.add_child(Icons.make(icon, 32.0, INK))
-	var l := label(text, 24, INK, true)
+	var l := label(text, 24, INK)
 	row.add_child(l)
 	host.add_child(p)
 	var ms := p.get_combined_minimum_size()
@@ -1251,10 +1344,8 @@ static func band(text: String, style := "amber", height := 140.0) -> PanelContai
 	p.custom_minimum_size = Vector2(0, height)
 	var l: Label
 	if style == "amber":
+		# v3.1: no emboss / shadow on the label (no text outlines anywhere).
 		l = number(text, 56, false, CTA_TEXT)
-		l.add_theme_color_override("font_shadow_color", Color(0.55, 0.27, 0.05, 0.45))
-		l.add_theme_constant_override("shadow_offset_y", 2)
-		l.add_theme_constant_override("shadow_outline_size", 6)
 	else:
 		l = number(text, 52, false, INK)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1521,7 +1612,8 @@ static func safe_insets(vp: Viewport) -> Vector4:
 
 # ------------------------------------------------------------------ drawn widgets
 
-## Gold hairline divider: marquise terminals + crystal keystone (or a plain hairline).
+## Gold hairline divider (§3.2): 1 dpx, fading over its outer quarter, marquise terminals and a
+## small cut-gem diamond at the centre (or a plain fading list rule).
 class Divider extends Control:
 	var keystone := true
 	var plain := false
@@ -1530,9 +1622,68 @@ class Divider extends Control:
 	func _draw() -> void:
 		var y := GemDraw.pixel_y(self, size.y * 0.5)
 		if plain:
-			draw_line(Vector2(0, y), Vector2(size.x, y), color, -1.0)
+			var c0 := Color(color.r, color.g, color.b, 0.0)
+			draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(size.x * 0.22, y), Vector2(size.x * 0.78, y), Vector2(size.x, y)]),
+					PackedColorArray([c0, color, color, c0]), -1.0)
 			return
-		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), color, 1.0, keystone, true)
+		GemDraw.draw_hairline(self, Vector2(0, y), Vector2(size.x, y), Color(color.r, color.g, color.b, color.a * 0.85), 1.0, keystone, true)
+
+
+## §4.3 text bed: a feathered 94 % cream bed (lux "text_bed") over the parent container's
+## content rect, grown 22 px into the padding, so body text on a frosted modal / sheet never
+## sits on the moving world (luma SD <= 4 in the text column). An INTERNAL child (drawn before
+## the content; invisible to get_child() and to the container layout). `top_frac` leaves the top
+## share of the parent as plain frost (the sheet's frost ramp).
+## It also carries the frosted box's FRAME (`frame_kind`, a lines-only lux kind) and the sheet's
+## top rule (`sheet_top`), drawn outside the frost material so the gold stays pure gold.
+class TextBed extends Control:
+	const GROW := 20.0
+	var top_frac := 0.0
+	var frame_kind := ""
+	var sheet_top := false
+	var bed := true
+	## Optional: the header row of the box (a modal's title). The bed starts under it, so the title
+	## sits on the frost ramp and only the body column is bedded.
+	var header: Control
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _ready() -> void:
+		var p := get_parent() as Control
+		if p:
+			p.resized.connect(queue_redraw)
+			p.sort_children.connect(queue_redraw)
+
+	func _draw() -> void:
+		var p := get_parent() as Control
+		if p == null:
+			return
+		# The container may lay this child out in its content rect: draw in the PARENT's space.
+		var o := -position
+		var ps := p.size
+		var sb := p.get_theme_stylebox("panel")
+		var m := Vector4(24, 24, 24, 24)
+		if sb:
+			m = Vector4(sb.content_margin_left, sb.content_margin_top, sb.content_margin_right, sb.content_margin_bottom)
+		var g := GROW
+		var r := Rect2(Vector2(m.x - g, m.y - g), ps - Vector2(m.x + m.z - g * 2.0, m.y + m.w - g * 2.0))
+		# Keep a frost rim of at least 8 px inside the frame.
+		r = r.intersection(Rect2(Vector2(8, 8), ps - Vector2(16, 16)))
+		var t := r.position.y
+		if top_frac > 0.0:
+			t = maxf(t, ps.y * top_frac)
+		if header and is_instance_valid(header) and header.is_visible_in_tree():
+			var hb := p.get_global_transform().affine_inverse() * header.get_global_rect().end
+			t = maxf(t, hb.y + 4.0)
+		if t > r.position.y:
+			r = Rect2(Vector2(r.position.x, t), Vector2(r.size.x, r.end.y - t))
+		if bed and r.size.x >= 8.0 and r.size.y >= 8.0:
+			draw_style_box(UIKit.lux("text_bed"), Rect2(r.position + o, r.size))
+		if frame_kind != "":
+			draw_style_box(UIKit.lux(frame_kind), Rect2(o, ps))
+		if sheet_top:
+			KitNav.draw_arch_top(self, Rect2(o, ps), 0.0, UITokens.CHAMFER_L, UITokens.SHEET_FILL, true)
 
 
 ## Slowly rotating light rays (victory sunburst / reward halo). Soft and warm in v2.
@@ -1640,27 +1791,31 @@ class Ribbon extends Control:
 		var pts := PackedVector2Array([
 			Vector2(cut, 0), Vector2(w - cut, 0), Vector2(w, cut), Vector2(w - notch, h * 0.5), Vector2(w, h - cut),
 			Vector2(w - cut, h), Vector2(cut, h), Vector2(0, h - cut), Vector2(notch, h * 0.5), Vector2(0, cut)])
-		# Soft shadow
-		for i in 4:
-			var o := Vector2(0, 3.0 + i * 1.5)
-			var sp := PackedVector2Array()
-			for p in pts:
-				sp.append(p + o)
-			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.06))
+		# Soft shadow: one halo (no stacked discs).
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(-w * 0.04, h * 0.25), Vector2(w * 1.08, h * 1.0)), false,
+				Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
 		var cols := PackedColorArray()
 		for p in pts:
 			cols.append(top.lerp(bottom, p.y / maxf(h, 1.0)))
 		draw_polygon(pts, cols)
+		# v3.1 (§7.10): 1 dpx rules with a diamond centre, a 1 dpx frame, diamonds at the notches.
 		var lc := fold
-		draw_line(Vector2(cut + notch, 5), Vector2(w - cut - notch, 5), lc, 1.5, true)
-		draw_line(Vector2(cut + notch, h - 5), Vector2(w - cut - notch, h - 5), lc, 1.5, true)
-		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.5)
-		GemDraw.draw_keystone(self, Vector2(notch + 14.0, h * 0.5), 16.0)
-		GemDraw.draw_keystone(self, Vector2(w - notch - 14.0, h * 0.5), 16.0)
+		var y0 := GemDraw.pixel_y(self, 5.0)
+		var y1 := GemDraw.pixel_y(self, h - 5.0)
+		draw_line(Vector2(cut + notch, y0), Vector2(w - cut - notch, y0), lc, -1.0)
+		draw_line(Vector2(cut + notch, y1), Vector2(w - cut - notch, y1), lc, -1.0)
+		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), UIKit.line_px(1.0))
+		GemDraw.draw_diamond(self, Vector2(w * 0.5, y0), 9.0, Color("#F3E2B8"), UITokens.LINE_GOLD_DEEP)
+		GemDraw.draw_diamond(self, Vector2(notch + 14.0, h * 0.5), 12.0, Color("#F3E2B8"), UITokens.LINE_GOLD_DEEP)
+		GemDraw.draw_diamond(self, Vector2(w - notch - 14.0, h * 0.5), 12.0, Color("#F3E2B8"), UITokens.LINE_GOLD_DEEP)
 
 
-## HBox list row that draws a hairline under itself (no boxes).
+## HBox list row that draws a hairline under itself (no boxes): 1 dpx HAIRLINE @ 0.55 fading
+## over the outer 22 % (§3.1).
 class KitRow extends HBoxContainer:
 	func _draw() -> void:
 		var y := GemDraw.pixel_y(self, size.y - UIKit.px(0.5))
-		draw_line(Vector2(0, y), Vector2(size.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.42), -1.0)
+		var c := Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.55)
+		var c0 := Color(c.r, c.g, c.b, 0.0)
+		draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(size.x * 0.22, y), Vector2(size.x * 0.78, y), Vector2(size.x, y)]),
+				PackedColorArray([c0, c, c, c0]), -1.0)

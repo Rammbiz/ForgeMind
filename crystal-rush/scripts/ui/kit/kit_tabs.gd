@@ -1,7 +1,7 @@
 class_name KitTabs
 extends Control
-## UI v2 text tabs (Genshin underline style, no boxes): taupe labels; the active one is ink with
-## an amber underline that carries a small crystal keystone and slides between tabs
+## UI v3.1 text tabs (Genshin underline style, no boxes): taupe Medium labels; the active one is
+## ink with a 1.5 dpx amber underline with facet ends that slides between tabs
 ## (UITokens.TAB_FADE). A faint gold hairline runs under the whole row.
 ##   var t := UIKit.tabs([["attr", "Атрибути"], ["skills", "Навички"]], "attr", _on_tab)
 
@@ -83,7 +83,7 @@ func _restyle() -> void:
 		return
 	for b: Button in _row.get_children():
 		var on := str(b.get_meta("id")) == selected
-		var c := UITokens.INK if on else UITokens.INK_DIM
+		var c := UITokens.INK if on else UITokens.INK_DIM_GLASS
 		for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 			b.add_theme_color_override(k, c)
 		b.add_theme_font_override("font", UIKit.font_w("medium"))
@@ -109,18 +109,13 @@ func _snap() -> void:
 
 
 func _draw() -> void:
-	# v3: one 1-device-px rule under the row (fading at the ends), the active tab = a 2 px amber
-	# underline that fades at its ends with a small cut-gem diamond (no crystal keystone).
+	# v3.1 (§7.5): one 1 dpx rail under the row (HAIRLINE @ 0.55, fading over the outer 22 %), the
+	# active tab = a 1.5 dpx CTA_LO underline with a 7 px amber facet at each end (no keystone).
 	var y := GemDraw.pixel_y(self, size.y - 1.0)
-	var hl := Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5)
+	var hl := Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.55)
 	var hl0 := Color(hl.r, hl.g, hl.b, 0.0)
-	draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(size.x * 0.12, y), Vector2(size.x * 0.88, y), Vector2(size.x, y)]),
+	draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(size.x * 0.22, y), Vector2(size.x * 0.78, y), Vector2(size.x, y)]),
 			PackedColorArray([hl0, hl, hl, hl0]), -1.0)
 	if _uw <= 0.0:
 		return
-	var uy := GemDraw.pixel_y(self, size.y - 4.0)
-	var a := UITokens.CTA_LO
-	var a0 := Color(a.r, a.g, a.b, 0.0)
-	draw_polyline_colors(PackedVector2Array([Vector2(_ux - _uw * 0.5, uy), Vector2(_ux - _uw * 0.3, uy), Vector2(_ux + _uw * 0.3, uy), Vector2(_ux + _uw * 0.5, uy)]),
-			PackedColorArray([a0, a, a, a0]), UIKit.px(UITokens.SELECT_PX))
-	GemDraw.draw_diamond(self, Vector2(_ux, uy), 9.0, UITokens.TOPAZ, Color("#A8662A"))
+	KitNav.draw_indicator(self, Vector2(_ux, size.y - 4.0), _uw + 16.0, 1.0)

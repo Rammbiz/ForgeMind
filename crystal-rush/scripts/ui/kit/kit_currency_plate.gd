@@ -67,10 +67,15 @@ func _draw() -> void:
 	if plus:
 		var pc := Vector2(size.x - size.y * 0.42, size.y * 0.5)
 		var pr := size.y * 0.27
-		# v3: a fine "+" in a 1 px gold ring (no filled disc).
-		var lw := UIKit.px(1.0)
-		draw_arc(pc, pr - lw * 0.5, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), lw, true)
-		var k := pr * 0.46
-		draw_line(pc - Vector2(k, 0), pc + Vector2(k, 0), UITokens.GOLD_TEXT, 1.5, true)
-		draw_line(pc - Vector2(0, k), pc + Vector2(0, k), UITokens.GOLD_TEXT, 1.5, true)
+		# v3.1 (§7.4): a thin line "+" (1.5 dpx amber ink, no disc, no ring) after a 1 dpx
+		# fading divider.
+		var k := roundf(pr * 0.62)
+		pc = Vector2(roundf(pc.x), roundf(pc.y))
+		var pw := UIKit.line_px(UITokens.SELECT_PX)
+		draw_line(pc - Vector2(k, 0), pc + Vector2(k, 0), UITokens.GOLD_TEXT_GLASS, pw, true)
+		draw_line(pc - Vector2(0, k), pc + Vector2(0, k), UITokens.GOLD_TEXT_GLASS, pw, true)
+		var dx := pc.x - pr - 6.0
+		var hl := UITokens.HAIRLINE
+		draw_polyline_colors(PackedVector2Array([Vector2(dx, plate.position.y + 6.0), Vector2(dx, plate.get_center().y), Vector2(dx, plate.end.y - 6.0)]),
+				PackedColorArray([Color(hl.r, hl.g, hl.b, 0.0), Color(hl.r, hl.g, hl.b, 0.6), Color(hl.r, hl.g, hl.b, 0.0)]), -1.0)
 	Icons.draw_icon(self, icon, Rect2(Vector2(0, (size.y - ic) * 0.5), Vector2(ic, ic)))

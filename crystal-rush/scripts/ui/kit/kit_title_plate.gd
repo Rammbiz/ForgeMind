@@ -1,6 +1,6 @@
 class_name KitTitlePlate
 extends Control
-## UI v2 title / world ribbon: a slim translucent cream plate with chamfered ends, a gold
+## UI v3.1 title / world ribbon (§7.4): a slim glass plate (1 dpx gold + 1 dpx light), Medium text with chamfered ends, a gold
 ## hairline and tiny cut-gem marquise terminals outside both ends ("Світ 2 · Луки · Рівень 14").
 ## Bitmap override: ribbon.png (nine-patch via lux "ribbon").
 
@@ -26,7 +26,7 @@ func _draw() -> void:
 	GemDraw.draw_marquise(self, Vector2(size.x - term * 0.5, y), Vector2(1, 0), 10.0)
 	var f := UIKit.font_w("medium")
 	var fs := font_size
-	while fs > 16 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > r.size.x - 32.0:
+	while fs > 20 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > r.size.x - 32.0:
 		fs -= 1
 	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var base := y + f.get_ascent(fs) * 0.38 + 1.0
@@ -37,7 +37,7 @@ func _draw() -> void:
 		var post := text.substr(i + accent.length())
 		draw_string(f, Vector2(x, base), pre, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 		x += f.get_string_size(pre, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(f, Vector2(x, base), accent, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT)
+		draw_string(f, Vector2(x, base), accent, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS)
 		x += f.get_string_size(accent, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		draw_string(f, Vector2(x, base), post, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 	else:

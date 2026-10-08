@@ -48,8 +48,8 @@ const MIN_TEXT := 20
 const TOP_BAR_H := 96.0            ## 0-96: portrait ring + currency plates
 const RIBBON_Y := 104.0            ## world ribbon / screen title row (44 tall)
 const NAV_H := 100.0               ## v3: slim frosted strip (was a 120 slab + 28 medallion rise)
-const NAV_RISE := 14.0             ## v3: only the slender Play ring rises above the strip's hairline
-const TAB_BAR_H := NAV_H + NAV_RISE ## legacy name: room the nav takes at the bottom
+const NAV_RISE := 10.0             ## v3.1: the slender Play ring rises 10 px above the hairline, no more
+const TAB_BAR_H := NAV_H + NAV_RISE ## legacy name: room the nav takes at the bottom (110)
 const DOCK_H := 132.0              ## a screen dock (back tab + CTA) above the nav
 const GUTTER := 24.0               ## side margin
 const GAP := 12.0                  ## default gap between cards / rows
@@ -60,26 +60,46 @@ const CHAMFER := 10.0              ## panels, cards
 const CHAMFER_S := 8.0             ## buttons, plates
 const CHAMFER_XS := 6.0            ## chips, tags
 const HAIRLINE_W := 1.0            ## v3: legacy canvas width; new code sizes lines in DEVICE px (UIKit.px)
-const HAIRLINE_PX := 1.0           ## v3: every frame / divider = 1 device px (crisp at 1080 / 1440)
-const SELECT_PX := 2.0             ## v3: selected card / active underline = 2 device px, nothing heavier
+const HAIRLINE_PX := 1.0           ## v3: every frame / divider / ring = 1 device px (crisp at 1080 / 1440)
+const SELECT_PX := 1.5             ## v3.1: active underline, active Play ring, CTA rim, selected card. Nothing heavier.
 
-# ------------------------------------------------------------------ v3 porcelain glass (direction A)
+# ------------------------------------------------------------------ v3.1 porcelain glass (binding spec ui_v3_spec.md §1)
 ## Glass = translucent cream over the frosted world (KitGlass) + ONE 1 px gold hairline + a 1 px
 ## inner LIGHT line just inside it (light catching the glass edge). No dark borders, soft shadows.
-const GLASS_TOP := Color(0.988, 0.976, 0.949, 0.80)   ## panel tint, top (alpha = how much cream)
-const GLASS_BOT := Color(0.969, 0.949, 0.910, 0.86)   ## panel tint, bottom (>= 0.72 under body text)
-const GLASS_THIN_A := 0.72         ## plates / chips / ribbons over the 3D (+0.10..0.14 per kind; no grey cast over blue sky)
-const SHEET_FILL := Color(0.969, 0.949, 0.910, 0.84)  ## bottom sheets (the stage tint glows through)
-const LINE_GOLD := Color(0.788, 0.659, 0.416, 0.78)   ## HAIRLINE at 78 %: the 1 px gold frame
+## Lines (§1.1). At s < 0.9 (540-class) gold lines on frost draw at 1.25x (UIKit.line_px).
+const LINE_GOLD := Color(0.788, 0.659, 0.416, 0.78)   ## #C9A86A @ 0.78: the 1 px gold frame on glass
+const LINE_GOLD_DEEP := Color(0.659, 0.514, 0.247, 0.90) ## #A8833F @ 0.90: lines that must read on light frost (nav hairline, Play ring, flourishes)
 const LINE_LIGHT := Color(1.0, 1.0, 1.0, 0.62)        ## inner light line (top), fades to 0.18 at the bottom
-const SHADOW_A := 0.10             ## soft slate shadow, never darker (v2 used 0.16-0.30)
-const FROST_TINT := 0.70           ## KitGlass frost: share of cream over the world under text
-## Bottom nav v3 (720 canvas): a frosted strip, monoline gold glyphs, one quiet active state.
-const NAV_GLYPH := 44.0            ## glyph box (stroke 1.75 canvas px)
-const NAV_LABEL := 22              ## label size, Medium, +1 px tracking (MIN text 22)
-const NAV_GOLD := Color("#9A7A44") ## inactive glyph: antique gold (3.4:1 on the glass, 40 px glyph)
-const NAV_GOLD_ON := Color("#6E5122") ## active glyph: deep gold
-const NAV_PLAY_R := 31.0           ## slender Play ring (62 px), rises NAV_RISE above the hairline
+const LOW_DENSITY_LINE := 1.25     ## §1.1a: line width factor when the device scale is < 0.9
+## Glass (§1.2).
+const GLASS_TOP := Color(0.988, 0.976, 0.949, 0.80)   ## #FCF9F2 @ 0.80: flat glass panel tint (no snapshot)
+const GLASS_BOT := Color(0.969, 0.949, 0.910, 0.86)   ## #F7F2E8 @ 0.86
+const GLASS_TEXT_A := 0.94         ## any surface under BODY text: text beds, list rows, toasts (0.93-0.99)
+const GLASS_THIN_A := 0.72         ## plates / chips / pills / ribbons over the 3D (+0.10..0.14 per kind)
+const SHEET_FILL := Color(0.969, 0.949, 0.910, 0.84)  ## sheet body outside the text zones (flat fallback)
+const FROST_RIM_TINT := 0.62       ## frosted modal / sheet body: share of cream over the world (rim, margins)
+const FROST_TEXT_TINT := 0.94      ## effective tint behind the text column (the text bed)
+const FROST_TINT := FROST_RIM_TINT ## legacy name
+const NAV_TINT_TOP := 0.40         ## nav strip tint at the hairline (the world ghosts through)
+const NAV_TINT_MID := 0.80         ## ... at the label cap height
+const NAV_TINT_BOT := 0.88         ## ... at the strip bottom
+const BACKDROP_VEIL := [0.42, 0.48, 0.56] ## cream veil over the frosted world on the cream tabs: PAPER_0 top / mid, PAPER_1 bottom
+const SHADOW_A := 0.10             ## soft slate shadow (x0.6-1.4 per kind); the CTA glows warm at 0.18 instead
+const SCRIM_MODAL := 0.42          ## modal dim (v2 0.50, A 0.36); ceremonies stay at SCRIM_CEREMONY
+const SCRIM_CEREMONY := 0.56
+## Ink (§1.3). Rule: text >= 4.5:1 on the worst 5 % of its own surface, glyphs >= 3.5:1.
+const INK_DIM_GLASS := Color("#62574F")   ## secondary text on any glass / frost, inactive nav labels (4.8 worst)
+const GOLD_TEXT_GLASS := Color("#7A5520") ## engraved caps / amber-ink labels on frost; active nav label (4.6 worst)
+## Bottom nav v3.1 (§1.4, §6; 720 canvas): a frosted strip, monoline gold glyphs, one clear active state.
+const NAV_GLYPH := 48.0            ## glyph box (stroke 2.0 canvas px, min UIKit.px(1.5))
+const NAV_STROKE := 2.0
+const NAV_LABEL := 22              ## label size, Medium, +1 px tracking, both states
+const NAV_GOLD := Color("#7E6136") ## inactive glyph (3.95:1 worst frost)
+const NAV_GOLD_ON := Color("#5A4220") ## active glyph (7.6:1 typical)
+const NAV_PLAY_R := 30.0           ## slender Play ring (60 px double ring)
+const NAV_SAG := 5.0               ## hairline arch: the sides sit 5 px lower than the centre
+const NAV_WASH := Color("#F1D99A") ## gold-leaf wash behind the active glyph (a glow, never a tile)
+const NAV_BADGE := Color("#E3922C") ## 9 px amber diamond badge
 
 # ------------------------------------------------------------------ palette v2 (fusion §6.5)
 ## Surfaces (cream "documents you hold").
@@ -90,10 +110,10 @@ const PAPER_3 := Color("#E3D8C4")  ## pressed, wells, unowned cards
 ## Gold line language.
 const HAIRLINE := Color("#C9A86A") ## hairlines, frames, chamfer lines (decorative)
 const GOLD_HI := Color("#E3CB94")  ## lines and labels over art
-const GOLD_TEXT := Color("#8A6A2F") ## engraved section titles on cream (4.5:1)
+const GOLD_TEXT := Color("#8A6A2F") ## engraved caps on opaque cream or the text bed only (4.5:1)
 ## Text.
 const INK := Color("#4B5669")      ## text on cream (6.6:1)
-const INK_DIM := Color("#6E625B")  ## taupe labels on cream (4.9:1 on PAPER_1)
+const INK_DIM := Color("#6E625B")  ## taupe labels on OPAQUE cream only (5.3:1); on glass use INK_DIM_GLASS
 const INK_SOFT := Color("#675C56") ## small labels that need more contrast (18 px, 5.5:1)
 const ON_SCENE := Color("#FFF8EC") ## warm white on 3D / art, always with a soft shadow
 const SCRIM := Color("#1E2433")    ## shadows, scrims (never a flat dark panel)

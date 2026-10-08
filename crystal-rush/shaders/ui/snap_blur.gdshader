@@ -1,9 +1,9 @@
-// One-time gaussian for the world snapshot (runs on a 1/8-res SubViewport, UPDATE_ONCE):
+// One-time gaussian for the world snapshot (runs on a 1/10-res SubViewport, UPDATE_ONCE):
 // 7x7 taps, sigma ~2 texels. At 135x240 that is ~1.6 M texel fetches once per refresh.
 shader_type canvas_item;
 uniform sampler2D src : filter_linear, repeat_disable;
 uniform vec2 texel = vec2(0.0074, 0.0042);
-uniform float spread = 1.25;
+uniform float spread = 1.6;
 void fragment() {
 	vec3 acc = vec3(0.0);
 	float wsum = 0.0;
