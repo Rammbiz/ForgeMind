@@ -322,7 +322,7 @@ func refresh() -> void:
 		chip.add_child(cr)
 		_pick_row.add_child(chip)
 	elif unlocked:
-		var sel := UIKit.secondary_button(tr2("H_SELECT"), "check", Vector2(176, 58), 22)
+		var sel := UIKit.secondary_button(tr2("H_SELECT"), "check", Vector2(186, 72), 22)
 		sel.pressed.connect(func():
 			Meta.set_hero(HEROES[_idx])
 			UIJuice.haptic("THUD", 0.6)

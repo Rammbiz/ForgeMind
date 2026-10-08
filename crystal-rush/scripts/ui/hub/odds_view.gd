@@ -118,12 +118,12 @@ func _fill() -> void:
 	var head := HBoxContainer.new()
 	head.custom_minimum_size.y = 40
 	head.add_theme_constant_override("separation", 8)
-	var h0 := UIKit.caps(Loc.t("RARITY"), 17, UIKit.INK_SOFT)
+	var h0 := UIKit.caps(Loc.t("RARITY"), 18, UIKit.INK_SOFT)
 	h0.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h0.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	head.add_child(h0)
 	for k in ["ODDS_PER_CARD", "ODDS_BEST"]:
-		var hl := UIKit.caps(Loc.t(k), 15, UIKit.INK_SOFT)
+		var hl := UIKit.caps(Loc.t(k), 18, UIKit.INK_SOFT)
 		hl.custom_minimum_size = Vector2(COL_W, 0)
 		hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM

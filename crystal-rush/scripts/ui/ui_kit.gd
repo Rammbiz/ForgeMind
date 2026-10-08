@@ -1379,8 +1379,8 @@ static func sparkles(parent: Control, pos: Vector2, color := GOLD_LIGHT, amount 
 	p.damping_max = 120.0
 	p.angular_velocity_min = -60.0
 	p.angular_velocity_max = 60.0
-	p.scale_amount_min = 0.1
-	p.scale_amount_max = 0.26
+	p.scale_amount_min = 0.05
+	p.scale_amount_max = 0.15
 	var curve := Curve.new()
 	curve.add_point(Vector2(0, 0.2))
 	curve.add_point(Vector2(0.15, 1.0))

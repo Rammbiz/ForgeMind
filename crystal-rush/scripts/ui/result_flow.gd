@@ -1100,7 +1100,7 @@ class DripChip extends Control:
 		var fm := UIKit.font_w("medium")
 		var x0 := 80.0
 		var nm := Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"])) if ArsenalData.MACHINES.has(id) else id
-		var fs := UIKit.fit_size(nm, size.x - x0 - 12.0, 20, 14)
+		var fs := UIKit.fit_size(nm, size.x - x0 - 12.0, 20, 18)
 		draw_string(f, Vector2(x0, 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.INK)
 		var need := maxi(int(data.get("bp_need", 1)), 1)
 		var before := float(data.get("bp_before", 0)) + 0.0
@@ -1119,12 +1119,12 @@ class DripChip extends Control:
 			draw_polygon(fp, cols)
 		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.0)
 		var bt := "%d / %d" % [int(floor(shown + 0.001)), need]
-		draw_string(fm, Vector2(x0, size.y - 10.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UIKit.INK_DIM)
+		draw_string(fm, Vector2(x0, size.y - 9.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIKit.INK_DIM)
 		var gain := int(data.get("bp_after", 0)) - int(data.get("bp_before", 0))
 		if gain > 0:
 			var gt := "+%d" % gain
-			var gw := f.get_string_size(gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
-			draw_string(f, Vector2(size.x - 14.0 - gw, size.y - 10.0), gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, UIKit.GOLD_TEXT)
+			var gw := f.get_string_size(gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+			draw_string(f, Vector2(size.x - 14.0 - gw, size.y - 9.0), gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UIKit.GOLD_TEXT)
 
 
 ## The gold hairline under a result title: marquise terminals, a crystal keystone, fading ends.
