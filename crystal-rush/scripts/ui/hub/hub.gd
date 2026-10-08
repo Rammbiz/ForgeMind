@@ -101,7 +101,7 @@ func _build() -> void:
 	top_bar.offset_bottom = _insets.y + UITokens.TOP_BAR_H
 	top_bar.settings_pressed.connect(open_settings)
 	top_bar.shop_pressed.connect(func(): select_tab("shop"))
-	top_bar.avatar_pressed.connect(func(): select_tab("heroes") if not tab_bar.is_locked("heroes") else null)
+	top_bar.avatar_pressed.connect(open_profile)
 	ui.add_child(top_bar)
 	tab_bar = HubTabBar.new()
 	tab_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -381,6 +381,15 @@ func content_rect() -> Rect2:
 ## Safe-area insets (left, top, right, bottom) in canvas px.
 func insets() -> Vector4:
 	return _insets
+
+
+## The portrait tap menu: name, world, level, Heroes, Settings, language.
+func open_profile() -> void:
+	if has_modal():
+		return
+	var p := ProfileCard.new()
+	p.setup(self)
+	push_modal(p)
 
 
 func open_settings() -> void:

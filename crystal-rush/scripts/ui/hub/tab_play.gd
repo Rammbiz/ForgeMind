@@ -30,6 +30,10 @@ var _tags: Array[DeckTag] = []
 var _hero_hit: Control
 var _shown_once := false
 var _launching := false
+const FADE_SKIP := 0.3          ## s: a first frame slower than this skips the chrome fade
+var _fade: Array = []           ## [control, delay, duration] while the arrival fade runs
+var _fade_req := 0              ## ms when on_show asked for the fade
+var _fade_t0 := -1              ## ms of the first frame of the fade (-1 = not started)
 
 
 func setup(p_hub: Hub) -> void:
@@ -140,24 +144,51 @@ func on_show() -> void:
 	refresh()
 	if UITokens.reduce_motion():
 		return
-	# Soft arrival: chrome fades in, rails drift in from their edges, PLAY rises a little.
+	# Soft arrival: chrome fades in (ribbon, rails, level path; PLAY the first time). Driven by
+	# the wall clock from the first drawn frame, not by tweens: slow first frames (shader
+	# compiles, a heavy scene swap) can no longer leave the chrome half-faded, and when the
+	# first frame takes longer than FADE_SKIP the fade is skipped altogether.
 	var first := not _shown_once
 	_shown_once = true
-	_ribbon.modulate.a = 0.0
-	_ribbon.create_tween().tween_property(_ribbon, "modulate:a", 1.0, UITokens.MENU_IN).set_delay(0.05)
+	_fade.clear()
+	_fade.append([_ribbon, 0.05, UITokens.MENU_IN])
 	for i in _rails.size():
 		var r: Control = _rails[i]
-		if not r.visible:
-			continue
-		r.modulate.a = 0.0
-		var tw := r.create_tween()
-		tw.tween_property(r, "modulate:a", 1.0, UITokens.MENU_IN).set_delay(0.08 + 0.04 * (i % 2))
-	_path.modulate.a = 0.0
-	_path.create_tween().tween_property(_path, "modulate:a", 1.0, UITokens.MENU_IN).set_delay(0.12)
+		if r.visible:
+			_fade.append([r, 0.08 + 0.04 * (i % 2), UITokens.MENU_IN])
+	_fade.append([_path, 0.12, UITokens.MENU_IN])
 	if first:
-		_cta.modulate.a = 0.0
-		var tc := _cta.create_tween()
-		tc.tween_property(_cta, "modulate:a", 1.0, UITokens.MENU_IN + 0.06).set_delay(0.1)
+		_fade.append([_cta, 0.1, UITokens.MENU_IN + 0.06])
+	for f: Array in _fade:
+		(f[0] as Control).modulate.a = 0.0
+	_fade_req = Time.get_ticks_msec()
+	_fade_t0 = -1
+
+
+## Advances the chrome fade (see on_show).
+func _step_fade() -> void:
+	if _fade.is_empty():
+		return
+	var now := Time.get_ticks_msec()
+	if _fade_t0 < 0:
+		if now - _fade_req > int(FADE_SKIP * 1000.0):
+			_end_fade()
+			return
+		_fade_t0 = now
+	var t := (now - _fade_t0) / 1000.0
+	var done := true
+	for f: Array in _fade:
+		var k := clampf((t - float(f[1])) / float(f[2]), 0.0, 1.0)
+		(f[0] as Control).modulate.a = 1.0 - pow(1.0 - k, 3.0)
+		done = done and k >= 1.0
+	if done:
+		_fade.clear()
+
+
+func _end_fade() -> void:
+	for f: Array in _fade:
+		(f[0] as Control).modulate.a = 1.0
+	_fade.clear()
 
 
 func on_hide() -> void:
@@ -216,6 +247,7 @@ func _sync_tags() -> void:
 
 
 func _process(_delta: float) -> void:
+	_step_fade()
 	if not is_visible_in_tree() or hub == null or hub.stage == null:
 		return
 	var origin := get_global_rect().position

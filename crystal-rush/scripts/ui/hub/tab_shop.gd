@@ -16,6 +16,7 @@ const CARD := Vector2(216, 296)
 
 var hub: Hub
 var _vault_card: KitGemCard
+var _banner_host: Control
 var _vault_eggs: HBoxContainer
 var _vault_count: Label
 var _vault_btn: Button
@@ -49,10 +50,19 @@ func _ready() -> void:
 	sc.add_child(m)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 14)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.alignment = BoxContainer.ALIGNMENT_BEGIN
 	m.add_child(col)
-	# Tall phones: the content sits in the vertical centre of the page (no empty bottom third).
-	var fit_h := func(): m.custom_minimum_size.y = sc.size.y
+	# Tall phones: the title stays at the top like every tab; the extra height grows the Vault
+	# banner (the art) and then opens the gaps a little (no empty bottom third, no floating title).
+	var fit_h := func():
+		# Spare = page height - the content at its base size (banner 300, gaps 14).
+		var grown := (_banner_host.custom_minimum_size.y - BANNER.y) if _banner_host else 0.0
+		var gaps := maxf(col.get_child_count() - 1, 1)
+		var base_h := col.get_combined_minimum_size().y - grown - (col.get_theme_constant("separation") - 14) * gaps
+		var extra := maxf(sc.size.y - 20.0 - base_h, 0.0)
+		var grow := minf(extra * 0.6, 180.0)
+		_grow_banner(grow)
+		col.add_theme_constant_override("separation", int(14.0 + minf((extra - grow) / gaps, 26.0)))
 	sc.resized.connect(fit_h)
 	fit_h.call_deferred()
 	# Title + promise
@@ -194,7 +204,21 @@ func _vault_banner() -> Control:
 	bcol.add_child(_vault_btn)
 	var host := VaultView.clipped(_vault_card, BANNER)
 	host.mouse_filter = Control.MOUSE_FILTER_PASS
+	_banner_host = host
 	return host
+
+
+## Tall phones: the banner (host, its clip and the card) grows by `extra` px.
+func _grow_banner(extra: float) -> void:
+	if _banner_host == null:
+		return
+	var sz := BANNER + Vector2(0, roundf(extra))
+	if _banner_host.custom_minimum_size == sz:
+		return
+	_banner_host.custom_minimum_size = sz
+	var clip := _banner_host.get_child(0) as Control
+	clip.size = sz + Vector2(20, 20)
+	_vault_card.size = sz
 
 
 ## The odds and guarantees entry: a quiet cream row (socket, title, the pity line, chevron).

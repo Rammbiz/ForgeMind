@@ -1,13 +1,13 @@
 class_name HubTopBar
 extends Control
 ## Hub top bar (UI v2, y 0-96 + safe top): the hero portrait in a fine gold ring (world
-## progress as a thin amber arc, the campaign level on a small slate disc), a quiet settings
-## disc beside it, and slim chamfered cream currency plates on the right: Coins (with "+",
+## progress as a thin amber arc, the campaign level on a small slate disc; a tap opens the
+## profile card with Settings and the language, Genshin-style: no gear beside it), and slim chamfered cream currency plates on the right: Coins (with "+",
 ## opens the Shop) and Gems always; Wild Blueprints on the Arsenal tab; Crowns only while
 ## crowns fly in (RewardFly) - the Home stays as calm as the concept.
 ## Plates roll their numbers and are RewardFly targets (fly_arrived()).
 
-signal settings_pressed
+signal settings_pressed       ## kept for callers; the gear moved into the profile card
 signal avatar_pressed
 signal shop_pressed
 
@@ -16,7 +16,6 @@ const PLATE_Y := 22.0
 
 var _chips := {}            ## cur -> HubChip
 var _avatar: Avatar
-var _gear: RoundButton
 var _tab := "play"
 var _flying := {}           ## cur -> true while a reward flies to a normally hidden plate
 
@@ -34,12 +33,6 @@ func _ready() -> void:
 			avatar_pressed.emit())
 	UIJuice.press(_avatar)
 	add_child(_avatar)
-	_gear = UIKit.edge_button("settings", 22.0)
-	_gear.position = Vector2(108, 24)
-	_gear.pressed.connect(func():
-		UIJuice.haptic("CLICK", 0.5)
-		settings_pressed.emit())
-	add_child(_gear)
 	for cur: String in ["crowns", "wild", "coins", "gems"]:
 		var ch := HubChip.new(cur)
 		ch.plus = cur == "coins"

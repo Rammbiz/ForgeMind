@@ -532,126 +532,232 @@ static func _shift(pts: PackedVector2Array, o: Vector2) -> PackedVector2Array:
 	return out
 
 
+# ------------------------------------------------------------------ nav family
+## The five bottom-bar icons are ONE painted family: the same three materials (slate enamel,
+## honey gold, ivory), the same light from the upper left (diagonal gradients, a rim light on
+## the lit edges, a soft drop shadow to the lower right), the same edge weight (2.6 % of the
+## size) and one small gem accent each. They read on the cream bar and on the amber medallion.
+
+const NAV_MATS := {
+	"enamel": [Color("#8D9BB4"), Color("#3E4960"), Color("#283041")],
+	"gold": [Color("#FFE8AA"), Color("#C4862F"), Color("#7E5218")],
+	"ivory": [Color("#FFFCF3"), Color("#DCC9A2"), Color("#957647")],
+}
+const NAV_L := Vector2(-0.6, -0.8)          ## towards the light
+
+
+static func _nav_ew(s: float) -> float:
+	return maxf(1.0, s * 0.026)
+
+
+## Soft drop shadow (lower right), one polygon.
+static func _nav_drop(ci: CanvasItem, pts: PackedVector2Array, s: float, a: float) -> void:
+	ci.draw_colored_polygon(_shift(pts, Vector2(s * 0.022, s * 0.042)), Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.24 * a))
+
+
+## Material fill: a diagonal gradient (lit upper left -> shaded lower right) across `r`, the
+## family edge, and a rim light inset along the edges that face the light.
+static func _nav_fill(ci: CanvasItem, pts: PackedVector2Array, mat: String, r: Rect2, shade: Color, a: float, rim := true) -> void:
+	var m: Array = NAV_MATS[mat]
+	var hi: Color = m[0]
+	var lo: Color = m[1]
+	var s := r.size.x
+	var cols := PackedColorArray()
+	for p in pts:
+		var q := (p - r.position) / s
+		var t := clampf((q.x * 0.55 + q.y * 0.85) / 1.25, 0.0, 1.0)
+		var c: Color = hi.lerp(lo, smoothstep(0.08, 0.95, t)) * shade
+		c.a = a
+		cols.append(c)
+	ci.draw_polygon(pts, cols)
+	if rim:
+		_nav_rim(ci, pts, s, a, 0.55 if mat != "ivory" else 0.8)
+	GemDraw.outline(ci, pts, Color((m[2] as Color).r, (m[2] as Color).g, (m[2] as Color).b, 0.92 * a), _nav_ew(s))
+
+
+## Rim light: the edges whose outward normal faces the light, inset a little, in warm white
+## (one multiline call).
+static func _nav_rim(ci: CanvasItem, pts: PackedVector2Array, s: float, a: float, k := 0.55) -> void:
+	var n := pts.size()
+	if n < 3:
+		return
+	var cen := Vector2.ZERO
+	for p in pts:
+		cen += p
+	cen /= n
+	# Winding: outward normal sign from the signed area.
+	var area := 0.0
+	for i in n:
+		area += pts[i].cross(pts[(i + 1) % n])
+	var sg := 1.0 if area > 0.0 else -1.0
+	var segs := PackedVector2Array()
+	var cols := PackedColorArray()
+	var inset := s * 0.035
+	for i in n:
+		var p0 := pts[i]
+		var p1 := pts[(i + 1) % n]
+		var d := p1 - p0
+		if d.length() < 0.01:
+			continue
+		var nrm := Vector2(d.y, -d.x).normalized() * sg
+		var lit := nrm.dot(NAV_L.normalized())
+		if lit <= 0.25:
+			continue
+		segs.append(p0 - nrm * inset)
+		segs.append(p1 - nrm * inset)
+		var c := Color(1.0, 0.98, 0.9, k * a * smoothstep(0.25, 0.9, lit))
+		cols.append(c)
+	if segs.size() >= 2:
+		ci.draw_multiline_colors(segs, cols, maxf(1.0, s * 0.03), true)
+
+
+## Soft volume: a warm-white sheen on the lit side of a mass (the glow texture, one call).
+static func _nav_sheen(ci: CanvasItem, c: Vector2, rx: float, ry: float, a: float, k := 0.32) -> void:
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(rx, ry), Vector2(rx, ry) * 2.0), false, Color(1.0, 0.98, 0.92, k * a))
+
+
+static func _nav_gem(ci: CanvasItem, cut: String, c: Vector2, sz: float, gem: String, a: float) -> void:
+	var g: Dictionary = UITokens.gem(gem)
+	var base: Color = g.get("rim", UITokens.TOPAZ)
+	var light: Color = g.get("light", Color.WHITE)
+	GemDraw.draw_gem(ci, cut, c, sz, base, light, base.darkened(0.5), sz >= 14.0, a)
+
+
+static func _arc_pts(c: Vector2, rx: float, ry: float, a0: float, a1: float, n: int) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for i in n + 1:
+		var t := lerpf(a0, a1, float(i) / n)
+		out.append(c + Vector2(cos(t) * rx, sin(t) * ry))
+	return out
+
+
+## Магазин: a slate-velvet coin pouch with a gold tie and topaz clasp, a gold coin at its side.
 static func _pouch(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	var s := r.size.x
-	# Sack body: a rounded bag (sampled curve), tied neck, flared top.
+	var cb := _p(r, 0.47, 0.63)
 	var body := PackedVector2Array()
-	var cb := _p(r, 0.5, 0.64)
-	for i in 25:
-		var t := float(i) / 24.0
-		var ang := lerpf(-PI * 0.2, PI * 1.2, t)
-		body.append(cb + Vector2(cos(ang) * s * 0.36, sin(ang) * s * 0.26 + (s * 0.04 if sin(ang) > 0.0 else 0.0)))
-	body.append(_p(r, 0.36, 0.36))
-	body.append(_p(r, 0.64, 0.36))
-	ci.draw_colored_polygon(_shift(body, Vector2(0, s * 0.04)), Color(0.35, 0.18, 0.05, 0.2 * a))
-	_gp(ci, body, Color("#F2C98A") * shade, Color("#B8773A") * shade, r, a)
-	_edge(ci, body, Color(0.5, 0.28, 0.1, 0.85 * a), maxf(1.0, s * 0.022))
-	var top := _pp(r, [0.36, 0.36, 0.26, 0.2, 0.42, 0.26, 0.5, 0.16, 0.58, 0.26, 0.74, 0.2, 0.64, 0.36])
-	_gp(ci, top, Color("#F7D9A6") * shade, Color("#D49A55") * shade, r, a)
-	_edge(ci, top, Color(0.5, 0.28, 0.1, 0.8 * a), maxf(1.0, s * 0.02))
-	# Gold tie and a small facet clasp.
-	ci.draw_line(_p(r, 0.34, 0.37), _p(r, 0.66, 0.37), Color("#E3B44E") * Color(shade, a), maxf(2.0, s * 0.06), true)
-	GemDraw.draw_keystone(ci, _p(r, 0.5, 0.38), s * 0.16, a, Color(1.0, 0.86, 0.5))
-	# Highlight.
-	ci.draw_arc(cb + Vector2(-s * 0.04, -s * 0.02), s * 0.24, PI * 1.05, PI * 1.45, 12, Color(1, 1, 1, 0.45 * a), maxf(1.0, s * 0.04), true)
-	# A coin peeking at the right.
-	painted(ci, "coin", Rect2(_p(r, 0.62, 0.6), Vector2(s, s) * 0.32), Color(shade.r, shade.g, shade.b, a))
+	for i in 29:
+		var t := float(i) / 28.0
+		var ang := lerpf(-PI * 0.22, PI * 1.22, t)
+		body.append(cb + Vector2(cos(ang) * s * 0.34, sin(ang) * s * 0.25 + (s * 0.035 if sin(ang) > 0.0 else 0.0)))
+	body.append(_p(r, 0.35, 0.37))
+	body.append(_p(r, 0.59, 0.37))
+	var top := _pp(r, [0.35, 0.37, 0.24, 0.22, 0.38, 0.26, 0.47, 0.15, 0.56, 0.26, 0.7, 0.22, 0.59, 0.37])
+	_nav_drop(ci, body, s, a)
+	_nav_fill(ci, body, "enamel", r, shade, a)
+	_nav_fill(ci, top, "enamel", r, shade, a)
+	# Gathered folds under the tie, and the soft sheen on the lit side.
+	var fold := Color(0.16, 0.19, 0.27, 0.45 * a)
+	ci.draw_polyline(_pp(r, [0.4, 0.42, 0.36, 0.56, 0.37, 0.7]), fold, maxf(1.0, s * 0.022), true)
+	ci.draw_polyline(_pp(r, [0.55, 0.42, 0.6, 0.55, 0.6, 0.66]), fold, maxf(1.0, s * 0.022), true)
+	_nav_sheen(ci, _p(r, 0.36, 0.56), s * 0.2, s * 0.15, a)
+	# Gold tie band + clasp gem.
+	var band := _pp(r, [0.31, 0.345, 0.63, 0.345, 0.64, 0.41, 0.3, 0.41])
+	_nav_fill(ci, band, "gold", r, shade, a, false)
+	_nav_gem(ci, "cushion", _p(r, 0.47, 0.38), s * 0.15, "topaz", a)
+	# A gold coin at the lower right (same light and edge).
+	var cc := _p(r, 0.76, 0.74)
+	var disc := _circle_pts(cc, s * 0.15, 24)
+	_nav_drop(ci, disc, s, a)
+	_nav_fill(ci, disc, "gold", r, shade, a)
+	ci.draw_arc(cc, s * 0.095, 0, TAU, 20, Color(0.6, 0.38, 0.1, 0.7 * a), maxf(1.0, s * 0.018), true)
+	GemDraw.draw_keystone(ci, cc, s * 0.1, a, Color(1.0, 0.86, 0.5))
 
 
+## Арсенал: a gold cog with a slate enamel cannon barrel aimed up-right, gold bands, a sapphire
+## on the hub.
 static func _cannon_cog(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	var s := r.size.x
-	var cc := _p(r, 0.42, 0.62)
+	var cc := _p(r, 0.4, 0.64)
 	var cog := PackedVector2Array()
 	for i in 40:
-		var ang := TAU * i / 40.0
+		var ang := TAU * i / 40.0 + 0.08
 		var on := (i % 5) in [0, 1]
-		cog.append(cc + Vector2(cos(ang), sin(ang)) * s * (0.3 if on else 0.25))
-	ci.draw_colored_polygon(_shift(cog, Vector2(0, s * 0.035)), Color(0.2, 0.15, 0.08, 0.2 * a))
-	_gp(ci, cog, Color("#F1D58C") * shade, Color("#B98A3A") * shade, r, a)
-	_edge(ci, cog, Color(0.5, 0.36, 0.12, 0.9 * a), maxf(1.0, s * 0.022))
-	ci.draw_circle(cc, s * 0.13, Color("#FFF4D8") * Color(shade, a), true, -1.0, true)
-	ci.draw_arc(cc, s * 0.13, 0, TAU, 24, Color(0.55, 0.4, 0.15, 0.8 * a), 1.0, true)
-	# Barrel: a tapered bronze tube aimed up-right, with bands.
+		cog.append(cc + Vector2(cos(ang), sin(ang)) * s * (0.3 if on else 0.245))
+	_nav_drop(ci, cog, s, a)
+	_nav_fill(ci, cog, "gold", r, shade, a)
 	var d := Vector2(0.8, -0.6).normalized()
 	var n := Vector2(-d.y, d.x)
-	var b0 := cc + d * s * 0.02
-	var b1 := cc + d * s * 0.48
-	var barrel := PackedVector2Array([b0 + n * s * 0.12, b1 + n * s * 0.085, b1 - n * s * 0.085, b0 - n * s * 0.12])
-	ci.draw_colored_polygon(_shift(barrel, Vector2(0, s * 0.03)), Color(0.2, 0.12, 0.05, 0.25 * a))
-	_gp(ci, barrel, Color("#9AA6B6") * shade, Color("#4E5B6E") * shade, Rect2(_p(r, 0, 0.1), Vector2(s, s * 0.6)), a)
-	_edge(ci, barrel, Color(0.22, 0.26, 0.34, 0.9 * a), maxf(1.0, s * 0.022))
-	ci.draw_line(b0 + n * s * 0.06 + d * s * 0.05, b1 + n * s * 0.045, Color(1, 1, 1, 0.45 * a), maxf(1.0, s * 0.03), true)
-	for t: float in [0.35, 0.82]:
+	var b0 := cc - d * s * 0.04
+	var b1 := cc + d * s * 0.47
+	var barrel := PackedVector2Array([b0 + n * s * 0.125, b1 + n * s * 0.088, b1 - n * s * 0.088, b0 - n * s * 0.125])
+	_nav_drop(ci, barrel, s, a)
+	_nav_fill(ci, barrel, "enamel", r, shade, a)
+	for t: float in [0.3, 0.86]:
 		var m := b0.lerp(b1, t)
-		var wdt := lerpf(0.13, 0.095, t) * s
-		ci.draw_line(m + n * wdt, m - n * wdt, Color("#E3B44E") * Color(shade, a), maxf(2.0, s * 0.05), true)
-	ci.draw_circle(b1, s * 0.07, Color("#2B3245") * Color(shade, a), true, -1.0, true)
-	ci.draw_arc(b1, s * 0.085, 0, TAU, 20, Color("#E3B44E") * Color(shade, a), maxf(1.2, s * 0.03), true)
+		var wd := lerpf(0.135, 0.1, t) * s
+		var bw := s * 0.035
+		var bandp := PackedVector2Array([m + n * wd - d * bw, m + n * wd + d * bw, m - n * wd + d * bw, m - n * wd - d * bw])
+		_nav_fill(ci, bandp, "gold", r, shade, a, false)
+	ci.draw_circle(b1 + d * s * 0.01, s * 0.06, Color("#1E2433") * Color(shade, a), true, -1.0, true)
+	_nav_gem(ci, "round", cc, s * 0.17, "sapphire", a)
 
 
+## Грати: the bridge arch in slate enamel with a gold trim, a crystal keystone and a soft
+## aqua light under the span.
 static func _bridge(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	var s := r.size.x
-	# Arch span: an outer arc band over two piers, crystal-blue with a gold trim.
-	var outer := PackedVector2Array()
-	var inner := PackedVector2Array()
-	var c := _p(r, 0.5, 0.78)
-	for i in 25:
-		var t := float(i) / 24.0
-		var ang := PI + PI * t
-		outer.append(c + Vector2(cos(ang) * s * 0.42, sin(ang) * s * 0.5))
-	for i in 25:
-		var t := 1.0 - float(i) / 24.0
-		var ang := PI + PI * t
-		inner.append(c + Vector2(cos(ang) * s * 0.26, sin(ang) * s * 0.32))
+	var c := _p(r, 0.5, 0.8)
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(_p(r, 0.22, 0.5), Vector2(s * 0.56, s * 0.42)), false, Color(0.6, 0.92, 1.0, 0.55 * a))
+	var outer := _arc_pts(c, s * 0.42, s * 0.52, PI, TAU, 28)
+	var inner := _arc_pts(c, s * 0.25, s * 0.33, TAU, PI, 28)
 	var band := outer.duplicate()
 	band.append_array(inner)
-	ci.draw_colored_polygon(_shift(band, Vector2(0, s * 0.035)), Color(0.1, 0.25, 0.35, 0.2 * a))
-	_gp(ci, band, Color("#F2FCFF") * shade, Color("#7FCDE8") * shade, r, a)
-	_edge(ci, band, Color(0.25, 0.55, 0.7, 0.85 * a), maxf(1.0, s * 0.022))
-	# Voussoir joints.
+	_nav_drop(ci, band, s, a)
+	_nav_fill(ci, band, "enamel", r, shade, a)
+	# Voussoir joints (ivory hairlines).
+	var segs := PackedVector2Array()
 	for i in range(1, 8):
 		var ang := PI + PI * i / 8.0
-		var p0 := c + Vector2(cos(ang) * s * 0.26, sin(ang) * s * 0.32)
-		var p1 := c + Vector2(cos(ang) * s * 0.42, sin(ang) * s * 0.5)
-		ci.draw_line(p0, p1, Color(0.35, 0.65, 0.8, 0.55 * a), 1.0, true)
-	# Gold trim along the top and a crystal keystone.
-	ci.draw_polyline(outer, Color("#D8B266") * Color(shade, a), maxf(1.5, s * 0.035), true)
-	GemDraw.draw_keystone(ci, c + Vector2(0, -s * 0.44), s * 0.24, a, Color(1.0, 0.88, 0.55))
-	# Deck line.
-	ci.draw_line(_p(r, 0.04, 0.8), _p(r, 0.96, 0.8), Color("#D8B266") * Color(shade, a), maxf(1.5, s * 0.04), true)
+		segs.append(c + Vector2(cos(ang) * s * 0.26, sin(ang) * s * 0.34))
+		segs.append(c + Vector2(cos(ang) * s * 0.41, sin(ang) * s * 0.51))
+	ci.draw_multiline(segs, Color(1.0, 0.97, 0.88, 0.35 * a), 1.0, true)
+	# Gold trim along the extrados.
+	ci.draw_polyline(_arc_pts(c, s * 0.44, s * 0.545, PI, TAU, 28), Color("#E3B95E") * Color(shade, a), maxf(1.5, s * 0.04), true)
+	# The deck: a gold plank across.
+	var deck := _pp(r, [0.04, 0.78, 0.96, 0.78, 0.96, 0.84, 0.04, 0.84])
+	_nav_drop(ci, deck, s, a)
+	_nav_fill(ci, deck, "gold", r, shade, a, false)
+	GemDraw.draw_keystone(ci, c + Vector2(0, -s * 0.47), s * 0.25, a, Color(0.75, 0.95, 1.0))
 
 
+## Герої: a slate enamel heater shield with a gold rim, a gold sunburst and an amethyst heart.
 static func _sun_shield(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	var s := r.size.x
-	var sh := _pp(r, [0.2, 0.16, 0.8, 0.16, 0.82, 0.5, 0.5, 0.9, 0.18, 0.5])
-	ci.draw_colored_polygon(_shift(sh, Vector2(0, s * 0.04)), Color(0.3, 0.2, 0.08, 0.22 * a))
-	_gp(ci, sh, Color("#FFFFFF") * shade, Color("#DCCFB6") * shade, r, a)
-	_edge(ci, sh, Color("#C9A86A") * Color(shade, a), maxf(1.5, s * 0.04))
-	var inner := _pp(r, [0.27, 0.23, 0.73, 0.23, 0.74, 0.49, 0.5, 0.8, 0.26, 0.49])
-	_edge(ci, inner, Color(0.79, 0.66, 0.42, 0.55 * a), 1.0)
-	# Sunburst: amber disc + 8 rays.
-	var c := _p(r, 0.5, 0.45)
+	var sh := _pp(r, [0.18, 0.14, 0.82, 0.14, 0.83, 0.48, 0.5, 0.9, 0.17, 0.48])
+	_nav_drop(ci, sh, s, a)
+	_nav_fill(ci, sh, "gold", r, shade, a)
+	var inner := _pp(r, [0.25, 0.21, 0.75, 0.21, 0.755, 0.47, 0.5, 0.8, 0.245, 0.47])
+	_nav_fill(ci, inner, "enamel", r, shade, a)
+	_nav_sheen(ci, _p(r, 0.38, 0.32), s * 0.16, s * 0.12, a, 0.26)
+	var c := _p(r, 0.5, 0.44)
 	for i in 8:
 		var ang := TAU * i / 8.0 - PI / 2.0
 		var dd := Vector2(cos(ang), sin(ang))
-		var nn := Vector2(-dd.y, dd.x) * s * 0.035
-		ci.draw_colored_polygon(PackedVector2Array([c + dd * s * 0.1 + nn, c + dd * s * 0.22, c + dd * s * 0.1 - nn]), Color("#F0A23A") * Color(shade, a))
-	var disc := _circle_pts(c, s * 0.1, 20)
-	_gp(ci, disc, Color("#FFE7A0") * shade, Color("#E8922E") * shade, Rect2(c - Vector2(s, s) * 0.1, Vector2(s, s) * 0.2), a)
-	ci.draw_arc(c + Vector2(-s * 0.02, -s * 0.02), s * 0.06, PI, PI * 1.5, 8, Color(1, 1, 1, 0.7 * a), 1.0, true)
+		var nn := Vector2(-dd.y, dd.x) * s * 0.032
+		var L := 0.22 if i % 2 == 0 else 0.17
+		var ray := PackedVector2Array([c + dd * s * 0.09 + nn, c + dd * s * L, c + dd * s * 0.09 - nn])
+		_nav_fill(ci, ray, "gold", r, shade, a, false)
+	_nav_gem(ci, "round", c, s * 0.17, "amethyst", a)
 
 
+## Казарми: a slate enamel tent with an ivory centre panel, gold roof trim, a gold pole and an
+## amber pennant.
 static func _tent(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	var s := r.size.x
-	var body := _pp(r, [0.5, 0.2, 0.88, 0.82, 0.12, 0.82])
-	ci.draw_colored_polygon(_shift(body, Vector2(0, s * 0.035)), Color(0.3, 0.1, 0.05, 0.22 * a))
-	_gp(ci, body, Color("#F49A6E") * shade, Color("#C24E33") * shade, r, a)
-	_edge(ci, body, Color(0.5, 0.18, 0.1, 0.85 * a), maxf(1.0, s * 0.022))
-	# Cream stripe panels and the door flap.
-	ci.draw_colored_polygon(_pp(r, [0.5, 0.2, 0.62, 0.82, 0.38, 0.82]), Color("#F7EBD8") * Color(shade, 0.9 * a))
-	ci.draw_colored_polygon(_pp(r, [0.5, 0.48, 0.58, 0.82, 0.42, 0.82]), Color("#7A2E1E") * Color(shade, a))
-	ci.draw_line(_p(r, 0.5, 0.2), _p(r, 0.12, 0.82), Color(1, 0.9, 0.8, 0.45 * a), maxf(1.0, s * 0.03), true)
-	# Gold pole + pennant.
-	ci.draw_line(_p(r, 0.5, 0.2), _p(r, 0.5, 0.06), Color("#C9A86A") * Color(shade, a), maxf(1.5, s * 0.035), true)
-	ci.draw_colored_polygon(_pp(r, [0.5, 0.06, 0.68, 0.1, 0.5, 0.14]), Color("#F5AE45") * Color(shade, a))
-	ci.draw_line(_p(r, 0.06, 0.83), _p(r, 0.94, 0.83), Color("#C9A86A") * Color(shade, a), maxf(1.5, s * 0.035), true)
+	var body := _pp(r, [0.5, 0.2, 0.9, 0.8, 0.1, 0.8])
+	_nav_drop(ci, body, s, a)
+	_nav_fill(ci, body, "enamel", r, shade, a)
+	_nav_sheen(ci, _p(r, 0.33, 0.62), s * 0.14, s * 0.12, a, 0.26)
+	var panel := _pp(r, [0.5, 0.2, 0.63, 0.8, 0.37, 0.8])
+	_nav_fill(ci, panel, "ivory", r, shade, a, false)
+	var door := _pp(r, [0.5, 0.5, 0.585, 0.8, 0.415, 0.8])
+	ci.draw_colored_polygon(door, Color("#2B3245") * Color(shade, a))
+	# Gold trim on both roof lines + the ground line.
+	var gold := Color("#E3B95E") * Color(shade, a)
+	ci.draw_polyline(_pp(r, [0.08, 0.81, 0.5, 0.19, 0.92, 0.81]), gold, maxf(1.5, s * 0.04), true)
+	var ground := _pp(r, [0.04, 0.8, 0.96, 0.8, 0.96, 0.86, 0.04, 0.86])
+	_nav_fill(ci, ground, "gold", r, shade, a, false)
+	ci.draw_line(_p(r, 0.5, 0.2), _p(r, 0.5, 0.05), gold, maxf(1.5, s * 0.035), true)
+	var flag := _pp(r, [0.5, 0.05, 0.72, 0.095, 0.5, 0.14])
+	_nav_fill(ci, flag, "gold", r, Color(1.0, 0.82, 0.6) * shade, a, false)
