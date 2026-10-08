@@ -1,9 +1,8 @@
 # Vesta art (assets/heroes/vesta)
 
-- `splash.png` — PLACEHOLDER splash (1144x2048, transparent background): the Gemini Vesta cut-out the owner
-  approved as the style reference (heroes_decisions.md Addendum 3/4). The Heroes UI (HeroArt, phase H3a)
-  reads it for the Showcase splash and the card crop (`HeroArt.META["vesta"]`).
-- The owner's final 4K splash (2160x3840, flat #BFBFBF background cut out to transparency, prompt in
-  `docs/design/heroes_prompts.md` / `prompts_vesta_v2.md`) will REPLACE this file under the same name. If the
-  framing changes, update the crop / eye line in `scripts/ui/heroes/hero_art.gd` (`META`).
+- `splash.png` — the owner's splash (Gemini, 2026-10-08): 768x1376 source, background cut to transparency and
+  scaled 1.5x to 1152x2064 (source kept in `art_src/heroes/vesta/vesta_splash_src.jpg`, ignored by Godot).
+  It is the style anchor for all other heroes. The Heroes UI (HeroArt) reads it for the Showcase, the walkout
+  and the card crop (`HeroArt.META["vesta"]`; the framing matches the previous placeholder, so the crop and eye line stay).
+- A 4K version (2160x3840) replaces this file under the same name when it exists.
 - `glaive.glb` + textures: the 3D glaive (run / 3D view), unrelated to the splash.
