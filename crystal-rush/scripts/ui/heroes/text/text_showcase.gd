@@ -17,6 +17,8 @@ const T := {
 	"SHOW_3D_NONE_SUB": ["Поки що — мальований портрет", "For now: the painted portrait"],
 	"SHOW_3D_HINT": ["Тягни, щоб обернути", "Drag to turn"],
 	"SHOW_CEILING": ["Показники: %s від корінного %s", "Stats: %s of a native %s"],
+	"SHOW_RECUT_CAPS": ["Огранений: межі рангів на 1 нижчі, ніж у корінних %s", "Recut: rank caps 1 below a native %s"],
+	"SHOW_RECUT_FORM": ["Ульта: форма не вище %s (корінний %s)", "Ult: form %s at most (native %s)"],
 	"SHOW_NATIVE_GEM": ["Корінний: %s", "Native: %s"],
 	"SHOW_SKILLS_SOON": ["Ранги навичок — після рівня %d", "Skill ranks open after level %d"],
 	"SHOW_AWAKEN_LOCKED": ["Пробудження: Повні грані в Аметисті або вище", "Awakening: Full facets in Amethyst or higher"],

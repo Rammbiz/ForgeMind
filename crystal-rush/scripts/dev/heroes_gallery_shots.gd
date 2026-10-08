@@ -21,6 +21,8 @@ const SHOTS := {
 	"showcase_*": {"uri": "hero/{arg}"},
 	"showcase3d_*": {"uri": "hero/{arg}/3d", "wait": 2.4},
 	"manage_*": {"uri": "hero/{arg}/manage"},
+	"facets_*": {"uri": "hero/{arg}/manage/facets"},
+	"skills_*": {"uri": "hero/{arg}/manage/skills"},
 	"recut_*": {"uri": "recut/{arg}"},
 	"champion_*": {"uri": "champion/{arg}"},
 	"team": {"uri": "team"},

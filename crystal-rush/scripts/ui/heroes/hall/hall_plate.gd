@@ -15,6 +15,8 @@ const H := 104.0
 
 var kind := "portal"
 var frosted := false
+## Two plates side by side: a narrower window, no chevron (the whole plate is the button).
+var compact := false
 var _title: Label
 var _sub: Label
 var _down := false
@@ -53,14 +55,17 @@ func _ready() -> void:
 
 
 func _win() -> Rect2:
-	return Rect2(Vector2(10, 10), Vector2(H - 20.0, size.y - 20.0))
+	return Rect2(Vector2(10, 10), Vector2(76.0 if compact else H - 20.0, size.y - 20.0))
 
 
 func _layout() -> void:
 	var col := get_child(0) as Control
-	var x := _win().end.x + 16.0
+	var x := _win().end.x + (12.0 if compact else 16.0)
+	custom_minimum_size.y = maxf(H, col.get_combined_minimum_size().y + 18.0)
 	col.position = Vector2(x, 0)
-	col.size = Vector2(maxf(10.0, size.x - x - 40.0), size.y)
+	col.size = Vector2(maxf(10.0, size.x - x - (12.0 if compact and not frosted else 40.0)), size.y)
+	if compact:
+		_title.add_theme_font_size_override("font_size", 26)
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -90,17 +95,18 @@ func _draw() -> void:
 			cols.append(Color("#FBE3BC").lerp(Color("#E8AE5C"), t) * Color(1, 1, 1, a))
 	draw_polygon(pts, cols)
 	var c := w.get_center()
+	var isz := minf(60.0, w.size.x * 0.72)
 	if kind == "portal":
 		# A few still glints of the night sky (never stars as rarity), the ring's soft violet bloom.
 		var g := UIKit.glow_texture()
 		draw_texture_rect(g, Rect2(c - w.size * 0.55, w.size * 1.1), false, Color(0.69, 0.42, 1.0, 0.45 * a))
 		for gp: Vector2 in [Vector2(0.2, 0.22), Vector2(0.78, 0.3), Vector2(0.3, 0.8), Vector2(0.84, 0.74)]:
 			GemDraw.draw_glint(self, w.position + w.size * gp, 7.0, Color(1, 0.97, 0.9, 0.75 * a))
-		Icons.line(self, "portal", Rect2(c - Vector2(30, 30), Vector2(60, 60)), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, a))
+		Icons.line(self, "portal", Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, a))
 	else:
 		var g2 := UIKit.glow_texture()
 		draw_texture_rect(g2, Rect2(c - w.size * 0.5, w.size), false, Color(1.0, 0.95, 0.8, 0.7 * a))
-		HeroIcons.paint(self, "ore", Rect2(c - Vector2(30, 30), Vector2(60, 60)), Color(1, 1, 1, a))
+		HeroIcons.paint(self, "ore", Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), Color(1, 1, 1, a))
 	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
 	var inner := GemDraw.chamfer_rect(w.grow(-3.0), UITokens.CHAMFER_S - 1.5)
 	GemDraw.outline(self, inner, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.4 * a), 1.0)
@@ -108,5 +114,5 @@ func _draw() -> void:
 	var ic := Rect2(Vector2(size.x - 40.0, r.position.y + size.y * 0.5 - 13.0), Vector2(26, 26))
 	if frosted:
 		Icons.draw_icon(self, "lock", ic, UITokens.INK_DIM)
-	else:
+	elif not compact:
 		Icons.line(self, "chevron", ic, UITokens.GOLD_TEXT)

@@ -169,29 +169,34 @@ func _build_plates(un: Dictionary) -> void:
 	for ch in _plates.get_children():
 		ch.queue_free()
 	var cur := HeroesUIModel.currencies()
+	var both := bool(un["portal_teaser"]) and bool(un["workshop_teaser"])
 	if bool(un["portal_teaser"]):
 		var p: HeroesHallPlate
 		if bool(un["portal"]):
 			var ps := HeroesUIModel.portal_state()
 			var sub := HeroesText.t("HALL_PORTAL_WELCOME") if bool(ps["welcome"]) else \
 					HeroesText.t("HALL_PORTAL_SUB", [HeroesText.count(int(cur["beacons"]), "beacon"), int(ps["pity_l_left"])])
+			if both and not bool(ps["welcome"]):
+				# Two plates side by side: the pity goes on its own line.
+				sub = HeroesText.count(int(cur["beacons"]), "beacon") + "\n" + HeroesText.t("HALL_PITY_SHORT", [int(ps["pity_l_left"])])
 			p = HeroesHallPlate.make("portal", HeroesText.t("HALL_PLATE_PORTAL"), sub)
 			p.pressed.connect(func(): HeroesNav.open(hub, "portal"))
 		else:
 			p = HeroesHallPlate.make("portal", HeroesText.t("HALL_PLATE_PORTAL"),
 					HeroesText.t("HALL_PLATE_LOCKED", [HeroesText.t("HALL_TEASER"), int(HeroData.UNLOCK_AT["portal"])]), true)
 		p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		p.size_flags_stretch_ratio = 1.25
+		p.compact = both
 		_plates.add_child(p)
 	if bool(un["workshop_teaser"]):
 		var w: HeroesHallPlate
 		if bool(un["workshop"]):
-			w = HeroesHallPlate.make("workshop", HeroesText.t("HALL_PLATE_WORKSHOP"), HeroesText.count(int(cur["ore"]), "ore"))
+			w = HeroesHallPlate.make("workshop", HeroesText.t("HALL_PLATE_WORKSHOP"), HeroesText.count(int(cur["ore"]), "ore") + "\n" + HeroesText.t("HALL_TEASER_NORANDOM"))
 			w.pressed.connect(func(): HeroesNav.open(hub, "workshop"))
 		else:
 			w = HeroesHallPlate.make("workshop", HeroesText.t("HALL_PLATE_WORKSHOP"),
 					HeroesText.t("HALL_PLATE_LOCKED", [HeroesText.t("HALL_TEASER"), int(HeroData.UNLOCK_AT["workshop"])]), true)
 		w.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		w.compact = both
 		_plates.add_child(w)
 	_plates.visible = bool(un["portal_teaser"]) or bool(un["workshop_teaser"])
 
@@ -307,6 +312,20 @@ func _build_heroes() -> void:
 		if bool(d["listed"]) and _pass(d):
 			rows.append(d)
 	_grid(sort_rows(rows), "L", 3)
+	if rows.size() < 6 and _filter == "all":
+		# First weeks (§11.4 first visit): one quiet slip, never a blocking coach mark.
+		var slip := UIKit.panel("card", Vector2(22, 16))
+		var r := HBoxContainer.new()
+		r.add_theme_constant_override("separation", 14)
+		slip.add_child(r)
+		var ic := Icons.make("info", 34.0, UITokens.GOLD_TEXT)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		r.add_child(ic)
+		var l := UIKit.label(HeroesText.t("TUT_HALL_CARD"), 22, UITokens.INK)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r.add_child(l)
+		_page.add_child(slip)
 
 
 func _build_champions() -> void:

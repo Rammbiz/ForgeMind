@@ -11,9 +11,11 @@ const T := {
 	"HALL_WHERE": ["Де знайти", "Where to find"],
 	"HALL_OWNED_SHORT": ["%d з %d", "%d of %d"],
 	"HALL_PORTAL_SUB": ["%s · Топаз або краще ≤ %d", "%s · Topaz or better in ≤ %d"],
+	"HALL_PITY_SHORT": ["Топаз+ ≤ %d", "Topaz+ in ≤ %d"],
 	"HALL_PORTAL_WELCOME": ["Вітальний призов чекає", "The welcome summon is waiting"],
 	"HALL_WORKSHOP_SUB": ["%s · без випадковостей", "%s · no randomness"],
 	"HALL_TEASER": ["Скоро", "Soon"],
+	"HALL_TEASER_NORANDOM": ["без випадковостей", "no randomness"],
 	"HALL_CHAMP_LEVEL_NOTE": ["Один рівень для всіх чемпіонів", "One level for every champion"],
 	"HALL_CHAMP_ROLE_HINT": ["Чемпіони б’ються самі — у колі армії", "Champions fight on their own inside the army"],
 	# Feats (§3.6; rows = HeroData.FEATS)
