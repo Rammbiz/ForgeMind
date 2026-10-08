@@ -272,10 +272,10 @@ func _name_layout() -> Array:
 	return _nl_cache
 
 
-## Rows the name block takes: narrow cards always keep two (a row of cards keeps one footer
-## height; a one-line name is centred in it), wider cards fit their name.
+## Rows the name block takes: always two, so a row of cards keeps one footer height (a one-line
+## name is centred in the block).
 func _name_rows() -> int:
-	return 2 if _body().size.x < 160.0 else (_name_layout()[0] as PackedStringArray).size()
+	return 2
 
 
 ## Footer text size: 22 px (§5), 20 on the narrow summary / inline cards.
