@@ -62,7 +62,7 @@ func _ready() -> void:
 	add_child(root)
 	_vp = root.get_viewport_rect().size
 	_ins = UIKit.safe_insets(root.get_viewport())
-	root.add_child(ResultFlow.scrim(_vp, 0.74, 0.9))
+	root.add_child(ResultFlow.scrim(_vp, 0.84, 0.92))
 	var gain := 0 if bool(bundle.get("duplicate", false)) else int((bundle.get("coins", {}) as Dictionary).get("total", 0)) + _inline_coins()
 	_chip = ResultFlow.coin_chip(root, int(bundle.get("coins_balance", Meta.currency("coins"))) - gain, _ins, _vp)
 	root.add_child(ResultFlow.level_plate(int(bundle.get("level", result.get("level", 1))), _ins))
