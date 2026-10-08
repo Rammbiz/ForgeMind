@@ -18,6 +18,8 @@ var _hint: Label
 var _auto: Button
 var _sc: ScrollContainer
 var _undo: Control
+## The hint + Auto-deck row (the Arsenal tab lays a text bed under it on the frosted sheet).
+var header: Control
 
 
 func setup(p_hub: Hub) -> void:
@@ -31,7 +33,8 @@ func _ready() -> void:
 	top.add_theme_constant_override("separation", 12)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(UIKit.gap(UITokens.GUTTER - 12))
-	_hint = UIKit.label("", 20, UIKit.INK_DIM)
+	header = top
+	_hint = UIKit.label("", 22, UIKit.INK_DIM)
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -145,9 +148,9 @@ func _slot(i: int, id: String, editable: bool) -> Control:
 		head.add_child(Icons.make("crown", 30.0))
 		var lead_ok := id != "" and Meta.machine_level(id) >= ArsenalData.LEAD_LEVEL
 		var t := Loc.t("LEAD") if lead_ok else Loc.f("LEAD_AT", [ArsenalData.LEAD_LEVEL])
-		head.add_child(UIKit.caps(t, 18, UIKit.GOLD_TEXT if lead_ok else UIKit.INK_SOFT))
+		head.add_child(UIKit.caps(t, 20, UIKit.GOLD_TEXT_GLASS if lead_ok else UIKit.INK_DIM))
 	else:
-		head.add_child(UIKit.caps("%d" % (i + 1), 20, UIKit.INK_SOFT))
+		head.add_child(UIKit.caps("%d" % (i + 1), 22, UIKit.INK_DIM))
 	box.add_child(head)
 	if id == "":
 		var empty := EmptySlot.new()
@@ -211,7 +214,7 @@ func _show_undo(id: String, before: Array) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	p.add_child(row)
-	var l := UIKit.label(Loc.f("DECK_REMOVED", [Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"]))]), 20, UIKit.INK)
+	var l := UIKit.label(Loc.f("DECK_REMOVED", [Loc.t(str((ArsenalData.MACHINES[id] as Dictionary)["name"]))]), 22, UIKit.INK)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.size_flags_vertical = Control.SIZE_FILL
 	row.add_child(l)
@@ -277,17 +280,17 @@ class EmptySlot extends Control:
 		var c := r.get_center() + Vector2(0, -12)
 		var R := minf(r.size.x, r.size.y) * 0.2
 		# Open setting: a thin gold bezel ring and four prongs leaning outwards.
-		draw_arc(c, R, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.5, true)
-		draw_arc(c, R - 5.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), 1.0, true)
+		draw_arc(c, R, 0, TAU, 64, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), UIKit.line_px(1.0), true)
+		draw_arc(c, R - 5.0, 0, TAU, 64, Color(1, 1, 1, 0.55), UIKit.px(1.0), true)
 		for k in 4:
 			var a := PI * 0.25 + k * PI * 0.5
 			var d := Vector2(cos(a), sin(a))
 			var p0 := c + d * R
 			var p1 := c + d * (R + 14.0) + Vector2(-d.y, d.x) * 3.0
-			draw_line(p0, p1, UITokens.HAIRLINE, 2.5, true)
-			draw_circle(p1, 2.5, UITokens.GOLD_HI)
+			draw_line(p0, p1, UITokens.HAIRLINE, UIKit.line_px(1.5), true)
+			draw_circle(p1, 2.0, UITokens.GOLD_HI)
 		Icons.line(self, "plus", Rect2(c - Vector2(16, 16), Vector2(32, 32)), UITokens.GOLD_TEXT)
 		var f := UIKit.font_w("medium")
 		var t := Loc.t("DECK_EMPTY_SLOT")
-		var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-		draw_string(f, Vector2(c.x - tw * 0.5, c.y + R + 44.0), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UITokens.INK_DIM)
+		var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+		draw_string(f, Vector2(c.x - tw * 0.5, c.y + R + 44.0), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIKit.INK_DIM)

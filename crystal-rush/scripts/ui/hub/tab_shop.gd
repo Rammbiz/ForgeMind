@@ -71,7 +71,7 @@ func _ready() -> void:
 	var pi := Icons.make("check", 22.0, UIKit.PLUS)
 	pi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	pr.add_child(pi)
-	var promise := UIKit.label(Loc.t("SHOP_PROMISE"), 19, UIKit.INK_SOFT)
+	var promise := UIKit.label(Loc.t("SHOP_PROMISE"), 22, UIKit.INK_DIM)
 	promise.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	promise.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	promise.custom_minimum_size.x = 400.0
@@ -90,7 +90,7 @@ func _ready() -> void:
 	var hl := UIKit.divider(560.0)
 	hl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	notes.add_child(hl)
-	notes.add_child(_note("lock", Loc.t("SHOP_SOON_ROW"), UIKit.INK_SOFT))
+	notes.add_child(_note("lock", Loc.t("SHOP_SOON_ROW"), UIKit.INK_DIM))
 	notes.add_child(_note("check", Loc.t("NO_RANDOM"), UIKit.GOLD_TEXT))
 	col.add_child(notes)
 	var cards: Array = [notes]
@@ -109,6 +109,11 @@ func _ready() -> void:
 	refresh()
 	UIJuice.soft_in(head, Vector2(0, 12))
 	UIJuice.cards_in(cards, 0.12)
+
+
+## §4.6: the frost behind a modal over the Shop leans toward the Vault's amethyst.
+func page_tint() -> Color:
+	return Color("#8F6FD0")
 
 
 func on_show() -> void:
@@ -169,7 +174,7 @@ func _vault_banner() -> Control:
 	row.add_child(bcol)
 	var vt := UIKit.scene_label(Loc.t("VAULT"), 40)
 	bcol.add_child(vt)
-	_vault_count = UIKit.scene_label("", 20, false)
+	_vault_count = UIKit.scene_label("", 22, false)
 	_vault_count.add_theme_color_override("font_color", UIKit.GOLD_HI)
 	bcol.add_child(_vault_count)
 	bcol.add_child(UIKit.gap(8))
@@ -236,7 +241,7 @@ func _note(icon: String, text: String, color: Color) -> Control:
 	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(s)
-	var l := UIKit.label(text, 21, color, true)
+	var l := UIKit.label(text, 22, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -247,7 +252,8 @@ func _note(icon: String, text: String, color: Color) -> Control:
 
 ## The odds and guarantees entry: a quiet cream row (socket, title, the pity line, chevron).
 func _odds_row() -> Control:
-	var p := UIKit.panel("card", Vector2(18, 12))
+	# §9: list rows at the text alpha (GLASS_TEXT_A, lux "row").
+	var p := UIKit.panel("row", Vector2(18, 12))
 	p.mouse_filter = Control.MOUSE_FILTER_STOP
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
@@ -262,7 +268,7 @@ func _odds_row() -> Control:
 	v.add_theme_constant_override("separation", 0)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(UIKit.label(Loc.t("ODDS_TITLE"), 24, UIKit.INK, true))
-	_pity_lbl = UIKit.label("", 19, UIKit.INK_DIM)
+	_pity_lbl = UIKit.label("", 22, UIKit.INK_DIM)
 	v.add_child(_pity_lbl)
 	row.add_child(v)
 	var ch := Icons.make("chevron", 28.0, UIKit.GOLD_TEXT)

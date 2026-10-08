@@ -8,8 +8,9 @@ extends Control
 ##     Завдання, Сховище (gold "!" + soft pulse while caches wait);
 ##   - small porcelain tags under the Deck machines (rarity gem, level, the Lead's crown) -
 ##     a tap opens the Deck;
-##   - the world's level path as a slim line of facets (cleared = lit topaz, the current one
-##     breathing, crowns as tiny pips, the boss fortress at the end);
+##   - the world's level path as a slim line of facets on a glass pill (cleared = lit topaz on a
+##     1.5 dpx amber line, the current one larger in a soft static glow, a 1 dpx hairline ahead,
+##     the boss trophy at the end; nothing breathes);
 ##   - the amber jewel PLAY ("ГРАТИ" + "Рівень N").
 ## A tap on the hero makes them turn to the camera.
 
@@ -65,7 +66,7 @@ func _ready() -> void:
 	ar.add_theme_constant_override("separation", 6)
 	ar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ar.add_child(Icons.make("plus", 22.0, UITokens.PLUS))
-	_assist_lbl = UIKit.label("", 20, UITokens.PLUS, true)
+	_assist_lbl = UIKit.label("", 22, UITokens.PLUS, true)
 	ar.add_child(_assist_lbl)
 	_assist.add_child(ar)
 	_assist.gui_input.connect(func(e: InputEvent):
@@ -305,16 +306,18 @@ class DeckTag extends Control:
 	func _draw() -> void:
 		if id == "":
 			return
-		var f := UIKit.font_w("bold")
+		# v3: a thin glass chip (1 dpx gold + light line), Medium 22 ink (text >= 22 on glass).
+		var f := UIKit.font_w("medium")
 		var txt := Loc.f("LV", [lvl])
-		var fs := 18
+		var fs := 22
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var cw := tw + 46.0
-		var r := Rect2(Vector2((size.x - cw) * 0.5, size.y - 34.0), Vector2(cw, 30))
+		var cw := tw + 52.0
+		var r := Rect2(Vector2(roundf((size.x - cw) * 0.5), size.y - 38.0), Vector2(roundf(cw), 34))
 		draw_style_box(UIKit.lux("pill"), r)
 		var gem := UITokens.gem_of(ArsenalData.rarity_of(id))
-		GemDraw.draw_mark(self, gem, Vector2(r.position.x + 17.0, r.get_center().y), 15.0)
-		draw_string(f, Vector2(r.position.x + 30.0, r.position.y + 21.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
+		GemDraw.draw_mark(self, gem, Vector2(r.position.x + 19.0, r.get_center().y), 16.0)
+		var base := r.position.y + (r.size.y + f.get_ascent(fs) - f.get_descent(fs)) * 0.5
+		draw_string(f, Vector2(r.position.x + 33.0, roundf(base)), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 		if lead:
 			Icons.draw_icon(self, "crown", Rect2(Vector2(r.position.x - 12.0, r.position.y - 20.0), Vector2(30, 30)))
 
@@ -327,16 +330,10 @@ class LevelPath extends Control:
 	signal current_pressed
 	signal node_pressed(level: int)
 	var level := 1
-	var _t := 0.0
 	var _press := -1
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
-
-	func _process(delta: float) -> void:
-		_t += delta
-		if is_visible_in_tree():
-			queue_redraw()
 
 	func _first() -> int:
 		return (ArsenalData.world_of(level) - 1) * ArsenalData.LEVELS_PER_WORLD + 1
@@ -378,9 +375,11 @@ class LevelPath extends Control:
 		# The line: lit (amber) up to the current level, a hairline after it.
 		var cur_i := clampi(level - first, 0, n - 1)
 		var cx := _node_pos(cur_i).x
-		draw_line(a, Vector2(cx, a.y), Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.85), 2.5, true)
-		draw_line(Vector2(cx, a.y), b, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), 1.5, true)
-		var breathe := 0.5 + 0.5 * sin(fmod(_t, 200.0 * PI) * TAU / UITokens.GLOW_PERIOD)
+		# v3 lines (§3.1): the walked part a 1.5 dpx amber rule, the road ahead a 1 dpx hairline,
+		# both on a whole pixel row (straight rules, no AA blur).
+		var y := GemDraw.pixel_y(self, a.y)
+		draw_line(Vector2(a.x, y), Vector2(cx, y), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5))
+		draw_line(Vector2(cx, y), Vector2(b.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
 		for i in n:
 			var l := first + i
 			var p := _node_pos(i)
@@ -388,19 +387,20 @@ class LevelPath extends Control:
 			if boss:
 				var lit := l <= level
 				draw_circle(p, 15.0, UITokens.PAPER_0)
-				draw_arc(p, 14.5, 0, TAU, 32, UITokens.HAIRLINE, 1.5, true)
-				Icons.line(self, "trophy", Rect2(p - Vector2(10, 10), Vector2(20, 20)), UITokens.GOLD_TEXT if lit else UITokens.INK_DIM)
+				draw_arc(p, 15.0 - UIKit.px(0.5), 0, TAU, 48, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0), true)
+				Icons.line(self, "trophy", Rect2(p - Vector2(10, 10), Vector2(20, 20)), UITokens.GOLD_TEXT if lit else UIKit.INK_DIM)
 				if l == level:
-					draw_arc(p, 19.0 + breathe * 3.0, 0, TAU, 40, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.7 - breathe * 0.4), 2.0, true)
+					# The boss is up: a static 1.5 dpx amber ring (nothing pulses).
+					draw_arc(p, 19.0, 0, TAU, 48, Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5), true)
 				continue
 			if l < level:
 				# A lit facet only (the crowns live on the level's tap toast; no 4 px pips).
 				GemDraw.draw_pip(self, p, 18.0, true, UITokens.TOPAZ)
 			elif l == level:
-				draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.78, 0.4, 0.35 + 0.3 * breathe))
+				draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.8, 0.45, 0.5))
 				GemDraw.draw_pip(self, p, 28.0, true, UITokens.TOPAZ)
 			else:
 				GemDraw.draw_pip(self, p, 16.0, false)
 			var nc := ArsenalData.new_crate_at(l)
 			if nc != "" and l >= level and not Meta.owned(nc):
-				GemDraw.draw_glint(self, p + Vector2(10, -12), 12.0 + breathe * 3.0, Color(1.0, 0.85, 0.45, 0.95))
+				GemDraw.draw_glint(self, p + Vector2(10, -12), 13.0, Color(1.0, 0.85, 0.45, 0.95))

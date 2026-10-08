@@ -4,8 +4,8 @@ extends Control
 ## character-screen analogue in portrait (fusion §2.11 / §6.8, ui_v2_contract). The top band is
 ## a soft stage in the machine's gem colour (gradient, light pool, that gem's fracture planes)
 ## with the machine on the 3D turntable, its name in warm white with a soft shadow, porcelain
-## chips (gem-cut rarity mark, family socket, verb) and the level. Below, a cream bottom sheet
-## with an arched top carries Genshin underline tabs - Характеристики (hairline stat rows with
+## chips (gem-cut rarity mark, family socket, verb) and the level. Below, the frosted bottom sheet
+## (v3.1: straight fading top rule, text bed under the rows) carries Genshin underline tabs - Характеристики (hairline stat rows with
 ## line icons and +deltas, no boxes; status chips; Cache Focus), Віхи (the Lv1-15 facet track
 ## and the beat list), Таланти (Talents I/II as choice cards, free swap) - and a fixed dock: the
 ## blueprint bar (own share amber, Wild share amethyst) and the cost chip + the amber
@@ -195,6 +195,11 @@ func _build() -> void:
 	_rebuild_body()
 
 
+## §4.6: the frosted sheet leans toward this machine's gem light (hub._page_tint).
+func page_tint() -> Color:
+	return UITokens.gem(UITokens.gem_of(str(Meta.machine_card(id)["rarity"])))["light"]
+
+
 func _set_level(lvl: int) -> void:
 	_lv_lbl.text = str(lvl) if lvl > 0 else ""
 	_lv_word.visible = lvl > 0
@@ -286,7 +291,7 @@ func _build_dock(c: Dictionary) -> void:
 	row2.add_child(_cost)
 	_upgrade_btn = UIKit.cta_button(Loc.t("UPGRADE"), "", Vector2(440, 100), 38)
 	_upgrade_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_upgrade_btn.sub_size = 20
+	_upgrade_btn.sub_size = 22
 	_upgrade_btn.pressed.connect(press_upgrade)
 	_upgrade_btn.gui_input.connect(func(e: InputEvent):
 		if _upgrade_btn.disabled and UIJuice.is_tap(e):
@@ -578,7 +583,7 @@ func _stats_page(c: Dictionary) -> Control:
 		vl.set_meta("value", val)
 		vl.set_meta("fmt", fmt)
 		vl.add_to_group("md_stat_" + str(get_instance_id()))
-		var dl := UIKit.label("", 20, UIKit.PLUS, true)
+		var dl := UIKit.label("", 22, UIKit.PLUS)
 		dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		dl.size_flags_vertical = Control.SIZE_FILL
 		dl.custom_minimum_size.x = 92
@@ -644,8 +649,8 @@ func _beats_page(c: Dictionary) -> Control:
 		var name := Loc.t("BEAT_" + beat.to_upper())
 		if beat == "ascension" and not asc.is_empty() and asc.has("id"):
 			name += ": " + Loc.t("ASC_" + str(asc["id"]).to_upper())
-		tv.add_child(UIKit.label(name, 23, UIKit.INK if live else UIKit.INK_DIM, true))
-		tv.add_child(UIKit.label(Loc.f("LV", [l]), 18, UIKit.INK_SOFT))
+		tv.add_child(UIKit.label(name, 24, UIKit.INK if live else UIKit.INK_DIM))
+		tv.add_child(UIKit.label(Loc.f("LV", [l]), 22, UIKit.INK_DIM))
 		row.add_child(tv)
 		var stx := Loc.t("SOON")
 		var scol := UIKit.INK_DIM
@@ -655,8 +660,8 @@ func _beats_page(c: Dictionary) -> Control:
 				scol = UIKit.PLUS
 			else:
 				stx = tr2("BEAT_IN") % (l - lvl) if lvl > 0 else Loc.f("TALENT_LOCKED", [l])
-				scol = UIKit.GOLD_TEXT
-		var sl := UIKit.label(stx, 20, scol, true)
+				scol = UIKit.GOLD_TEXT_GLASS
+		var sl := UIKit.label(stx, 22, scol)
 		sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(sl)
 		var wrap := VBoxContainer.new()
@@ -686,11 +691,11 @@ func _talents_page(c: Dictionary) -> Control:
 		var cur := str(chosen[tier]) if tier < chosen.size() else ""
 		var hl: Label
 		if lvl < need:
-			hl = UIKit.label(Loc.f("TALENT_LOCKED", [need]), 19, UIKit.INK_SOFT)
+			hl = UIKit.label(Loc.f("TALENT_LOCKED", [need]), 22, UIKit.INK_DIM)
 		elif cur == "":
-			hl = UIKit.label(Loc.t("TALENT_PICK"), 20, UIKit.CTA_LO, true)
+			hl = UIKit.label(Loc.t("TALENT_PICK"), 22, UIKit.GOLD_TEXT_GLASS)
 		else:
-			hl = UIKit.label(Loc.t("TALENT_RESPEC"), 19, UIKit.INK_SOFT)
+			hl = UIKit.label(Loc.t("TALENT_RESPEC"), 22, UIKit.INK_DIM)
 		hl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		head.add_child(hl)
 		v.add_child(head)
@@ -702,7 +707,7 @@ func _talents_page(c: Dictionary) -> Control:
 			var tc := TalentCard.new()
 			tc.talent = tid
 			tc.state = "locked" if lvl < need else ("chosen" if cur == tid else ("pick" if cur == "" else "other"))
-			tc.custom_minimum_size = Vector2(0, 116)
+			tc.custom_minimum_size = Vector2(0, 140)
 			tc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			tc.tapped.connect(_pick_talent.bind(tier, tid, tc))
 			row.add_child(tc)
@@ -736,8 +741,8 @@ func _focus_row(c: Dictionary) -> Control:
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 0)
-	v.add_child(UIKit.label(Loc.t("FOCUS_ON"), 24, UIKit.INK, true))
-	var d := UIKit.label(Loc.t("FOCUS_DESC"), 19, UIKit.INK_SOFT)
+	v.add_child(UIKit.label(Loc.t("FOCUS_ON"), 24, UIKit.INK))
+	var d := UIKit.label(Loc.t("FOCUS_DESC"), 22, UIKit.INK_DIM)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(d)
 	row.add_child(v)
@@ -762,9 +767,10 @@ func _focus_row(c: Dictionary) -> Control:
 
 # ------------------------------------------------------------------ chips (shared with the Arsenal tab)
 
+## v3: a flat glass chip (lux "chip": 1 dpx gold + 1 dpx light, chamfer 6).
 static func _chip_panel(pad: Vector2) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.cbox(Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.92), 6, UIKit.HAIRLINE, 1, pad))
+	p.add_theme_stylebox_override("panel", UIKit.lux("chip", pad))
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return p
 
@@ -776,7 +782,7 @@ static func rarity_chip(r: String) -> Control:
 	row.add_theme_constant_override("separation", 6)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(GemMark.make(r, 24.0))
-	row.add_child(UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 20, UIKit.INK, true))
+	row.add_child(UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 22, UIKit.INK))
 	row.add_child(UIKit.gap(2))
 	p.add_child(row)
 	return p
@@ -792,7 +798,7 @@ static func family_chip(fam: String) -> Control:
 	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(s)
-	row.add_child(UIKit.label(Loc.t(str((ArsenalData.FAMILIES[fam] as Dictionary)["name"])), 20, UIKit.INK, true))
+	row.add_child(UIKit.label(Loc.t(str((ArsenalData.FAMILIES[fam] as Dictionary)["name"])), 22, UIKit.INK))
 	row.add_child(UIKit.gap(4))
 	p.add_child(row)
 	return p
@@ -808,7 +814,7 @@ static func text_chip(text: String, icon := "") -> Control:
 		var ic := Icons.make(icon, 22.0, UIKit.INK_DIM)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(ic)
-	row.add_child(UIKit.label(text, 20, UIKit.INK, true))
+	row.add_child(UIKit.label(text, 22, UIKit.INK))
 	p.add_child(row)
 	return p
 
@@ -890,9 +896,10 @@ class _GemStage extends Control:
 		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, 220), Vector2(0, 220)]), PackedColorArray([sc, sc, sc0, sc0]))
 
 
-## Big blueprint bar (UI v2): a chamfered cream track with a gold hairline, the own share in
-## amber, the Wild share in amethyst light, crystal ticks at both ends and the count to the
-## right ("Креслення 3 / 8  (+2)").
+## Big blueprint bar (UI v3.1 §7.5): a slim chamfered glass track in a 1 dpx gold frame, the own
+## share in flat amber with a 1 dpx table light, the Wild share in pale amber (no hatching), a
+## small cut-gem diamond lit at the end when full, and the count to the right
+## ("3 / 8 · +2 дикі"), all >= 22 px.
 class BpBar extends Control:
 	var have := 0
 	var need := 1
@@ -902,46 +909,41 @@ class BpBar extends Control:
 	func _draw() -> void:
 		var f := UIKit.font_w("bold")
 		var fm := UIKit.font_w("medium")
-		var fs := 20
+		var fs := 22
 		var txt := "%d / %d" % [have, need]
 		var extra := ""
 		if wild > 0 and have < need:
 			extra = " · " + (Loc.f("WILD_SHARE", [mini(wild, need - have)]) if Loc.STRINGS.has("WILD_SHARE") else "+%d" % mini(wild, need - have))
-		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fm.get_string_size(extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-		var bh := 14.0
-		var r := Rect2(Vector2(8, (size.y - bh) * 0.5), Vector2(size.x - tw - 30.0, bh))
-		var ch := 5.0
+		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fm.get_string_size(extra, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var bh := 8.0
+		var y0 := roundf((size.y - bh) * 0.5)
+		var r := Rect2(Vector2(8, y0), Vector2(size.x - tw - 34.0, bh))
+		var ch := 3.0
 		var pts := GemDraw.chamfer_rect(r, ch)
-		draw_colored_polygon(pts, UITokens.PAPER_3)
+		draw_colored_polygon(pts, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.5))
 		var k := clampf(float(have) / float(maxi(need, 1)), 0.0, 1.0)
 		var kw := clampf(float(have + wild) / float(maxi(need, 1)), 0.0, 1.0)
 		if kw > k:
-			# The wild share: a pale amber segment with fine diagonal hatching (never another
-			# rarity's colour).
+			# The Wild share: pale amber (never another rarity's colour).
 			var wr := Rect2(r.position, Vector2(maxf(r.size.x * kw, ch * 2.0), bh))
-			draw_colored_polygon(GemDraw.chamfer_rect(wr, ch), UITokens.CTA_HI)
-			var x0 := r.position.x + r.size.x * k
-			var hx := x0
-			while hx < wr.end.x + bh:
-				draw_line(Vector2(maxf(hx - bh, x0), r.end.y), Vector2(minf(hx, wr.end.x), r.end.y - (minf(hx, wr.end.x) - maxf(hx - bh, x0))), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.55), 1.4, true)
-				hx += 7.0
+			draw_colored_polygon(GemDraw.chamfer_rect(wr, ch), Color(UITokens.CTA_HI.r, UITokens.CTA_HI.g, UITokens.CTA_HI.b, 0.7))
 		if k > 0.0:
 			var fr := Rect2(r.position, Vector2(maxf(r.size.x * k, ch * 2.0), bh))
 			var fp := GemDraw.chamfer_rect(fr, ch)
 			var cols := PackedColorArray()
 			for p in fp:
-				cols.append(UITokens.CTA.lightened(0.35).lerp(UITokens.CTA_LO, (p.y - fr.position.y) / bh))
+				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (p.y - fr.position.y) / bh))
 			draw_polygon(fp, cols)
-			draw_line(fr.position + Vector2(ch, bh * 0.3), Vector2(fr.end.x - ch, fr.position.y + bh * 0.3), Color(1, 1, 1, 0.55), 1.0, true)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.2)
-		GemDraw.draw_keystone(self, Vector2(r.position.x, r.get_center().y), 16.0)
-		GemDraw.draw_keystone(self, Vector2(r.end.x, r.get_center().y), 16.0, 1.0 if k >= 0.999 else 0.75,
-				Color(1.0, 0.86, 0.5) if k >= 0.999 else Color(0.86, 0.96, 1.0))
-		var x := r.end.x + 16.0
-		var y := size.y * 0.5 + f.get_ascent(fs) * 0.36
+			var ly := GemDraw.pixel_y(self, fr.position.y + 1.5)
+			draw_line(Vector2(fr.position.x + ch, ly), Vector2(fr.end.x - ch, ly), Color(1.0, 0.98, 0.9, 0.85), UIKit.px(1.0))
+		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
+		if k >= 0.999:
+			GemDraw.draw_diamond(self, Vector2(r.end.x + 2.0, r.get_center().y), 11.0, UITokens.TOPAZ, UITokens.LINE_GOLD_DEEP)
+		var x := r.end.x + 18.0
+		var y := roundf(size.y * 0.5 + (f.get_ascent(fs) - f.get_descent(fs)) * 0.5)
 		draw_string(f, Vector2(x, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 		if extra != "":
-			draw_string(fm, Vector2(x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, y), extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITokens.INK_SOFT)
+			draw_string(fm, Vector2(x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, y), extra, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.INK_DIM)
 
 
 ## Lv1-15 facet track: a gold hairline with a rhombus pip per level (lit up to the current
@@ -950,18 +952,18 @@ class BeatTrack extends Control:
 	var lvl := 1
 
 	func _draw() -> void:
-		var f := UIKit.font_w("bold")
+		var f := UIKit.font_w("medium")
 		var n := ArsenalData.MAX_LEVEL
-		var y := size.y * 0.58
+		var y := GemDraw.pixel_y(self, size.y * 0.58)
 		var lab := Loc.f("LV", [maxi(lvl, 0)]) + " / %d" % n
-		var lw := f.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-		draw_string(f, Vector2(0, y + 7), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UITokens.INK)
+		var lw := f.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+		draw_string(f, Vector2(0, roundf(y + 8)), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.INK)
 		var x0 := lw + 26.0
 		var x1 := size.x - 10.0
-		GemDraw.draw_hairline(self, Vector2(x0 - 8, y), Vector2(x1 + 8, y), UITokens.HAIRLINE, 1.5, false)
+		GemDraw.draw_hairline(self, Vector2(x0 - 8, y), Vector2(x1 + 8, y), UITokens.HAIRLINE, 1.0, false)
 		var xl := lerpf(x0, x1, float(clampi(lvl, 1, n) - 1) / float(n - 1))
 		if lvl >= 1:
-			draw_line(Vector2(x0, y), Vector2(xl, y), UITokens.CTA, 3.0, true)
+			draw_line(Vector2(x0, y), Vector2(xl, y), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5))
 		for l in range(1, n + 1):
 			var x := lerpf(x0, x1, float(l - 1) / float(n - 1))
 			var beat := Meta.beat_at(l)
@@ -992,22 +994,19 @@ class _BeatNode extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
+		# v3: a glass disc with ONE 1 dpx ring (1.5 dpx amber when reached), no stacked shadows.
 		var c := size * 0.5
 		var r := minf(size.x, size.y) * 0.5 - 1.0
-		for i in 3:
-			draw_circle(c + Vector2(0, 1.5 + i), r - 1.0 + i, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.05))
 		match state:
 			"done":
-				draw_circle(c, r, UITokens.CTA_HI)
-				draw_circle(c + Vector2(0, -r * 0.1), r * 0.8, UITokens.CTA_HI.lerp(Color.WHITE, 0.4))
-				draw_arc(c, r - 1.0, 0, TAU, 48, UITokens.CTA, 2.0, true)
+				draw_circle(c, r, UITokens.CTA_HI.lerp(Color.WHITE, 0.35))
+				draw_arc(c, r - UIKit.px(0.75), 0, TAU, 64, UITokens.CTA_LO, UIKit.line_px(1.5), true)
 			"next":
-				draw_circle(c, r, UITokens.PAPER_1)
-				draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0)
-				draw_arc(c, r - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+				draw_circle(c, r, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.9))
+				draw_arc(c, r - UIKit.px(0.5), 0, TAU, 64, UITokens.HAIRLINE, UIKit.line_px(1.0), true)
 			_:
-				draw_circle(c, r, UITokens.PAPER_3)
-				draw_arc(c, r - 0.75, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5), 1.0, true)
+				draw_circle(c, r, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.6))
+				draw_arc(c, r - UIKit.px(0.5), 0, TAU, 64, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5), UIKit.line_px(1.0), true)
 		var isz := r * 1.15
 		var col := UITokens.INK if state != "off" else UITokens.INK_DIM
 		if state == "done":
@@ -1015,13 +1014,13 @@ class _BeatNode extends Control:
 		Icons.draw_icon(self, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), col if KitIcons.has_line(icon) else Color(1, 1, 1, 1.0 if state != "off" else 0.5))
 
 
-## One talent option (AFKJ choice card on cream): name, effect, state (locked | pick | chosen |
-## other). Chosen = amber double line + soft glow + a check; pick = a breathing amber line.
+## One talent option (a choice card on glass): name, effect, state (locked | pick | chosen |
+## other). v3: chosen = the selected card (1.5 dpx deep gold + the diagonal flourish pair) and a
+## check; pick = a static 1.5 dpx amber line (nothing breathes).
 class TalentCard extends Control:
 	signal tapped
 	var talent := ""
 	var state := "pick"
-	var _t := 0.0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_PASS
@@ -1029,39 +1028,31 @@ class TalentCard extends Control:
 	func _ready() -> void:
 		UIJuice.press(self)
 
-	func _process(delta: float) -> void:
-		if state == "pick" or state == "chosen":
-			_t += delta
-			queue_redraw()
-
 	func _gui_input(e: InputEvent) -> void:
 		if UIJuice.is_tap(e) and state != "locked":
 			tapped.emit()
 
 	func _draw() -> void:
-		var f := UIKit.font_w("bold")
-		var fr := UIKit.font_w("medium")
+		var f := UIKit.font_w("medium")
+		var fr := UIKit.font_w("regular")
 		var r := Rect2(Vector2(2, 4), size - Vector2(4, 8))
 		var chosen := state == "chosen"
 		var locked := state == "locked"
-		if chosen:
-			draw_texture_rect(UIKit.glow_texture(), r.grow(16), false, Color(UITokens.TOPAZ_HI.r, UITokens.TOPAZ_HI.g, UITokens.TOPAZ_HI.b, 0.3 + 0.08 * sin(fmod(_t, 100.0) * 2.6)))
 		draw_style_box(UIKit.lux("card_sel" if chosen else ("card_dim" if locked else "card")), r)
 		if state == "pick":
-			var a := 0.45 + 0.4 * (0.5 + 0.5 * sin(fmod(_t, 100.0) * 3.2))
-			GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-1.0), 10.0), Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, a), 2.0)
+			GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-UIKit.px(1.0)), 10.0), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.85), UIKit.line_px(1.5))
 		var name := Loc.t("TAL_" + talent.to_upper())
 		var desc := Loc.t("TAL_" + talent.to_upper() + "_DESC")
-		var fs := UIKit.fit_size(name, r.size.x - 64, 23, 17)
-		var col := UITokens.INK if not locked else UITokens.INK_DIM
-		draw_string(f, r.position + Vector2(16, 36), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-		var lines := _wrap(desc, r.size.x - 32, 19, fr)
+		var fs := UIKit.fit_size(name, r.size.x - 64, 24, 22)
+		var col := UITokens.INK if not locked else UIKit.INK_DIM
+		draw_string(f, r.position + Vector2(16, 38), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+		var lines := _wrap(desc, r.size.x - 32, 22, fr)
 		for i in mini(lines.size(), 3):
-			draw_string(fr, r.position + Vector2(16, 64 + i * 23), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 19, UITokens.INK_SOFT if not locked else UITokens.INK_DIM)
+			draw_string(fr, r.position + Vector2(16, 70 + i * 27), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIKit.INK_DIM)
 		var ic := Rect2(Vector2(r.end.x - 42, r.position.y + 12), Vector2(30, 30))
 		if chosen:
 			draw_circle(ic.get_center(), 15, UITokens.CTA)
-			draw_arc(ic.get_center(), 15, 0, TAU, 32, UITokens.CTA_RIM, 1.2, true)
+			draw_arc(ic.get_center(), 15, 0, TAU, 48, UITokens.CTA_RIM, UIKit.line_px(1.0), true)
 			Icons.line(self, "check", ic.grow(-6), UIKit.CTA_TEXT)
 		elif locked:
 			Icons.line(self, "lock", ic.grow(-4), UITokens.INK_DIM)
@@ -1082,7 +1073,7 @@ class TalentCard extends Control:
 
 
 ## The level-up band in a gem colour: a horizontal gradient whose alpha fades to 0 over the
-## outer 18 % at each side, 1.5 px gold hairlines top and bottom with marquise terminals.
+## outer 18 % at each side, 1 dpx gold hairlines top and bottom with marquise terminals.
 class GemBand extends Control:
 	var gem := "topaz"
 
@@ -1100,7 +1091,8 @@ class GemBand extends Control:
 		var gl := UITokens.GOLD_HI
 		for y: float in [3.0, h - 3.0]:
 			for i in 3:
-				draw_polygon(PackedVector2Array([Vector2(xs[i], y - 0.75), Vector2(xs[i + 1], y - 0.75), Vector2(xs[i + 1], y + 0.75), Vector2(xs[i], y + 0.75)]),
+				var hw := UIKit.line_px(1.0) * 0.5
+				draw_polygon(PackedVector2Array([Vector2(xs[i], y - hw), Vector2(xs[i + 1], y - hw), Vector2(xs[i + 1], y + hw), Vector2(xs[i], y + hw)]),
 						PackedColorArray([Color(gl, ax[i]), Color(gl, ax[i + 1]), Color(gl, ax[i + 1]), Color(gl, ax[i])]))
 			for x: float in [xs[1], xs[2]]:
 				GemDraw.draw_gem(self, "eye", Vector2(x, y), 22.0, UITokens.GOLD_HI, Color(1, 0.96, 0.84), UITokens.HAIRLINE, false)

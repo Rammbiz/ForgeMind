@@ -65,7 +65,7 @@ func _ready() -> void:
 	var ci := Icons.make("tab_barracks", 28.0)
 	ci.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	crow.add_child(ci)
-	_cap_lbl = UIKit.label("", 20, UIKit.INK, true)
+	_cap_lbl = UIKit.label("", 22, UIKit.INK)
 	crow.add_child(_cap_lbl)
 	cap.add_child(crow)
 	_strip.add_child(cap)
@@ -207,22 +207,27 @@ func _row(track: String, cap: int) -> Control:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 2)
+	# v3 (§5, MF-15): every line >= 22 px on the glass. Name + level and the next level's gain
+	# share the first line; the tiles; the effect now (wraps).
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 10)
-	name_row.add_child(UIKit.label(Loc.t(str(def["name"])), 24, UIKit.INK, true))
-	var lv := UIKit.label("%d / %d" % [lvl, cap], 18, UIKit.INK_DIM, true)
+	name_row.add_child(UIKit.label(Loc.t(str(def["name"])), 24, UIKit.INK))
+	var lv := UIKit.label("%d / %d" % [lvl, cap], 22, UIKit.INK_DIM)
 	lv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_row.add_child(lv)
+	if lvl > 0 and lvl < cap:
+		name_row.add_child(UIKit.spacer())
+		var nx := UIKit.label(Loc.f("BAR_NEXT", [value_short(track, lvl + 1)]), 22, UIKit.PLUS)
+		nx.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		name_row.add_child(nx)
 	v.add_child(name_row)
 	var bar := UIKit.progress(lvl, cap, 300.0, 7.0, cap)
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	v.add_child(bar)
-	var eff := UIKit.label(value_text(track, maxi(lvl, 1)), 18, UIKit.INK_SOFT)
+	var eff := UIKit.label(value_text(track, maxi(lvl, 1)), 22, UIKit.INK_DIM)
 	eff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	eff.custom_minimum_size.x = 340.0
+	eff.custom_minimum_size.x = 300.0
 	v.add_child(eff)
-	if lvl > 0 and lvl < cap:
-		v.add_child(UIKit.label(Loc.f("BAR_NEXT", [value_short(track, lvl + 1)]), 18, UIKit.PLUS, true))
 	r.add_child(v)
 	var can := Meta.can_buy_barracks(track)
 	var btn := UIKit.button("", false, 132.0)
@@ -331,9 +336,10 @@ func _celebrate(pos: Vector2) -> void:
 
 
 ## The page backdrop: a sunlit hall (warm paper haze, a sunbeam from the upper left, a soft
-## warm light pool behind the formation, a gentle floor band). Paints the whole screen behind
-## the page (top bar and nav included) so the tab reads light whatever the hub backdrop is.
+## warm light pool behind the formation, a gentle floor band). v3.1 (§4.5): the haze alphas
+## are x 0.55 and there is no vignette, so the hub's frosted world shows through the hall.
 class _HallStage extends Control:
+	const HAZE := 0.55
 	var page: Control
 	var floor_y := 330.0
 
@@ -351,11 +357,14 @@ class _HallStage extends Control:
 		var top := UITokens.PAPER_0.lerp(Color("#F3E6CF"), 0.45)
 		var mid := Color("#EEDFC4")
 		var low := UITokens.STAGE_TOP
+		top.a = HAZE
+		mid.a = HAZE
+		low.a = HAZE
 		var ym := lerpf(y0, y1, 0.55)
 		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, ym), Vector2(x0, ym)]), PackedColorArray([top, top, mid, mid]))
 		draw_polygon(PackedVector2Array([Vector2(x0, ym), Vector2(x1, ym), Vector2(x1, y1 + 60.0), Vector2(x0, y1 + 60.0)]), PackedColorArray([mid, mid, low, low]))
 		# Sunbeam from the upper left.
-		var sun := Color(UITokens.SUN.r, UITokens.SUN.g, UITokens.SUN.b, 0.24)
+		var sun := Color(UITokens.SUN.r, UITokens.SUN.g, UITokens.SUN.b, 0.24 * HAZE)
 		var clear := Color(sun.r, sun.g, sun.b, 0.0)
 		draw_polygon(PackedVector2Array([Vector2(-40, y0), Vector2(240, y0), Vector2(size.x * 0.8, y1), Vector2(size.x * 0.3, y1)]),
 				PackedColorArray([sun, sun, clear, clear]))
@@ -363,14 +372,9 @@ class _HallStage extends Control:
 		var cx := size.x * 0.5
 		var cy := y1 * 0.6
 		var R := size.x * 0.55
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R * 0.7), Vector2(R * 2.0, R * 1.4)), false, Color(1.0, 0.93, 0.75, 0.6))
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R * 0.7), Vector2(R * 2.0, R * 1.4)), false, Color(1.0, 0.93, 0.75, 0.6 * HAZE))
 		# Soft floor band where the dais stands.
 		var fl := UITokens.STAGE_BOTTOM
 		var fl0 := Color(fl.r, fl.g, fl.b, 0.0)
 		draw_polygon(PackedVector2Array([Vector2(x0, y1 - 80.0), Vector2(x1, y1 - 80.0), Vector2(x1, y1 + 20.0), Vector2(x0, y1 + 20.0)]),
-				PackedColorArray([fl0, fl0, Color(fl.r, fl.g, fl.b, 0.5), Color(fl.r, fl.g, fl.b, 0.5)]))
-		# Very soft side vignette.
-		var vg := Color(0.45, 0.36, 0.28, 0.12)
-		var cl := Color(vg.r, vg.g, vg.b, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + 70, y0), Vector2(x0 + 70, y1), Vector2(x0, y1)]), PackedColorArray([vg, cl, cl, vg]))
-		draw_polygon(PackedVector2Array([Vector2(x1 - 70, y0), Vector2(x1, y0), Vector2(x1, y1), Vector2(x1 - 70, y1)]), PackedColorArray([cl, vg, vg, cl]))
+				PackedColorArray([fl0, fl0, Color(fl.r, fl.g, fl.b, 0.5 * HAZE), Color(fl.r, fl.g, fl.b, 0.5 * HAZE)]))

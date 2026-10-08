@@ -59,7 +59,7 @@ func _ready() -> void:
 	_sheet.add_child(col)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
-	var t := UIKit.heading(Loc.t("VAULT"), 38, UIKit.INK)
+	var t := UIKit.heading(Loc.t("VAULT"), 40, UIKit.INK)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	var info := UIKit.edge_button("info", 26.0)
@@ -155,7 +155,7 @@ func _fill() -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		e.add_child(l)
-		var l2 := UIKit.label(tr2("V_EMPTY_HINT"), 20, UIKit.INK_DIM)
+		var l2 := UIKit.label(tr2("V_EMPTY_HINT"), 22, UIKit.INK_DIM)
 		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		e.add_child(l2)
@@ -349,8 +349,8 @@ class CacheArt extends Control:
 			Icons.draw_icon(self, ic, Rect2(c - Vector2(s, s) * 0.34, Vector2(s, s) * 0.68))
 
 
-## A pickable card holder: when selected, a warm amber glow under the card and a fine double
-## gold chamfer line around it (Genshin: the selected item frame).
+## A pickable card holder: when selected, the v3 selected frame (MachineCard.draw_sel_frame:
+## 1.5 dpx deep gold, a diagonal bracket pair, a diamond on the top edge; no glow slab).
 class _Pick extends Control:
 	signal pressed
 	var selected := false:
@@ -373,11 +373,7 @@ class _Pick extends Control:
 	func _draw() -> void:
 		if not selected:
 			return
-		var r := Rect2(Vector2.ZERO, size)
-		draw_texture_rect(UIKit.glow_texture(), r.grow(26), false, Color(1.0, 0.78, 0.35, 0.5))
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(5), 13.0), Color("#E0B85C"), 2.5)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(9), 15.0), Color(1.0, 0.92, 0.7, 0.8), 1.0)
-		GemDraw.draw_keystone(self, Vector2(size.x * 0.5, -9.0), 12.0)
+		MachineCard.draw_sel_frame(self, Rect2(Vector2.ZERO, size).grow(2.0), UITokens.CHAMFER + 2.0)
 
 
 ## Legendary pity: caps label + a fine bar + "≤ N", or the World 3 note.
@@ -389,9 +385,9 @@ class PityBar extends VBoxContainer:
 		p.add_theme_constant_override("separation", 4)
 		var left := Meta.pity_left()
 		if left < 0:
-			var t := UIKit.label(Loc.t("PITY_LEG_LOCKED"), 20, UIKit.GOLD_HI if on_scene else UIKit.INK_DIM, true)
+			var t := UIKit.label(Loc.t("PITY_LEG_LOCKED"), 22, UIKit.GOLD_HI if on_scene else UIKit.INK_DIM)
 			if on_scene:
-				UIKit.soft_shadow(t, 20, 1.6)
+				UIKit.soft_shadow(t, 22, 1.6)
 			t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			p.add_child(t)
 			return p
@@ -401,15 +397,15 @@ class PityBar extends VBoxContainer:
 		m.custom_minimum_size = Vector2(26, 26)
 		m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(m)
-		var l := UIKit.caps(Loc.t("ODDS_PITY_BAR"), 18, UIKit.ON_SCENE if on_scene else UIKit.INK_SOFT)
+		var l := UIKit.caps(Loc.t("ODDS_PITY_BAR"), 20, UIKit.ON_SCENE if on_scene else UIKit.INK_DIM)
 		if on_scene:
-			UIKit.soft_shadow(l, 18, 1.6)
+			UIKit.soft_shadow(l, 20, 1.6)
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(l)
-		var n := UIKit.label(Loc.f("PITY_SHORT", [left]), 20, UIKit.GOLD_HI if on_scene else UIKit.GOLD_TEXT, true)
+		var n := UIKit.label(Loc.f("PITY_SHORT", [left]), 22, UIKit.GOLD_HI if on_scene else UIKit.GOLD_TEXT, true)
 		if on_scene:
-			UIKit.soft_shadow(n, 20, 1.6)
+			UIKit.soft_shadow(n, 22, 1.6)
 		row.add_child(n)
 		p.add_child(row)
 		var hard := float(EconData.PITY["leg_hard"])

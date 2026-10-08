@@ -1,7 +1,7 @@
 class_name SettingsPanel
 extends Control
-## Settings (UI v2, Genshin settings rows): a cream modal with a quiet ink title and a close
-## disc, engraved section titles, and flat rows (line icon in a thin gold ring, ink label, a
+## Settings (UI v3.1, Genshin settings rows): a frosted modal (text bed under the rows, top-corner
+## flourishes) with a 40 Bold ink title and a 1 dpx ring close disc, engraved section titles, and flat rows (line icon in a thin gold ring, ink label, a
 ## chamfered toggle or a gold value) separated by hairlines - no boxes. Sound and screen
 ## (music, sounds, vibration, graphics, language) are kept on Save, the gameplay settings of
 ## the account (Reduce Motion, Fast ceremonies, Quick reveal, Caches to Vault,
@@ -36,7 +36,7 @@ func _ready() -> void:
 	_panel.add_child(col)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
-	var t := UIKit.heading(Loc.t("SETTINGS"), 36, UIKit.INK)
+	var t := UIKit.heading(Loc.t("SETTINGS"), 40, UIKit.INK)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(t)
@@ -87,7 +87,7 @@ func _ready() -> void:
 			Meta.set_setting(key, v)))
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 12)
-	var ver := UIKit.label(Loc.f("VERSION", [str(ProjectSettings.get_setting("application/config/version", "1.0"))]), 18, UITokens.INK_SOFT)
+	var ver := UIKit.label(Loc.f("VERSION", [str(ProjectSettings.get_setting("application/config/version", "1.0"))]), 22, UIKit.INK_DIM)
 	ver.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ver.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	ver.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -122,7 +122,7 @@ func _fit_height() -> void:
 	var list_h := 0.0
 	for c in _list.get_children():
 		list_h += 50.0 if c is MarginContainer else UITokens.ROW_H + 6.0
-	var chrome := 36.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
+	var chrome := 40.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
 	var h := minf(list_h + chrome, avail)
 	_sc.custom_minimum_size.y = maxf(120.0, h - chrome)
 	if list_h + chrome > avail:
@@ -173,7 +173,7 @@ func _row(key: String, icon: String, get_on: Callable, set_on: Callable, on_key 
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(l)
 	if on_key != "":
-		var val := UIKit.label("", 22, UITokens.GOLD_TEXT, true)
+		var val := UIKit.label("", 22, UITokens.GOLD_TEXT)
 		val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		val.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(val)

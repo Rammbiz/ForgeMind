@@ -46,6 +46,7 @@ var _insets := Vector4.ZERO
 var _unlock_shown := false
 var _last_pop_ms := -10000
 var _back_ms := -10000
+var _still_key := ""             ## world | hero | Deck the frost still was shot with (§4.1 refresh)
 
 
 func _init(p_start_tab := "play") -> void:
@@ -55,8 +56,10 @@ func _init(p_start_tab := "play") -> void:
 func _ready() -> void:
 	stage = HubStage.new()
 	add_child(stage)
-	# UI v3 glass: a blurred 1/8-res still of the Home world for the frosted surfaces (KitGlass).
+	# UI v3 glass: a blurred 1/10-res still of the Home world for the frosted surfaces (KitGlass).
 	KitGlass.attach_world(self, stage.camera(), stage, stage.world)
+	KitGlass.set_page_tint(Color.WHITE)
+	_still_key = _world_key()
 	var layer := CanvasLayer.new()
 	layer.layer = 1
 	add_child(layer)
@@ -87,6 +90,9 @@ func _build() -> void:
 	backdrop = Backdrop.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(backdrop)
+	# §4.1: no flat-to-frost pop. The cream tabs draw flat until the still exists, then the world
+	# cross-fades in (KitGlass.world_alpha) while KitGlass reports changes.
+	KitGlass.on_change(backdrop, backdrop.queue_redraw)
 	_page_host = Control.new()
 	_page_host.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_page_host.offset_top = _insets.y + UITokens.TOP_BAR_H + 8.0
@@ -152,10 +158,11 @@ func select_tab(id: String, animate := true) -> void:
 	top_bar.set_tab(id)
 	backdrop.set_tab(id, animate)
 	stage.active = id == "play"
-	# v3 glass: re-shoot the world still on arriving at Play (hero and Deck in place); the other
-	# tabs keep that still (3D goes off there).
-	if id == "play":
-		KitGlass.refresh_world()
+	# v3 glass (§4.1): re-shoot the world still on arriving at Play (hero and Deck in place) and
+	# on leaving it, while the Home 3D is still on (before _set_3d turns it off); the other tabs
+	# keep that still.
+	if id == "play" or prev == "play":
+		_refresh_still()
 	_set_3d(id == "play", animate)
 	if animate:
 		UIJuice.haptic("TICK", 0.4)
@@ -201,6 +208,7 @@ func _set_3d(on: bool, animate: bool) -> void:
 
 func _exit_tree() -> void:
 	get_viewport().disable_3d = false
+	KitGlass.set_page_tint(Color.WHITE)
 
 
 func _page(id: String) -> Control:
@@ -232,12 +240,31 @@ func _on_wallet() -> void:
 func _on_arsenal() -> void:
 	stage.refresh()
 	_refresh_pages(["arsenal", "play"])
+	_refresh_still_if_changed()
 
 
 func _on_hero() -> void:
 	stage.refresh()
 	top_bar.hero_changed()
 	_refresh_pages(["heroes", "play"])
+	_refresh_still_if_changed()
+
+
+## What the frost still shows: the world (sky / biome), the hero's accent and the Deck.
+func _world_key() -> String:
+	return "%d|%s|%s" % [ArsenalData.world_of(Meta.level()), Meta.hero(), ",".join(Meta.deck())]
+
+
+func _refresh_still() -> void:
+	_still_key = _world_key()
+	KitGlass.refresh_world()
+
+
+## §4.1 refresh triggers inside the hub: a world change (Світ N -> N+1), a hero swap or a Deck
+## swap re-shoots the still (KitGlass queues a refresh that arrives mid-render).
+func _refresh_still_if_changed() -> void:
+	if _world_key() != _still_key:
+		_refresh_still()
 
 
 func _refresh_locks() -> void:
@@ -282,7 +309,7 @@ func push_modal(c: Control, sticky := false, centered := false, ceremony := fals
 	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(dim)
-	dim.create_tween().tween_property(dim, "color:a", 0.56 if ceremony else 0.36, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	dim.create_tween().tween_property(dim, "color:a", UITokens.SCRIM_CEREMONY if ceremony else UITokens.SCRIM_MODAL, UITokens.MENU_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if not sticky:
 		dim.gui_input.connect(func(e: InputEvent):
 			if UIJuice.is_tap(e):
@@ -298,7 +325,26 @@ func push_modal(c: Control, sticky := false, centered := false, ceremony := fals
 	holder.set_meta("content", c)
 	holder.set_meta("ceremony", ceremony)
 	_modals.append(holder)
+	_page_tint()
 	_chrome_for_modals()
+
+
+## §4.6 frost coherence: while a modal is up over a cream tab, the frost leans toward that page's
+## dominant colour (mixed 75 % toward white); on Play, and with no modal, it stays white. A
+## modal that has its own stage (MachineDetail.page_tint) names its colour itself.
+func _page_tint() -> void:
+	var col := Color.WHITE
+	var top: Control = _modals.back().get_meta("content") if not _modals.is_empty() else null
+	if top and top.has_method("page_tint"):
+		# A full-screen modal with its own stage (MachineDetail) names its own colour.
+		col = top.call("page_tint")
+	elif top and current != "play":
+		var p: Control = pages.get(current)
+		if p and p.has_method("page_tint"):
+			col = p.call("page_tint")
+		else:
+			col = UITokens.PAPER_1
+	KitGlass.set_page_tint(col)
 
 
 ## Fades the page chrome under the modal stack: the Home page (and the nav for ceremonies)
@@ -352,6 +398,7 @@ func pop_modal(only: Control = null) -> void:
 		return
 	var holder: Control = _modals.pop_back()
 	_last_pop_ms = Time.get_ticks_msec()
+	_page_tint()
 	holder.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
 	(holder.get_child(0) as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chrome_for_modals()
@@ -606,16 +653,24 @@ class Backdrop extends Control:
 		var mid: Color = L["mid"]
 		var bot: Color = L["bot"]
 		var play_like := float(L["shafts"]) > 0.5
-		# UI v3 porcelain glass: where 3D is off the backdrop is the frosted world itself (the
-		# blurred Home still) under a light cream veil, so every glass surface has a world behind.
+		# UI v3 porcelain glass (§4.3 "frosted backdrop"): where 3D is off the backdrop is the
+		# frosted world itself (the blurred Home still) under the cream BACKDROP_VEIL, so every
+		# glass surface has a world behind; no spot, rays or vignette. Until the still exists the
+		# tab draws flat cream, and the world cross-fades in over 180 ms (never a one-frame pop).
 		var wk := float(L.get("world", 0.0))
-		var wt := KitGlass.world_texture()
-		if wt and wk > 0.01:
-			draw_texture_rect(wt, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, wk))
+		if wk > 0.01 and KitGlass.attached():
+			var wt := KitGlass.world_texture()
+			var wa := KitGlass.world_alpha() if wt else 0.0
+			if wa > 0.0:
+				draw_texture_rect(wt, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, wk * wa))
 			var p0 := UITokens.PAPER_0
-			top = top.lerp(Color(p0.r, p0.g, p0.b, 0.34), wk)
-			mid = mid.lerp(Color(p0.r, p0.g, p0.b, 0.4), wk)
-			bot = bot.lerp(Color(UITokens.PAPER_1.r, UITokens.PAPER_1.g, UITokens.PAPER_1.b, 0.5), wk)
+			var p1 := UITokens.PAPER_1
+			var v: Array = UITokens.BACKDROP_VEIL
+			# Flat cream before the still (opaque), the veil once it is in.
+			var k := wk * wa
+			top = top.lerp(Color(p0.r, p0.g, p0.b, lerpf(1.0, float(v[0]), k)), wk)
+			mid = mid.lerp(Color(p0.r, p0.g, p0.b, lerpf(1.0, float(v[1]), k)), wk)
+			bot = bot.lerp(Color(p1.r, p1.g, p1.b, lerpf(1.0, float(v[2]), k)), wk)
 			L["spot"] = Color(1, 1, 1, 0.0)
 			L["vig"] = 0.0
 		# Play: the slate whisper only covers the top band and the warm fade the bottom band.
@@ -691,7 +746,8 @@ class UnlockCard extends PanelContainer:
 		entry = u
 
 	func _ready() -> void:
-		add_theme_stylebox_override("panel", UIKit.lux("panel", Vector2(40, 34)))
+		# v3.1: a modal (frosted + text bed + top-corner flourishes; flat 0.97 without a still).
+		UIKit.frost_into(self, "modal", Vector2(40, 34))
 		size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var v := VBoxContainer.new()
@@ -715,7 +771,7 @@ class UnlockCard extends PanelContainer:
 		var t := UIKit.gradient_heading(_title(), 46)
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(t)
-		var line := UIKit.label(Loc.t(str(entry.get("line", ""))), 28, UIKit.INK_SOFT, true)
+		var line := UIKit.label(Loc.t(str(entry.get("line", ""))), 26, UIKit.INK)
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size = Vector2(440, 0)
@@ -724,7 +780,6 @@ class UnlockCard extends PanelContainer:
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		b.pressed.connect(func(): done.emit())
 		v.add_child(b)
-		UIKit.add_shine(b, 30.0, 0.8, 2.5, 0.5)
 		await get_tree().process_frame
 		pivot_offset = size * 0.5
 		UIJuice.pop(self, 0.0, UITokens.SLOW)

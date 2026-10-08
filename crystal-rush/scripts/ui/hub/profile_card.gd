@@ -65,9 +65,9 @@ func _ready() -> void:
 	var name_l := UIKit.heading(nm, 32, UIKit.INK)
 	nv.add_child(name_l)
 	var w := ArsenalData.world_of(lv)
-	var wl := UIKit.label(tr2("PROFILE_WORLD") % [w, TabPlay.world_name(w)], 20, UITokens.GOLD_TEXT, true)
+	var wl := UIKit.label(tr2("PROFILE_WORLD") % [w, TabPlay.world_name(w)], 22, UITokens.GOLD_TEXT)
 	nv.add_child(wl)
-	nv.add_child(UIKit.label(Loc.f("LEVEL", [lv]), 20, UITokens.INK_DIM))
+	nv.add_child(UIKit.label(Loc.f("LEVEL", [lv]), 22, UIKit.INK_DIM))
 	head.add_child(nv)
 	col.add_child(head)
 	# World progress (the amber arc of the portrait ring, spelled out).
@@ -77,7 +77,7 @@ func _ready() -> void:
 	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pr.add_child(cap)
 	var done := ArsenalData.level_in_world(lv) - 1
-	pr.add_child(UIKit.label("%d / %d" % [done, ArsenalData.LEVELS_PER_WORLD], 20, UIKit.INK, true))
+	pr.add_child(UIKit.label("%d / %d" % [done, ArsenalData.LEVELS_PER_WORLD], 22, UIKit.INK))
 	col.add_child(pr)
 	var bar := UIKit.progress(done, ArsenalData.LEVELS_PER_WORLD, W - 48.0, 12, ArsenalData.LEVELS_PER_WORLD)
 	col.add_child(bar)
@@ -117,13 +117,13 @@ func _row(icon: String, text: String, value: String, act: Callable, line := true
 	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	r.add_child(s)
-	var l := UIKit.label(text, 24, UIKit.INK, true)
+	var l := UIKit.label(text, 24, UIKit.INK)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.size_flags_vertical = Control.SIZE_FILL
 	r.add_child(l)
 	if value != "":
-		var vl := UIKit.label(value, 22, UITokens.GOLD_TEXT, true)
+		var vl := UIKit.label(value, 22, UITokens.GOLD_TEXT)
 		vl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		vl.size_flags_vertical = Control.SIZE_FILL
 		r.add_child(vl)
