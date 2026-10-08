@@ -1,0 +1,561 @@
+{
+ "_doc": "UI v2 bitmap override table. A PNG named <key>.png in this folder replaces the procedural element of the same name. margins = nine-patch [left, top, right, bottom] in source px; pad = content margin [x, y]; expand = how far the art extends past the control rect (shadows) [l, t, r, b]. See scratchpad uiv2/kit_asset_names.md (copied in README.md).",
+ "panel": {
+  "margins": [
+   40,
+   40,
+   40,
+   40
+  ],
+  "pad": [
+   36,
+   30
+  ],
+  "expand": [
+   16,
+   16,
+   16,
+   20
+  ]
+ },
+ "modal": {
+  "margins": [
+   44,
+   44,
+   44,
+   48
+  ],
+  "pad": [
+   36,
+   32
+  ],
+  "expand": [
+   24,
+   24,
+   24,
+   30
+  ]
+ },
+ "cream_glass": {
+  "margins": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "pad": [
+   22,
+   14
+  ],
+  "expand": [
+   14,
+   14,
+   14,
+   18
+  ]
+ },
+ "sheet": {
+  "margins": [
+   44,
+   56,
+   44,
+   40
+  ],
+  "pad": [
+   26,
+   28
+  ],
+  "expand": [
+   20,
+   30,
+   20,
+   20
+  ]
+ },
+ "card": {
+  "margins": [
+   28,
+   28,
+   28,
+   28
+  ],
+  "pad": [
+   16,
+   14
+  ],
+  "expand": [
+   10,
+   10,
+   10,
+   13
+  ]
+ },
+ "card_sel": {
+  "margins": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "pad": [
+   16,
+   14
+  ],
+  "expand": [
+   14,
+   14,
+   14,
+   17
+  ]
+ },
+ "card_dim": {
+  "margins": [
+   28,
+   28,
+   28,
+   28
+  ],
+  "pad": [
+   16,
+   14
+  ],
+  "expand": [
+   6,
+   6,
+   6,
+   8
+  ]
+ },
+ "pill": {
+  "margins": [
+   24,
+   24,
+   24,
+   24
+  ],
+  "pad": [
+   16,
+   6
+  ],
+  "expand": [
+   8,
+   8,
+   8,
+   10
+  ]
+ },
+ "plate": {
+  "margins": [
+   24,
+   24,
+   24,
+   24
+  ],
+  "pad": [
+   16,
+   6
+  ],
+  "expand": [
+   8,
+   8,
+   8,
+   10
+  ]
+ },
+ "chip": {
+  "margins": [
+   16,
+   16,
+   16,
+   16
+  ],
+  "pad": [
+   14,
+   4
+  ],
+  "expand": [
+   5,
+   5,
+   5,
+   6
+  ]
+ },
+ "ribbon": {
+  "margins": [
+   28,
+   22,
+   28,
+   22
+  ],
+  "pad": [
+   30,
+   6
+  ],
+  "expand": [
+   8,
+   8,
+   8,
+   10
+  ]
+ },
+ "toast": {
+  "margins": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "pad": [
+   26,
+   14
+  ],
+  "expand": [
+   14,
+   14,
+   14,
+   18
+  ]
+ },
+ "banner": {
+  "margins": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "pad": [
+   26,
+   14
+  ],
+  "expand": [
+   14,
+   14,
+   14,
+   18
+  ]
+ },
+ "button": {
+  "margins": [
+   26,
+   26,
+   26,
+   26
+  ],
+  "pad": [
+   28,
+   10
+  ],
+  "expand": [
+   6,
+   6,
+   6,
+   8
+  ]
+ },
+ "button_pressed": {
+  "margins": [
+   26,
+   26,
+   26,
+   26
+  ],
+  "pad": [
+   28,
+   10
+  ],
+  "expand": [
+   3,
+   3,
+   3,
+   4
+  ]
+ },
+ "button_disabled": {
+  "margins": [
+   26,
+   26,
+   26,
+   26
+  ],
+  "pad": [
+   28,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "primary": {
+  "margins": [
+   40,
+   36,
+   40,
+   40
+  ],
+  "pad": [
+   36,
+   10
+  ],
+  "expand": [
+   12,
+   12,
+   12,
+   16
+  ]
+ },
+ "primary_pressed": {
+  "margins": [
+   40,
+   36,
+   40,
+   40
+  ],
+  "pad": [
+   36,
+   10
+  ],
+  "expand": [
+   6,
+   6,
+   6,
+   8
+  ]
+ },
+ "primary_disabled": {
+  "margins": [
+   40,
+   36,
+   40,
+   40
+  ],
+  "pad": [
+   36,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "primary_compact": {
+  "margins": [
+   32,
+   30,
+   32,
+   34
+  ],
+  "pad": [
+   24,
+   8
+  ],
+  "expand": [
+   12,
+   12,
+   12,
+   16
+  ]
+ },
+ "ghost": {
+  "margins": [
+   24,
+   24,
+   24,
+   24
+  ],
+  "pad": [
+   24,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "seg": {
+  "margins": [
+   20,
+   20,
+   20,
+   20
+  ],
+  "pad": [
+   4,
+   4
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "seg_sel": {
+  "margins": [
+   22,
+   20,
+   22,
+   22
+  ],
+  "pad": [
+   18,
+   6
+  ],
+  "expand": [
+   5,
+   5,
+   5,
+   7
+  ]
+ },
+ "tabbar": {
+  "margins": [
+   40,
+   40,
+   40,
+   20
+  ],
+  "pad": [
+   8,
+   8
+  ],
+  "expand": [
+   0,
+   20,
+   0,
+   0
+  ]
+ },
+ "nav_bar": {
+  "margins": [
+   60,
+   48,
+   60,
+   24
+  ],
+  "pad": [
+   8,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "tab_sel": {
+  "margins": [
+   28,
+   28,
+   28,
+   28
+  ],
+  "pad": [
+   8,
+   8
+  ],
+  "expand": [
+   10,
+   10,
+   10,
+   13
+  ]
+ },
+ "well": {
+  "margins": [
+   16,
+   16,
+   16,
+   16
+  ],
+  "pad": [
+   12,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "band_amber": {
+  "margins": [
+   24,
+   28,
+   24,
+   28
+  ],
+  "pad": [
+   24,
+   12
+  ],
+  "expand": [
+   0,
+   16,
+   0,
+   20
+  ]
+ },
+ "band_cool": {
+  "margins": [
+   24,
+   28,
+   24,
+   28
+  ],
+  "pad": [
+   24,
+   12
+  ],
+  "expand": [
+   0,
+   16,
+   0,
+   20
+  ]
+ },
+ "tag_new": {
+  "margins": [
+   12,
+   12,
+   12,
+   12
+  ],
+  "pad": [
+   8,
+   1
+  ],
+  "expand": [
+   3,
+   3,
+   3,
+   4
+  ]
+ },
+ "card_frame": {
+  "margins": [
+   24,
+   24,
+   24,
+   24
+  ],
+  "pad": [
+   0,
+   0
+  ],
+  "expand": [
+   2,
+   2,
+   2,
+   2
+  ]
+ }
+}

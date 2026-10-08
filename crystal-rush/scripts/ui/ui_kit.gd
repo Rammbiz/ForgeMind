@@ -176,7 +176,9 @@ static func _kit_style(kind: String, pad: Vector2) -> StyleBoxTexture:
 	var js := kit_spec(kind)
 	var s := StyleBoxTexture.new()
 	s.texture = tex
-	var m: Array = js.get("margins", [24, 24, 24, 24])
+	# Without a kit.json entry: a third of the shorter side (safe for chamfered corners).
+	var dm := floorf(minf(tex.get_width(), tex.get_height()) / 3.0)
+	var m: Array = js.get("margins", [dm, dm, dm, dm])
 	s.texture_margin_left = float(m[0])
 	s.texture_margin_top = float(m[1])
 	s.texture_margin_right = float(m[2])
@@ -770,6 +772,26 @@ static func soft_shadow(l: Label, size := 0, strength := 1.0) -> Label:
 	l.add_theme_constant_override("shadow_offset_y", clampi(fs / 28, 1, 3))
 	l.add_theme_constant_override("shadow_outline_size", clampi(fs / 7, 3, 12))
 	return l
+
+
+## A soft slate glow behind on-scene text / numerals so warm-white text reads even over bright
+## sky or marble (no panel, no stroke). Added as a child drawn behind `target`.
+static func scene_halo(target: Control, strength := 1.0, scale := 1.5) -> TextureRect:
+	var g := TextureRect.new()
+	g.texture = glow_texture()
+	g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	g.stretch_mode = TextureRect.STRETCH_SCALE
+	g.modulate = Color(SCRIM.r, SCRIM.g, SCRIM.b, 0.3 * strength)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.show_behind_parent = true
+	target.add_child(g)
+	var fit := func():
+		var s := target.size * Vector2(scale, scale * 1.25)
+		g.size = s
+		g.position = (target.size - s) * 0.5
+	target.resized.connect(fit)
+	fit.call()
+	return g
 
 
 ## Text that sits on a 3D scene / art: warm white + soft shadow.
