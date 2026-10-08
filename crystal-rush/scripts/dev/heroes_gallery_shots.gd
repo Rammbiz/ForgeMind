@@ -18,6 +18,7 @@ const SHOTS := {
 	"widgets_cards": {"builtin": "widgets_cards"},
 	"hall": {"uri": "hall"},
 	"hall_champions": {"uri": "hall/champions"},
+	"hall_feats": {"uri": "hall/feats"},
 	"showcase_*": {"uri": "hero/{arg}"},
 	"showcase3d_*": {"uri": "hero/{arg}/3d", "wait": 2.4},
 	"manage_*": {"uri": "hero/{arg}/manage"},
@@ -31,7 +32,7 @@ const SHOTS := {
 	"odds": {"uri": "odds"},
 	"seals": {"uri": "seals"},
 	"walkout_*": {"uri": "summon/walkout/{gem}", "force": [{"id": "{gem_hero}", "gem": "{gem}"}], "wait": 0.6},
-	"summary10": {"uri": "summon/x10", "wait": 0.6},
+	"summary10": {"uri": "summon/x10", "state": "welcome", "wait": 0.6},
 }
 
 ## The hero a walkout shot uses for each gem (the gallery's force_next).

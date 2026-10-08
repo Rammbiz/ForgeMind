@@ -27,10 +27,10 @@ const ROUTES := {
 	"manage": {"script": "res://scripts/ui/heroes/showcase/manage_sheet.gd", "host": "modal"},
 	"recut": {"script": "res://scripts/ui/heroes/recut/recut_screen.gd", "host": "screen"},
 	"team": {"script": "res://scripts/ui/heroes/team/team_screen.gd", "host": "page"},
-	"portal": {"script": "res://scripts/ui/heroes/portal/portal_screen.gd", "host": "screen"},
-	"odds": {"script": "res://scripts/ui/heroes/portal/odds_sheet.gd", "host": "modal"},
-	"seals": {"script": "res://scripts/ui/heroes/portal/seal_shop.gd", "host": "modal"},
-	"summon": {"script": "res://scripts/ui/heroes/portal/summon_ceremony.gd", "host": "ceremony"},
+	"portal": {"script": "res://scripts/ui/summon/portal_screen.gd", "host": "screen"},
+	"odds": {"script": "res://scripts/ui/summon/odds_sheet.gd", "host": "modal"},
+	"seals": {"script": "res://scripts/ui/summon/seal_shop.gd", "host": "modal"},
+	"summon": {"script": "res://scripts/ui/summon/summon_ceremony.gd", "host": "ceremony"},
 }
 const LAYER_SCREEN := 4
 const LAYER_CEREMONY := 6
