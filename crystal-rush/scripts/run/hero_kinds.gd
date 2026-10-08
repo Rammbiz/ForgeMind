@@ -13,9 +13,7 @@ extends RefCounted
 ## §10.4 bot policy table arrive in H2 behind the phase flag (phase()).
 
 ## The phase the heroes feature runs at: 0 = shipped Meta-1 (2.2.x), 1 = rules and data,
-## 2 = champions in the run, 3 = meta UI on. Read from EconData.HEROES_PHASE when WS-B defines
-## it, else the project setting `crystal_rush/heroes_phase`, else 0.
-const PHASE_SETTING := "crystal_rush/heroes_phase"
+## 2 = champions in the run, 3 = meta UI on. The one flag is EconData.HEROES_PHASE (WS-B).
 ## The phase from which champions take part in runs (§13.2 H2).
 const CHAMPIONS_PHASE := 2
 
@@ -75,10 +73,7 @@ class Clock extends RefCounted:
 # ------------------------------------------------------------------ phase flag
 
 static func phase() -> int:
-	var consts: Dictionary = (EconData as Script).get_script_constant_map()
-	if consts.has("HEROES_PHASE"):
-		return int(consts["HEROES_PHASE"])
-	return int(ProjectSettings.get_setting(PHASE_SETTING, 0))
+	return EconData.HEROES_PHASE
 
 
 static func champions_live() -> bool:
