@@ -516,7 +516,7 @@ func _stats_page(c: Dictionary) -> Control:
 	var lvl := int(c["lvl"])
 	if bool(c["owned"]) and lvl < ArsenalData.MAX_LEVEL:
 		nxt = ArsenalData.machine_stats(id, lvl + 1, 1, ms.get("talents", []), str(ms.get("branch", "")))
-	var rows: Array = [["dps", "STAT_DPS", "fast"]]
+	var rows: Array = [["dps", "STAT_DPS", "fast"]] if _dps(ms) > 0.001 else []
 	var s: Dictionary = ms["stats"]
 	for r: Array in STAT_ROWS:
 		if s.has(r[0]) and float(s[r[0]]) < 90.0:
