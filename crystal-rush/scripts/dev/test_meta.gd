@@ -6,7 +6,11 @@ extends Node
 ## (atomic write, .bak fallback), the v1 -> v2 migration fixtures (levels 1, 9, 30) and Save v3
 ## (heroes_design.md §12.1 / §12.3): sections, sanitize + _orphans, the v2 -> v3 schema step on the
 ## v2 fixtures (levels 1, 9, 30, 56: every Meta-1 key kept, idempotent, round trip), the update-day
-## conversion + lump grant, the v1 -> v2 -> v3 chain and a live load of a v2 file.
+## conversion + lump grant, the v1 -> v2 -> v3 chain and a live load of a v2 file; the Heroes &
+## Champions Meta API (WS-B, H1; live rules tested through EconData.phase_override): flag-off
+## identity, §11.1 rows + §11.2 session placement, earned hero income, Portal / Seals / chests /
+## facets / recut / skills / team through Meta, the atomic-write rollback, the two-track rule
+## (earned-only randomness), machine Focus exactly 40% and the §12.5 telemetry schema.
 ##
 ## godot --headless --path . res://scenes/dev/test_meta.tscn -- --autotest
 ## (--autotest keeps Save readonly: the player's save is never touched). Exit code = failures.
@@ -49,6 +53,17 @@ func _ready() -> void:
 	_test_migration_v2()
 	_test_live_save_v2()
 	_test_telemetry()
+	_test_heroes_flag_off()
+	_test_unlocks_heroes()
+	_test_unlock_sessions()
+	_test_hero_income()
+	_test_meta_api_heroes()
+	_test_grant_rollback()
+	_test_two_track()
+	_test_focus_exact()
+	_test_hero_telemetry()
+	EconData.phase_override = -1
+	EconData.meta_phase_override = -1
 	print("TEST_META %s: %d passed, %d failed (%.1f s)" % ["PASS" if _fails == 0 else "FAIL", _passes, _fails,
 			float(Time.get_ticks_msec() - t0) / 1000.0])
 	get_tree().quit(_fails)
@@ -1035,3 +1050,582 @@ func _cfg_at(p: String) -> ConfigFile:
 	var c := ConfigFile.new()
 	c.load(p)
 	return c
+
+
+# ======================================================================== Heroes & Champions: Meta API, unlocks, income (WS-B, H1)
+
+## Turns the live hero systems on for a test (EconData.phase_override; -1 restores the shipped flag).
+func _live(on: bool, phase := EconData.HEROES_LIVE_PHASE) -> void:
+	EconData.phase_override = phase if on else -1
+
+
+## A synthetic account at `level` with the hero sections of the live phase (every hero entry, all
+## level-open rows acknowledged, Rudi as the team hero).
+func _hacc(level: int, kind := "fresh") -> Dictionary:
+	var acc := Meta.synthetic_account(level, kind)
+	(acc["team"] as Dictionary)["hero"] = "bolt"
+	(acc["meta"] as Dictionary)["rng_seed"] = 77
+	return acc
+
+
+## The result Meta.finish_run would book for a plain win / loss of `lvl`.
+func _res(lvl: int, won := true, extra := {}) -> Dictionary:
+	var r := {"won": won, "level": lvl, "victory": EconData.victory_coins(lvl, 20) if won else 0, "pickups": 10,
+			"coins_run": 10, "mult": 1.5, "survivors": 20, "bridge_fraction": 0.5}
+	r.merge(extra, true)
+	return r
+
+
+## Flag off (this build): every hero row, income, mutation and touch point behaves as 2.2.1.
+func _test_heroes_flag_off() -> void:
+	print("== heroes phase off: 2.2.1 behaviour")
+	_live(false)
+	var ids: Array = []
+	for u in EconData.unlocks():
+		ids.append(str(u["id"]))
+	var base: Array = []
+	for u2: Dictionary in EconData.UNLOCKS:
+		base.append(str(u2["id"]))
+	_ok(ids == base and EconData.unlock_entry("champions").is_empty() and int(EconData.unlock_entry("seer")["after_win"]) == 5,
+			"unlock rows = the 2.2.1 table (Seer after L5, no hero rows)")
+	_ok(EconData.hero_unlock_at("seer") == 5 and EconData.hero_unlock_at("titan") == 4 and EconData.seer_guest_level() == 0
+			and EconData.hero_unlock_at("vesta") == -1, "hero unlock levels as 2.2.1, no guest level")
+	_ok(EconData.stats_keys() == EconData.STATS_KEYS, "stats keys unchanged")
+	_ok(EconData.road_node("premium", "gems", 20, 30) == {"cur": "gems", "n": 20}, "paid Road lane unchanged while off")
+	var keep := Meta.account
+	Meta.account = _hacc(25)
+	(Meta.account["wallet"] as Dictionary)["beacons"] = 50
+	var snap := var_to_str(Meta.account)
+	var refusals := [Meta.summon(1), Meta.summon(10, true), Meta.seal_pick("vesta"), Meta.add_facet("hero", "bolt"),
+			Meta.recut("hero", "bolt"), Meta.rank_skill("bolt", "ult"), Meta.level_champions(), Meta.open_hero_chest(0)]
+	var all_phase := true
+	for r in refusals:
+		all_phase = all_phase and str((r as Dictionary).get("reason", "")) == "phase"
+	_ok(all_phase and not Meta.set_team("bolt", []) and not Meta.set_portal_focus("C", "arin") and var_to_str(Meta.account) == snap,
+			"every hero mutation refuses with reason phase and changes nothing")
+	_ok(Meta.hero_mission_done().is_empty() and Meta.hero_weekly_done().is_empty() and var_to_str(Meta.account) == snap, "no hero income while off")
+	var p := Meta.run_profile(25)
+	_ok(not p.has("team") and not p.has("guest") and p["hero"] == HeroesMeta.profile(Meta.account, Meta.hero()), "run_profile: 2.2.1 hero block, no team / guest")
+	var b := Meta.finish_run(_res(25, true, {"run_id": p["run_id"]}))
+	_ok(not b.has("hero_chests") and not b.has("beacons") and not b.has("hero_joined") and int(Meta.account["wallet"]["beacons"]) == 50
+			and float(Meta.account["wallet"]["chest_charge"]) == 0.0, "finish_run: no hero keys, no Beacons, no chest charge")
+	Meta.account = keep
+	# The heroes card / pending rows never appear while off.
+	var acc := _natural(30)
+	var pend: Array = []
+	for u3 in UnlockQueue.pending(acc):
+		pend.append(str(u3["id"]))
+	_ok(not pend.has("champions") and not pend.has("portal") and not UnlockQueue.opened_between(13, 25).any(func(r: Dictionary) -> bool: return str(r["id"]) in ["champions", "portal", "seer_guest"]),
+			"no hero unlock lines or result rows")
+
+
+## §11.1 rows, Seer 5 -> 24 + guest level, free first steps, the update-day card and catch-up.
+func _test_unlocks_heroes() -> void:
+	print("== heroes unlock rows (live phase)")
+	_live(true)
+	var order: Array = []
+	for u in EconData.unlocks():
+		order.append(str(u["id"]))
+	_ok(order.has("champions") and order.has("portal") and order.has("skills") and order.has("slot3") and order.has("seer_guest")
+			and not order.has("workshop"), "§11.1 rows join; the Workshop row waits for its phase (H4)")
+	_ok(order.find("talents") < order.find("champions") and order.find("champions") < order.find("haven")
+			and order.find("dailies") < order.find("portal") and order.find("portal") < order.find("seer")
+			and order.find("seer") < order.find("rift_anvil") and order.find("tactics") < order.find("skills"), "rows in level order: %s" % str(order))
+	_ok(int(EconData.unlock_entry("seer")["after_win"]) == SaveV3Data.UNLOCK_AT["seer"] and EconData.hero_unlock_at("seer") == 24
+			and EconData.seer_guest_level() == 5, "Seer joins after the World 3 boss (L24), guest at L5")
+	_ok(EconData.stats_keys().size() == EconData.STATS_KEYS.size() + EconData.STATS_KEYS_HEROES.size(), "hero stats keys appended")
+	var won14 := UnlockQueue.opened_between(14, 15)
+	_ok(won14.any(func(r: Dictionary) -> bool: return str(r["id"]) == "champions" and str(r["free"]) == "first_champion"), "winning L14 opens the champions row")
+	_ok(UnlockQueue.opened_between(24, 25).any(func(r: Dictionary) -> bool: return str(r["id"]) == "seer")
+			and not UnlockQueue.opened_between(5, 6).any(func(r: Dictionary) -> bool: return str(r["id"]) == "seer"), "the Seer row opens at the L24 win, not L5")
+	_live(true, EconData.HEROES_WORKSHOP_PHASE)
+	_ok(not EconData.unlock_entry("workshop").is_empty() and int(EconData.unlock_entry("workshop")["after_win"]) == 32, "Workshop row from its phase")
+	_live(true)
+	# Free first steps.
+	var a := _natural(31)
+	UnlockQueue.ack(a, "skills")
+	_ok(bool(MetaAcc.free_steps(a).get("skill_rank", false)), "skills: one free Ult rank on the team hero")
+	var b := _natural(15)
+	UnlockQueue.ack(b, "champions")
+	var gift := Vault.hero_chests(b)
+	_ok(gift.size() == 1 and str(gift[0]["source"]) == "unlock" and bool(b["chests"]["unlock_gift"]), "champions (no gift yet): the gift chest waits in the Vault")
+	UnlockQueue.ack(b, "champions")
+	_ok(Vault.hero_chests(b).size() == 1, "the gift is granted once")
+	# Migrated v2 player: every passed row open on update day, lines still paced, heroes card first.
+	var m := Save.account_from_cfg(_v2_cfg(30))
+	Save.migrate_v2(m, 1_800_000_000, 1)
+	(m["meta"] as Dictionary)["last_session"] = 0
+	UnlockQueue.on_session_start(m, 1_800_000_100)
+	_ok(UnlockQueue.is_open(m, "champions") and UnlockQueue.is_open(m, "portal") and not UnlockQueue.is_open(m, "skills"),
+			"update day at L30: champions + Portal open at once, skills (after L30) not yet")
+	var pend := UnlockQueue.pending(m)
+	_ok(not pend.is_empty() and str(pend[0]["id"]) == UnlockQueue.MIGRATION_HEROES_ID and str(pend[0]["line"]) == SaveMigrate.CARD
+			and int((pend[0]["grant"] as Dictionary).get("beacons", -1)) == 3, "the update-day card comes first with its grant")
+	UnlockQueue.ack(m, UnlockQueue.MIGRATION_HEROES_ID)
+	_ok(int(m["unlocks"]["session_count"]) == 0 and not UnlockQueue.pending(m).any(func(r: Dictionary) -> bool: return str(r["id"]) == UnlockQueue.MIGRATION_HEROES_ID),
+			"the card takes no session slot and shows once")
+	_live(false)
+
+
+## §11.2 session placement (≤ 2 new systems per session; the queue holds overflow), every phase on.
+func _test_unlock_sessions() -> void:
+	print("== session placement §11.2 (all content phases on)")
+	_live(true, EconData.HEROES_WORKSHOP_PHASE)
+	EconData.meta_phase_override = 3
+	var reg := _sessions(4, 32)
+	var cas := _sessions(2, 32)
+	var want_reg := {4: ["talents", "champions"], 5: ["haven", "dailies"], 6: ["portal", "rift_anvil"], 7: ["tactics", "shop"],
+			8: ["skills", "workshop"]}
+	for s: int in want_reg:
+		_ok(reg[s - 1] == want_reg[s], "regular S%d = %s (got %s)" % [s, str(want_reg[s]), str(reg[s - 1])])
+	var want_cas := {7: ["talents", "champions"], 8: ["haven"], 9: ["dailies"], 10: ["portal"], 12: ["rift_anvil"], 13: ["tactics"],
+			14: ["shop"], 15: ["skills"], 16: ["workshop"]}
+	for s2: int in want_cas:
+		_ok(cas[s2 - 1] == want_cas[s2], "casual S%d = %s (got %s)" % [s2, str(want_cas[s2]), str(cas[s2 - 1])])
+	var most := 0
+	for row: Array in reg + cas:
+		most = maxi(most, row.size())
+	_ok(most <= int(EconData.UNLOCK_RULES["per_session"]), "never more than %d new systems in a session" % int(EconData.UNLOCK_RULES["per_session"]))
+	EconData.meta_phase_override = -1
+	_live(false)
+
+
+## Lines shown per session for a player who wins `per` levels a session up to `to` (the hub shows
+## pending lines at the session start and after every win).
+func _sessions(per: int, to: int) -> Array:
+	var acc := EconData.fresh_account()
+	var out: Array = []
+	var t := 1000
+	var lvl := 1
+	while lvl <= to:
+		t += 10000
+		UnlockQueue.on_session_start(acc, t)
+		var shown: Array = []
+		_show_pending(acc, shown)
+		for i in per:
+			if lvl > to:
+				break
+			(acc["progress"] as Dictionary)["level"] = lvl + 1
+			(acc["progress"] as Dictionary)["world_reached"] = ArsenalData.world_of(lvl + 1)
+			_show_pending(acc, shown)
+			lvl += 1
+		out.append(shown)
+	return out
+
+
+func _show_pending(acc: Dictionary, shown: Array) -> void:
+	var guard := 0
+	while guard < 8:
+		guard += 1
+		var p := UnlockQueue.pending(acc)
+		if p.is_empty():
+			return
+		var id := str(p[0]["id"])
+		UnlockQueue.ack(acc, id)
+		if str(p[0].get("kind", "")) != "card":
+			shown.append(id)
+
+
+## Earned hero income through Rewards.level_end (live phase): starters by progress, Beacons, Tomes,
+## Hero Chests, the gift + scripted chests, one inline reveal, replays, the guest level.
+func _test_hero_income() -> void:
+	print("== hero income in Rewards (live phase)")
+	_live(true)
+	var keep := Meta.account
+	Meta.account = _hacc(1)
+	Meta._last_bundle = {}
+	(Meta.account["unlocks"] as Dictionary)["done"] = []
+	var joined := {}
+	var inline_max := 0
+	var gift_rev := {}
+	var second := {}
+	var tomes_boss := 0
+	var chests_seen := 0
+	var grand_seen := 0
+	for lvl in range(1, 41):
+		UnlockQueue.on_session_start(Meta.account, 100000 + lvl * 1000)      # one session per level
+		var p := Meta.run_profile(lvl)
+		if lvl == 5:
+			_ok(str(p["hero"]["id"]) == "seer" and bool(p["hero"]["guest"]) and int(p["hero"]["lvl"]) == 5 and str(p["guest"]) == "seer"
+					and (p["team"]["champions"] as Array).is_empty() and Meta.run_hero(5) == "seer", "L5: Meira leads as a guest at Lv5, no team")
+		var b := Meta.finish_run(_res(lvl, true, {"run_id": p["run_id"]}))
+		for pu in Meta.pending_unlocks():
+			Meta.ack_unlock(str(pu["id"]))
+		for j in b.get("hero_joined", []):
+			joined[str(j["id"])] = lvl
+		var inl := 0
+		for c in b["caches"]:
+			inl += 1 if bool(c["inline"]) else 0
+		for hc in b.get("hero_chests", []):
+			var hd: Dictionary = hc
+			inl += 1 if bool(hd["inline"]) else 0
+			chests_seen += 1
+			grand_seen += 1 if str(hd["type"]) == Vault.GRAND else 0
+			if str(hd["source"]) == "unlock":
+				gift_rev = hd
+			elif int(hd.get("scripted", 0)) == 2:
+				second = hd
+		inline_max = maxi(inline_max, inl)
+		tomes_boss += int((b.get("tomes", {}) as Dictionary).get("add", 0))
+		if lvl == 5:
+			_ok(str((b.get("guest", {}) as Dictionary).get("line", "")) == "GUEST_SEER_RETURN" and not Roster.owned(Meta.account, "seer"),
+					"after the guest level: her line, and she is not owned")
+		if lvl == 14:
+			_ok(not gift_rev.is_empty() and bool(gift_rev["inline"]) and int(gift_rev["scripted"]) == 1
+					and str(gift_rev["reveal"]["cards"][0]["id"]) == "alba" and Team.champions(Meta.account) == ["alba"],
+					"L14 win: the gift chest opens inline as scripted chest #1 (Alba with Rudi) and takes slot 1: %s" % str(gift_rev.get("reveal", {}).get("cards", [])))
+	_ok(joined.get("titan", 0) == 4 and joined.get("seer", 0) == 24, "Goran joins after L4, Meira after L24 (via progress): %s" % str(joined))
+	_ok(str(Meta.account["heroes"]["seer"]["got"]["via"]) == "progress", "Meira's copy is a progress copy")
+	_ok(inline_max <= 1, "at most one inline reveal per result screen")
+	_ok(not second.is_empty() and str((second["reveal"]["cards"] as Array).filter(func(c: Dictionary) -> bool: return bool(c["scripted"]))[0]["id"]) == "mila"
+			and Team.champions(Meta.account).has("mila"), "the next chest is scripted #2 (Mila) and takes slot 2")
+	# Income = what the content would have paid (the update-day lump grant is the same rule).
+	var lg := SaveMigrate.lump_grant(41, 5)
+	var w: Dictionary = Meta.account["wallet"]
+	_ok(MetaAcc.amount(Meta.account, "beacons") == int(lg["beacons"]) and float(w["beacon_charge"]) < 1e-6,
+			"Beacons after L40 = 0.2 x first clears past L20 + 2 x bosses past L20 = %d (got %d + %.2f)" % [int(lg["beacons"]), MetaAcc.amount(Meta.account, "beacons"), float(w["beacon_charge"])])
+	_ok(grand_seen == int(lg["grand_hero_chests"]) and chests_seen == 1 + int(lg["hero_chests"]) + int(lg["grand_hero_chests"]),
+			"chests: gift + every 3rd win past L14 (%d) + a Grand per boss past L14 (%d); got %d (%d Grand)" % [int(lg["hero_chests"]), int(lg["grand_hero_chests"]), chests_seen, grand_seen])
+	_ok(tomes_boss == int(lg["tomes"]) and tomes_boss == 2, "boss Tomes after the skills unlock (L32, L40) = %d" % tomes_boss)
+	# Replays: chest charge only on the first CHEST_REPLAYS_PER_DAY replay wins a day; no Beacons.
+	var b0 := MetaAcc.amount(Meta.account, "beacons")
+	var c0 := float(w["chest_charge"])
+	var day := 1_900_000_000
+	var charged := 0
+	for i in 5:
+		var rb := Rewards.level_end(Meta.account, _res(20, true, {"run_id": 900 + i}), Meta._rng, day)
+		var cc := float(Meta.account["wallet"]["chest_charge"])
+		charged += 1 if (cc != c0 or not (rb["hero_chests"] as Array).is_empty()) else 0
+		c0 = cc
+	_ok(charged == PortalData.CHEST_REPLAYS_PER_DAY and MetaAcc.amount(Meta.account, "beacons") == b0, "replays: chest charge on the first 3 a day, never Beacons (%d charged)" % charged)
+	# A loss pays no hero income.
+	var before := var_to_str(Meta.account["wallet"])
+	var lb := Rewards.level_end(Meta.account, _res(41, false, {"run_id": 990}), Meta._rng, day)
+	var wl: Dictionary = Meta.account["wallet"]
+	_ok((lb["hero_chests"] as Array).is_empty() and int(lb["beacons"]["add"]) == 0 and int(wl["beacons"]) == int(str_to_var(before)["beacons"]), "a loss: no chests, no Beacons")
+	# Daily / weekly / Expedition / login income.
+	var bw := MetaAcc.amount(Meta.account, "beacons")
+	var tw := MetaAcc.amount(Meta.account, "tomes")
+	var vw := Vault.hero_chests(Meta.account).size()
+	for i2 in 3:
+		Meta.hero_mission_done()
+	_ok(MetaAcc.amount(Meta.account, "beacons") == bw + 1, "3 daily missions = 1 Beacon")
+	Meta.hero_weekly_done()
+	_ok(MetaAcc.amount(Meta.account, "beacons") == bw + 1 + int(PortalData.BEACON["weekly"]) and MetaAcc.amount(Meta.account, "tomes") == tw + PortalData.TOMES_WEEKLY
+			and Vault.hero_chests(Meta.account).size() == vw + 1, "weekly 5/5: +4 Beacons, +2 Tomes, a Grand Hero Chest")
+	var e5 := Meta.hero_expedition(5)
+	var e3 := Meta.hero_expedition(3)
+	var e2 := Meta.hero_expedition(2)
+	_ok(int(e5["beacons"]) == 3 and int(e5["tomes"]) == 2 and int(e5["vault_index"]) >= 0 and int(e3["beacons"]) == 1 and int(e3["vault_index"]) == -1
+			and int(e2["beacons"]) == 0, "Expedition 5/5: 1 + 2 Beacons, Tomes, Grand; 3/5: 1 Beacon; 2/5: nothing")
+	_ok(int(Meta.hero_login(7)["beacons"]) == 1 and int(Meta.hero_login(6)["beacons"]) == 0, "login day-7 card: +1 Beacon")
+	var early := _hacc(10)
+	_ok(Rewards.hero_weekly_done(early)["beacons"] == 0 and Rewards.hero_weekly_done(early)["vault_index"] == -1 and Rewards.hero_mission_done(early)["beacons"] == 0,
+			"before the Portal / champions unlock: no Beacons, no Grand chest")
+	# Open a Vault chest through the Meta API.
+	var n0 := Vault.hero_chests(Meta.account).size()
+	var rev := Meta.open_hero_chest(0)
+	_ok(bool(rev.get("ok", false)) and Vault.hero_chests(Meta.account).size() == n0 - 1 and (rev["cards"] as Array).size() >= 2, "Meta.open_hero_chest opens and removes the chest")
+	_ok(Meta.open_hero_chest(99).is_empty(), "bad index -> {}")
+	Meta.account = keep
+	_live(false)
+
+
+## The Meta API over the rule classes (live phase): Portal, Seals, facets, recut, skills, team,
+## champions, cards; results saved before they return.
+func _test_meta_api_heroes() -> void:
+	print("== Meta API: heroes, champions, team, Portal (live phase)")
+	_live(true)
+	var keep := Meta.account
+	Meta.account = _hacc(25)
+	var acc := Meta.account
+	Roster.grant(acc, "titan", "progress")
+	var po := Meta.portal()
+	_ok(bool(po["open"]) and bool(po["welcome_ready"]) and int(po["e_left"]) == 10 and int(po["l_left"]) == 30, "portal(): open, welcome ready, pity 10 / 30")
+	_ok(str(Meta.summon(1).get("reason", "")) == "beacons", "no Beacons: summon refused")
+	(acc["wallet"] as Dictionary)["gems"] = 99999
+	(acc["wallet"] as Dictionary)["coins"] = 999999
+	_ok(str(Meta.summon(1).get("reason", "")) == "beacons", "Gems and coins never pay a summon")
+	var wb := Meta.welcome_summon()
+	var lplus := (wb["items"] as Array).any(func(it: Dictionary) -> bool: return Ladder.gem_index(str(it["gem"])) >= 3)
+	_ok(bool(wb["ok"]) and (wb["items"] as Array).size() == 10 and lplus and int(wb["seals"]["after"]) == 10 and int(wb["beacons"]) == 0,
+			"welcome x10: free, 10 heroes, at least one Topaz+, +10 Seals")
+	_ok(str(Meta.welcome_summon().get("reason", "")) == "welcome" and not bool(Meta.portal()["welcome_ready"]), "the welcome x10 is used once")
+	(acc["wallet"] as Dictionary)["beacons"] = 11
+	var s1 := Meta.summon(1)
+	_ok(bool(s1["ok"]) and int(s1["beacons_after"]) == 10 and int(s1["seals"]["after"]) == 11 and s1.has("pity") and s1.has("history_id"), "x1: 1 Beacon, +1 Seal, bundle shape")
+	var s10 := Meta.summon(10)
+	_ok(bool(s10["ok"]) and MetaAcc.amount(acc, "beacons") == 0 and Meta.summon_history().size() == 21, "x10: 10 Beacons, history 21 rows")
+	_ok(str(Meta.summon(3).get("reason", "")) in ["count", "beacons"], "only x1 / x10")
+	# Seal shop.
+	var shop := Meta.seal_shop()
+	_ok(not shop.is_empty() and shop.all(func(o: Dictionary) -> bool: return int(o["price"]) in [40, 100, 200]), "Seal shop: Amethyst 40 / Topaz 100 / Opal 200")
+	(acc["summon"] as Dictionary)["seals"] = 100
+	var vesta_owned := Roster.owned(acc, "vesta")
+	var sp := Meta.seal_pick("vesta")
+	_ok(bool(sp["ok"]) and int(sp["seals"]["after"]) == 0 and Roster.owned(acc, "vesta") and bool(sp["new"]) == not vesta_owned, "Seal pick: Vesta for 100 Seals")
+	_ok(str(Meta.seal_pick("arin").get("reason", "")) == "hero", "Quartz heroes are not for Seals")
+	# Cards.
+	var hc := Meta.hero_card("bolt")
+	for k in ["id", "kind", "owned", "native", "gem", "recut", "facets", "frags", "frags_need", "can_facet", "can_recut", "recut_to",
+			"lvl", "own_lvl", "cap", "synced", "class", "element", "faction", "skills", "power", "badge", "in_team", "name", "title"]:
+		_ok(hc.has(k), "hero_card.%s" % k)
+	_ok((hc["skills"] as Dictionary).has_all(["ult", "attack", "rally", "awakened"]) and int(hc["skills"]["ult"]["native_max"]) >= int(hc["skills"]["ult"]["cap"]),
+			"hero_card skills with caps and the native ceiling")
+	var vc := Meta.hero_card("vesta")
+	_ok(bool(vc["skills"]["awakened"]["open"]) and bool(vc["skills"]["awakened"]["born"]), "a native Topaz is born awakened")
+	_ok(Roster.owned(acc, "pava") or not (Meta.hero_card("pava")["sources"] as Array).is_empty(), "unowned hero card lists its sources")
+	var cc := Meta.champion_card("alba")
+	_ok(cc.has_all(["action", "aura", "hp", "level", "slot", "class", "role"]) and int(cc["action"]["tier"]) == 2, "champion_card: Action tier II for a native Sapphire")
+	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == ["lumen", "pava"] and Array(Meta.champion_ids("class:guardian")) == ["ivo", "otto", "nimb"],
+			"hero_ids / champion_ids filters")
+	# Facets and recut through the API (fragments only, never coins).
+	var coins0 := MetaAcc.amount(acc, "coins")
+	Roster.ensure(acc, "bolt")["frags"] = 200
+	var ff := Meta.fill_facets("hero", "bolt")
+	_ok(bool(ff["ok"]) and int(ff["facets"]) == 5 and bool(ff["full"]), "fill_facets: 5 facets from banked fragments")
+	var rc := Meta.recut_cost("hero", "bolt")
+	_ok(bool(rc["can"]) and str(rc["to_gem"]) == "E" and int(rc["coins"]) == 0, "recut cost: to Amethyst, no coins")
+	var ru := Meta.recut("hero", "bolt")
+	_ok(bool(ru["ok"]) and str(Roster.gem(acc, "bolt")) == "E" and Roster.facets(acc, "bolt") == 0 and MetaAcc.amount(acc, "coins") == coins0,
+			"recut Rudi to Amethyst; facets restart; coins untouched")
+	_ok(str(Meta.add_facet("champion", "bolt").get("reason", "")) == "kind", "kind is checked")
+	# Skills: Tomes only, the free first Ult rank on the team hero.
+	MetaAcc.free_steps(acc)["skill_rank"] = true
+	(acc["progress"] as Dictionary)["level"] = 31
+	UnlockQueue.mark_all_done(acc)
+	var sc := Meta.skill_cost("bolt", "ult")
+	_ok(bool(sc["free"]) and int(sc["tomes"]) == 0 and int(sc["coins"]) == 0, "first Ult rank on the team hero is free")
+	var rk := Meta.rank_skill("bolt", "ult")
+	_ok(bool(rk["ok"]) and int(rk["rank"]) == 2 and not bool(MetaAcc.free_steps(acc).get("skill_rank", false)), "free rank used")
+	_ok(str(Meta.rank_skill("bolt", "attack").get("reason", "")) == "tomes", "next rank needs Tomes")
+	(acc["wallet"] as Dictionary)["tomes"] = 50
+	_ok(bool(Meta.rank_skill("bolt", "attack")["ok"]) and MetaAcc.amount(acc, "tomes") == 50 - HeroData.TOME_COST[1], "Attack rank for Tomes")
+	# Team.
+	_ok(Meta.team_slots() == 2, "2 champion slots before L40")
+	Roster.grant(acc, "otto", "chest")
+	Roster.grant(acc, "borko", "chest")
+	var hero0 := Save.hero
+	_ok(Meta.set_team("titan", ["otto", "borko"]), "set_team with owned members")
+	_ok(Meta.hero() == "titan" and str(acc["progress"]["hero"]) == "titan" and Save.hero == "titan", "the team hero is the run hero")
+	var syn := Meta.team_synergy("titan", ["otto", "borko"])
+	_ok((syn["ids"] as Array).size() >= 1 and syn.has("run"), "team synergy: %s" % str(syn["ids"]))
+	_ok(not Meta.set_team("bolt", ["otto", "borko", "alba"]), "more champions than slots refused")
+	var at := Meta.auto_team()
+	_ok(at.has("hero") and at.has("champions") and at.has("gains"), "auto_team shape")
+	_ok(Meta.save_team_preset(1) and Meta.load_team_preset(1), "presets save / load")
+	# Champion Level.
+	var cl0 := Meta.champion_level()
+	var lv := Meta.level_champions()
+	_ok(bool(lv["ok"]) and Meta.champion_level() == cl0 + 1, "Champion Level for coins")
+	_ok(Meta.set_chest_focus("otto") and Meta.chest_focus("R") == "otto", "chest Focus per gem")
+	_ok(Meta.set_portal_focus("C", "arin") == Summon.pool(acc, "C").has("arin"), "Portal Focus set for a pool hero")
+	var od := Meta.portal_odds()
+	_near(float((od["consolidated"] as Dictionary).values().reduce(func(a: float, b: float) -> float: return a + b, 0.0)), 1.0, 1e-6, "consolidated odds sum to 1")
+	_ok(not Meta.chest_odds("grand_hero_chest").is_empty() and Meta.chest_odds("pony").is_empty(), "chest_odds per type")
+	# Run profile (live).
+	var rp := Meta.run_profile(31)
+	_ok(rp.has("team") and str(rp["hero"]["id"]) == Meta.hero() and rp["hero"].has("ult_power") and rp["hero"].has("skills")
+			and not bool(rp["hero"]["guest"]), "run_profile: v3 hero block and team")
+	_ok((rp["team"]["champions"] as Array).size() == 2 and str(rp["team"]["champions"][0]["slot"]) != str(rp["team"]["champions"][1]["slot"]),
+			"team block: two champions in distinct slots")
+	Save.hero = hero0
+	Meta.account = keep
+	_live(false)
+
+
+## A grant that fails to save rolls the in-memory account (and the RNG) back (§12.1, test 15).
+func _test_grant_rollback() -> void:
+	print("== atomic write rollback (live phase)")
+	_live(true)
+	var keep := {"path": Save.path, "account": Save.account, "meta": Meta.account, "ro": Save.readonly, "level": Save.level,
+			"coins": Save.coins, "hero": Save.hero}
+	var acc := _hacc(25)
+	(acc["wallet"] as Dictionary)["beacons"] = 10
+	Save.account = acc
+	Meta.account = acc
+	Save.readonly = false
+	Save.path = TMP_DIR + "/no_such_dir/deeper/save.cfg"
+	Save.level = MetaAcc.level(acc)             # the legacy mirrors match the account (Meta.level() reads them)
+	Save.hero = str(acc["progress"]["hero"])
+	var snap := var_to_str(acc)
+	var rs: int = Meta._rng.state
+	var r := Meta.summon(10)
+	if str(r.get("reason", "")) != "save" or var_to_str(Meta.account) != snap:
+		var was: Dictionary = str_to_var(snap)
+		for sec in was:
+			if var_to_str(was[sec]) != var_to_str(Meta.account.get(sec)):
+				print("    rollback differs in %s: %s -> %s" % [sec, var_to_str(was[sec]).left(200), var_to_str(Meta.account.get(sec)).left(200)])
+		print("    rollback: summon -> %s rng %s/%s" % [str(r).left(200), str(rs), str(Meta._rng.state)])
+	_ok(not bool(r["ok"]) and str(r["reason"]) == "save" and var_to_str(Meta.account) == snap and Meta._rng.state == rs and is_same(Meta.account, Save.account),
+			"summon whose save fails: account, RNG and the shared dictionary restored")
+	var r2 := Meta.welcome_summon()
+	_ok(not bool(r2["ok"]) and var_to_str(Meta.account) == snap, "welcome x10 rolled back too (still unused)")
+	Save.path = TMP_DIR + "/rollback_ok.cfg"
+	var r3 := Meta.summon(1)
+	_ok(bool(r3["ok"]) and MetaAcc.amount(Meta.account, "beacons") == 9 and FileAccess.file_exists(Save.path), "a good path saves the grant")
+	Save.readonly = bool(keep["ro"])
+	Save.level = int(keep["level"])
+	Save.coins = int(keep["coins"])
+	Save.hero = str(keep["hero"])
+	Save.path = str(keep["path"])
+	Save.account = keep["account"]
+	Meta.account = keep["meta"]
+	_live(false)
+
+
+## Earned-only randomness (P2, §7.3, §7.7, test 7): no path from money, Gems, SKUs, rating, Track or
+## Road into Beacons, Seals, Hero Chests, Tomes, fragments or pity.
+func _test_two_track() -> void:
+	print("== earned-only randomness (two-track rule)")
+	_live(true)
+	# 1. Data: no SKU carries hero currencies or random items; no Track / Road / Feat pays Beacons.
+	var forbidden := ["beacon", "seal", "chest", "tome", "ore", "frag", "summon", "hero", "champion", "pity", "portal"]
+	var leak: Array = []
+	for sku: String in EconData.SKUS:
+		var txt := var_to_str(EconData.SKUS[sku]).to_lower()
+		for f in forbidden:
+			if f in txt and not (f == "hero" and sku.begins_with("skin_")):
+				leak.append("%s:%s" % [sku, f])
+	_ok(leak.is_empty(), "no SKU holds hero currencies or random items: %s" % str(leak))
+	_ok(float(PortalData.BEACON["track"]) == 0.0 and not "track" in Summon.BEACON_SOURCES and not "road" in Summon.BEACON_SOURCES
+			and not "shop" in Summon.BEACON_SOURCES and not "ads" in Summon.BEACON_SOURCES, "Track / Road / shop / ads are no Beacon source")
+	var feat_pay := true
+	for fid: String in HeroData.FEATS:
+		feat_pay = feat_pay and str((HeroData.FEATS[fid] as Dictionary)["reward"][0]) in ["tomes", "ore"]
+	_ok(feat_pay, "hero Feats pay Tomes / Star Ore only, never Beacons")
+	var track_cur: Array = []
+	for step: Array in EconData.TRACK["cycle"]:
+		track_cur.append(str(step[0]))
+	_ok(not track_cur.has("beacons"), "Arsenal Track pays no Beacons")
+	_ok(EconData.road_node("premium", "gems", 20, 30)["cur"] == "coins" and int(EconData.road_node("premium", "gems", 20, 30)["n"]) == EconData.track_coin_node(30)
+			and EconData.road_node("free", "gems", 20, 30)["cur"] == "gems", "paid Road lane: Gem nodes pay coins (Track rate), free lane unchanged")
+	for lane in ["free", "premium"]:
+		for cur in ["gems", "coins", "beacons"]:
+			_ok(str(EconData.road_node(lane, cur, 5, 30)["cur"]) != "beacons" or cur == "beacons", "Road %s %s never becomes Beacons" % [lane, cur])
+	var a0 := _hacc(25)
+	_ok(Summon.credit(a0, "track") == 0 and Summon.credit(a0, "shop") == 0 and Summon.credit(a0, "gems") == 0, "Summon.credit refuses money / Track sources")
+	# 2. Same seeds, same play: a paying account earns exactly the same random-side resources.
+	var free := _hacc(1)
+	var paid := _hacc(1)
+	(paid["shop"] as Dictionary)["entitlements"] = {"starter_arsenal": true, "supporter": true, "road_premium": true}
+	MetaAcc.add(paid, "gems", 50000)
+	MetaAcc.add(paid, "coins", 500000)
+	var r1 := RandomNumberGenerator.new()
+	var r2 := RandomNumberGenerator.new()
+	r1.seed = 4242
+	r2.seed = 4242
+	for lvl in range(1, 61):
+		var won := lvl % 7 != 3
+		Rewards.level_end(free, _res(lvl, won, {"run_id": lvl}), r1, 1_800_000_000 + lvl * 3600)
+		Rewards.level_end(paid, _res(lvl, won, {"run_id": lvl}), r2, 1_800_000_000 + lvl * 3600)
+		if not won:
+			Rewards.level_end(free, _res(lvl, true, {"run_id": 1000 + lvl}), r1, 1_800_000_000 + lvl * 3600 + 60)
+			Rewards.level_end(paid, _res(lvl, true, {"run_id": 1000 + lvl}), r2, 1_800_000_000 + lvl * 3600 + 60)
+	var keys := func(a: Dictionary) -> String:
+		var w: Dictionary = a["wallet"]
+		return var_to_str([w["beacons"], w["beacon_charge"], w["chest_charge"], w["tomes"], a["summon"], a["chests"], a["vault"]["hero_chests"],
+				a["champions"], a["pity"], a["vault"]["caches"]])
+	_ok(keys.call(free) == keys.call(paid) and int(free["wallet"]["beacons"]) > 0, "60 levels, same seed: Beacons, chest charge, chests, Tomes, Seals, pity, Caches identical with and without SKUs / Gems / coins")
+	# 3. Source scan: only the earned-income rules credit Beacons or Seals.
+	var allowed := ["res://scripts/meta/rewards.gd", "res://scripts/meta/summon.gd", "res://scripts/meta/save_migrate.gd"]
+	var bad: Array = []
+	for f2 in _gd_files("res://scripts"):
+		if f2.begins_with("res://scripts/dev/"):
+			continue
+		var src := FileAccess.get_file_as_string(f2)
+		var credits := src.contains("add(acc, \"beacons\"") or src.contains("add(account, \"beacons\"") or src.contains("[\"seals\"] = int(") \
+				or src.contains("add_currency(\"beacons\"")
+		if credits and not allowed.has(f2):
+			bad.append(f2)
+		var fn := f2.get_file()
+		if (fn.contains("shop") or fn.contains("billing") or fn.begins_with("ads")) and (src.contains("beacon") or src.contains("seals") or src.contains("hero_chest")):
+			bad.append(f2 + " (shop)")
+	_ok(bad.is_empty(), "Beacons / Seals are credited only by Rewards, Summon and the migration: %s" % str(bad))
+	_live(false)
+
+
+func _gd_files(dir: String) -> Array[String]:
+	var out: Array[String] = []
+	var d := DirAccess.open(dir)
+	if d == null:
+		return out
+	for f in d.get_files():
+		if f.ends_with(".gd"):
+			out.append(dir.path_join(f))
+	for sub in d.get_directories():
+		out.append_array(_gd_files(dir.path_join(sub)))
+	return out
+
+
+## Meta-1 touch point: the Focus machine gets EXACTLY 40% of its rarity's cards (live phase);
+## the 2.2.1 rule (flag off) gives it 40% + its share of the rest.
+func _test_focus_exact() -> void:
+	print("== machine Focus exactly 40% (live phase)")
+	var acc := _acc_at(20, "expected")
+	var pl: Array[String] = []
+	for id in ArsenalData.live_ids():
+		if ArsenalData.rarity_of(id) == "C" and MetaAcc.owned(acc, id):
+			pl.append(id)
+	if pl.size() < 3:
+		_ok(false, "need 3 owned Commons for the Focus test (got %s)" % str(pl))
+		return
+	(acc["arsenal"] as Dictionary)["focus"] = pl[0]
+	var n := 40000
+	for live in [false, true]:
+		_live(live)
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 99
+		var hit := 0
+		var a := acc.duplicate(true)
+		for i in n:
+			if str(CacheRoller.grant_card(a, "C", pl, rng, false)["id"]) == pl[0]:
+				hit += 1
+		var p := float(hit) / n
+		var d := Arsenal.deck(a)
+		var tot := 0.0
+		for id2 in pl:
+			tot += EconData.DECK_WEIGHT if d.has(id2) else 1.0
+		var own := (EconData.DECK_WEIGHT if d.has(pl[0]) else 1.0) / tot
+		var want := EconData.FOCUS_SHARE if live else EconData.FOCUS_SHARE + (1.0 - EconData.FOCUS_SHARE) * own
+		var z := (p - want) / sqrt(want * (1.0 - want) / n)
+		_ok(absf(z) <= 4.0, "%s: Focus share %.4f vs %.4f (z %.2f)" % ["live exactly 40%" if live else "2.2.1 rule", p, want, z])
+	_live(false)
+	_ok(CacheRoller.odds("stone", ["C", "R"], {})["focus_exact"] == false, "odds sheet says the 2.2.1 rule while off")
+
+
+## §12.5: every hero event the flows above logged carries its keys.
+func _test_hero_telemetry() -> void:
+	print("== hero telemetry schema (§12.5)")
+	_live(true)
+	var keep := Meta.account
+	Meta.account = _hacc(25)
+	var acc := Meta.account
+	(acc["wallet"] as Dictionary)["beacons"] = 20
+	(acc["wallet"] as Dictionary)["tomes"] = 20
+	(acc["wallet"] as Dictionary)["coins"] = 50000
+	Meta.welcome_summon()
+	Meta.summon(10)
+	(acc["summon"] as Dictionary)["seals"] = 40
+	Meta.seal_pick("iskar")
+	Roster.ensure(acc, "bolt")["frags"] = 200
+	Meta.fill_facets("hero", "bolt")
+	Meta.recut("hero", "bolt")
+	Meta.level_hero("bolt")
+	Meta.level_champions()
+	Rewards.level_end(acc, _res(25, true, {"run_id": 5, "team_report": [{"id": "alba", "alive": false}]}), Meta._rng, 0)
+	var missing: Array = []
+	var seen := {}
+	for ev in (acc["telemetry"]["events"] as Array):
+		var e := str((ev as Dictionary)["e"])
+		if MetaTelemetry.HERO_EVENTS.has(e):
+			seen[e] = true
+			var m := MetaTelemetry.missing_keys(e, (ev as Dictionary)["d"])
+			if not m.is_empty():
+				missing.append("%s %s" % [e, str(m)])
+	_ok(missing.is_empty(), "hero events carry every §12.5 key: %s" % str(missing))
+	_ok(seen.has_all(["summon", "seal_pick", "facet", "recut", "team_run"]), "events logged: %s" % str(seen.keys()))
+	var tr := MetaTelemetry.events_of(acc, "team_run")
+	_ok(not tr.is_empty() and (tr[-1]["d"]["lost_ids"] as Array) == ["alba"], "team_run lists the fallen champions")
+	Meta.account = keep
+	_live(false)

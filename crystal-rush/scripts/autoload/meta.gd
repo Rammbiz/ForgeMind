@@ -569,7 +569,8 @@ func level_hero(id: String) -> Dictionary:
 		return res
 	_emit_wallet(before)
 	hero_changed.emit(id)
-	note("hero_level", {"id": id, "lvl": res["lvl"]})
+	if not heroes_on():
+		note("hero_level", {"id": id, "lvl": res["lvl"]})     # live: HeroesMeta logs {id, lvl, synced}
 	save()
 	return res
 
@@ -612,7 +613,7 @@ func _commit(snap: Dictionary, rng_state: int) -> bool:
 	account.clear()
 	account.merge(snap)
 	_rng.state = rng_state
-	(account["meta"] as Dictionary)["rng_state"] = rng_state
+	Save.level = level()
 	Save.coins = currency("coins")
 	return false
 

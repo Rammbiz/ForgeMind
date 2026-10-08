@@ -24,6 +24,8 @@ class_name UnlockQueue
 
 ## Synthetic pending entry for the one-time migration card (does not use a session slot).
 const MIGRATION_ID := "migration"
+## The v2 -> v3 update-day summary card (heroes_design.md §11.6; SaveMigrate.CARD), no session slot.
+const MIGRATION_HEROES_ID := "migration_heroes"
 
 
 ## True once unlock `id` is open for this account (unknown ids are open).
@@ -62,6 +64,9 @@ static func pending(acc: Dictionary) -> Array[Dictionary]:
 	var done: Array = un.get("done", [])
 	if (un.get("cards", []) as Array).has("MIGRATION_CARD") and not done.has(MIGRATION_ID):
 		out.append({"id": MIGRATION_ID, "kind": "card", "line": "MIGRATION_CARD", "free": "", "phase": 1})
+	if (un.get("cards", []) as Array).has(SaveMigrate.CARD) and not done.has(MIGRATION_HEROES_ID):
+		out.append({"id": MIGRATION_HEROES_ID, "kind": "card", "line": SaveMigrate.CARD, "free": "", "phase": 1,
+				"grant": ((acc["meta"] as Dictionary).get("v3_grant", {}) as Dictionary).duplicate()})
 	var room := maxi(0, int(EconData.UNLOCK_RULES["per_session"]) - int(un.get("session_count", 0)))
 	var gap_hold := _gap_hold(acc)
 	for u: Dictionary in EconData.unlocks():
@@ -91,7 +96,7 @@ static func ack(acc: Dictionary, id: String) -> void:
 		un["done_at"] = {}
 	(un["done_at"] as Dictionary)[id] = MetaAcc.level(acc)
 	(un.get("pending", []) as Array).erase(id)
-	if id == MIGRATION_ID:
+	if id == MIGRATION_ID or id == MIGRATION_HEROES_ID:
 		return
 	un["session_count"] = int(un.get("session_count", 0)) + 1
 	_grant_free(acc, EconData.unlock_entry(id))
