@@ -297,19 +297,32 @@ func _draw_over(ci: CanvasItem) -> void:
 	var ts := int(clampf(fh * 0.38, 20.0, 26.0))
 	var ss := int(clampf(fh * 0.34, 20.0, 24.0))
 	var pip_room := 8.0 if pips >= 0 else 0.0
+	# Title over footer, stacked by their real ascents (no overlap at any card size).
+	var top := seam + pip_room + 2.0
+	var avail := size.y - 4.0 - top
+	var fs := ts
 	if title != "":
-		var fs := ts
 		while fs > 16 and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 16.0:
 			fs -= 1
-		var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var ty := seam + pip_room + (fh - pip_room) * (0.48 if footer != "" else 0.62)
-		ci.draw_string(f, Vector2((size.x - tw) * 0.5, ty), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK if not dim else UITokens.INK_DIM)
 	if footer != "":
 		while ss > 18 and fm.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x > size.x - 12.0:
 			ss -= 1
+	var th := (f.get_ascent(fs) + f.get_descent(fs) * 0.5) if title != "" else 0.0
+	var sh2 := (fm.get_ascent(ss) + fm.get_descent(ss) * 0.5) if footer != "" else 0.0
+	while th + sh2 > avail and (fs > 16 or ss > 16):
+		if fs > ss:
+			fs -= 1
+		else:
+			ss -= 1
+		th = (f.get_ascent(fs) + f.get_descent(fs) * 0.5) if title != "" else 0.0
+		sh2 = (fm.get_ascent(ss) + fm.get_descent(ss) * 0.5) if footer != "" else 0.0
+	var y0 := top + maxf(0.0, (avail - th - sh2) * 0.5)
+	if title != "":
+		var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		ci.draw_string(f, Vector2(roundf((size.x - tw) * 0.5), roundf(y0 + f.get_ascent(fs))), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK if not dim else UITokens.INK_DIM_GLASS)
+	if footer != "":
 		var fw := fm.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
-		var fy := size.y - fh * 0.14
-		ci.draw_string(fm, Vector2((size.x - fw) * 0.5, fy), footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM_GLASS)
+		ci.draw_string(fm, Vector2(roundf((size.x - fw) * 0.5), roundf(y0 + th + fm.get_ascent(ss))), footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM_GLASS)
 	# Frame: inner 1 px rim in the gem's light tone, outer gold hairline.
 	var inner := GemDraw.chamfer_rect(Rect2(Vector2(3, 3), size - Vector2(6, 6)), maxf(ch - 1.5, 1.0))
 	var rim: Color = g["rim"] if not dim else UITokens.PAPER_3

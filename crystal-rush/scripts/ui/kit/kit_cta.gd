@@ -272,10 +272,11 @@ func _draw_body(br: Rect2, ch: float, down: bool, dis: bool) -> void:
 	draw_polygon(poly, cols)
 	var w1 := UIKit.px(1.0)
 	if not dis:
-		# Table light: 1 dpx under the top edge, following the cuts a little way down.
+		# Table light: 1 dpx just inside the top edge and down the two upper cuts.
 		var ty := GemDraw.pixel_y(self, br.position.y + w1 * 1.5)
-		draw_polyline(PackedVector2Array([Vector2(br.position.x + 1.0 + w1, br.position.y + ch * 0.6), Vector2(br.position.x + ch * 0.4 + w1, ty),
-				Vector2(br.end.x - ch * 0.4 - w1, ty), Vector2(br.end.x - 1.0 - w1, br.position.y + ch * 0.6)]), Color(1, 0.98, 0.9, 0.9), w1, true)
+		var k := w1 * 1.5
+		draw_polyline(PackedVector2Array([Vector2(br.position.x + k, br.position.y + ch + k * 0.4), Vector2(br.position.x + ch + k * 0.4, ty),
+				Vector2(br.end.x - ch - k * 0.4, ty), Vector2(br.end.x - k, br.position.y + ch + k * 0.4)]), Color(1, 0.98, 0.9, 0.9), w1, true)
 	var rim := Color(UITokens.CTA_RIM.r, UITokens.CTA_RIM.g, UITokens.CTA_RIM.b, 0.7) if not dis else Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8)
 	GemDraw.outline(self, _inset(pts, w1 * 0.5), rim, UIKit.line_px(1.0))
 

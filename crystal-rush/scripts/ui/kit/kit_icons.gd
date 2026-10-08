@@ -917,12 +917,12 @@ static func topaz_crystal(ci: CanvasItem, c: Vector2, h: float, alpha := 1.0, gl
 	var bm := c + Vector2(0, h * 0.16)
 	if glow > 0.0:
 		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(h, h) * 0.9, Vector2(h, h) * 1.8), false, Color(1.0, 0.82, 0.45, 0.45 * glow * alpha))
-	var v := Color(value, value, value, 1.0)
-	# One triangle array (6 facets).
+	# Quiet = the same topaz pulled toward its deep amber (never grey, never "disabled").
+	var quiet := clampf((1.0 - value) * 2.0, 0.0, 1.0)
 	var fp := PackedVector2Array([t, tm, ul, t, ur, tm, ul, tm, bm, ul, bm, ll, tm, ur, lr, tm, lr, bm, ll, bm, b, bm, lr, b])
 	var fcs := PackedColorArray()
 	for fcol: Color in [Color("#FFF1C9"), Color("#FFD27A"), Color("#FFC560"), Color("#FFC560"), Color("#F0A23C"), Color("#F0A23C"), Color("#E89434"), Color("#C9772A")]:
-		var cc := _ca(fcol * v, alpha)
+		var cc := _ca(fcol.lerp(Color("#D08A35"), quiet), alpha)
 		fcs.append_array([cc, cc, cc])
 	var fi := PackedInt32Array()
 	for i in fp.size():
