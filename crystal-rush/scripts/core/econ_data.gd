@@ -39,6 +39,22 @@ const HERO := {
 ## Campaign level whose WIN unlocks each hero (0 = from the start; -1 = later phase).
 ## Seer: playable from L6 for now (design §4.1 target: the World 3 boss).
 const HERO_UNLOCK := {"bolt": 0, "titan": 4, "seer": 5}
+## The 2.2.1 (Save v2) hero unlock table, FROZEN: the v2 -> v3 update day gives every hero a v2 player
+## had met by these rules (a Seer met at L5 stays owned after she moves to L24, heroes_design.md §11.1).
+const HERO_UNLOCK_V2 := {"bolt": 0, "titan": 4, "seer": 5}
+
+# ------------------------------------------------------------------ Heroes & Champions phase flag
+
+## Heroes & Champions build phase (heroes_design.md §13.2). While HEROES_PHASE < HEROES_LIVE_PHASE the
+## game behaves exactly as 2.2.1: Save v3 sections exist, load, sanitise and migrate, but nothing in the
+## shipped flow reads them and the update-day conversion + lump grant (SaveMigrate.update_day) waits for
+## the build that turns the hero systems on (H3).
+const HEROES_PHASE := 0
+const HEROES_LIVE_PHASE := 3
+
+
+static func heroes_live() -> bool:
+	return HEROES_PHASE >= HEROES_LIVE_PHASE
 const HERO_ASPECTS := {
 	"bolt": ["forked_fox", "railshot", "storm_fox"],
 	"titan": ["bulwark", "seismic", "crystal_colossus"],
@@ -375,27 +391,46 @@ static func unlock_entry(id: String) -> Dictionary:
 	return {}
 
 
-## A brand-new account in the Save v2 shape (§9.2). Save v2 uses it for defaults and as the
-## migration base; Meta uses it when no saved account exists. Sections are Dictionaries.
+## A brand-new account in the Save v3 shape (arsenal_design.md §9.2 + heroes_design.md §12.1).
+## Save uses it for defaults (a section or key missing here is dropped on load) and as the migration
+## base; Meta uses it when no saved account exists. Sections are Dictionaries.
+## Heroes: one entry per starter (Rudi = bolt owned at start); the Meta-1 keys (lvl, glory, boss_wins,
+## aspect, skin) stay where the 2.2.1 flow reads them. The other v3 sections (champions, team, summon,
+## chests, workshop, vault.hero_chests, _orphans and the new wallet keys) are not read while
+## heroes_live() is false.
 static func fresh_account() -> Dictionary:
 	var machines := {}
 	for id in ArsenalData.START_OWNED:
 		machines[id] = new_machine_state(id, 1)
+	var heroes := {}
+	for h in ["bolt", "titan"]:            # 2.2.1 order first, then the other starters
+		heroes[h] = new_hero_state(h, SaveV3Data.START_OWNED.has(h), "start" if SaveV3Data.START_OWNED.has(h) else "")
+	for h2 in SaveV3Data.STARTERS:
+		if not heroes.has(h2):
+			heroes[h2] = new_hero_state(h2, SaveV3Data.START_OWNED.has(h2), "start" if SaveV3Data.START_OWNED.has(h2) else "")
+	var presets: Array = []
+	for i in 3:
+		presets.append({"hero": "", "champions": []})
 	return {
-		"meta": {"version": 2, "rng_state": 0, "rng_seed": 0, "sessions": 0, "last_session": 0},
+		"meta": {"version": 3, "rng_state": 0, "rng_seed": 0, "sessions": 0, "last_session": 0, "max_day_seen": 0},
 		"progress": {"level": 1, "crowns_best": {}, "shards_best": {}, "world_reached": 1, "boss_wins": 0,
 				"losses_here": 0, "assist_level": 0, "invasion_level": 0, "nightmare": {}},
 		"wallet": {"coins": 0, "gems": 0, "crowns": 0, "cores": 0, "wild": {"C": 0, "R": 0, "E": 0, "L": 0, "M": 0},
-				"cache_charge": 0.0},
+				"cache_charge": 0.0, "beacons": 0, "tomes": 0, "ore": 0, "beacon_charge": 0.0, "chest_charge": 0.0,
+				"ore_charge": 0.0},
 		"arsenal": {"machines": machines, "decks": [[], [], []], "deck_active": 0, "focus": "", "codex": {},
 				"seen": {}, "mythics_forged": []},
-		"heroes": {"bolt": {"lvl": 1, "glory": 1, "boss_wins": 0, "aspect": "forked_fox", "skin": ""},
-				"titan": {"lvl": 1, "glory": 1, "boss_wins": 0, "aspect": "bulwark", "skin": ""}},
+		"heroes": heroes,
+		"champions": {"level": 1, "roster": {}},
+		"team": {"hero": "bolt", "champions": [], "presets": presets, "preset": 0},
+		"summon": {"seals": 0, "since_e": 0, "since_l": 0, "total": 0, "focus": {}, "history": [], "welcome_done": false},
+		"chests": {"since_l": 0, "total": 0, "focus": {}, "scripted": 0},
+		"workshop": {"items": {}, "relics": {}, "trophies": [], "retro_done": false, "migration_ore": 0},
 		"barracks": {"recruits": 0, "reserves": 0, "scrape_guard": 0, "drill": 0, "volleys": 0, "tactics": {}, "skins": {},
 				"grandfathered": {}},
 		"haven": {"stages": {}, "featured": {}},
 		"pity": {"since_epic": 0, "since_leg": 0, "leg_welcome_done": false},
-		"vault": {"caches": [], "stone_total": 0},
+		"vault": {"caches": [], "stone_total": 0, "hero_chests": []},
 		"daily": {}, "track": {}, "expedition": {},
 		"counters": {}, "feats": {},
 		"unlocks": {"done": [], "pending": [], "session_count": 0},
@@ -403,7 +438,28 @@ static func fresh_account() -> Dictionary:
 		"telemetry": {"levels": {}, "session_lengths": [], "skips": {}, "events": []},
 		"settings": {"fast_ceremonies": false, "quick_reveal": false, "caches_to_vault": false, "auto_apex": false,
 				"reinforcements": true, "reduce_motion": false},
+		"_orphans": {"heroes": {}, "champions": {}},
 	}
+
+
+## Hero state (Save v3, heroes_design.md §12.1). `native` is never saved (SaveV3Data.HERO_NATIVE).
+## Native Topaz / Opal heroes are born awakened (F-AWK2). The Meta-1 keys lvl, glory, boss_wins,
+## aspect and skin keep their 2.2.1 meaning.
+static func new_hero_state(id: String, owned := false, via := "", t := 0) -> Dictionary:
+	var native := str(SaveV3Data.HERO_NATIVE.get(id, "C"))
+	var born := SaveV3Data.GEMS.find(native) >= SaveV3Data.GEMS.find(SaveV3Data.BORN_AWAKENED_MIN)
+	var aspects: Array = HERO_ASPECTS.get(id, [""])
+	var sk := {"ult": 1, "attack": 1, "rally": 1, "awakened": 1 if born else 0}
+	return {"lvl": 1, "glory": 1, "boss_wins": 0, "aspect": str(aspects[0]), "skin": "",
+			"owned": owned, "gem": native, "facets": 0, "frags": 0, "skills": sk, "skills_peak": sk.duplicate(),
+			"loadout": {"weapon": "", "armour": "", "charm": ""}, "seen": owned, "chronicle": 0,
+			"got": {"t": t, "via": via}}
+
+
+## Champion roster entry (Save v3): {owned, gem, facets, frags, seen, got {t, via}}.
+static func new_champion_state(id: String, owned := false, via := "", t := 0) -> Dictionary:
+	return {"owned": owned, "gem": str(SaveV3Data.CHAMPION_NATIVE.get(id, "C")), "facets": 0, "frags": 0, "seen": owned,
+			"got": {"t": t, "via": via}}
 
 
 ## Machine state on unlock: {lvl, bp, frac, xp, talents, branch, finish, finishes, apex_auto}.

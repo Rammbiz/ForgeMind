@@ -1,26 +1,30 @@
 extends Node
-## Persistent progress and settings (user://save.cfg), schema v2 (arsenal_design.md §9.2,
-## meta1_contracts.md §5).
+## Persistent progress and settings (user://save.cfg), schema v3 (arsenal_design.md §9.2,
+## meta1_contracts.md §5, heroes_design.md §12.1).
 ##
 ## The file is one ConfigFile. Every top-level key of `account` (EconData.fresh_account() shape:
 ## meta, progress, wallet, arsenal, heroes, barracks, ...) is a section, every key inside it a
-## value; `[meta] version=2`. The legacy keys the old menu and the run still read are written
+## value; `[meta] version=3`. The legacy keys the old menu and the run still read are written
 ## next to them ([progress] level/coins/hero, [upgrades] army/power, [settings] music/sfx/
 ## language/quality/vibration) and mirrored into `level`, `coins`, `hero`, `upgrades`.
 ## The Meta autoload works on `account` by reference and calls save_data().
 ##
 ## Writes are atomic: temp file -> parse check -> previous file kept as .bak -> rename. A file
 ## that fails to load (or is not a save) falls back to the .bak.
-## A save without `[meta] version` is v1 and migrates once (migrate_v1); the v1 file is kept as
-## save_v1_backup.cfg.
+## A save without `[meta] version` is v1 and migrates once (migrate_v1, then migrate_v2); the v1
+## file is kept as save_v1_backup.cfg. A `version=2` file is read over the v3 defaults (every Meta-1
+## key kept) and stamped v3 by migrate_v2 (never by migrate_v1: audit F1); the v2 file is kept once
+## as save_v2_backup.cfg. The hero systems' update-day conversion (SaveMigrate.update_day) runs on
+## the first load of a build where EconData.heroes_live() is true.
 ## Dev / test runs (--autotest, --shot) are readonly: nothing is read from or written to disk.
 
 signal settings_changed
 signal coins_changed(coins: int)
 
 const PATH := "user://save.cfg"
-const VERSION := 2
+const VERSION := 3
 const V1_BACKUP := "user://save_v1_backup.cfg"   ## (next to `path`)
+const V2_BACKUP := "user://save_v2_backup.cfg"   ## (next to `path`)
 ## Keys of shared sections that belong to the legacy fields, not to `account`.
 const LEGACY_KEYS := {"progress": ["coins", "hero"], "settings": ["music", "sfx", "language", "quality", "vibration"]}
 
@@ -36,7 +40,8 @@ var vibration := true
 var readonly := false          # dev/test runs must not touch the player's save
 ## Save v2 account (all meta sections). {} in readonly runs (Meta builds a synthetic one).
 var account: Dictionary = {}
-## 1 when this session migrated a v1 save (the hub shows MIGRATION_CARD via Meta.pending_unlocks).
+## 1 / 2 when this session migrated a v1 / v2 save (the hub shows MIGRATION_CARD for v1 via
+## Meta.pending_unlocks).
 var migrated_from := 0
 ## Where the data came from: "" new player | "main" | "bak".
 var loaded_from := ""
@@ -62,26 +67,48 @@ func load_data() -> void:
 			elif a.begins_with("--power="):
 				upgrades["power"] = maxi(0, int(a.trim_prefix("--power=")))
 		return
+	load_from_disk()
+
+
+## Reads `path` (or its .bak), migrates v1 / v2 files and writes them back as v3 at once.
+## `live` (-1 = EconData.heroes_live()) runs the hero systems' update day (tests pass 0 / 1).
+func load_from_disk(live := -1) -> void:
+	var is_live := EconData.heroes_live() if live < 0 else live > 0
 	var res := read_file(path)
 	var cfg: ConfigFile = res["cfg"]
 	loaded_from = str(res["from"])
+	var now := int(Time.get_unix_time_from_system())
 	if cfg == null:
 		account = EconData.fresh_account()
 		_from_account()
+		if is_live and not SaveMigrate.update_day(account, now).is_empty():
+			save_data()
 		return
 	_read_legacy(cfg)
-	if int(cfg.get_value("meta", "version", 0)) >= VERSION:
+	var ver := int(cfg.get_value("meta", "version", 0))
+	if ver >= 2:
 		account = account_from_cfg(cfg)
+		if ver == 2:
+			migrated_from = 2
+			_backup_once(V2_BACKUP)
+			migrate_v2(account, now, 0)
 	else:
 		account = migrate_v1(cfg)
 		migrated_from = 1
-		var v1 := path.get_base_dir().path_join(V1_BACKUP.get_file())
-		if FileAccess.file_exists(path) and not FileAccess.file_exists(v1):
-			DirAccess.copy_absolute(path, v1)
+		_backup_once(V1_BACKUP)
 		upgrades["power"] = 0        # refunded in coins by the migration
+		migrate_v2(account, now, 0)
+	var went_live := is_live and not SaveMigrate.update_day(account, now).is_empty()
 	_from_account()
-	if migrated_from == 1:
+	if migrated_from > 0 or went_live:
 		save_data()
+
+
+## Copies the file being migrated to `backup` (next to `path`) unless a copy exists already.
+func _backup_once(backup: String) -> void:
+	var b := path.get_base_dir().path_join(backup.get_file())
+	if FileAccess.file_exists(path) and not FileAccess.file_exists(b):
+		DirAccess.copy_absolute(path, b)
 
 
 func save_data() -> void:
@@ -183,8 +210,9 @@ static func write_file(p: String, legacy: Dictionary, acc: Dictionary) -> Error:
 	return DirAccess.rename_absolute(tmp, p)
 
 
-## A v2 file -> account: every section read over EconData.fresh_account() defaults (keys of the
+## A v2 / v3 file -> account: every section read over EconData.fresh_account() defaults (keys of the
 ## wrong type keep the default; unknown keys are kept for forward compatibility), then sanitised.
+## A v2 file keeps `[meta] version=2` here; migrate_v2() stamps it.
 static func account_from_cfg(cfg: ConfigFile) -> Dictionary:
 	var acc := EconData.fresh_account()
 	for section in acc:
@@ -275,6 +303,15 @@ static func sanitize(acc: Dictionary) -> void:
 	for k2 in ["done", "pending"]:
 		if not un.get(k2) is Array:
 			un[k2] = []
+	SaveMigrate.sanitize_v3(acc)
+
+
+## v2 -> v3 (heroes_design.md §12.3): lossless and idempotent. The schema step only (every Meta-1
+## key kept, nothing granted); the update-day conversion and lump grant run with `live`
+## (EconData.heroes_live() by default). Returns the account.
+static func migrate_v2(acc: Dictionary, now_s := 0, live := -1) -> Dictionary:
+	SaveMigrate.migrate_v2(acc, now_s, EconData.heroes_live() if live < 0 else live > 0)
+	return acc
 
 
 ## v1 -> v2 (§9.2): keeps the level; grants every NEW machine whose crate is behind the player

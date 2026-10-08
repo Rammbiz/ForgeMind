@@ -2,8 +2,11 @@ extends Node
 ## Headless unit tests of the Meta-1 core (WS1): Cache odds vs the sim (chi-square), pity caps,
 ## welcome Legendary, frozen counters, duplicate protection, Focus / Deck weights, Wild overflow,
 ## upgrade costs and curves, Arsenal Sync, final stats, run_profile shape, finish_run
-## idempotence, loss payout + Reinforcements + loss charge, UnlockQueue sessions, Save v2 io
-## (atomic write, .bak fallback) and the v1 -> v2 migration fixtures (levels 1, 9, 30).
+## idempotence, loss payout + Reinforcements + loss charge, UnlockQueue sessions, Save io
+## (atomic write, .bak fallback), the v1 -> v2 migration fixtures (levels 1, 9, 30) and Save v3
+## (heroes_design.md §12.1 / §12.3): sections, sanitize + _orphans, the v2 -> v3 schema step on the
+## v2 fixtures (levels 1, 9, 30, 56: every Meta-1 key kept, idempotent, round trip), the update-day
+## conversion + lump grant, the v1 -> v2 -> v3 chain and a live load of a v2 file.
 ##
 ## godot --headless --path . res://scenes/dev/test_meta.tscn -- --autotest
 ## (--autotest keeps Save readonly: the player's save is never touched). Exit code = failures.
@@ -42,6 +45,9 @@ func _ready() -> void:
 	_test_save_io()
 	_test_migration()
 	_test_live_save()
+	_test_save_v3()
+	_test_migration_v2()
+	_test_live_save_v2()
 	_test_telemetry()
 	print("TEST_META %s: %d passed, %d failed (%.1f s)" % ["PASS" if _fails == 0 else "FAIL", _passes, _fails,
 			float(Time.get_ticks_msec() - t0) / 1000.0])
@@ -594,7 +600,7 @@ func _test_save_io() -> void:
 	_ok(Save.write_file(path, legacy, acc) == OK and FileAccess.file_exists(path + ".bak"), ".bak kept after the 2nd write")
 	var r := Save.read_file(path)
 	var cfg: ConfigFile = r["cfg"]
-	_ok(cfg != null and str(r["from"]) == "main" and int(cfg.get_value("meta", "version", 0)) == 2, "read v2")
+	_ok(cfg != null and str(r["from"]) == "main" and int(cfg.get_value("meta", "version", 0)) == Save.VERSION, "read v%d" % Save.VERSION)
 	var back := Save.account_from_cfg(cfg)
 	_ok(int(back["wallet"]["coins"]) == 800 and int(back["progress"]["level"]) == 20, "round trip wallet / level")
 	_ok(var_to_str(back["arsenal"]["machines"]) == var_to_str(acc["arsenal"]["machines"]), "round trip machines")
@@ -702,7 +708,7 @@ func _test_live_save() -> void:
 	Save._from_account()
 	Save.save_data()
 	var after := ConfigFile.new()
-	_ok(after.load(path) == OK and int(after.get_value("meta", "version", 0)) == 2, "migrated file rewritten as v2")
+	_ok(after.load(path) == OK and int(after.get_value("meta", "version", 0)) == Save.VERSION, "migrated file rewritten as v%d" % Save.VERSION)
 	_ok(int(after.get_value("upgrades", "power", -1)) == 0 and int(after.get_value("upgrades", "army", -1)) == 8, "legacy power zeroed (refunded), army kept for the old run")
 	_ok(Save.level == 9 and Save.coins == 340 + 182 and Save.hero == "titan" and Save.language == "uk", "legacy mirrors after migration")
 	Meta.load_account()
@@ -736,3 +742,296 @@ func _test_live_save() -> void:
 	Save.migrated_from = 0
 	Meta.account = keep["meta"]
 	Meta.dev_profile = str(keep["dev"])
+
+
+# ======================================================================== Save v3 (heroes_design.md §12)
+
+const V2_FIXTURES: Array[int] = [1, 9, 30, 56]
+## Keys of a v2 file that are written for the legacy menu, not kept in the account.
+const V2_LEGACY := {"progress": ["coins"], "settings": ["music", "sfx", "language", "quality", "vibration"]}
+
+
+func _v2_cfg(level: int) -> ConfigFile:
+	var c := ConfigFile.new()
+	_ok(c.load(FIX + "save_v2_L%d.cfg" % level) == OK, "fixture save_v2_L%d loads" % level)
+	return c
+
+
+## Every value of the v2 file is in `acc` unchanged (hero entries key by key; `superset` lists
+## [section, key] arrays that may only have grown).
+func _keeps_v2(cfg: ConfigFile, acc: Dictionary, what: String, superset: Array = []) -> void:
+	var bad: Array[String] = []
+	for sec in cfg.get_sections():
+		if sec == "upgrades":
+			continue
+		for key in cfg.get_section_keys(sec):
+			if (sec == "meta" and key == "version") or (V2_LEGACY.get(sec, []) as Array).has(key):
+				continue
+			var v: Variant = cfg.get_value(sec, key)
+			if not (acc.get(sec, {}) as Dictionary).has(key):
+				bad.append("%s.%s missing" % [sec, key])
+				continue
+			var now: Variant = acc[sec][key]
+			if sec == "heroes" and v is Dictionary:
+				for hk in (v as Dictionary):
+					if var_to_str((v as Dictionary)[hk]) != var_to_str((now as Dictionary).get(hk)):
+						bad.append("heroes.%s.%s" % [key, hk])
+			elif [sec, key] in superset and v is Array and now is Array:
+				for i in (v as Array).size():
+					if i >= (now as Array).size() or var_to_str((v as Array)[i]) != var_to_str((now as Array)[i]):
+						bad.append("%s.%s not a superset" % [sec, key])
+						break
+			elif var_to_str(v) != var_to_str(now):
+				bad.append("%s.%s" % [sec, key])
+	_ok(bad.is_empty(), "%s: every Meta-1 value kept %s" % [what, str(bad)])
+
+
+func _test_save_v3() -> void:
+	print("== Save v3 sections, sanitize, _orphans")
+	_ok(Save.VERSION == 3 and SaveMigrate.VERSION == 3, "Save.VERSION = 3")
+	_ok(not EconData.heroes_live(), "heroes phase flag is off in this build (2.2.1 behaviour)")
+	var f := EconData.fresh_account()
+	var want := ["meta", "progress", "wallet", "arsenal", "heroes", "champions", "team", "summon", "chests", "workshop",
+			"barracks", "vault", "unlocks", "telemetry", "settings", "_orphans"]
+	var missing: Array = []
+	for k in want:
+		if not f.get(k) is Dictionary:
+			missing.append(k)
+	_ok(missing.is_empty() and int(f["meta"]["version"]) == 3 and f["meta"].has("max_day_seen"), "fresh_account has every v3 section %s" % str(missing))
+	_ok((f["heroes"] as Dictionary).keys() == ["bolt", "titan", "seer"], "an entry per starter: %s" % str(f["heroes"].keys()))
+	_ok(bool(f["heroes"]["bolt"]["owned"]) and not bool(f["heroes"]["titan"]["owned"]) and not bool(f["heroes"]["seer"]["owned"]), "Rudi owned at start, Goran and Meira not yet")
+	_ok(str(f["heroes"]["titan"]["gem"]) == "C" and str(f["heroes"]["bolt"]["gem"]) == "R" and str(f["heroes"]["seer"]["gem"]) == "E", "starter gems = native (Quartz, Sapphire, Amethyst)")
+	_ok(str(f["heroes"]["bolt"]["aspect"]) == "forked_fox" and int(f["heroes"]["titan"]["glory"]) == 1, "Meta-1 hero keys still there")
+	for c in ["beacons", "tomes", "ore", "beacon_charge", "chest_charge", "ore_charge"]:
+		_ok(f["wallet"].has(c), "wallet.%s" % c)
+	_ok(not f["heroes"]["bolt"].has("native"), "native is never saved")
+	var born := EconData.new_hero_state("lumen")
+	_ok(int(born["skills"]["awakened"]) == 1 and str(born["gem"]) == "M" and int(EconData.new_hero_state("vesta")["skills"]["awakened"]) == 1
+			and int(EconData.new_hero_state("seer")["skills"]["awakened"]) == 0, "native Topaz / Opal born awakened (F-AWK2)")
+	# Generated consts in sync with heroes_consts.json (skipped when python3 is missing).
+	var out: Array = []
+	var code := OS.execute("python3", [ProjectSettings.globalize_path("res://tools/gen_save_v3_data.py"), "--check"], out, true)
+	if code == -1:
+		print("  (python3 not found: generator check skipped)")
+	else:
+		_ok(code == 0, "save_v3_data.gd in sync with heroes_consts.json: %s" % str(out).strip_edges())
+	_ok(SaveV3Data.HERO_NATIVE.size() == 10 and SaveV3Data.CHAMPION_NATIVE.size() == 12 and SaveV3Data.EXPECTED_CHAMPION_LEVEL.size() == 113, "roster 10 + 12, Champion Level table 0..112")
+	# Sanitize.
+	var bad := ConfigFile.new()
+	bad.set_value("meta", "version", 3)
+	bad.set_value("progress", "level", 40)
+	bad.set_value("wallet", "beacons", -3)
+	bad.set_value("wallet", "tomes", "x")
+	bad.set_value("heroes", "bolt", {"lvl": 99, "gem": "C", "facets": 9, "skills": {"ult": 99, "attack": 0}, "skills_peak": {"ult": 1}})
+	bad.set_value("heroes", "zorro", {"lvl": 4, "gem": "M"})
+	bad.set_value("heroes", "lumen", {"owned": true, "gem": "C", "skills": {"awakened": 0}})
+	bad.set_value("champions", "level", 77)
+	bad.set_value("champions", "roster", {"alba": {"owned": true, "gem": "M", "facets": -1}, "ghost": {"owned": true}, "otto": 5})
+	bad.set_value("team", "champions", ["alba", "ghost", "alba", "otto", "mila", "teo"])
+	bad.set_value("team", "presets", [{"hero": "zorro", "champions": ["alba"]}])
+	bad.set_value("team", "preset", 9)
+	bad.set_value("summon", "seals", -5)
+	bad.set_value("chests", "scripted", 7)
+	bad.set_value("vault", "hero_chests", [{"type": "hero_chest", "source": "win", "level": 3}, {"type": "pony"}, 4])
+	bad.set_value("_orphans", "heroes", {"old_one": {"lvl": 3}})
+	var s := Save.account_from_cfg(bad)
+	var b: Dictionary = s["heroes"]["bolt"]
+	_ok(int(b["lvl"]) == 30 and str(b["gem"]) == "R" and int(b["facets"]) == 5, "hero lvl / gem (>= native) / facets clamped")
+	_ok(int(b["skills"]["ult"]) == SaveMigrate.skill_cap(1, 1, 5) and int(b["skills"]["ult"]) == 5 and int(b["skills"]["attack"]) == 1 and int(b["skills"]["rally"]) == 1, "ranks clamped to the F-CAP cap (Sapphire native f5 = 5), missing keys filled")
+	_ok(int(b["skills_peak"]["ult"]) >= int(b["skills"]["ult"]) and b["loadout"].has("charm") and b["got"].has("via") and bool(b["owned"]), "skills_peak >= skills, nested keys filled, Rudi owned")
+	_ok(not s["heroes"].has("zorro") and s["_orphans"]["heroes"].has("zorro") and s["_orphans"]["heroes"].has("old_one"), "unknown hero -> _orphans, earlier orphans kept")
+	_ok(int(s["heroes"]["lumen"]["skills"]["awakened"]) == 1 and str(s["heroes"]["lumen"]["gem"]) == "M", "Opal native: gem clamped up to native, born awakened")
+	_ok(s["heroes"].has("titan") and s["heroes"].has("seer"), "missing starters re-created")
+	var ch: Dictionary = s["champions"]
+	_ok(int(ch["level"]) == 20 and str(ch["roster"]["alba"]["gem"]) == "L" and int(ch["roster"]["alba"]["facets"]) == 0, "Champion Level <= 20, champion gem <= Topaz, facets >= 0")
+	_ok(not ch["roster"].has("ghost") and not ch["roster"].has("otto") and s["_orphans"]["champions"].has("ghost") and s["_orphans"]["champions"].has("otto"), "unknown / broken champions -> _orphans")
+	_ok(Array(s["team"]["champions"]) == ["alba", "otto", "mila"] and (s["team"]["presets"] as Array).size() == 3 and str(s["team"]["presets"][0]["hero"]) == "" and int(s["team"]["preset"]) == 2, "team: known unique champions <= 3, 3 presets, preset clamped")
+	_ok(int(s["wallet"]["beacons"]) == 0 and int(s["wallet"]["tomes"]) == 0 and int(s["summon"]["seals"]) == 0 and int(s["chests"]["scripted"]) == 2, "counters non-negative, scripted 0..2")
+	_ok((s["vault"]["hero_chests"] as Array).size() == 1, "vault.hero_chests keeps only valid chests")
+	var once := var_to_str(s)
+	Save.sanitize(s)
+	_ok(var_to_str(s) == once, "sanitize is idempotent")
+	# v3 round trip, orphans included.
+	DirAccess.make_dir_recursive_absolute(TMP_DIR)
+	(s["progress"] as Dictionary)["hero"] = "bolt"     # the legacy hero key is always written
+	var path := TMP_DIR + "/v3.cfg"
+	Save.write_file(path, {"level": 40, "coins": 0, "hero": "bolt", "upgrades": {"army": 0, "power": 0}}, s)
+	var back := Save.account_from_cfg(Save.read_file(path)["cfg"])
+	var diff: Array = []
+	for sec: String in s:
+		if var_to_str(s[sec]) != var_to_str(back.get(sec)):
+			diff.append(sec)
+	_ok(diff.is_empty(), "v3 write -> read keeps every section %s" % str(diff))
+	# Monotonic day guard.
+	var d := EconData.fresh_account()
+	_ok(SaveMigrate.see_day(d, 20 * 86400 + 5) == 20 and SaveMigrate.see_day(d, 3 * 86400) == 20 and int(d["meta"]["max_day_seen"]) == 20, "max_day_seen never moves back")
+
+
+func _test_migration_v2() -> void:
+	print("== v2 -> v3 migration (fixtures L1, L9, L30, L56)")
+	var t := 1_800_000_000
+	var grants := {}
+	for lvl in V2_FIXTURES:
+		var cfg := _v2_cfg(lvl)
+		_ok(int(cfg.get_value("meta", "version", 0)) == 2, "L%d fixture is a v2 file" % lvl)
+		var acc := Save.account_from_cfg(cfg)
+		_ok(int(acc["meta"]["version"]) == 2, "L%d read keeps version 2 until migrate_v2" % lvl)
+		var w0: Dictionary = (acc["wallet"] as Dictionary).duplicate(true)
+		Save.migrate_v2(acc, t, 0)
+		_ok(int(acc["meta"]["version"]) == 3 and int(acc["meta"]["v3_from"]["level"]) == lvl and int(acc["meta"]["v3_live"]) == 0, "L%d stamped v3, update day not yet (flag off)" % lvl)
+		_keeps_v2(cfg, acc, "L%d schema step" % lvl)
+		_ok(int(acc["wallet"]["beacons"]) == 0 and int(acc["wallet"]["tomes"]) == 0 and (acc["vault"]["hero_chests"] as Array).is_empty()
+				and var_to_str(w0) == var_to_str(acc["wallet"]), "L%d schema step grants nothing" % lvl)
+		var snap := var_to_str(acc)
+		_ok(not SaveMigrate.migrate_v2(acc, t + 999, false) and var_to_str(acc) == snap, "L%d migrate_v2 twice = once" % lvl)
+		var path := TMP_DIR + "/m%d.cfg" % lvl
+		Save.write_file(path, {"level": lvl, "coins": int(acc["wallet"]["coins"]), "hero": str(acc["progress"]["hero"]), "upgrades": {"army": 0, "power": 0}}, acc)
+		var back := Save.account_from_cfg(Save.read_file(path)["cfg"])
+		Save.migrate_v2(back, t + 5, 0)
+		_ok(var_to_str(back) == snap, "L%d v3 write -> read -> migrate_v2 is a no-op" % lvl)
+		# Update day (the build that turns the hero systems on).
+		var g := SaveMigrate.update_day(acc, t)
+		grants[lvl] = g
+		_ok(not g.is_empty() and int(acc["meta"]["v3_live"]) == t, "L%d update day ran" % lvl)
+		_keeps_v2(cfg, acc, "L%d update day" % lvl, [["unlocks", "cards"], ["telemetry", "events"]])
+		var after := var_to_str(acc)
+		_ok(SaveMigrate.update_day(acc, t + 86400).is_empty() and var_to_str(acc) == after, "L%d update day runs once" % lvl)
+		_ok(not SaveMigrate.migrate_v2(acc, t, true) and var_to_str(acc) == after, "L%d migrate_v2(live) after the update day changes nothing" % lvl)
+		var hs: Dictionary = acc["heroes"]
+		_ok(bool(hs["bolt"]["owned"]) and bool(hs["titan"]["owned"]) == (lvl > 4) and bool(hs["seer"]["owned"]) == (lvl > 5), "L%d owned: Rudi, Goran after L4, Meira after L5 (v2 rules)" % lvl)
+		for id: String in hs:
+			var h: Dictionary = hs[id]
+			if not bool(h["owned"]):
+				continue
+			var n := SaveMigrate.native_index(id)
+			var r2 := EconData.hero_ult_rank(int(h["lvl"]))
+			_ok(str(h["gem"]) == SaveV3Data.GEMS[n] and int(h["facets"]) == 0 and int(h["frags"]) == 0, "L%d %s gem = native, facets 0" % [lvl, id])
+			_ok(int(h["skills"]["ult"]) == mini(r2, SaveMigrate.skill_cap(n, n, 0)) and int(h["skills"]["attack"]) == 1 and int(h["skills"]["rally"]) == 1, "L%d %s Ult = min(Meta-1 rank %d, cap)" % [lvl, id, r2])
+			var p2 := 1.0 + float(EconData.HERO["ult_rank_bonus"]) * float(r2 - 1)
+			var p3 := (1.0 + SaveV3Data.ULT_RANK_STEP * float(int(h["skills"]["ult"]) - 1)) * (1.0 + SaveV3Data.LV_ULT * float(int(h["lvl"]) - 1))
+			_ok(p3 >= p2 - 1e-9, "L%d %s ult power v3 %.3f >= v2 %.3f (no loss)" % [lvl, id, p3, p2])
+			_ok(str(h["got"]["via"]) == ("start" if id == "bolt" else "migration"), "L%d %s via %s" % [lvl, id, h["got"]["via"]])
+		_ok(str(acc["team"]["hero"]) == str(acc["progress"]["hero"]), "L%d team hero = the hero picked for runs" % lvl)
+	# Fixture specifics.
+	var a1: Dictionary = grants[1]
+	_ok(int(a1["frontier"]) == 0 and int(a1["beacons"]) == 0 and int(a1["hero_chests"]) == 0 and int(a1["tomes_refund"]) == 0, "L1: nothing to grant")
+	var g30: Dictionary = grants[30]
+	_ok(int(g30["tomes_refund"]) == SaveV3Data.TOME_COST[2] and int(g30["ore_owed"]) == 10, "L30: Goran Lv15 Ult III > Quartz cap 2 -> %d Tomes; Glory 2 -> 10 Star Ore" % SaveV3Data.TOME_COST[2])
+	_ok(int(g30["beacons"]) == 3 and int(g30["hero_chests"]) == 5 and int(g30["grand_hero_chests"]) == 2 and int(g30["tomes"]) == 0 and int(g30["champion_level"]) == 4, "L30 lump grant: 3 Beacons, 5 + 2 chests, Champion Lv 4: %s" % str(g30))
+	var g56: Dictionary = grants[56]
+	_ok(int(g56["tomes_refund"]) == SaveV3Data.TOME_COST[2] + SaveV3Data.TOME_COST[3] and int(g56["ore_owed"]) == 30, "L56: Goran Lv27 refund 2 ranks; Glory 3 + 2 -> 30 Star Ore")
+	# Lump grant = heroes_sim.migrate_grant at the §8.7 rows (frontier L = next level - 1).
+	var rows := {25: [2, 3, 2, 0, 3], 41: [10, 8, 4, 2, 5], 57: [17, 14, 6, 4, 6], 113: [42, 20, 13, 11, 13], 15: [0, 0, 0, 0, 1]}
+	for nl: int in rows:
+		var e: Array = rows[nl]
+		var lg := SaveMigrate.lump_grant(nl, ArsenalData.world_of(mini(nl, ArsenalData.CAMPAIGN_LEVELS)))
+		_ok([int(lg["beacons"]), int(lg["hero_chests"]), int(lg["grand_hero_chests"]), int(lg["tomes"]), int(lg["champion_level"])] == e,
+				"lump grant at frontier %d = %s (got %s)" % [nl - 1, str(e), str([lg["beacons"], lg["hero_chests"], lg["grand_hero_chests"], lg["tomes"], lg["champion_level"]])])
+	_ok(SaveMigrate.lump_grant(25, 1)["champion_level"] == 3 and SaveMigrate.lump_grant(41, 1)["champion_level"] == 4, "Champion Level capped at 2 + 2 x world")
+	# Meira: a Seer an existing player owns is never taken away.
+	var own := EconData.fresh_account()
+	own["progress"]["level"] = 3
+	own["heroes"]["seer"]["owned"] = true
+	own["heroes"]["seer"]["got"] = {"t": 5, "via": "portal"}
+	SaveMigrate.update_day(own, t)
+	_ok(bool(own["heroes"]["seer"]["owned"]) and str(own["heroes"]["seer"]["got"]["via"]) == "portal", "an owned Seer stays owned (and keeps how she came)")
+	var at5 := EconData.fresh_account()
+	at5["progress"]["level"] = 5
+	SaveMigrate.update_day(at5, t)
+	_ok(bool(at5["heroes"]["titan"]["owned"]) and not bool(at5["heroes"]["seer"]["owned"]), "before the L5 win: Goran owned, Meira not (guest at L5, joins at L24)")
+	var at6 := EconData.fresh_account()
+	at6["progress"]["level"] = 6
+	(at6["heroes"] as Dictionary).erase("seer")
+	SaveMigrate.update_day(at6, t)
+	_ok(bool(at6["heroes"]["seer"]["owned"]) and str(at6["heroes"]["seer"]["got"]["via"]) == "migration", "v2 player past the L5 win keeps Meira (no entry needed)")
+	# Card + vault + telemetry.
+	var a9 := Save.account_from_cfg(_v2_cfg(30))
+	Save.migrate_v2(a9, t, 1)
+	_ok((a9["unlocks"]["cards"] as Array).has(SaveMigrate.CARD) and int(a9["unlocks"]["heroes_migrated_level"]) == 30, "one-time heroes card queued, catch-up level recorded")
+	_ok((a9["vault"]["hero_chests"] as Array).size() == 7 and (a9["vault"]["caches"] as Array).size() == 2, "7 Hero Chests in vault.hero_chests; Meta-1 Caches untouched")
+	_ok(int(a9["wallet"]["beacons"]) == 3 and int(a9["wallet"]["tomes"]) == 3 and int(a9["champions"]["level"]) == 4 and int(a9["workshop"]["migration_ore"]) == 10, "wallet / Champion Level / owed ore credited")
+	var ev: Array = a9["telemetry"]["events"]
+	_ok(not ev.is_empty() and str(ev[-1]["e"]) == "migration" and int(ev[-1]["d"]["from_level"]) == 29, "telemetry migration {from_level, grant}")
+	# v1 -> v2 -> v3 chain.
+	print("== v1 -> v2 -> v3 chain")
+	for lvl1 in [1, 9, 30]:
+		var c1 := ConfigFile.new()
+		c1.load(FIX + "save_v1_L%d.cfg" % lvl1)
+		var v2 := Save.migrate_v1(c1)
+		var v2_snap := var_to_str(v2["arsenal"]) + var_to_str(v2["barracks"]) + var_to_str(v2["progress"])
+		Save.migrate_v2(v2, t, 1)
+		_ok(int(v2["meta"]["version"]) == 3 and int(v2["meta"]["migrated_from"]) == 1 and var_to_str(v2["arsenal"]) + var_to_str(v2["barracks"]) + var_to_str(v2["progress"]) == v2_snap, "v1 L%d -> v3: machines, Barracks, progress kept" % lvl1)
+		var hs1: Dictionary = v2["heroes"]
+		_ok(bool(hs1["titan"]["owned"]) == (lvl1 > 4) and bool(hs1["seer"]["owned"]) == (lvl1 > 5), "v1 L%d -> v3: starters owned by the v2 rules" % lvl1)
+		if lvl1 == 9:
+			_ok(int(v2["workshop"]["migration_ore"]) == 10 and str(v2["progress"]["hero"]) == "titan" and str(v2["team"]["hero"]) == "titan", "v1 L9: Titan's Glory 2 -> 10 Star Ore owed, Titan leads")
+		var p := TMP_DIR + "/chain%d.cfg" % lvl1
+		Save.write_file(p, {"level": lvl1, "coins": int(v2["wallet"]["coins"]), "hero": str(v2["progress"]["hero"]), "upgrades": {"army": 0, "power": 0}}, v2)
+		var rb := Save.account_from_cfg(Save.read_file(p)["cfg"])
+		Save.migrate_v2(rb, t, 1)
+		_ok(var_to_str(rb) == var_to_str(v2), "v1 L%d chain survives a v3 round trip unchanged" % lvl1)
+
+
+## Save.load_from_disk() on a v2 file (temp path, readonly lifted for the test only): rewritten as
+## v3 at once, v2 backup kept, every Meta-1 value and the legacy mirrors unchanged, nothing granted
+## while the flag is off; a second load is a no-op.
+func _test_live_save_v2() -> void:
+	print("== live Save load of a v2 file (temp path)")
+	var path := TMP_DIR + "/live_v2.cfg"
+	var bk := TMP_DIR + "/save_v2_backup.cfg"
+	for f in [path, path + ".bak", bk]:
+		if FileAccess.file_exists(f):
+			DirAccess.remove_absolute(f)
+	DirAccess.copy_absolute(ProjectSettings.globalize_path(FIX + "save_v2_L30.cfg"), ProjectSettings.globalize_path(path))
+	var keep := {"path": Save.path, "account": Save.account, "level": Save.level, "coins": Save.coins, "hero": Save.hero,
+			"upgrades": Save.upgrades.duplicate(), "lang": Save.language, "music": Save.music_volume, "vib": Save.vibration,
+			"quality": Save.quality, "sfx": Save.sfx_volume, "meta": Meta.account, "dev": Meta.dev_profile}
+	Save.readonly = false
+	Save.path = path
+	Save.account = {}
+	Save.migrated_from = 0
+	Save.load_from_disk(0)
+	var after := ConfigFile.new()
+	_ok(after.load(path) == OK and int(after.get_value("meta", "version", 0)) == 3 and Save.migrated_from == 2, "v2 file rewritten as v3 on load")
+	_ok(FileAccess.file_exists(bk) and int(_cfg_at(bk).get_value("meta", "version", 0)) == 2, "save_v2_backup.cfg kept")
+	_ok(Save.level == 30 and Save.coins == 2210 and Save.hero == "seer" and Save.language == "uk", "legacy mirrors unchanged")
+	_keeps_v2(_v2_cfg(30), Save.account, "live load")
+	_ok(int(Save.account["wallet"]["beacons"]) == 0 and int(Save.account["meta"]["v3_live"]) == 0, "flag off: no update day, no grant")
+	Meta.load_account()
+	_ok(Meta.level() == 30 and Meta.currency("coins") == 2210 and Meta.hero() == "seer" and Meta.owned("prism") and Meta.hero_level("titan") == 15 and Meta.hero_level("seer") == 12, "Meta sees the same account (coins, machines, heroes)")
+	var once := FileAccess.get_file_as_string(bk)
+	Save.account = {}
+	Save.migrated_from = 0
+	Save.load_from_disk(0)
+	_ok(Save.migrated_from == 0 and FileAccess.get_file_as_string(bk) == once, "second load: plain v3 read, backup untouched")
+	# The build that turns the heroes on: the update day runs once on load and is saved.
+	Save.account = {}
+	Save.load_from_disk(1)
+	var live := Save.account_from_cfg(Save.read_file(path)["cfg"])
+	_ok(int(live["meta"]["v3_live"]) > 0 and int(live["wallet"]["beacons"]) == 3 and bool(live["heroes"]["seer"]["owned"]), "live load: update day ran and was saved")
+	var live_snap := var_to_str(live["wallet"]) + var_to_str(live["heroes"])
+	Save.account = {}
+	Save.load_from_disk(1)
+	var again := Save.account_from_cfg(Save.read_file(path)["cfg"])
+	_ok(var_to_str(again["wallet"]) + var_to_str(again["heroes"]) == live_snap, "live load twice grants once")
+	Save.readonly = true
+	Save.path = str(keep["path"])
+	Save.account = keep["account"]
+	Save.level = int(keep["level"])
+	Save.coins = int(keep["coins"])
+	Save.hero = str(keep["hero"])
+	Save.upgrades = keep["upgrades"]
+	Save.language = str(keep["lang"])
+	Save.music_volume = float(keep["music"])
+	Save.sfx_volume = float(keep["sfx"])
+	Save.vibration = bool(keep["vib"])
+	Save.quality = str(keep["quality"])
+	Save.migrated_from = 0
+	Meta.account = keep["meta"]
+	Meta.dev_profile = str(keep["dev"])
+
+
+func _cfg_at(p: String) -> ConfigFile:
+	var c := ConfigFile.new()
+	c.load(p)
+	return c

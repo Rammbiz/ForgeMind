@@ -26,6 +26,9 @@ signal focus_changed(id: String)
 signal run_finished(bundle: Dictionary)            ## emitted by finish_run() with the result bundle
 
 const CURRENCIES: Array[String] = ["coins", "gems", "crowns", "cores"]
+## Hero entries the synthetic dev profiles level (the 2.2.1 fresh account's entries) while the heroes
+## phase is off.
+const SYNTH_HERO_ENTRIES: Array[String] = ["bolt", "titan"]
 
 var account: Dictionary = {}
 var dev_profile := ""                  ## "" = the real account; else fresh | expected | max
@@ -134,7 +137,12 @@ static func synthetic_account(level: int, kind := "fresh") -> Dictionary:
 		if kind == "max" or id in ArsenalData.START_OWNED or (at > 0 and at < level):
 			ms[id] = EconData.new_machine_state(id, int(EconData.START_LEVEL[ArsenalData.rarity_of(id)]))
 	var w := ArsenalData.world_of(level)
-	var heroes: Dictionary = acc["heroes"]
+	# Only the heroes a 2.2.1 fresh account had entries for (Save v3 adds the Seer's entry); keeps
+	# dev runs, level_check and the bot identical until the heroes phase goes live.
+	var heroes := {}
+	for h0: String in (acc["heroes"] as Dictionary):
+		if h0 in SYNTH_HERO_ENTRIES or EconData.heroes_live():
+			heroes[h0] = (acc["heroes"] as Dictionary)[h0]
 	match kind:
 		"expected":
 			var exp := _expected_row(level)

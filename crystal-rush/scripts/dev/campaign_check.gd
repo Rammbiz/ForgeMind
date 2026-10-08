@@ -529,8 +529,8 @@ func _verify() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(Save.path) != OK:
 		_fail("cannot read " + Save.path)
-	elif int(cfg.get_value("meta", "version", 0)) != 2:
-		_fail("save.cfg is not v2")
+	elif int(cfg.get_value("meta", "version", 0)) != Save.VERSION:
+		_fail("save.cfg is not v%d" % Save.VERSION)
 	main.call("show_hub", "play")
 	var hub := await _await_scene("Hub") as Hub
 	await _wait(1.5)
