@@ -72,6 +72,10 @@ const TITLE_Y := 100.0
 const SHEET_Y := 362.0
 ## Drip chip height (two 22 px text lines and the bar).
 const DRIP_H := 80.0
+## The Victory band's subline ink (deeper than UIKit.CTA_TEXT, the title's ink).
+const BAND_SUB_INK := Color("#4A2810")
+## Sheet px where the text bed starts: the ЗДОБУТО caption sits above it, on the thin glass.
+const SHEET_BED_TOP := 54.0
 
 
 func _ready() -> void:
@@ -116,8 +120,9 @@ func _ready() -> void:
 	var rib := ribbon(Loc.t("VICTORY"), true, _vp.x)
 	rib.position = Vector2(0, _ins.y + TITLE_Y)
 	root.add_child(rib)
-	# The reason sits on the amber band in deep amber ink (no gold-on-brown).
-	var why := UIKit.label(Loc.t(str(result.get("reason", "FORTRESS_FALLS"))) if result.has("reason") else Loc.t("FORTRESS_FALLS"), 24, UITokens.NEW_INK)
+	# The reason sits on the honey band's lower half in a deeper amber-brown than the title
+	# (24 px Medium needs 4.5:1 on the band's darkest stop; no gold-on-brown).
+	var why := UIKit.label(Loc.t(str(result.get("reason", "FORTRESS_FALLS"))) if result.has("reason") else Loc.t("FORTRESS_FALLS"), 24, BAND_SUB_INK)
 	why.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	why.size = Vector2(_vp.x, 32)
 	why.position = Vector2(0, _ins.y + TITLE_Y + 96)
@@ -129,9 +134,9 @@ func _ready() -> void:
 	_sheet.position = Vector2(0, _ins.y + SHEET_Y)
 	_sheet.size = Vector2(_vp.x, _vp.y - _ins.y - SHEET_Y + 24)
 	root.add_child(_sheet)
-	# §4.3 / §7.10: the rows sit on a 94 % cream text bed (flat sheet outside the hub, so the run's
-	# road never prints through the numbers); the world shows only above the sheet and in its rim.
-	UIKit.text_bed(_sheet, 0.0)
+	# §4.3 / §7.10: thin glass over the live road in the ЗДОБУТО header band; the 94 % text bed
+	# starts under it, so the numbers and rows never take the road's print.
+	glass_sheet(_sheet, SHEET_BED_TOP + _gx * 0.5)
 	UIJuice.sheet_in(_sheet, 0.1)
 	_build_coins()
 	_build_stats()
@@ -190,46 +195,62 @@ func _process(delta: float) -> void:
 		(ev[1] as Callable).call()
 
 
-## Glass wells where the rows will land (drip chips, the cache card, the best upgrade), laid
-## out at once so the sheet never looks empty while the sequence plays. Each well fades out as
-## its row lands (`_land_well`), so a framed row never sits inside a second frame.
+## Quiet wells where the rows will land (drip chips, the cache card, the best upgrade): ONE
+## 1 dpx hairline frame, no fill, at about 0.25, and only one row ahead (the next well appears
+## when the row before it lands), so the sheet never shows a stack of empty boxes mid-sequence.
+## Each well fades out as its row lands (`_land_well`).
+const WELL_A := 0.26
+const _WELL_ORDER := ["drip", "cache", "best"]
+var _well_rects := {}
+
+
 func _build_placeholders() -> void:
-	var rects := {}
 	var drip: Array = bundle.get("drip", [])
 	if not drip.is_empty():
-		rects["drip"] = Rect2(Vector2(24, _ins.y + SHEET_Y + 240 + _gx * 2.5), Vector2(_vp.x - 48, DRIP_H))
+		_well_rects["drip"] = Rect2(Vector2(24, _ins.y + SHEET_Y + 240 + _gx * 2.5), Vector2(_vp.x - 48, DRIP_H))
 	if not (bundle.get("caches", []) as Array).is_empty():
-		rects["cache"] = Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5 + _cache_shift()), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252))
+		_well_rects["cache"] = Rect2(Vector2(UITokens.GUTTER, _ins.y + SHEET_Y + 332 + _gx * 3.5 + _cache_shift()), Vector2(_vp.x - UITokens.GUTTER * 2.0, 252))
 	if not (bundle.get("best_upgrade", {}) as Dictionary).is_empty():
-		rects["best"] = Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84))
-	var at := root.get_children().find(_sheet) + 1
-	for key: String in rects:
-		var r: Rect2 = rects[key]
-		var w := Control.new()
-		w.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		w.position = r.position
-		w.size = r.size
-		w.draw.connect(func():
-			# v3.1 well: glass at 0.4 with one 1 dpx hairline.
-			var pts := GemDraw.chamfer_rect(Rect2(Vector2.ZERO, w.size), 10.0)
-			w.draw_colored_polygon(pts, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.4))
-			GemDraw.outline(w, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), UIKit.line_px(1.0)))
-		root.add_child(w)
-		root.move_child(w, at)
-		w.modulate.a = 0.0
-		w.create_tween().tween_property(w, "modulate:a", 1.0, 0.3)
-		_wells[key] = w
+		_well_rects["best"] = Rect2(Vector2(UITokens.GUTTER, _next_btn.position.y - 102), Vector2(_vp.x - UITokens.GUTTER * 2.0, 84))
+	for key: String in _WELL_ORDER:
+		if _well_rects.has(key):
+			_show_well(key)
+			return
 
 
-## The row `key` landed: its well fades out.
-func _land_well(key: String) -> void:
-	var w: Control = _wells.get(key)
-	if w == null or not is_instance_valid(w):
+func _show_well(key: String) -> void:
+	if not _well_rects.has(key) or _wells.has(key):
 		return
-	_wells.erase(key)
-	var tw := w.create_tween()
-	tw.tween_property(w, "modulate:a", 0.0, 0.2)
-	tw.tween_callback(w.queue_free)
+	var r: Rect2 = _well_rects[key]
+	_well_rects.erase(key)
+	var w := Control.new()
+	w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	w.position = r.position
+	w.size = r.size
+	w.draw.connect(func():
+		var pts := GemDraw.chamfer_rect(Rect2(Vector2.ZERO, w.size), 10.0)
+		GemDraw.outline(w, pts, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0)))
+	root.add_child(w)
+	root.move_child(w, root.get_children().find(_sheet) + 1)
+	w.modulate.a = 0.0
+	w.create_tween().tween_property(w, "modulate:a", WELL_A, 0.3)
+	_wells[key] = w
+
+
+## The row `key` landed: its well fades out and the next row's well appears.
+func _land_well(key: String) -> void:
+	_well_rects.erase(key)
+	var w: Control = _wells.get(key)
+	if w != null and is_instance_valid(w):
+		_wells.erase(key)
+		var tw := w.create_tween()
+		tw.tween_property(w, "modulate:a", 0.0, 0.2)
+		tw.tween_callback(w.queue_free)
+	var i := _WELL_ORDER.find(key)
+	for k in range(i + 1, _WELL_ORDER.size()):
+		if _well_rects.has(_WELL_ORDER[k]):
+			_show_well(_WELL_ORDER[k])
+			return
 
 
 # ------------------------------------------------------------------ shared builders
@@ -275,6 +296,24 @@ static func tall_band(vp: Vector2, ins: Vector4) -> float:
 	return clampf((vp.y - ins.y - ins.w - 1280.0) * 0.5, 0.0, 200.0)
 
 
+## The results sheet (Victory, Loss): there is no world still outside the hub, so the sheet is
+## THIN glass over the live road (PAPER_0 at `a_top` at the top edge, 0.84 where the rows start,
+## 0.93 under the rows), under the sheet's own 1 dpx gold rule and light line. The 94 % text bed
+## starts at `bed_top` (sheet px), so only the header band above the first row shows the road.
+static func glass_sheet(s: KitSheet, bed_top: float, a_top := 0.70) -> void:
+	var base := UIKit.lux("sheet")
+	var box := GlassSheetBox.new()
+	box.bed_top = bed_top
+	box.a_top = a_top
+	box.content_margin_left = base.content_margin_left
+	box.content_margin_right = base.content_margin_right
+	box.content_margin_top = base.content_margin_top
+	box.content_margin_bottom = base.content_margin_bottom
+	s.add_theme_stylebox_override("panel", box)
+	var bed := UIKit.text_bed(s, bed_top / maxf(s.size.y, 1.0))
+	s.resized.connect(func(): bed.top_frac = bed_top / maxf(s.size.y, 1.0))
+
+
 static func _tex_rect(t: Texture2D, vp: Vector2) -> TextureRect:
 	var tr := TextureRect.new()
 	tr.texture = t
@@ -306,9 +345,10 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 	var fs := UIKit.fit_size(text, w - 80.0, 76 if won else 72, 44)
 	var title: Label
 	if won:
-		# §5: a title is Bold (ExtraBold is kept for the big numbers). v3.1: warm white with a soft
-		# warm-amber glow beneath it (a feathered halo, never a text outline or emboss).
-		title = UIKit.number(text, fs, false, Color("#FFFBF2"))
+		# §5: a title is Bold (ExtraBold is kept for the big numbers). v3.1: deep amber CTA ink on
+		# the honey band (>= 4:1 on the band's darkest stop; warm white measured 2:1), over a soft
+		# light-cream glow (a feathered halo, never a text outline or emboss).
+		title = UIKit.number(text, fs, false, UIKit.CTA_TEXT)
 		title.add_theme_font_override("font", UIKit.font_w("bold"))
 		title.add_theme_constant_override("outline_size", 0)
 		title.add_theme_constant_override("shadow_outline_size", 0)
@@ -324,10 +364,10 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 	if not won:
 		HudView._halo_behind(title, UIKit.font_w("extrabold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, 0.8)
 	else:
-		# The feathered warm glow under the warm-white title (reads on the amber band; no stroke).
+		# The feathered light glow under the ink title (lifts the band behind the letters; no stroke).
 		var tw := UIKit.font_w("bold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var hg := HudView._halo_behind(title, tw * 0.92, 1.0)
-		hg.modulate = Color(0.62, 0.3, 0.04, 0.42)
+		hg.modulate = Color(1.0, 0.95, 0.8, 0.4)
 		hg.size.y = title.size.y * 1.1
 		hg.position.y = (title.size.y - hg.size.y) * 0.5 + 4.0
 	var line := _TitleLine.new()
@@ -520,7 +560,8 @@ func _build_coins() -> void:
 	glow.position = Vector2((_vp.x - 440) * 0.5 - 30, -20)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_coin_block.add_child(glow)
-	var cap := UIKit.section(Loc.t("RF_EARNED"))
+	# The caption sits on the thin glass band (road behind): tracked caps in ink, not amber.
+	var cap := UIKit.caps(Loc.t("RF_EARNED"), 22, UIKit.INK)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cap.size = Vector2(_vp.x, 26)
 	cap.position = Vector2(0, 0)
@@ -1213,6 +1254,38 @@ class DripChip extends Control:
 			draw_string(fb, Vector2(size.x - 16.0 - gw, size.y - 10.0), gt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.GOLD_TEXT_GLASS)
 
 
+## Thin-glass sheet body (see `glass_sheet`): a chamfered top band whose cream alpha ramps from
+## `a_top` at the edge to `a_bed` at `bed_top`, then flat `a_bed` down to the bottom.
+class GlassSheetBox extends StyleBox:
+	var bed_top := 54.0
+	var a_top := 0.70
+	var a_bed := 0.84
+	## Under the rows (from `bed_top` + the bed's 28 px feather): near-opaque, so the bed's soft
+	## sides never let the road smudge through beside the rows.
+	var a_rows := 0.93
+
+	func _draw(ci: RID, r: Rect2) -> void:
+		var c := UITokens.CHAMFER_L
+		var p := UITokens.PAPER_0
+		var x0 := r.position.x
+		var x1 := r.end.x
+		var y0 := r.position.y
+		var yb := y0 + clampf(bed_top, c + 2.0, r.size.y)
+		var yr := minf(yb + 28.0, r.end.y)
+		var ct := Color(p.r, p.g, p.b, a_top)
+		var cb := Color(p.r, p.g, p.b, a_bed)
+		var cr := Color(p.r, p.g, p.b, a_rows)
+		var cc := ct.lerp(cb, c / (yb - y0))
+		RenderingServer.canvas_item_add_polygon(ci, PackedVector2Array([Vector2(x0, y0 + c), Vector2(x0 + c, y0), Vector2(x1 - c, y0),
+				Vector2(x1, y0 + c), Vector2(x1, yb), Vector2(x0, yb)]), PackedColorArray([cc, ct, ct, cc, cb, cb]))
+		if yr > yb:
+			RenderingServer.canvas_item_add_polygon(ci, PackedVector2Array([Vector2(x0, yb), Vector2(x1, yb), Vector2(x1, yr), Vector2(x0, yr)]),
+					PackedColorArray([cb, cb, cr, cr]))
+		if r.end.y > yr:
+			RenderingServer.canvas_item_add_polygon(ci, PackedVector2Array([Vector2(x0, yr), Vector2(x1, yr), Vector2(x1, r.end.y), Vector2(x0, r.end.y)]),
+					PackedColorArray([cr, cr, cr, cr]))
+
+
 ## The gold hairline under a result title (v3.1): ONE device px, marquise terminals, a small
 ## cut-gem diamond at the centre, fading ends.
 class _TitleLine extends Control:
@@ -1245,8 +1318,10 @@ class _VictoryBand extends Control:
 		var xs := [x0, lerpf(x0, x1, 0.18), lerpf(x0, x1, 0.82), x1]
 		var ax := [0.0, 1.0, 1.0, 0.0]
 		var ys := [10.0, h * 0.5, h - 10.0]
-		var cs := [Color("#F9CB78"), Color("#F0A84B"), Color("#DD8D36")]
-		var a := 0.92
+		# Honey band, lit from the top: the title and the subline (CTA ink) keep >= 4.5:1 down to
+		# the bottom stop (the old #DD8D36 stop measured 2.4 under the subline).
+		var cs := [Color("#FAD07F"), Color("#F4B65F"), Color("#F1AA4F")]
+		var a := 0.95
 		for j in 2:
 			for i in 3:
 				var c00: Color = cs[j]

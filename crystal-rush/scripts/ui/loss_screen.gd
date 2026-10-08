@@ -50,6 +50,8 @@ func setup(p_bundle: Dictionary, p_result: Dictionary) -> void:
 
 const TITLE_Y := 100.0
 const SHEET_Y := 290.0
+## Sheet px where the text bed starts (just above the payout caption).
+const BED_TOP := 126.0
 
 
 func _ready() -> void:
@@ -102,9 +104,10 @@ func _ready() -> void:
 	_sheet.position = Vector2(0, _ins.y + SHEET_Y)
 	_sheet.size = Vector2(_vp.x, _vp.y - _ins.y - SHEET_Y + 24)
 	root.add_child(_sheet)
-	# §4.3 / §7.10: the rows sit on a 94 % cream text bed (flat sheet outside the hub, so the run's
-	# road never prints through the numbers); the world shows only above the sheet and in its rim.
-	UIKit.text_bed(_sheet, 0.0)
+	# §4.3 / §7.10: thin glass over the live road in the header band (how far the army got, on
+	# the bridge bar; 0.76 at the edge, the loss scrim is darker); the 94 % text bed starts at the
+	# ЗДОБУТО payout row.
+	ResultFlow.glass_sheet(_sheet, BED_TOP, 0.76)
 	UIJuice.sheet_in(_sheet, 0.08)
 	_build_progress()
 	_build_payout()

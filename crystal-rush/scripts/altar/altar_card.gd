@@ -251,7 +251,7 @@ var _nl_cache: Array = []
 var _nl_key := ""
 
 
-## [lines, font size] of the name on the footer: Medium 22 (20 on narrow cards), wrapped to at
+## [lines, font size] of the name on the footer: Medium 22, wrapped to at
 ## most two lines; a very long word drops to 18.
 func _name_layout() -> Array:
 	var b := _body()
@@ -278,9 +278,10 @@ func _name_rows() -> int:
 	return 2
 
 
-## Footer text size: 22 px (§5), 20 on the narrow summary / inline cards.
+## Footer text size: 22 px (§5) on every altar card (the 4+ grid and the inline cards are wide
+## enough since v3.1); 20 only below a 150 px body.
 func _count_fs() -> int:
-	return NAME_FS if _body().size.x >= 160.0 else NAME_FS - 2
+	return NAME_FS if _body().size.x >= 150.0 else NAME_FS - 2
 
 
 func _bar_rect() -> Rect2:
@@ -295,7 +296,7 @@ func _bar_rect() -> Rect2:
 	return Rect2(Vector2(b.position.x + 12, cy - 4.0), Vector2(w, 8))
 
 
-## v3.1: footer text >= 22 px on glass (§5, MF-15); 20 on the narrow summary / inline cards.
+## v3.1: footer text >= 22 px on glass (§5, MF-15).
 const NAME_FS := 22
 
 
