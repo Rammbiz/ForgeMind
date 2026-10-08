@@ -147,6 +147,9 @@ func _build() -> void:
 		lv.custom_minimum_size = Vector2(COL_W - 8.0, 0)
 		_left.add_child(lv)
 		_left.add_child(UIKit.label(HeroesText.t("CHAMP_UI_SHARED"), 22, UITokens.INK_DIM))
+		if bool(_c["in_team"]):
+			var it := UIKit.label(HeroesText.t("SHOW_IN_TEAM") + " · " + HeroesTeamLogic.slot_label(StringName(slot)), 22, UITokens.PLUS, true)
+			_left.add_child(it)
 	else:
 		_left.add_child(UIKit.gap(6))
 		_left.add_child(UIKit.label(HeroesText.t("SHOW_NOT_OWNED"), 24, UITokens.INK, true))
@@ -166,9 +169,6 @@ func _build() -> void:
 		var seal := HeroWaxSeal.make(76)
 		art_holder.add_child(seal)
 		art_holder.set_meta("seal", seal)
-	# Slot line.
-	var sl := UIKit.label(HeroesText.t("CHAMP_UI_SLOT", [HeroesTeamLogic.slot_label(StringName(slot))]) + ("  ·  " + HeroesText.t("SHOW_IN_TEAM") if bool(_c["in_team"]) else ""), 22, UITokens.INK_DIM)
-	_body.add_child(sl)
 	# Plates.
 	var plates := HBoxContainer.new()
 	plates.add_theme_constant_override("separation", 14)
@@ -176,8 +176,8 @@ func _build() -> void:
 	plates.add_child(_action_plate(nums, pw))
 	plates.add_child(_aura_plate(nums, pw))
 	_body.add_child(plates)
-	_body.add_child(_relic_row(inner))
 	_body.add_child(_run_panel(inner, slot))
+	_body.add_child(_relic_row(inner))
 	_body.add_child(UIKit.gap(6))
 	# Dock.
 	var back := UIKit.secondary_button("", "back", Vector2(96, 88))
@@ -213,7 +213,7 @@ func _role_line(text: String) -> Control:
 	ic.custom_minimum_size = Vector2(26, 26)
 	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(ic)
-	h.add_child(UIKit.label(text, 26, UITokens.INK, true))
+	h.add_child(UIKit.label(text, UIKit.fit_size(text, COL_W - 70.0, 26, 22), UITokens.INK, true))
 	p.add_child(h)
 	return p
 
@@ -298,7 +298,8 @@ func _relic_row(inner: float) -> Control:
 	h.add_theme_constant_override("separation", 16)
 	p.add_child(h)
 	var open := bool(HeroesUIModel.unlocks()["workshop"])
-	var sock := UIKit.socket("gem", 72)
+	var sock := HeroesChampionParts.RelicSocket.new()
+	sock.custom_minimum_size = Vector2(72, 72)
 	sock.modulate.a = 1.0 if open else 0.5
 	sock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(sock)

@@ -284,7 +284,7 @@ func _layout() -> void:
 	var sh := _sheet.get_combined_minimum_size().y + _ins.w
 	_sheet.position = Vector2(0, H - sh)
 	_sheet.size = Vector2(W, sh)
-	var top := y0 + 92.0
+	var top := y0 + 98.0
 	_stage.position = Vector2(0, top)
 	_stage.size = Vector2(W, maxf(420.0, H - sh - top + 12.0))
 	for n in _member_nodes:
@@ -301,6 +301,7 @@ func _layout() -> void:
 			var hero_r := Rect2(hc - Vector2(78.0 * _stage.depth(&"hero"), hh), Vector2(156.0 * _stage.depth(&"hero"), hh))
 			if hero_r.intersects(Rect2(n.position, n.size)):
 				n.position.y = fp.y - 186.0 * _stage.depth(slot) - n.size.y + 4.0
+			n.position.y = minf(n.position.y, _stage.size.y - n.size.y - 2.0)
 			continue
 		var k := _stage.depth(slot)
 		n.scale = Vector2(k, k)
@@ -530,7 +531,7 @@ class _PresetKey extends Button:
 	func _init() -> void:
 		flat = true
 		focus_mode = Control.FOCUS_NONE
-		custom_minimum_size = Vector2(80, 88)
+		custom_minimum_size = Vector2(88, 88)
 		for st: String in ["normal", "hover", "pressed", "focus"]:
 			add_theme_stylebox_override(st, StyleBoxEmpty.new())
 		button_down.connect(queue_redraw)

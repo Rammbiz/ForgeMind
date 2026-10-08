@@ -69,6 +69,22 @@ class CardArt extends Control:
 			GemDraw.draw_keystone(self, Vector2(size.x * 0.5, size.y * cy), 14.0, 1.0, Color(1.0, 0.92, 0.7))
 
 
+## The relic socket: a cream disc in a thin gold ring with the engraved relic glyph.
+class RelicSocket extends Control:
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var R := minf(size.x, size.y) * 0.5 - 2.0
+		draw_circle(c + Vector2(0, 2), R, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
+		draw_circle(c, R, UITokens.PAPER_0)
+		draw_arc(c, R, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+		draw_arc(c, R - 5.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), 1.0, true)
+		var s := R * 1.1
+		HeroIcons.paint(self, "sk_relic", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.GOLD_TEXT)
+
+
 class TierPips extends Control:
 	var tier := 1
 

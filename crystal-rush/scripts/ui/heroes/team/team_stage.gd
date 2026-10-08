@@ -47,13 +47,25 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
-## Card scales on the stage (the member cards are HeroCard S / M).
+## Card scales on the stage (the member cards are HeroCard S / M); tall phones grow them (the
+## art band grows, the chrome does not).
 const CHAMP_SCALE := 0.8
 const HERO_SCALE := 0.88
-const CHAMP_H := 186.0 * CHAMP_SCALE
-const HERO_H := 208.0 * HERO_SCALE
 const CHIP_H := 34.0
 const TOP_PAD := 14.0
+
+
+## Growth factor of the cards on tall stages (1.0 at the 720 x 1280 stage, up to 1.22).
+func grow() -> float:
+	return clampf(size.y / 780.0, 1.0, 1.22)
+
+
+func _champ_h() -> float:
+	return 186.0 * CHAMP_SCALE * grow()
+
+
+func _hero_h() -> float:
+	return 208.0 * HERO_SCALE * grow()
 
 
 ## Floor-unit scale (x, y) for the current size: x from the width; y spreads the front and rear
@@ -61,16 +73,16 @@ const TOP_PAD := 14.0
 ## chip clears the hero card.
 func units() -> Vector2:
 	var ux := size.x * KX
-	var room := (size.y - TOP_PAD - CHAMP_H - CHIP_H - CHIP_H - 10.0) / 1.32
-	var ideal := (HERO_H + CHIP_H + 6.0) / 0.63
-	return Vector2(ux, clampf(minf(room, ideal * 1.12), 150.0, 420.0))
+	var room := (size.y - TOP_PAD - _champ_h() - CHIP_H - CHIP_H - 10.0) / 1.32
+	var ideal := (_hero_h() + CHIP_H + 6.0) / 0.63
+	return Vector2(ux, clampf(minf(room, ideal * 1.08), 150.0, 460.0))
 
 
 ## The hero's floor point (the dais centre).
 func centre() -> Vector2:
 	var u := units()
-	var used := TOP_PAD + CHAMP_H + CHIP_H + 1.32 * u.y + CHIP_H
-	var y := TOP_PAD + CHAMP_H + 0.63 * u.y + maxf(0.0, (size.y - used) * 0.5)
+	var used := TOP_PAD + _champ_h() + CHIP_H + 1.32 * u.y + CHIP_H
+	var y := TOP_PAD + _champ_h() + 0.63 * u.y + maxf(0.0, (size.y - used) * 0.5)
 	return Vector2(size.x * 0.5, y)
 
 
@@ -86,8 +98,8 @@ func floor_point(slot: StringName) -> Vector2:
 ## Card scale of a member standing on `slot`.
 func depth(slot: StringName) -> float:
 	if slot == &"" or slot == &"hero":
-		return HERO_SCALE
-	return CHAMP_SCALE
+		return HERO_SCALE * grow()
+	return CHAMP_SCALE * grow()
 
 
 func _ellipse(c: Vector2, rx: float, ry: float, n := 64) -> PackedVector2Array:
@@ -105,7 +117,7 @@ func _draw() -> void:
 	var sc := UITokens.SCRIM
 	# Dais: soft shadow, marble body (a 14 px drum), top face, rings.
 	var rx := size.x * 0.47
-	var ry := maxf(u.y * 0.92, rx * 0.42)
+	var ry := minf(maxf(u.y * 0.92, rx * 0.42), rx * 0.9)
 	draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(rx * 1.5, ry * 1.6), Vector2(rx * 3.0, ry * 3.2)), false, Color(1, 0.97, 0.9, 0.55))
 	draw_colored_polygon(_ellipse(c + Vector2(0, 26), rx * 1.02, ry * 1.02), Color(sc.r, sc.g, sc.b, 0.10))
 	var drum := _ellipse(c + Vector2(0, 14), rx, ry)

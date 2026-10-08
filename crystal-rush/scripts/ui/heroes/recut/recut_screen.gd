@@ -210,7 +210,7 @@ func _path() -> Control:
 	p.gem = str(_d["gem"])
 	p.next = str(_p["next"])
 	p.max_gem = Ladder.HERO_MAX_GEM if str(_d.get("kind", "hero")) == "hero" else Ladder.CHAMPION_MAX_GEM
-	p.custom_minimum_size = Vector2(0, 122)
+	p.custom_minimum_size = Vector2(0, 140)
 	return p
 
 

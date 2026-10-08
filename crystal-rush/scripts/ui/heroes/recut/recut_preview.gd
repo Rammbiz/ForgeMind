@@ -86,7 +86,8 @@ static func of(d: Dictionary) -> Dictionary:
 			nat_cell += " · " + HeroesText.t("RECUT_CELL_BORN")
 		rows.append(_row("RECUT_ROW_AWAKEN", _rank_cell(a_now), _rank_cell(a_now),
 				_rank_cell(a_after) if a_after > 0 else "", nat_cell, ""))
-		var dc := cap_full - cap_now
+		# Gains are counted from the moment a recut can happen: Full facets of the current gem.
+		var dc := cap_full - Ladder.skill_cap(n, g, F)
 		if dc > 0:
 			unlocks.append(HeroesText.t("RECUT_UNLOCK_CAP_1" if dc == 1 else "RECUT_UNLOCK_CAP_N", [dc]))
 		if a_after > a_now:
@@ -95,7 +96,7 @@ static func of(d: Dictionary) -> Dictionary:
 		var tier := HeroesText.roman(Ladder.gem_index(n) + 1)
 		rows.append(_row("RECUT_ROW_TIER", HeroesText.t("RECUT_CELL_TIER", [tier]), HeroesText.t("RECUT_CELL_TIER", [tier]), "",
 				HeroesText.t("RECUT_CELL_TIER", [HeroesText.roman(gi + 2)]), ""))
-	unlocks.append(HeroesText.t("RECUT_UNLOCK_STATS", [HeroesText.pct(Ladder.mult(n, g1, F) / Ladder.mult(n, g, f) - 1.0)]))
+	unlocks.append(HeroesText.t("RECUT_UNLOCK_STATS", [HeroesText.pct(Ladder.mult(n, g1, F) / Ladder.mult(n, g, F) - 1.0)]))
 	unlocks.append(HeroesText.t("RECUT_UNLOCK_FACETS", [F]))
 	out["rows"] = rows
 	out["unlocks"] = unlocks
