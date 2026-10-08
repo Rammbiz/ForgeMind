@@ -2,6 +2,11 @@ class_name Icons
 extends Control
 ## Vector icons drawn with CanvasItem primitives (no image assets needed).
 ## Use as a Control (set `kind`) or call Icons.draw_icon() from any _draw().
+## UI v2 routing in draw_icon(): (1) the owner's bitmap res://assets/ui/kit/icon_<kind>.png if it
+## exists; (2) KitIcons LINE icons (menus, edge buttons, cls_*, el_*, fac_*: one colour = `tint`,
+## a white tint becomes ink because v2 surfaces are cream); (3) KitIcons PAINTED icons
+## (currencies, the five tab_* nav icons); (4) the older item/machine icons below, now with
+## soft warm outlines (OUTLINE_K) instead of thick black sticker strokes.
 
 @export var kind := "coin"
 @export var tint := Color.WHITE
@@ -21,6 +26,12 @@ func _draw() -> void:
 	var s := minf(size.x, size.y)
 	var r := Rect2((size - Vector2(s, s)) * 0.5, Vector2(s, s))
 	draw_icon(self, kind, r, tint, filled)
+
+
+## A line icon in an explicit colour (ink on cream, ON_SCENE on 3D, GOLD_HI on slate).
+static func line(ci: CanvasItem, k: String, r: Rect2, col: Color) -> void:
+	if not KitIcons.line(ci, k, r, col):
+		draw_icon(ci, k, r, col)
 
 
 func set_kind(k: String) -> void:
@@ -52,8 +63,10 @@ static func _star_points(r: Rect2, inner := 0.42) -> PackedVector2Array:
 	return pts
 
 
-## Ink colour for sticker-style outlines (alpha follows the tint of the icon being drawn).
-const INK_BASE := Color(0.04, 0.05, 0.12, 1.0)
+## Ink colour for the (softened) item-icon outlines (alpha follows the tint of the icon).
+const INK_BASE := Color(0.27, 0.22, 0.2, 1.0)
+## v2: outlines are thin and warm (was a thick black sticker stroke).
+const OUTLINE_K := 0.5
 static var INK := INK_BASE
 
 static var _sb: StyleBoxFlat
@@ -72,6 +85,7 @@ static func _rr(ci: CanvasItem, rect: Rect2, radius: float, col: Color) -> void:
 
 ## Polygon with a cartoon outline straddling its edge.
 static func _poly(ci: CanvasItem, pts: PackedVector2Array, fill: Color, ow: float) -> void:
+	ow *= OUTLINE_K
 	var ink := INK
 	if ow > 0.0:
 		var loop := pts.duplicate()
@@ -85,6 +99,7 @@ static func _poly(ci: CanvasItem, pts: PackedVector2Array, fill: Color, ow: floa
 ## Thick capsule line with an ink outline (outline pass and fill pass are separate so several
 ## strokes can share one outline: call with fill=false first for all, then fill=true).
 static func _stroke(ci: CanvasItem, a: Vector2, b: Vector2, width: float, col: Color, ow: float, fill := true) -> void:
+	ow *= OUTLINE_K
 	if not fill:
 		ci.draw_line(a, b, INK, width + ow * 2.0)
 		ci.draw_circle(a, width * 0.5 + ow, INK)
@@ -96,6 +111,7 @@ static func _stroke(ci: CanvasItem, a: Vector2, b: Vector2, width: float, col: C
 
 
 static func _disc(ci: CanvasItem, c: Vector2, rad: float, col: Color, ow: float) -> void:
+	ow *= OUTLINE_K
 	if ow > 0.0:
 		ci.draw_circle(c, rad + ow, INK)
 	ci.draw_circle(c, rad, col)
@@ -131,6 +147,19 @@ static func _rocket(ci: CanvasItem, tail: Vector2, dir: Vector2, length: float, 
 
 
 static func draw_icon(ci: CanvasItem, k: String, r: Rect2, tint := Color.WHITE, filled := true) -> void:
+	var ov := UIKit.kit_texture("icon_" + k)
+	if ov:
+		ci.draw_texture_rect(ov, r, false, Color(1, 1, 1, tint.a) if not KitIcons.has_line(k) else tint)
+		return
+	if KitIcons.has_line(k):
+		var lc := tint
+		if tint.r > 0.97 and tint.g > 0.97 and tint.b > 0.97:
+			lc = Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, tint.a)
+		KitIcons.line(ci, k, r, lc)
+		return
+	if KitIcons.has_painted(k):
+		KitIcons.painted(ci, k, r, tint)
+		return
 	INK = Color(INK_BASE.r, INK_BASE.g, INK_BASE.b, tint.a)
 	var w := r.size.x
 	var c := r.get_center()

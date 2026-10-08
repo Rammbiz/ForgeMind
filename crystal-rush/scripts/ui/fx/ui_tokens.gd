@@ -32,26 +32,118 @@ const CEREMONY_FULL := 3.0         ## beats (Lv3/5/6/8/10/12/15), Ascension
 const FLASH := 0.08
 const HITSTOP := 0.07
 
+# ------------------------------------------------------------------ motion v2 (Genshin-soft menus)
+## Menus: soft fades/slides 180-280 ms with ease-out (no overshoot). Rewards/upgrades stay juicy.
+const MENU_IN := 0.24
+const MENU_OUT := 0.18
+const MENU_SLIDE := 48.0           ## px a sheet / panel travels while fading in
+const TAB_FADE := 0.18             ## content cross-fade when a tab changes
+const GLOW_PERIOD := 2.4           ## gentle breathing glow (ready CTA, notify badge)
+const CTA_SWEEP_EVERY := 4.0       ## light sweep across the amber CTA
+const CARD_STAGGER := 0.04         ## Genshin card pop-in step
+
 # ------------------------------------------------------------------ layout (720 x 1280 canvas)
 const MIN_TOUCH := 88.0
-const MIN_TEXT := 22
-const TOP_BAR_H := 92.0            ## 0-7 %
-const TAB_BAR_H := 150.0           ## 88-100 %
-const GUTTER := 22.0
-const CARD_RADIUS := 26.0
+const MIN_TEXT := 20
+const TOP_BAR_H := 96.0            ## 0-96: portrait ring + currency plates
+const RIBBON_Y := 104.0            ## world ribbon / screen title row (44 tall)
+const NAV_H := 120.0               ## bottom nav bar body (y 1160-1280 at H 1280)
+const NAV_RISE := 28.0             ## the active medallion rises above the bar
+const TAB_BAR_H := NAV_H + NAV_RISE ## legacy name: room the nav takes at the bottom
+const DOCK_H := 132.0              ## a screen dock (back tab + CTA) above the nav
+const GUTTER := 24.0               ## side margin
+const GAP := 12.0                  ## default gap between cards / rows
+const ROW_H := 64.0                ## list row pitch (hairline divider, no boxes)
+const CARD_RADIUS := 10.0          ## legacy name: v2 corners are 45-degree chamfers
+const CHAMFER_L := 12.0            ## CTA, sheets, modals
+const CHAMFER := 10.0              ## panels, cards
+const CHAMFER_S := 8.0             ## buttons, plates
+const CHAMFER_XS := 6.0            ## chips, tags
+const HAIRLINE_W := 1.5            ## gold hairline (2.0 on CTA rims and sheet tops)
 
-# ------------------------------------------------------------------ palette
+# ------------------------------------------------------------------ palette v2 (fusion §6.5)
+## Surfaces (cream "documents you hold").
+const PAPER_0 := Color("#FBF7EF")  ## raised chip, porcelain HUD plate, panel highlight
+const PAPER_1 := Color("#F7F1E6")  ## panel body
+const PAPER_2 := Color("#ECE5D8")  ## secondary button, card footer strip
+const PAPER_3 := Color("#E3D8C4")  ## pressed, wells, unowned cards
+## Gold line language.
+const HAIRLINE := Color("#C9A86A") ## hairlines, frames, chamfer lines (decorative)
+const GOLD_HI := Color("#E3CB94")  ## lines and labels over art
+const GOLD_TEXT := Color("#8A6A2F") ## engraved section titles on cream (4.5:1)
+## Text.
+const INK := Color("#4B5669")      ## text on cream (6.6:1)
+const INK_DIM := Color("#8C8079")  ## taupe labels on cream (>= 20 px)
+const INK_SOFT := Color("#7A6F69") ## small labels that need more contrast (18 px)
+const ON_SCENE := Color("#FFF8EC") ## warm white on 3D / art, always with a soft shadow
+const SCRIM := Color("#1E2433")    ## shadows, scrims (never a flat dark panel)
+## Key action (amber jewel CTA).
+const CTA_HI := Color("#FFE6A3")
+const CTA := Color("#F5AE45")
+const CTA_LO := Color("#D9822E")
+const CTA_RIM := Color("#9C5A1F")
+const TOPAZ := Color("#FFB52E")
+const TOPAZ_HI := Color("#FFC860")
+## States.
+const PLUS := Color("#3E8A2C")     ## stat increase on cream
+const PLUS_ON_SCENE := Color("#8DE302")
+const ALERT := Color("#C0392B")    ## alert text
+const ALERT_FILL := Color("#D4515B")
+const NEW_TAG := Color("#FFCF3F")
+const NEW_INK := Color("#6A4512")
+const NOTIFY := Color("#F5AE45")   ## gold "!" badge (no red dots)
+const SOCKET := Color("#2B3245")   ## slate socket behind family glyphs
+## Home stage.
+const SKY_TOP := Color("#7DB9E8")
+const SKY_MID := Color("#BFE0F2")
+const HORIZON := Color("#FBE3BC")
+const SUN := Color("#FFD98A")
+const BRIDGE_BODY := Color("#DDF6FF")
+const BRIDGE_EDGE := Color("#8FD9F0")
+
+## The five gems (rarity ladder C R E L M). `top`/`bot` = card ground gradient, `rim` = inner
+## rim + vivid accent, `light` = lit facet pip / glints, `deep` = shadow facet, `cut` = gem-cut
+## silhouette (colour-blind code): round / square / triangle / star / eye.
+const GEMS := {
+	"quartz": {"name": "GEM_QUARTZ", "top": Color("#7F8A96"), "bot": Color("#C3CCD5"), "rim": Color("#D6DEE6"),
+			"light": Color("#F2F5F8"), "deep": Color("#5C6672"), "cut": "round", "metal": Color("#AEB7C2")},
+	"sapphire": {"name": "GEM_SAPPHIRE", "top": Color("#2D6A9C"), "bot": Color("#63A9DD"), "rim": Color("#3FA9FF"),
+			"light": Color("#A8DBFF"), "deep": Color("#1B4E7E"), "cut": "square", "metal": Color("#E8E6E0")},
+	"amethyst": {"name": "GEM_AMETHYST", "top": Color("#553A8F"), "bot": Color("#9C7BD0"), "rim": Color("#B06CFF"),
+			"light": Color("#DCC2FF"), "deep": Color("#7A35D6"), "cut": "triangle", "metal": Color("#E3C67E")},
+	"topaz": {"name": "GEM_TOPAZ", "top": Color("#A4612A"), "bot": Color("#E8AE5C"), "rim": Color("#FFB52E"),
+			"light": Color("#FFE3A6"), "deep": Color("#C26A12"), "cut": "star", "metal": Color("#E3C67E")},
+	"opal": {"name": "GEM_OPAL", "top": Color("#1A1530"), "bot": Color("#3A2D63"), "rim": Color("#E8D8FF"),
+			"light": Color("#F3EAFF"), "deep": Color("#120E22"), "cut": "eye", "metal": Color("#E3C67E"),
+			"flecks": [Color("#7FE3FF"), Color("#B48CFF"), Color("#FF9FD6"), Color("#FFE28A")]},
+}
+const GEM_ORDER: Array[String] = ["quartz", "sapphire", "amethyst", "topaz", "opal"]
+const RARITY_GEM := {"C": "quartz", "U": "quartz", "R": "sapphire", "E": "amethyst", "L": "topaz", "M": "opal"}
+
+# ------------------------------------------------------------------ legacy palette (remapped to v2)
 ## Cream parchment for the warm tabs (Heroes, Barracks, Shop), ink for text on it.
-const CREAM := Color(0.99, 0.94, 0.82)
-const CREAM_DARK := Color(0.9, 0.79, 0.6)
-const PARCH_INK := Color(0.29, 0.17, 0.08)
-const PARCH_INK_DIM := Color(0.48, 0.34, 0.2)
-## Arsenal stage: deep navy spotlight.
-const STAGE_TOP := Color(0.06, 0.08, 0.2)
-const STAGE_BOTTOM := Color(0.01, 0.015, 0.05)
-## Upgrade-ready green and claim gold.
-const READY := Color(0.42, 0.95, 0.42)
-const CLAIM := Color(1.0, 0.8, 0.25)
+const CREAM := PAPER_1
+const CREAM_DARK := PAPER_3
+const PARCH_INK := INK
+const PARCH_INK_DIM := INK_DIM
+## Arsenal stage (was a deep navy spotlight): now a warm, light workshop haze.
+const STAGE_TOP := Color("#E9DCC3")
+const STAGE_BOTTOM := Color("#C9B79A")
+## Upgrade-ready green and claim gold (readable on cream).
+const READY := PLUS
+const CLAIM := CTA
+
+
+## Gem key ("quartz".."opal") of a rarity letter ("C".."M") or a gem key passed through.
+static func gem_of(r: String) -> String:
+	if GEMS.has(r):
+		return r
+	return str(RARITY_GEM.get(r, "quartz"))
+
+
+## The gem spec dictionary (GEMS entry) of a rarity letter or gem key.
+static func gem(r: String) -> Dictionary:
+	return GEMS[gem_of(r)]
 
 
 ## Duration of a ceremony tier ("micro" | "standard" | "full"), halved for standard and full
