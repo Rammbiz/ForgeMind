@@ -86,6 +86,24 @@ func _acc_at(level: int, kind := "fresh") -> Dictionary:
 	return Meta.synthetic_account(level, kind)
 
 
+## Binds the legacy Save mirrors to a test account. Meta.save() merges the account into Save.account
+## (progress.level = max) and Meta.level() then raises Meta.account to Save.level, so while Save
+## still held the real account a level left over by an earlier section silently moved the test
+## account (review F2: an "L7" account read as L9 and its L7 win counted as a replay). Every test
+## account installed in Meta is also Save's account (Meta.account = _bind(...)), and _unbind()
+## restores the real one.
+func _bind(acc: Dictionary) -> Dictionary:
+	Save.account = acc
+	Save.level = MetaAcc.level(acc)
+	return acc
+
+
+## Restores the account a section kept (Meta and the Save mirrors).
+func _unbind(keep: Dictionary) -> void:
+	Meta.account = keep
+	_bind(keep)
+
+
 ## An account at `level` whose unlocks are NOT pre-acknowledged (natural player).
 func _natural(level: int) -> Dictionary:
 	var acc := Meta.synthetic_account(level, "fresh")
@@ -495,7 +513,7 @@ func _test_unlock_queue() -> void:
 func _test_run_profile() -> void:
 	print("== run_profile")
 	var keep := Meta.account
-	Meta.account = _acc_at(1)
+	Meta.account = _bind(_acc_at(1))
 	var p := Meta.run_profile(1)
 	for k in ["level", "world", "boss", "profile", "deck", "lead", "owned", "new_crate", "machines", "inrun", "hero", "army",
 			"tactics", "assist", "haven_info", "codex", "auto_apex", "features", "run_id"]:
@@ -507,20 +525,20 @@ func _test_run_profile() -> void:
 	_ok(int(p["assist"]["stacks"]) == 0 and int(p["inrun"]["crates"]) == 0, "no assist, no crates on L1")
 	for k2 in ["dmg_mult", "hp_mult", "ult_rate_mult", "ult_rank", "id", "lvl", "aspect", "glory"]:
 		_ok((p["hero"] as Dictionary).has(k2), "hero.%s" % k2)
-	Meta.account = _acc_at(2)
+	Meta.account = _bind(_acc_at(2))
 	_ok(str(Meta.run_profile(2)["new_crate"]) == "ballista", "L2 profile: NEW crate ballista")
-	Meta.account = _acc_at(30, "expected")
+	Meta.account = _bind(_acc_at(30, "expected"))
 	var p30 := Meta.run_profile(30)
 	_ok((p30["deck"] as Array).size() == 3 and str(p30["lead"]) != "" and int(p30["inrun"]["rank_gates"]) == 1 and bool(p30["inrun"]["pairs"]), "expected L30: 3-deck with a Lead, rank gate, pairs: %s" % str(p30["deck"]))
 	var r1 := int(p30["run_id"])
 	_ok(int(Meta.run_profile(30)["run_id"]) == r1 + 1, "run ids increase")
-	Meta.account = keep
+	_unbind(keep)
 
 
 func _test_finish_run() -> void:
 	print("== finish_run idempotence")
 	var keep := Meta.account
-	Meta.account = _acc_at(6)
+	Meta.account = _bind(_acc_at(6))
 	var prof := Meta.run_profile(6)
 	var c0 := Meta.currency("coins")
 	var result := {"won": true, "level": 6, "victory": 56, "coins_run": 10, "pickups": 10, "mult": 2.0, "total": 132,
@@ -557,13 +575,14 @@ func _test_finish_run() -> void:
 	var rev := Meta.open_cache(0)
 	_ok(not rev.is_empty() and bool(rev["altar"]) and (rev["cards"] as Array).size() == 5 and Meta.vault().is_empty(), "open_cache: 5 cards, vault emptied")
 	_ok(Meta.open_cache(0).is_empty(), "open_cache bad index -> {}")
-	Meta.account = keep
+	_unbind(keep)
 
 
 func _test_loss_flow() -> void:
 	print("== loss payout, Reinforcements, loss charge")
 	var keep := Meta.account
-	Meta.account = _acc_at(7)
+	Meta.account = _bind(_acc_at(7))
+	_ok(Meta.level() == 7, "loss-flow account is at L7 (no leftover Save.level)")
 	var c0 := Meta.currency("coins")
 	var b := {}
 	for i in 3:
@@ -592,7 +611,7 @@ func _test_loss_flow() -> void:
 			_ok(bool(rb["replay"]) and int(rb["coins"]["total"]) == int(round(132 * 0.6)), "replay pays 60%")
 		caches += (rb["caches"] as Array).size()
 	_ok(caches == 3 and Meta.level() == 8, "replay Stone Caches: 3 per day; frontier unchanged")
-	Meta.account = keep
+	_unbind(keep)
 
 
 # ======================================================================== save io and migration
@@ -1094,7 +1113,7 @@ func _test_heroes_flag_off() -> void:
 	_ok(EconData.stats_keys() == EconData.STATS_KEYS, "stats keys unchanged")
 	_ok(EconData.road_node("premium", "gems", 20, 30) == {"cur": "gems", "n": 20}, "paid Road lane unchanged while off")
 	var keep := Meta.account
-	Meta.account = _hacc(25)
+	Meta.account = _bind(_hacc(25))
 	(Meta.account["wallet"] as Dictionary)["beacons"] = 50
 	var snap := var_to_str(Meta.account)
 	var refusals := [Meta.summon(1), Meta.summon(10, true), Meta.seal_pick("vesta"), Meta.add_facet("hero", "bolt"),
@@ -1110,7 +1129,7 @@ func _test_heroes_flag_off() -> void:
 	var b := Meta.finish_run(_res(25, true, {"run_id": p["run_id"]}))
 	_ok(not b.has("hero_chests") and not b.has("beacons") and not b.has("hero_joined") and int(Meta.account["wallet"]["beacons"]) == 50
 			and float(Meta.account["wallet"]["chest_charge"]) == 0.0, "finish_run: no hero keys, no Beacons, no chest charge")
-	Meta.account = keep
+	_unbind(keep)
 	# The heroes card / pending rows never appear while off.
 	var acc := _natural(30)
 	var pend: Array = []
@@ -1234,7 +1253,7 @@ func _test_hero_income() -> void:
 	print("== hero income in Rewards (live phase)")
 	_live(true)
 	var keep := Meta.account
-	Meta.account = _hacc(1)
+	Meta.account = _bind(_hacc(1))
 	Meta._last_bundle = {}
 	(Meta.account["unlocks"] as Dictionary)["done"] = []
 	var joined := {}
@@ -1329,7 +1348,7 @@ func _test_hero_income() -> void:
 	var rev := Meta.open_hero_chest(0)
 	_ok(bool(rev.get("ok", false)) and Vault.hero_chests(Meta.account).size() == n0 - 1 and (rev["cards"] as Array).size() >= 2, "Meta.open_hero_chest opens and removes the chest")
 	_ok(Meta.open_hero_chest(99).is_empty(), "bad index -> {}")
-	Meta.account = keep
+	_unbind(keep)
 	_live(false)
 
 
@@ -1339,7 +1358,7 @@ func _test_meta_api_heroes() -> void:
 	print("== Meta API: heroes, champions, team, Portal (live phase)")
 	_live(true)
 	var keep := Meta.account
-	Meta.account = _hacc(25)
+	Meta.account = _bind(_hacc(25))
 	var acc := Meta.account
 	Roster.grant(acc, "titan", "progress")
 	var po := Meta.portal()
@@ -1432,7 +1451,7 @@ func _test_meta_api_heroes() -> void:
 	_ok((rp["team"]["champions"] as Array).size() == 2 and str(rp["team"]["champions"][0]["slot"]) != str(rp["team"]["champions"][1]["slot"]),
 			"team block: two champions in distinct slots")
 	Save.hero = hero0
-	Meta.account = keep
+	_unbind(keep)
 	_live(false)
 
 
@@ -1601,7 +1620,7 @@ func _test_hero_telemetry() -> void:
 	print("== hero telemetry schema (§12.5)")
 	_live(true)
 	var keep := Meta.account
-	Meta.account = _hacc(25)
+	Meta.account = _bind(_hacc(25))
 	var acc := Meta.account
 	(acc["wallet"] as Dictionary)["beacons"] = 20
 	(acc["wallet"] as Dictionary)["tomes"] = 20
@@ -1638,7 +1657,7 @@ func _test_hero_telemetry() -> void:
 			"events logged: %s" % str(seen.keys()))
 	var tr := MetaTelemetry.events_of(acc, "team_run")
 	_ok(not tr.is_empty() and (tr[-1]["d"]["lost_ids"] as Array) == ["alba"], "team_run lists the fallen champions")
-	Meta.account = keep
+	_unbind(keep)
 	_live(false)
 
 
@@ -1660,7 +1679,7 @@ func _test_synthetic_heroes() -> void:
 	_ok(Save.readonly and p.has("team") and (p["team"]["champions"] as Array).size() == 2 and p["hero"].has("ult_power") and not Meta.heroes_on(),
 			"dev run profile at phase 2: v3 hero + team blocks, hero systems still off")
 	_ok(str(Meta.summon(1).get("reason", "")) == "phase", "phase 2: no meta mutations")
-	Meta.account = keep
+	_unbind(keep)
 	_live(false)
 	var c := Meta.synthetic_account(30, "expected")
 	_ok((c["team"]["champions"] as Array).is_empty() and not bool(c["heroes"]["titan"]["owned"]), "phase 0: synthetic accounts as 2.2.1")
