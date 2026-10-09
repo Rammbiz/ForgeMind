@@ -2868,7 +2868,9 @@ def main():
         if tf is None:
             tf, _ = calibrate_tf(16 if q else 30, 112)
             print("TEAM_DEMAND (recalibrated for this section):", tf)
-        section_long(10 if q else 30, tf)
+        # 90 seeds (was 30): the p50 day of "all 10 heroes" spreads from day ~9 (p10) to ~77 (p90), so a 30-seed median
+        # moved by 7-20 days with the RNG stream alone (a roster addition reshuffles it) and crossed the day-25 bound
+        section_long(10 if q else 90, tf)
     if args.export:
         export_consts(args.export, tf)
     print("\n%d invariant(s) failed: %s" % (len(FAILS), FAILS) if FAILS else "\nall invariants pass")
