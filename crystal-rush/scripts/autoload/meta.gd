@@ -1397,11 +1397,16 @@ func _hero_block(id: String, guest := false) -> Dictionary:
 ## The run's team block: {hero, champions [{id, slot, ...ChampionsMeta.stats}], synergy (Team
 ## run effects of the full team; the run recounts LIVING members)}.
 func _team_block(hero_id: String, guest := false) -> Dictionary:
-	var champs: Array = [] if guest else Team.champions(account)
+	return team_block_of(account, hero_id, guest)
+
+
+## _team_block for any account `acc` (dev tools on synthetic accounts: champ_survival, level checks).
+static func team_block_of(acc: Dictionary, hero_id: String, guest := false) -> Dictionary:
+	var champs: Array = [] if guest else Team.champions(acc)
 	var used := {}
 	var rows: Array = []
 	for cid in champs:
-		var st := ChampionsMeta.stats(account, str(cid))
+		var st := ChampionsMeta.stats(acc, str(cid))
 		var slot := str(st["slot"])
 		if used.has(slot):
 			for alt in ["front", "rear", "left", "right"]:

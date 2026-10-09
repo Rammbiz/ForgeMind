@@ -61,6 +61,18 @@ class_name LevelSim
 ## - Barracks (profile.army): recruit groups bring +recruit_bonus, reserves join at the siege
 ##   (before army_at_fortress is taken), each hazard item spares its first scrape_guard
 ##   soldiers, and a squad the hero hit within 2 s before the clash loses x(1 + drill).
+## - Champions (heroes design §4.2, §4.3, §10.5; only while HeroKinds.champions_live() and the
+##   profile has a team block, else State.champs stays empty and nothing below runs): the rules are
+##   ChampionKinds over a SimKindView, hooked in exactly as the Run does. Each step, after the army
+##   moved and the shooters fired, the champions follow their slots and act (before hazards,
+##   turrets and the clash). A clash / siege tick with an army: a Guardian shield makes it free,
+##   else the army loses hit x clash_loss_mult (x the rift slow in a clash); the foe loses hit x
+##   drill_k x clash_kill_mult + Cleave; the front takes its share (clash_hit). At army 0 in a clash
+##   a living champion takes the tick before the hero (absorb_tick; the siege keeps its finale timer).
+##   Hazard bands lose x hazard_loss_mult, then a ready Guardian Blocks (a barricade only wears down
+##   by the soldiers it really kills); turrets x hazard_loss_mult, never Blocked. Volleys deal
+##   x volley_mult (statuses are not simulated). Every soldier lost (clash, siege, hazard, turret,
+##   gate) feeds Mend; Mend returns join the army. result() carries team_report.
 
 enum K { TILE, COIN, RECRUITS, GATE, BARRICADE, BLADE, TURRET, SQUAD, GEODE, CRATE, FORTRESS, STAIRS }
 enum Mode { RUN, CLASH, SIEGE, WON, LOST }
@@ -173,6 +185,8 @@ class State extends RefCounted:
 	var gate_margin := 0.0              ## planning only: a gate counts only this far inside its span
 	var sample_every := 0.0             ## > 0: record (d, hx, army) every this many units
 	var samples := PackedVector3Array()
+	var champs := Champions.new()       ## the run's champions (heroes design §4.2; empty while off)
+	var champ_fx := {}                  ## champion fx event -> count (SimKindView.fx; only with champions)
 
 	func copy() -> State:
 		var s := State.new()
@@ -195,6 +209,10 @@ class State extends RefCounted:
 		s.ult_rate = ult_rate; s.ult_pow = ult_pow; s.aspect = aspect; s.casts = casts
 		s.recruit_bonus = recruit_bonus; s.reserves = reserves; s.scrape_guard = scrape_guard; s.drill = drill
 		s.drill_k = drill_k; s.guard = guard.duplicate(); s.hit_t = hit_t.duplicate(); s.slow_acc = slow_acc
+		# Champions branch with the state (a deep copy); without any, the copy keeps its own empty set.
+		if champs.active():
+			s.champs = champs.copy()
+			s.champ_fx = champ_fx.duplicate()
 		return s
 
 
@@ -372,7 +390,7 @@ static func result(lv: Level, s: State) -> Dictionary:
 	var ws: Array = []
 	for w: Array in s.weapons:
 		ws.append({"kind": w[0], "level": w[1], "over": int(w[3]) if w.size() > 3 else 0})
-	return {
+	var res := {
 		"won": s.mode == Mode.WON, "reason": s.reason, "army_at_fortress": int(round(maxf(s.army_at_fortress, 0.0))),
 		"survivors": s.survivors, "stairs_mult": s.stairs_mult, "coins": s.total_coins if s.mode == Mode.WON else s.coins,
 		"coins_run": s.coins, "weapons": ws, "arm_tier": s.arm, "hazard_deaths": int(round(s.hazard_deaths)),
@@ -380,6 +398,9 @@ static func result(lv: Level, s: State) -> Dictionary:
 		"time": snappedf(s.t, 0.1), "length": lv.length, "d": snappedf(s.d, 0.1),
 		"power": {"rate": s.p_rate, "dmg": s.p_dmg, "multi": s.p_multi},
 	}
+	if s.champs.active():
+		res["team_report"] = s.champs.report()      # §10.5: [{id, alive, kills, heals, blocks, dmg_taken}]
+	return res
 
 
 # ------------------------------------------------------------------ one step
@@ -407,6 +428,10 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 	_machines(lv, s, dt)
 	_volleys(lv, s, dt)
 	_ult_step(lv, s, def, dt)
+	if s.champs.active():
+		# §4.2: the champions follow their slots and act after the army moved, before the hazards and
+		# the clash / siege tick (the Run's order).
+		s.champs.step(SimKindView.new(lv, s), dt)
 	_hazards(lv, s)
 	_turrets(lv, s, dt)
 	match s.mode:
@@ -573,16 +598,19 @@ static func gate_x(lv: Level, g: int, t: float) -> float:
 
 
 static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
+	var before := s.army
 	match op:
 		"+":
 			_gain(s, v, minf(v, GATE_GAIN_CAP))
 		"-":
 			s.army = maxf(s.army - v, 0.0)
+			_fed(s, before - s.army)
 		"x":
 			var add := s.army * (v - 1.0)
 			_gain(s, add, minf(add, GATE_GAIN_CAP))
 		"/":
 			s.army = floorf(s.army / maxf(v, 1.0))
+			_fed(s, before - s.army)
 		"arm":
 			s.arm = maxi(s.arm, clampi(int(v), 0, Balance.ARM_TIERS.size() - 1))
 		"rate":
@@ -594,6 +622,7 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 		"charge":
 			if v < 0.0:
 				s.army = maxf(s.army + v, 0.0)
+				_fed(s, before - s.army)
 			else:
 				var rw: Dictionary = lv.items[g].get("reward", {})
 				_apply(lv, s, g, str(rw.get("op", "+")), float(rw.get("value", 0)))
@@ -621,6 +650,13 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 static func _gain(s: State, n: float, points: float) -> void:
 	s.army += n
 	_charge(s, points)
+
+
+## `n` soldiers were lost (any cause: clash, siege, hazard, turret, gate): the living Healers'
+## revive pool takes its share (heroes design §4.3 Mend). No-op without champions.
+static func _fed(s: State, n: float) -> void:
+	if n > 0.0 and s.champs.active():
+		ChampionKinds.feed(s.champs.members, n)
 
 
 static func _charge(s: State, points: float) -> void:
@@ -1079,9 +1115,11 @@ static func sim_row(id: String, s: Dictionary, add: float, mods: Dictionary = {}
 # ------------------------------------------------------------------ profiles
 
 ## Applies a run profile (Meta.run_profile / profile_from_account shape) to a state:
-## machine rows, deck, levels, the NEW crate, hero multipliers, the Lead fielded at Rank I and
-## Reinforcements soldiers.
+## machine rows, deck, levels, the NEW crate, hero multipliers, the Lead fielded at Rank I,
+## Reinforcements soldiers and the team's champions (profile.team; Champions.setup keeps the set
+## empty while the champions phase is off or there is no team block).
 static func apply_profile(s: State, prof: Dictionary) -> void:
+	s.champs.setup(prof, int(prof.get("level", 0)))
 	s.prof = sim_profile(prof)
 	s.deck = prof.get("deck", [])
 	s.levels = prof.get("levels", {})
@@ -1191,6 +1229,8 @@ static func _volleys(lv: Level, s: State, dt: float) -> void:
 		var dmg := maxf(1.0, s.army * float(tier["volley"]))
 		if k != K.SQUAD:
 			dmg = maxf(1.0, dmg * float(tier.get("struct_share", 1.0)))
+		if s.champs.active():
+			dmg *= ChampionKinds.volley_mult(s.champs.members)     # Ranger aura (§4.3)
 		_hurt(lv, s, i, dmg)
 		return
 	s.volley_cd = 0.0
@@ -1311,10 +1351,34 @@ static func _hazards(lv: Level, s: State) -> void:
 			if lv.kind[i] == K.BARRICADE:
 				s.hp[i] += spare
 				s.alive[i] = 1 if s.hp[i] > 0.001 else 0
+		if lost > 0.0 and s.champs.active():
+			lost = _champ_hazard(lv, s, i, lost)
 		if lost > 0.0:
 			s.army = maxf(s.army - lost, 0.0)
 			s.hazard_deaths += lost
 			_log(s, "%s -%d" % [str(lv.items[i]["kind"]), int(round(lost))])
+
+
+## A hazard band's loss with champions (heroes design §4.3): the Healer aura trims it, then a ready
+## Guardian Blocks the first contact (ChampionKinds.absorb_hazard; a Block on a barricade also hits
+## it). A barricade wears down only by the soldiers it really kills (as with Scrape Guard), so the
+## band's wear is undone and redone with the final loss. Feeds Mend; returns the soldiers lost.
+static func _champ_hazard(lv: Level, s: State, i: int, lost: float) -> float:
+	var m := s.champs.members
+	var bar := lv.kind[i] == K.BARRICADE
+	if bar:
+		s.hp[i] += lost
+		s.alive[i] = 1
+	var left := ChampionKinds.absorb_hazard(SimKindView.new(lv, s), m, i, &"barricade" if bar else &"blade",
+			lost * ChampionKinds.hazard_loss_mult(m), s.army, Balance.blob_radius(s.army))
+	if bar:
+		# The Block's hit may have broken it: then the rest of the band walks through.
+		left = minf(left, s.hp[i]) if s.alive[i] == 1 else 0.0
+		s.hp[i] -= left
+		if s.hp[i] <= 0.001:
+			s.alive[i] = 0
+	_fed(s, left)
+	return left
 
 
 const SLICES := 12
@@ -1408,6 +1472,10 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 		if Vector2(lv.x[i] - s.hx, dz).length() - r > reach:
 			continue
 		var lost := minf(float(it.get("rate", 2.0)) * dt * hazard_slow(s), s.army)
+		if s.champs.active():
+			# Healer aura; turrets never target champions and are never Blocked (§4.2).
+			lost *= ChampionKinds.hazard_loss_mult(s.champs.members)
+			_fed(s, lost)
 		s.army -= lost
 		s.hazard_deaths += lost
 
@@ -1443,21 +1511,58 @@ static func _clash(lv: Level, s: State, dt: float) -> void:
 		s.tick += Balance.FIGHT_TICK
 		if s.army >= 0.5:
 			var hit := minf(_burst(minf(s.army, s.hp[f])), minf(s.army, s.hp[f]))
-			var lost := hit * hazard_slow(s)
-			s.army -= lost
-			s.clash_deaths += lost
-			_hurt(lv, s, f, hit * s.drill_k)
+			if s.champs.active():
+				_champ_tick(lv, s, f, hit, hazard_slow(s), s.drill_k)
+			else:
+				var lost := hit * hazard_slow(s)
+				s.army -= lost
+				s.clash_deaths += lost
+				_hurt(lv, s, f, hit * s.drill_k)
 		else:
 			s.army = 0.0
-			var hit2 := minf(_burst(minf(s.hero_hp, s.hp[f])), s.hp[f])
-			s.hero_hp -= hit2
-			_hurt(lv, s, f, hit2)
-			if s.hero_hp <= 0.0 and s.alive[f] == 1:
-				_lose(s, "ARMY_LOST")
-				return
+			if not (s.champs.active() and _champ_absorb(lv, s, f)):
+				var hit2 := minf(_burst(minf(s.hero_hp, s.hp[f])), s.hp[f])
+				s.hero_hp -= hit2
+				_hurt(lv, s, f, hit2)
+				if s.hero_hp <= 0.0 and s.alive[f] == 1:
+					_lose(s, "ARMY_LOST")
+					return
 		if s.alive[f] == 0:
 			s.mode = Mode.RUN
 			s.foe = -1
+
+
+## One clash / siege tick of `hit` with an army and champions (heroes design §4.2, §4.3): a Guardian
+## shield makes it free, else the army loses hit x slow x the Guardian aura; the foe loses
+## hit x drill_k x the Warrior aura + Cleave; the front takes its share; the losses feed Mend.
+static func _champ_tick(lv: Level, s: State, f: int, hit: float, slow: float, drill_k: float) -> void:
+	var m := s.champs.members
+	var lost := 0.0
+	if not ChampionKinds.tick_free(m):
+		lost = minf(hit * slow * ChampionKinds.clash_loss_mult(m), s.army)
+	s.army -= lost
+	s.clash_deaths += lost
+	_hurt(lv, s, f, hit * drill_k * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m))
+	ChampionKinds.clash_hit(SimKindView.new(lv, s), m, hit, s.champs.guardian_hero)
+	_fed(s, lost)
+
+
+## Army 0 in a clash: the first living champion (front -> left -> right -> rear) takes the tick, the
+## hero's formula against its hp, and the foe loses as much (§4.2). False when none stands.
+static func _champ_absorb(lv: Level, s: State, f: int) -> bool:
+	var m := s.champs.members
+	var who := {}
+	for sl in ChampionKinds.ABSORB_ORDER:
+		who = ChampionKinds.in_slot(m, sl)
+		if not who.is_empty():
+			break
+	if who.is_empty():
+		return false
+	var hit2 := minf(_burst(minf(float(who["hp"]), s.hp[f])), s.hp[f])
+	if not ChampionKinds.absorb_tick(SimKindView.new(lv, s), m, hit2):
+		return false
+	_hurt(lv, s, f, hit2)
+	return true
 
 
 static func _siege(lv: Level, s: State, dt: float) -> void:
@@ -1469,6 +1574,9 @@ static func _siege(lv: Level, s: State, dt: float) -> void:
 	while s.tick <= 0.0 and s.mode == Mode.SIEGE and s.army >= 0.5:
 		s.tick += Balance.FIGHT_TICK
 		var hit := minf(_burst(minf(s.army, s.hp[f])), minf(s.army, s.hp[f]))
+		if s.champs.active():
+			_champ_tick(lv, s, f, hit, 1.0, 1.0)
+			continue
 		s.army -= hit
 		s.clash_deaths += hit
 		_hurt(lv, s, f, hit)
@@ -1609,7 +1717,8 @@ static func candidates(n: int) -> PackedFloat32Array:
 
 
 ## The planner's own path through a whole level (full knowledge, no noise): re-plans every
-## PLAN_STEP units over `horizon`. Returns {"path": waypoints, "result": result dict, "trace"}.
+## PLAN_STEP units over `horizon`. Returns {"path": waypoints, "result": result dict, "trace",
+## "samples", "state": the final State (champion members, fx counts)}.
 static func best_path(lv: Level, hero: String, army: int, opts := {}) -> Dictionary:
 	var s := start_state(lv, hero, army, opts)
 	var cands := candidates(int(opts.get("candidates", 13)))
@@ -1624,7 +1733,7 @@ static func best_path(lv: Level, hero: String, army: int, opts := {}) -> Diction
 		path.append_array(seg)
 		advance(lv, s, seg, s.d + PLAN_STEP, DT, 30.0)
 	var res := result(lv, s)
-	return {"path": path, "result": res, "trace": s.trace, "samples": s.samples}
+	return {"path": path, "result": res, "trace": s.trace, "samples": s.samples, "state": s}
 
 
 ## Straight down the middle (the "lazy" player).

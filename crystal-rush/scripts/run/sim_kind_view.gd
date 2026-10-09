@@ -1,12 +1,14 @@
 class_name SimKindView
 extends KindView
 ## KindView over LevelSim's arrays (heroes design §10.4): the bot, level_check and the planner
-## run the same HeroKinds rules as the Run. Made on demand (only while an ult is charged or
-## running), so LevelSim.State stays a plain copyable record. fx is a counter.
+## run the same HeroKinds / ChampionKinds rules as the Run. Made on demand (while an ult is charged
+## or running, and each step that has champions), so LevelSim.State stays a plain copyable record.
+## Target ids are LevelSim item indices. fx is a counter (per event in State.champ_fx while the
+## state has champions).
 
 var lv: LevelSim.Level
 var s: LevelSim.State
-## fx events seen (budget checks; LevelSim draws nothing).
+## fx events seen by this view (budget checks; LevelSim draws nothing).
 var fx_count := 0
 
 
@@ -78,5 +80,90 @@ func army() -> Dictionary:
 			"reserves": s.reserves, "revive_pool": 0.0}
 
 
-func fx(_event: StringName, _data := {}) -> void:
+func fx(event: StringName, _data := {}) -> void:
 	fx_count += 1
+	if s.champs.active():
+		s.champ_fx[event] = int(s.champ_fx.get(event, 0)) + 1
+
+
+# ------------------------------------------------------------------ H2: champions (§4.2, §10.4)
+
+## Living squads with d in [d0, d1] whose span (x +- half width) overlaps [x0, x1]; n = soldiers
+## left (hp). flying / armored / phantom come from the item when it has them.
+func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
+	var out: Array = []
+	var lo := LevelSim._first_at(lv.d, lv.block, d0)
+	for j in range(lo, lv.block.size()):
+		var i := lv.block[j]
+		if lv.d[i] > d1:
+			break
+		if s.alive[i] == 0 or lv.kind[i] != LevelSim.K.SQUAD:
+			continue
+		if lv.x[i] + lv.hw[i] < x0 or lv.x[i] - lv.hw[i] > x1:
+			continue
+		var it := lv.items[i]
+		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "n": float(s.hp[i]),
+				"flying": bool(it.get("flying", false)), "armored": bool(it.get("armored", false)),
+				"phantom": bool(it.get("phantom", false)), "status": ""})
+	return out
+
+
+## Living barricades, turrets and geodes with d in [d0, d1], then the blades (kind "blade": the
+## rules never hit them): [{id, d, x, kind, hp}].
+func hazards_in(d0: float, d1: float) -> Array:
+	var out: Array = []
+	var lo := LevelSim._first_at(lv.d, lv.targ, d0)
+	for j in range(lo, lv.targ.size()):
+		var i := lv.targ[j]
+		if lv.d[i] > d1:
+			break
+		if s.alive[i] == 0:
+			continue
+		var kind: StringName
+		match lv.kind[i]:
+			LevelSim.K.BARRICADE:
+				kind = &"barricade"
+			LevelSim.K.TURRET:
+				kind = &"turret"
+			LevelSim.K.GEODE:
+				kind = &"geode"
+			_:
+				continue
+		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": kind, "hp": float(s.hp[i])})
+	var lo_h := LevelSim._first_at(lv.d, lv.haz, d0)
+	for j in range(lo_h, lv.haz.size()):
+		var i := lv.haz[j]
+		if lv.d[i] > d1:
+			break
+		if lv.kind[i] == LevelSim.K.BLADE:
+			out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": &"blade", "hp": 0.0})
+	return out
+
+
+func champions() -> Array:
+	return s.champs.members
+
+
+## LevelSim's own hurt path (kills, ult charge, breaking pays out). Returns the whole soldiers a
+## squad lost (its shown count is ceil(hp)); 0 for structures.
+func hit(target_id: int, dmg: float, _tags := {}) -> int:
+	if target_id < 0 or target_id >= s.alive.size() or s.alive[target_id] == 0:
+		return 0
+	if lv.kind[target_id] != LevelSim.K.SQUAD:
+		LevelSim._hurt(lv, s, target_id, dmg)
+		return 0
+	var before := ceilf(maxf(s.hp[target_id] - 0.001, 0.0))
+	LevelSim._hurt(lv, s, target_id, dmg)
+	var after := ceilf(maxf(s.hp[target_id] - 0.001, 0.0)) if s.alive[target_id] == 1 else 0.0
+	return int(before - after)
+
+
+## Statuses are not simulated (LevelSim is an expected-value model).
+func status(_target_id: int, _st: StringName, _s: float) -> void:
+	pass
+
+
+## Mend returns join the army (the Run spawns them at the blob front).
+func add_soldiers(n: float, _cause: StringName) -> void:
+	s.army += n
+	s.peak = maxf(s.peak, s.army)
