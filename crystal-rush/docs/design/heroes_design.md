@@ -1897,7 +1897,7 @@ per hero are on the sheets (§6).
 | Case | Behaviour |
 |---|---|
 | Save write fails during a grant | `Save.write_atomic` with rollback; the ceremony does not start; toast «Не вдалося зберегти — нічого не витрачено» |
-| Older APK opens a v3 save (sideload) | unknown hero / champion ids move to `_orphans` (never deleted); a save with a newer version opens read-only with a line |
+| Older APK opens a v3 save (sideload) | unknown hero / champion ids move to `_orphans` (never deleted) and come back to the roster when a build that knows them opens the save; a save with a newer version opens read-only with a line |
 | Missing or corrupt art | card crop → silhouette → class placeholder (`HeroArt.state`); a deletion test removes each file and checks no crash |
 | Clock moved back | dailies and day-7 login use a monotonic day guard (`max_day_seen`); no Beacon is paid twice for one day |
 | All-max states | absolute max (Opal f5 · rank 11 · +12): filigree corners, overflow shown honestly, no CTA |
