@@ -203,7 +203,15 @@ func _test_art() -> void:
 	_check(HeroArt.state("bolt") == bolt_want, "Руді uses his splash, else the live 3D bust")
 	_check(HeroArt.splash_variant("seer", "eyes_closed") != null, "Мейра has the eyes-closed walkout splash")
 	_check(HeroArt.splash_variant("vesta", "eyes_closed") == null, "no variant means null, not a crash")
-	_check(HeroArt.state("pava") == "placeholder", "Пава falls back to the class emblem")
+	# Every hero has a painted splash now (Пава's landed 2026-10-08); the fallback is checked on a champion whose
+	# art has not landed yet (the first one without a folder), so the test follows the assets.
+	_check(HeroArt.state("pava") == "splash", "Пава has her splash")
+	var no_art := ""
+	for cid: String in ChampionData.CHAMPION_ORDER:
+		if not ResourceLoader.exists("res://assets/heroes/%s/splash.png" % cid) and not ResourceLoader.exists("res://assets/heroes/%s/card.png" % cid):
+			no_art = cid
+			break
+	_check(no_art == "" or HeroArt.state(no_art) == "placeholder", "%s falls back to the class emblem" % (no_art if no_art != "" else "(every champion has art)"))
 	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
