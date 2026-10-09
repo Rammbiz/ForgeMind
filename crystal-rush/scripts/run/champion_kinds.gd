@@ -89,7 +89,8 @@ const CLASS := {
 ## Per-champion twists (§6.11-6.27): fields the class rules read; a champion without a row (or a
 ## stats row passing `twist: {}`, the dev tools' bare template) runs the class template alone.
 ## Fields marked "knob" were tuned in LevelSim (scripts/dev/test_champion_twists.gd: the budget table,
-## §4.1 / §4.3 "twists are tuned inside +-3%" of the bare class template); the measured ratio follows.
+## §4.1 / §4.3 "twists are tuned inside +-3%" of the bare class template); the measured ratio follows
+## (Руді + Мейра, levels 15-112 step 4, pooled, unless a hero is named).
 ## Counts, radii and durations never scale. Statuses, holds, groundings, reveals and Дара's tether are
 ## not simulated (or never met: squads stand > 4 u apart in LevelGen levels), so those twists measure
 ## 1.000; Іво, Отто and Менгір cannot reach the band through their own fields (kept at the sheet).
@@ -116,7 +117,7 @@ const TWISTS := {
 	# §6.11 Міла — Тонік: a returning pulse MARKs the nearest squad <= 12 u for 3 s (reveals Phantom).
 	"mila": {"pulse_status": "mark", "pulse_s": 3.0, "pulse_reach": 12.0, "pulse_fx": &"tonic"},
 	# §6.12 Іво — Жар: the blocked barricade takes 3 x power (his Action) and burns; BURN at each clash start.
-	# Budget 1.117 (miss): the barricade damage is his generated Action; ~1.5 x power would land +2.9%.
+	# Budget 1.109 (miss): the barricade damage is his generated Action; ~1.5 x power lands 1.029 (bolt).
 	"ivo": {"behind": 1.0, "bar_fx": &"brazier", "fight_status": "burn", "fight_every": 0.0, "fight_s": 3.0,
 			"fight_fx": &"brazier"},
 	# §6.13 Борко — Підкоп: the leap is a burrow (never Flying) that erupts with STAGGER.
@@ -124,8 +125,8 @@ const TWISTS := {
 	# §6.14 Альба — Крижана стріла: x1.5 vs Flying, 16 u vs Flying, prefers Flying, CHILL (proc 0.5) at II.
 	"alba": {"flying_mult": 1.5, "flying_range": 16.0, "prefer_flying": true, "status_at": [2]},
 	# §6.15 Отто — Панцир-фортеця: at a clash start the first 2 ticks cost the army 0 (he takes them x0.5).
-	# Budget 10.79 (miss): one planted tick spares ceil(min(army, foe) / 14) soldiers (5-11 late), the
-	# template Block ~0.12 soldiers / s; 1 tick per 8 s is still x6.2.
+	# Budget 10.71 (miss): one planted tick spares ceil(min(army, foe) / 14) soldiers (5-11 late), the
+	# template Block ~0.13 soldiers / s; 1 tick per 8 s is still x6.2, per 60 s x2.6 (bolt).
 	"otto": {"plant_ticks": 2, "plant_cd": 8.0, "plant_share": 0.5},
 	# §6.16 Тая — Пилок снів: squads hit are lulled 1.5 s (50% speed and clash damage; KindView.hold).
 	"taya": {"lull_s": 1.5},
@@ -135,14 +136,14 @@ const TWISTS := {
 	"teo": {"homing": true, "probe_every": 4, "probe_status": "mark", "probe_s": 3.0, "probe_reach": 14.0},
 	# §6.19 Олена — Морозний бальзам: a pulse CHILLs squads <= 2 u of the army front; returns are rimed.
 	"olena": {"pulse_status": "chill", "pulse_s": 1.5, "pulse_reach": 2.0, "pulse_back": 2.0, "pulse_all": true,
-			"pulse_fx": &"balm", "rime_cap": 1.0, "rime_per": 1.0},  # knob rime_cap 3 -> 1: 1.022 (3: 1.050)
+			"pulse_fx": &"balm", "rime_cap": 1.0, "rime_per": 1.0},  # knob rime_cap 3 -> 1: 1.024 (3: 1.050 bolt)
 	# §6.20 Німб — Громовідвід: every Block chains 3 hostiles <= 5 u (his Action each + JOLT); IV catch.
 	"nimb": {"behind": 1.0, "bar": 1.0, "rod_targets": 3, "rod_reach": 5.0, "rod_status": "jolt",
-			"catch_r": 1.3, "catch_cd": 5.0, "catch_tier": 4},  # knob catch_r 1.6 -> 1.3: 1.012 (1.6: 1.053)
+			"catch_r": 1.3, "catch_cd": 5.0, "catch_tier": 4},  # knob catch_r 1.6 -> 1.3: 1.014 (1.6: 1.053 bolt)
 	# §6.21 Дара — Гарпун-блискавка: every 3rd shot tethers its squad to the nearest other <= 4 u.
 	"dara": {"harpoon_every": 3, "tether_r": 4.0, "tether_share": 0.5, "tether_s": 3.0, "ground_s": 1.5},
 	# §6.22 Менгір — Рунне коло: the strike carves a circle; squads in it are Branded, -25% clash damage.
-	# Budget 2.396 (miss): the circle's squad is usually the next clash; even a 1% cut measures 1.056.
+	# Budget 2.571 (miss): the circle's squad is usually the next clash; even a 1% cut measures 1.056 (bolt).
 	"menhir": {"circle_s": 3.0, "circle_s_iv": 5.0, "circle_cut": 0.25, "brand_s": 3.0},
 	# §6.25 Тарас — Слово: the book hits the NEAREST squad; its pages cut on into the next squad <= 3 u.
 	"taras": {"target": &"nearest", "page_share": 0.5, "page_reach": 3.0},
@@ -155,8 +156,9 @@ const TWISTS := {
 	# §6.27 Довбуш — Бартка: instead of the leap, through the first 2 squads <= 6 u (his Action each +
 	# STAGGER), the most armoured first; it spins back to his hand (one squad in range: the return strikes it
 	# again, so a throw is always 2 x his Action, the sheet's budget); II + add_ii per squad and 7 u; III
-	# STAGGER <= 1 u of the path. Knob add_ii 0.5 -> 0.3: 1.013 (0.5: 1.069; no return: 0.793).
-	"dovbush": {"verb": &"bartka", "leap_targets": 2, "return": true, "reach": 6.0, "reach_ii": 7.0, "add_ii": 0.3,
+	# STAGGER <= 1 u of the path. Knob add_ii 0.5 -> 0.15: 1.007 (bolt 0.981, seer 1.033; 0.5: bolt 1.069;
+	# no return: bolt 0.793).
+	"dovbush": {"verb": &"bartka", "leap_targets": 2, "return": true, "reach": 6.0, "reach_ii": 7.0, "add_ii": 0.15,
 			"armored_first": true, "path_r_iii": 1.0},
 }
 
@@ -648,7 +650,8 @@ static func _mage(view: KindView, m: Dictionary, dt: float) -> void:
 		m["circ_d"] = cd0
 		m["circ_x"] = cx0
 		m["circ_r"] = rad
-		m["circ_left"] = float(tw.get("circle_s_iv", tw.get("circle_s", 3.0))) if tier >= 4 else float(tw.get("circle_s", 3.0))
+		var cs := float(tw.get("circle_s", 3.0))
+		m["circ_left"] = float(tw.get("circle_s_iv", cs)) if tier >= 4 else cs
 		m["circ_tick"] = 0.0
 		view.fx(TWIST_FX, {"id": m["id"], "twist": &"circle", "d": cd0, "x": cx0, "r": rad, "s": float(m["circ_left"])})
 		_circle_step(view, m, tw, 0.0)
@@ -893,7 +896,8 @@ static func _block_strike(view: KindView, m: Dictionary, tw: Dictionary, hazard_
 			var nid := int(near["id"])
 			m["kills"] = float(m["kills"]) + view.hit(nid, float(m["action"]), {"src": m["id"], "kind": &"charge"})
 			view.status(nid, StringName(str(tw.get("charge_status", m["status"]))), float(tw.get("charge_s", 3.0)))
-			view.fx(TWIST_FX, {"id": m["id"], "twist": &"charge", "target": nid, "d": float(near["d"]), "x": float(near["x"])})
+			view.fx(TWIST_FX, {"id": m["id"], "twist": &"charge", "target": nid, "d": float(near["d"]),
+					"x": float(near["x"])})
 		elif kind == &"barricade" and float(tw.get("charge_bar", 0.0)) > 0.0:
 			# No squad near: the charge goes off in the blocked barricade (charge_bar x his Action).
 			var cb := float(m["action"]) * float(tw["charge_bar"])
