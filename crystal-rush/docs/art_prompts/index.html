@@ -42,7 +42,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--f-body); fon
 h1, h2, h3, h4, h5 { font-family: var(--f-display); text-wrap: balance; line-height: 1.25; }
 h1 { font-size: 28px; font-weight: 800; margin: 8px 0 4px; }
 .lede { color: var(--ink-dim); margin: 0 0 18px; max-width: 62ch; }
-h2.sec { font-size: 21px; font-weight: 800; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gold); }
+h2.sec { scroll-margin-top: 64px; font-size: 21px; font-weight: 800; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gold); }
 code { font-family: var(--f-mono); font-size: 0.88em; background: var(--well); padding: 1px 5px; border-radius: 3px; word-break: break-word; }
 a { color: var(--gold-text); }
 
@@ -61,7 +61,7 @@ a { color: var(--gold-text); }
 .bkind { color: var(--ink-dim); font-size: 13px; white-space: nowrap; }
 .bstate { width: 18px; text-align: center; color: var(--ok); font-weight: 800; }
 
-details.char { background: var(--panel); border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent); margin-bottom: 8px; }
+details.char { scroll-margin-top: 64px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent); margin-bottom: 8px; }
 details.char > summary { cursor: pointer; list-style: none; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "mark name prog" "mark meta prog"; column-gap: 12px; align-items: center; padding: 12px 14px; }
 details.char > summary::-webkit-details-marker { display: none; }
 details.char > summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
@@ -89,7 +89,7 @@ th, td { border-bottom: 1px solid color-mix(in srgb, var(--gold) 50%, transparen
 th { font-weight: 700; color: var(--gold-text); white-space: nowrap; }
 hr { border: 0; border-top: 1px solid var(--gold); margin: 18px 0; }
 
-.prompt { background: var(--well); border-left: 2px solid var(--gem, var(--gold)); margin: 10px 0 16px; min-width: 0; }
+.prompt { scroll-margin-top: 64px; background: var(--well); border-left: 2px solid var(--gem, var(--gold)); margin: 10px 0 16px; min-width: 0; }
 .ptools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px; border-bottom: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
 .plabel { flex: 1 1 200px; font-weight: 700; font-size: 13.5px; min-width: 0; }
 .done { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; }
@@ -122,7 +122,7 @@ hr { border: 0; border-top: 1px solid var(--gold); margin: 18px 0; }
   <p class="lede">Усі 241 промтів для героїв, чемпіонів і спільних речей. Кожен промт повний: формат, роздільність, сірий фон <code>#BFBFBF</code>, порожній лівий верх, колір кристалів і список «уникати». Натисни «Копіювати» і встав у генератор без змін. Готові картинки просто надсилай у чат, перейменовувати не треба.</p>
 
   <nav class="bar" aria-label="Розділи">
-    <a href="#start">Почни тут</a><a href="#done">Готові</a><a href="#batchA">Партія A</a><a href="#heroes">Герої</a><a href="#champs">Чемпіони</a><a href="#shared">Спільне</a><a href="#guide">Як генерувати</a><a href="#order">Порядок</a>
+    <a href="#start" data-goto="start">Почни тут</a><a href="#done" data-goto="done">Готові</a><a href="#batchA" data-goto="batchA">Партія A</a><a href="#heroes" data-goto="heroes">Герої</a><a href="#champs" data-goto="champs">Чемпіони</a><a href="#shared" data-goto="shared">Спільне</a><a href="#guide" data-goto="guide">Як генерувати</a><a href="#order" data-goto="order">Порядок</a>
     <span class="total" id="total"></span>
   </nav>
 
@@ -5597,6 +5597,15 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
     el.scrollIntoView({ block: 'start' });
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
   }
+  // In-page navigation is done in script: some hosts (htmlpreview) rewrite plain #anchor links into
+  // links to the raw file, so a bare href would leave the page.
+  document.querySelectorAll('[data-goto]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var el = document.getElementById(a.getAttribute('data-goto'));
+      if (el) el.scrollIntoView({ block: 'start' });
+    });
+  });
   document.querySelectorAll('[data-open]').forEach(function (a) {
     a.addEventListener('click', function (e) {
       e.preventDefault();
