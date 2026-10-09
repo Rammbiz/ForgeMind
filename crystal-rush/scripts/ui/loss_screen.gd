@@ -429,7 +429,7 @@ class BridgeBar extends Control:
 			var fp := GemDraw.chamfer_rect(fr, 2.5)
 			var cols := PackedColorArray()
 			for p in fp:
-				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
+				cols.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
 			draw_polygon(fp, cols)
 			var ty := GemDraw.pixel_y(self, fr.position.y + 0.5)
 			draw_line(Vector2(fr.position.x + 1.0, ty), Vector2(fr.end.x - 1.0, ty), Color(1.0, 0.98, 0.9, 0.85), -1.0)
@@ -445,8 +445,15 @@ class BridgeBar extends Control:
 		Icons.draw_icon(self, "soldier", Rect2(Vector2(4, cy - 20), Vector2(40, 40)))
 		Icons.draw_icon(self, "fortress", Rect2(Vector2(size.x - 44, cy - 22), Vector2(42, 42)))
 		var mx := tr.position.x + fill
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(mx - 22, cy - 22), Vector2(44, 44)), false, Color(1.0, 0.8, 0.4, 0.7))
-		GemDraw.draw_gem(self, "cushion", Vector2(mx, cy), 24.0, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"))
+		if UITokens.calm_cta():
+			# Porcelain: the knob is a porcelain disc in one deep-gold ring with an ink diamond (no glow).
+			draw_circle(Vector2(mx, cy + 1.0), 12.0, Color(0.12, 0.13, 0.2, 0.18), true, -1.0, true)
+			draw_circle(Vector2(mx, cy), 12.0, UITokens.PAPER_0, true, -1.0, true)
+			draw_arc(Vector2(mx, cy), 12.0 - UIKit.px(0.5), 0, TAU, 40, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0), true)
+			GemDraw.draw_diamond(self, Vector2(mx, cy), 13.0, UITokens.KEY_INK, UITokens.KEY_GOLD)
+		else:
+			draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(mx - 22, cy - 22), Vector2(44, 44)), false, Color(1.0, 0.8, 0.4, 0.7))
+			GemDraw.draw_gem(self, "cushion", Vector2(mx, cy), 24.0, UITokens.TOPAZ, Color("#FFF0C2"), Color("#C2620E"))
 
 
 ## Stone Cache charge (v3.1): "Схованка 2/3" and three sapphire gem sockets (cut gems when

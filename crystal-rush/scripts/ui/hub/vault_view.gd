@@ -410,7 +410,7 @@ class PityBar extends VBoxContainer:
 		p.add_child(row)
 		var hard := float(EconData.PITY["leg_hard"])
 		var bar := UIKit.progress(hard - left, hard, 300.0, 8.0)
-		bar.fill_color = UITokens.TOPAZ
+		bar.fill_color = UITokens.bar_fill() if UITokens.calm_cta() else UITokens.TOPAZ
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		p.add_child(bar)
 		return p

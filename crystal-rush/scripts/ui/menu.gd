@@ -451,10 +451,10 @@ class LevelPips extends Control:
 			if i < level:
 				var cols := PackedColorArray()
 				for q in pts:
-					cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (q.y - r.position.y) / maxf(r.size.y, 1.0)))
+					cols.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), (q.y - r.position.y) / maxf(r.size.y, 1.0)))
 				draw_polygon(pts, cols)
 				draw_line(r.position + Vector2(2, 1.0), Vector2(r.end.x - 2, r.position.y + 1.0), Color(1.0, 0.98, 0.9, 0.85), UIKit.px(1.0))
-				GemDraw.outline(self, pts, Color(UITokens.CTA_RIM.r, UITokens.CTA_RIM.g, UITokens.CTA_RIM.b, 0.6), lw)
+				GemDraw.outline(self, pts, Color(UITokens.KEY_GOLD, 0.8) if UITokens.calm_cta() else Color(UITokens.CTA_RIM.r, UITokens.CTA_RIM.g, UITokens.CTA_RIM.b, 0.6), lw)
 			else:
 				draw_colored_polygon(pts, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.5))
 				GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), lw)

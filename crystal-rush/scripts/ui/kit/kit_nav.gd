@@ -205,6 +205,10 @@ static func draw_wash(ci: CanvasItem, c: Vector2, k := 1.0) -> void:
 	if k <= 0.01:
 		return
 	var g := UIKit.glow_texture()
+	if UITokens.calm_cta():
+		# Porcelain: no warm gold-leaf halo; a faint neutral light core only.
+		ci.draw_texture_rect(g, Rect2(c - Vector2(28, 20), Vector2(56, 40)), false, Color(1, 1, 1, minf(UITokens.NAV_WASH_CORE_A * 0.6 * k, 1.0)))
+		return
 	var wc := UITokens.NAV_WASH
 	ci.draw_texture_rect(g, Rect2(c - Vector2(60, 40), Vector2(120, 80)), false, Color(wc.r, wc.g, wc.b, minf(UITokens.NAV_WASH_A * k, 1.0)))
 	ci.draw_texture_rect(g, Rect2(c - Vector2(28, 20), Vector2(56, 40)), false, Color(1, 1, 1, minf(UITokens.NAV_WASH_CORE_A * k, 1.0)))

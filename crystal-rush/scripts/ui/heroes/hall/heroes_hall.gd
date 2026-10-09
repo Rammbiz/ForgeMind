@@ -457,7 +457,7 @@ func _champion_level_row() -> Control:
 	var at_cap := lv >= cap and cap < int(cl["max"])
 	var head := UIKit.label(HeroesText.t("CHAMP_UI_SHARED_LEVEL", [lv, cap]), 24, UITokens.INK, true)
 	col.add_child(head)
-	var bar := HeroEngravedBar.make("L", lv, cap, 420)
+	var bar := HeroEngravedBar.make(HeroEngravedBar.neutral(), lv, cap, 420)
 	bar.tick_every = 1
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(bar)

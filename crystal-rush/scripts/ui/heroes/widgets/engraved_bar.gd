@@ -87,7 +87,14 @@ static func fill_color(g: String) -> Color:
 		"E": return Color("#9B5BEA")
 		"L": return Color("#FFB52E")
 		"M": return Color("#B48CFF")
-	return UITokens.CTA
+		"N": return UITokens.BAR_INK
+	return UITokens.bar_fill()
+
+
+## "N" = the neutral bar (Champion Level, the pity countdown): ink navy with a deep-gold cap tick
+## under the porcelain key style (amber only under --cta=amber).
+static func neutral() -> String:
+	return "N" if UITokens.calm_cta() else "L"
 
 
 func _draw() -> void:
@@ -129,11 +136,17 @@ func _draw() -> void:
 				var i0 := int(floor(tx))
 				# The pastel spectrum, a step deeper so it reads on the cream track.
 				base = (fl[i0] as Color).lerp(fl[mini(i0 + 1, fl.size() - 1)], tx - i0).darkened(0.16)
-			cols.append(base.lightened(0.18).lerp(base.darkened(0.04), ty))
+			if gl == "N":
+				cols.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), ty))
+			else:
+				cols.append(base.lightened(0.18).lerp(base.darkened(0.04), ty))
 		draw_polygon(fp, cols)
 		if fr.size.y >= 5.0:
 			var ly := GemDraw.pixel_y(self, fr.position.y + 1.0)
-			draw_line(Vector2(fr.position.x + tch, ly), Vector2(fr.end.x - tch, ly), Color(1, 0.98, 0.92, 0.6), -1.0)
+			draw_line(Vector2(fr.position.x + tch, ly), Vector2(fr.end.x - tch, ly), Color(1, 0.98, 0.92, 0.22 if gl == "N" else 0.6), -1.0)
+		if gl == "N" and frac < 0.999:
+			var cx := roundf(fr.end.x) - UIKit.px(0.5)
+			draw_line(Vector2(cx, fr.position.y), Vector2(cx, fr.end.y), UITokens.LINE_GOLD_DEEP, UIKit.px(1.0))
 	# Facet notches: 1 dpx light cuts across the fill, hairline cuts across the empty track.
 	var tk: Array = ticks.duplicate()
 	if tick_every > 0.0 and max_value / tick_every <= 40.0:
@@ -150,7 +163,10 @@ func _draw() -> void:
 		draw_line(Vector2(x, cy - nh), Vector2(x, cy + nh), Color(1, 1, 1, 0.7) if on else HeroV3.a(UITokens.HAIRLINE, 0.6), lw)
 	HeroV3.frame(self, pts, HeroV3.a(UITokens.HAIRLINE, 0.8))
 	if frac >= 0.999:
-		GemDraw.draw_diamond(self, Vector2(r.end.x, cy), 9.0, fill_color(gem), fill_color(gem).darkened(0.35))
+		if HeroesText.gem_letter(gem) == "N":
+			GemDraw.draw_diamond(self, Vector2(r.end.x, cy), 9.0, UITokens.KEY_INK, UITokens.KEY_GOLD)
+		else:
+			GemDraw.draw_diamond(self, Vector2(r.end.x, cy), 9.0, fill_color(gem), fill_color(gem).darkened(0.35))
 	if marker >= 0.0:
 		# The keystone is SEATED on the bar: a 1 dpx deep-gold notch through the channel and a 7 px
 		# diamond centred on the frame's top line (never floating above it as a stray glyph).

@@ -94,6 +94,12 @@ var ult_style := false:
 	set(v):
 		ult_style = v
 		_wake()
+## On the Portal night: an ink-glass disc with one 1 dpx grey-blue ring and a warm-white icon, so
+## the porcelain key button stays the one light, filled control on the dark screen.
+var night := false:
+	set(v):
+		night = v
+		_wake()
 var _press_scale := 1.0
 var _down := false
 var _touch := -1                # finger index holding the button, -1 none
@@ -240,7 +246,12 @@ func _draw() -> void:
 	var ring := UITokens.HAIRLINE if ring_color == UIKit.GOLD else ring_color
 	if disabled:
 		ring = Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5)
-	if tex:
+	if night:
+		var ng := UITokens.NIGHT_GLASS_DOWN if _down else UITokens.NIGHT_GLASS
+		draw_circle(c, r, ng, true, -1.0, true)
+		var nl := UITokens.NIGHT_LINE
+		draw_arc(c, r - UIKit.px(0.5), 0, TAU, 72, Color(nl.r, nl.g, nl.b, nl.a * dim), UIKit.line_px(1.0), true)
+	elif tex:
 		draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(dim, dim, dim, 1.0))
 	else:
 		var face := UITokens.PAPER_0 if not disabled else UITokens.PAPER_3
@@ -251,10 +262,12 @@ func _draw() -> void:
 	if armed:
 		draw_arc(c, r + 4.0, 0, TAU, 72, Color(UIKit.PLUS.r, UIKit.PLUS.g, UIKit.PLUS.b, 0.8), UIKit.line_px(1.5), true)
 	if highlight and not armed:
-		draw_arc(c, r + 3.0, 0, TAU, 72, Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.95), UIKit.line_px(1.5), true)
+		# "Ready": one static 1.5 dpx ring in the key line (deep gold; amber only under --cta=amber).
+		var kl := UITokens.key_line()
+		draw_arc(c, r + 3.0, 0, TAU, 72, Color(kl.r, kl.g, kl.b, 0.95), UIKit.line_px(1.5), true)
 	if progress >= 0.0:
-		# A 2 dpx amber arc on a 1 dpx gold track.
-		var pc := progress_color if progress_color != UIKit.GOLD else UITokens.CTA_LO
+		# A 2 dpx key-line arc on a 1 dpx gold track.
+		var pc := progress_color if progress_color != UIKit.GOLD else UITokens.key_line()
 		var hl := UITokens.HAIRLINE
 		draw_arc(c, r + 4.0, 0, TAU, 72, Color(hl.r, hl.g, hl.b, 0.8), UIKit.line_px(1.0), true)
 		draw_arc(c, r + 4.0, -PI / 2, -PI / 2 + TAU * clampf(progress, 0.0, 1.0), 72, pc, UIKit.line_px(2.0), true)
@@ -270,6 +283,8 @@ func _draw() -> void:
 		var col := icon_tint
 		if icon_tint == Color.WHITE:
 			col = UITokens.INK if KitIcons.has_line(icon_kind) else Color.WHITE
+			if night:
+				col = UITokens.ON_SCENE
 		Icons.draw_icon(self, icon_kind, icon_rect.grow(-icon_size * 0.04), Color(col.r, col.g, col.b, col.a * (0.55 if disabled else 1.0)))
 	_draw_badge(c, r)
 	_draw_caption(c, r, dim)
@@ -319,15 +334,19 @@ func _draw_badge(c: Vector2, r: float) -> void:
 	var sc := UITokens.SCRIM
 	var cream := Color(1, 0.98, 0.92, 0.95)
 	draw_texture_rect(UIKit.glow_texture(), Rect2(bc - Vector2(br, 14.0) * 1.4 + Vector2(0, 1.5), Vector2(br, 14.0) * 2.8), false, Color(sc.r, sc.g, sc.b, 0.14))
+	# Porcelain: an ink disc with ONE 1 dpx gold ring and a cream glyph (no amber on the key path).
+	var calm := UITokens.calm_cta()
+	var fill := UITokens.KEY_INK if calm else UITokens.NAV_BADGE
+	var edge := UITokens.KEY_GOLD if calm else cream
 	if badge.length() > 1:
 		var rr := Rect2(bc - Vector2(br, 14.0), Vector2(br * 2.0, 28.0))
 		var pts := GemDraw.chamfer_rect(rr, 6.0)
-		draw_colored_polygon(pts, UITokens.NAV_BADGE)
-		GemDraw.outline(self, pts, cream, UIKit.line_px(1.0))
+		draw_colored_polygon(pts, fill)
+		GemDraw.outline(self, pts, edge, UIKit.line_px(1.0))
 	else:
-		draw_circle(bc, 14.0, UITokens.NAV_BADGE, true, -1.0, true)
-		draw_arc(bc, 14.0 - UIKit.px(0.5), 0, TAU, 40, cream, UIKit.line_px(1.0), true)
-	draw_string(f, Vector2(bc.x - bw * 0.5, bc.y + f.get_ascent(bs) * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, UIKit.BROWN)
+		draw_circle(bc, 14.0, fill, true, -1.0, true)
+		draw_arc(bc, 14.0 - UIKit.px(0.5), 0, TAU, 40, edge, UIKit.line_px(1.0), true)
+	draw_string(f, Vector2(bc.x - bw * 0.5, bc.y + f.get_ascent(bs) * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, UITokens.PAPER_0 if calm else UIKit.BROWN)
 
 
 func _draw_caption(c: Vector2, r: float, dim: float) -> void:
@@ -364,12 +383,17 @@ func _draw_ult() -> void:
 	var r := radius * s
 	var gc := ready_color if ready else glow_color
 	var sc := UITokens.SCRIM
+	# Porcelain: the ult's ready state is the key action of the run, so it speaks the key-button
+	# language: no warm glow halo, no amber; two thin key-gold rings travel out (motion, not heat).
+	var calm := UITokens.calm_cta()
 	if ready:
 		var k := 0.6 + 0.4 * sin(_t * 5.0)
-		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 2.2, Vector2(r, r) * 4.4), false, Color(1.0, 0.78, 0.38, 0.5 + 0.2 * k))
+		if not calm:
+			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 2.2, Vector2(r, r) * 4.4), false, Color(1.0, 0.78, 0.38, 0.5 + 0.2 * k))
 		for w in 2:
 			var wave := fmod(_t * 0.8 + w * 0.5, 1.0)
-			draw_arc(c, r + 12.0 + wave * 30.0, 0, TAU, 64, Color(1.0, 0.86, 0.52, 0.7 * (1.0 - wave)), 2.5 * (1.0 - wave) + 0.8, true)
+			var wc := Color(UITokens.KEY_GOLD.r, UITokens.KEY_GOLD.g, UITokens.KEY_GOLD.b, 0.8 * (1.0 - wave)) if calm else Color(1.0, 0.86, 0.52, 0.7 * (1.0 - wave))
+			draw_arc(c, r + 12.0 + wave * 30.0, 0, TAU, 64, wc, (1.5 if calm else 2.5) * (1.0 - wave) + 0.8, true)
 	if _pop > 0.0:
 		draw_arc(c, r + 8.0 + (1.0 - _pop) * 64.0, 0, TAU, 64, Color(1, 0.97, 0.88, _pop * 0.9), 5.0 * _pop + 1.0, true)
 	# v3.1 (§7.10): one glow shadow (a halo, not stacked discs), a 4 px glass charge track inside
@@ -386,9 +410,13 @@ func _draw_ult() -> void:
 			var t0 := float(i) / segs
 			var t1 := float(i + 1) / segs
 			var col := UITokens.CTA_LO.lerp(UITokens.CTA_HI, t1 * p)
+			if calm:
+				col = UITokens.LINE_GOLD_DEEP.lerp(UITokens.KEY_GOLD, t1 * p)
+				col.a = 1.0
 			if ready:
 				var ang := fposmod(t0 * TAU - _t * 2.6, TAU)
-				col = UITokens.CTA.lerp(Color(1, 0.98, 0.9), clampf(1.0 - ang / 1.3, 0.0, 1.0) * 0.8)
+				var base := UITokens.KEY_GOLD if calm else UITokens.CTA
+				col = base.lerp(Color(1, 0.98, 0.9), clampf(1.0 - ang / 1.3, 0.0, 1.0) * 0.8)
 			draw_arc(c, ring_r, a0 + TAU * p * t0, a0 + TAU * p * t1 + 0.012, 3, col, 4.0, true)
 		if not ready:
 			var head := c + Vector2(cos(a0 + TAU * p), sin(a0 + TAU * p)) * ring_r
@@ -397,14 +425,15 @@ func _draw_ult() -> void:
 	var face := r - 2.0
 	draw_circle(c, face, UITokens.PAPER_0, true, -1.0, true)
 	draw_arc(c, r - UIKit.px(0.75), 0, TAU, 96, Color("#B98A3E"), UIKit.line_px(1.5), true)
-	draw_circle(c + Vector2(0, face * 0.25), face * 0.8, Color(1.0, 0.86, 0.6, 0.22 if ready else 0.12), true, -1.0, true)
+	if not calm:
+		draw_circle(c + Vector2(0, face * 0.25), face * 0.8, Color(1.0, 0.86, 0.6, 0.22 if ready else 0.12), true, -1.0, true)
 	var gray := 1.0 if ready else 0.66
 	if icon_texture:
 		_draw_disc_texture(icon_texture, c, face, Color(gray, gray, gray * 1.02, 1.0), 1.06, Vector2(0, -0.04))
 	elif icon_kind != "":
 		var isz := face * 1.2
 		Icons.draw_icon(self, icon_kind, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), Color(gray, gray, gray, 1.0) * icon_tint)
-	if not ready and progress >= 0.0:
+	if not ready and progress >= 0.0 and not calm:
 		var h := clampf(1.0 - 2.0 * _shown_progress, -0.97, 0.97)
 		if h < 0.95:
 			var a0 := asin(h)
@@ -422,7 +451,7 @@ func _draw_ult() -> void:
 				pts.append(c + Vector2(x, h * face + wave))
 			draw_colored_polygon(pts, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.22))
 	draw_arc(c, face - 0.5, 0, TAU, 64, Color(1, 1, 1, 0.5), UIKit.px(1.0), true)
-	if ready:
+	if ready and not calm:
 		var spk := UIKit.sparkle_texture()
 		for i in 2:
 			var a := _t * 1.6 + PI * i
@@ -438,18 +467,32 @@ func _draw_ult() -> void:
 		draw_arc(bc, br - UIKit.px(0.5), 0, TAU, 48, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.0), true)
 		var isz2 := br * 1.5
 		# Ink glyph on cream (CTA rim amber when ready), never white on cream.
-		Icons.draw_icon(self, badge_icon, Rect2(bc - Vector2(isz2, isz2) * 0.5, Vector2(isz2, isz2)), UITokens.CTA_RIM if ready else Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.75))
+		Icons.draw_icon(self, badge_icon, Rect2(bc - Vector2(isz2, isz2) * 0.5, Vector2(isz2, isz2)), (UITokens.KEY_INK if calm else UITokens.CTA_RIM) if ready else Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.75))
 	# Caption chip under the button: amber when ready, porcelain while charging.
 	if caption != "":
 		var f := UIKit.font_w("bold")
 		var fs := 22
 		var tw := f.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var chip := Rect2(Vector2(c.x - tw * 0.5 - 14.0, c.y + r - 6.0), Vector2(tw + 28.0, 32.0))
-		if ready:
+		if ready and calm:
+			# A mini porcelain chip: white enamel, ONE 1 dpx deep-gold rim, a 1 dpx slate contact
+			# shadow, the ink Bold label (the key button in small).
+			var pts := GemDraw.chamfer_rect(chip, 6.0)
+			var d1 := UIKit.px(1.0)
+			var sh := PackedVector2Array()
+			for q in pts:
+				sh.append(q + Vector2(0, d1 * 1.5))
+			draw_colored_polygon(sh, Color(0.12, 0.13, 0.2, 0.22))
+			var cols := PackedColorArray()
+			for q in pts:
+				cols.append(Color("#FFFDF8").lerp(Color("#F1E9DA"), clampf((q.y - chip.position.y) / chip.size.y, 0.0, 1.0)))
+			draw_polygon(pts, cols)
+			GemDraw.outline(self, pts, Color("#9A7436"), UIKit.line_px(1.0))
+		elif ready:
 			var pts := GemDraw.chamfer_rect(chip, 6.0)
 			draw_colored_polygon(pts, UITokens.CTA)
 			GemDraw.outline(self, pts, Color(UITokens.CTA_RIM.r, UITokens.CTA_RIM.g, UITokens.CTA_RIM.b, 0.7), UIKit.line_px(1.0))
 		else:
 			draw_style_box(UIKit.lux("chip", Vector2.ZERO), chip)
-		var tc := UIKit.CTA_TEXT if ready else UITokens.INK
+		var tc := (UITokens.KEY_LABEL_DARK if calm else UIKit.CTA_TEXT) if ready else UITokens.INK
 		draw_string(f, Vector2(c.x - tw * 0.5, chip.position.y + 23.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, tc)

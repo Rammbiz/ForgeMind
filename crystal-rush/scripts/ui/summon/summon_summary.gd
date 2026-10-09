@@ -106,7 +106,7 @@ func _ready() -> void:
 	_seal_row = UIKit.label(HeroesText.t("SUMMON_SEALS_ADD", [gained, int(after.get("seals", 0)), int(tgt["price"])]), 24, UITokens.INK, true)
 	_seal_row.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	srow.add_child(_seal_row)
-	_pity = HeroEngravedBar.make("L", float(before.get("since_l", 0)), float(after.get("pity_l_hard", 30)), 600)
+	_pity = HeroEngravedBar.make(HeroEngravedBar.neutral(), float(before.get("since_l", 0)), float(after.get("pity_l_hard", 30)), 600)
 	_pity.tick_every = 1.0
 	_pity.marker = float(after.get("pity_l_soft", 21)) - 1.0
 	_pity.label = HeroesText.t("PORTAL_PITY_L", [int(after.get("pity_l_left", 30))])

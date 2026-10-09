@@ -108,7 +108,8 @@ const NAV_WASH := Color("#F1D99A") ## gold-leaf wash behind the active glyph (a 
 const NAV_WASH_A := 0.50           ## wash alpha (white core NAV_WASH_CORE_A): visible at arm's length (MF-1)
 const NAV_WASH_CORE_A := 0.40
 const NAV_DUOTONE := 0.40          ## active glyph duotone fill share
-const NAV_LABEL_ON := Color("#80470A") ## active nav label: clear burnt amber (6.4:1 typical, AA-safe at 540)
+const NAV_LABEL_ON := Color("#80470A") ## active nav label (amber dev style): burnt amber (6.4:1 typical)
+const NAV_LABEL_ON_CALM := Color("#2C3158") ## active nav label (porcelain): KEY_INK, >= 9:1 on the frost
 const NAV_PLAY_QUIET := 0.72       ## inactive Play topaz value (the active tab must outweigh it, MF-2)
 const NAV_PLAY_QUIET_A := 0.85     ## ... its alpha; the inactive ring sits at 0.70
 const NAV_BADGE := Color("#E3922C") ## 9 px amber diamond badge
@@ -149,6 +150,15 @@ const KEY_INK := Color("#2C3158")      ## ink enamel, top
 const KEY_INK_LO := Color("#252A4D")   ## ink enamel, bottom (a ~3 % step, nearly flat)
 const KEY_GOLD := Color("#C9AE78")     ## the one muted gold hairline of the calm key button
 const KEY_LABEL_DARK := Color("#2B2440")  ## ink label on porcelain / the calm Victory title
+## Porcelain pass 2 (critic: amber stayed on the key-action path): neutral progress fills are an
+## ink-navy bar with a 1 dpx deep-gold cap tick; marks that were topaz on the key path are ink set
+## in gold; walked ladder pips are pale gold; controls on the Portal night are ink glass.
+const BAR_INK := Color("#2B2F5A")      ## neutral progress fill, top
+const BAR_INK_LO := Color("#1E2140")   ## ... bottom
+const PIP_WALKED := Color("#E2C68A")   ## a walked ladder pip (pale gold facet, no topaz)
+const NIGHT_GLASS := Color(0.173, 0.192, 0.345, 0.58)   ## KEY_INK @ 0.58: a control on the Portal night
+const NIGHT_GLASS_DOWN := Color(0.118, 0.129, 0.25, 0.74)
+const NIGHT_LINE := Color(0.62, 0.67, 0.80, 0.70)       ## grey-blue 1 dpx line of a night control
 const TOPAZ_HI := Color("#FFC860")
 ## States.
 const PLUS := Color("#2F7322")     ## stat increase on cream (5:1)
@@ -215,6 +225,38 @@ static func calm_cta() -> bool:
 ## The accent of the key-action path: the calm deep gold line (amber only under --cta=amber).
 static func key_line() -> Color:
 	return LINE_GOLD_DEEP if calm_cta() else CTA_LO
+
+
+## Neutral progress fill (top / bottom): ink navy under the calm key styles, amber otherwise.
+static func bar_hi() -> Color:
+	return BAR_INK.lightened(0.10) if calm_cta() else CTA_HI
+
+
+static func bar_lo() -> Color:
+	return BAR_INK_LO if calm_cta() else CTA_LO
+
+
+static func bar_fill() -> Color:
+	return BAR_INK if calm_cta() else CTA
+
+
+## The small mark of a full bar / a key ladder step: ink set in gold (calm), topaz otherwise.
+static func key_gem() -> Color:
+	return KEY_INK if calm_cta() else TOPAZ
+
+
+static func key_gem_edge() -> Color:
+	return KEY_GOLD if calm_cta() else Color("#A8662A")
+
+
+## Label ink of the NEW tag (cream on the ink tag under porcelain, brown on the amber tag).
+static func new_ink() -> Color:
+	return PAPER_0 if calm_cta() else NEW_INK
+
+
+## A walked (lit) step of a ladder track.
+static func pip_walked() -> Color:
+	return PIP_WALKED if calm_cta() else CTA
 
 
 ## Gem key ("quartz".."opal") of a rarity letter ("C".."M") or a gem key passed through.

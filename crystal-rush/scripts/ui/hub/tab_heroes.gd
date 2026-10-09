@@ -890,7 +890,7 @@ class _Milestones extends Control:
 		draw_line(Vector2(x0, y), Vector2(x1, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
 		var xl := lerpf(x0, x1, clampf(float(lvl - 1) / (mx - 1.0), 0.0, 1.0))
 		if lvl > 1:
-			draw_line(Vector2(x0, y), Vector2(xl, y), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5))
+			draw_line(Vector2(x0, y), Vector2(xl, y), Color(UITokens.key_line(), 0.9), UIKit.line_px(1.5))
 		GemDraw.draw_marquise(self, Vector2(x0 - 4.0, y), Vector2(-1, 0), 10.0)
 		GemDraw.draw_marquise(self, Vector2(x1 + 4.0, y), Vector2(1, 0), 10.0)
 		var marks: Array = []
@@ -915,7 +915,7 @@ class _Milestones extends Control:
 			var p := Vector2(x, y)
 			if live:
 				draw_circle(p, 13.0, UITokens.PAPER_1)
-				GemDraw.draw_pip(self, p, 22.0, done, UITokens.TOPAZ)
+				GemDraw.draw_pip(self, p, 22.0, done, UITokens.key_gem())
 			else:
 				draw_circle(p, 11.0, UITokens.PAPER_1)
 				GemDraw.draw_keystone(self, p, 16.0, 0.55)

@@ -73,6 +73,10 @@ class CardArt extends Control:
 		draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.16))
 		var top: Color = g["top"]
 		var bot: Color = g["bot"]
+		if UITokens.calm_cta() and UITokens.gem_of(gem) == "topaz":
+			# Porcelain: the topaz portrait ground is a muted champagne-bronze, not an orange gradient.
+			top = Color("#9C8667")
+			bot = Color("#E4D3B0")
 		if dim:
 			top = top.lerp(UITokens.PAPER_3, 0.6)
 			bot = bot.lerp(UITokens.PAPER_3, 0.6)

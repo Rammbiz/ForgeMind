@@ -66,14 +66,16 @@ func _draw_badge(c: Vector2, r: float) -> void:
 	var tex := UIKit.kit_texture("badge_notify")
 	var sc := UITokens.SCRIM
 	draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.4 + Vector2(0, 1.5), Vector2(r, r) * 2.8), false, Color(sc.r, sc.g, sc.b, 0.14))
-	if tex:
+	# Porcelain: an ink disc with ONE 1 dpx gold ring and a cream glyph (no amber on the key path).
+	var calm := UITokens.calm_cta()
+	if tex and not calm:
 		draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), false)
 	else:
-		draw_circle(c, r, UITokens.NAV_BADGE, true, -1.0, true)
-		draw_arc(c, r - UIKit.px(0.5), 0, TAU, 40, Color(1, 0.98, 0.92, 0.95), UIKit.line_px(1.0), true)
+		draw_circle(c, r, UITokens.KEY_INK if calm else UITokens.NAV_BADGE, true, -1.0, true)
+		draw_arc(c, r - UIKit.px(0.5), 0, TAU, 40, UITokens.KEY_GOLD if calm else Color(1, 0.98, 0.92, 0.95), UIKit.line_px(1.0), true)
 	var f := UIKit.font_w("extrabold")
 	var fs := int(r * 1.25)
 	if badge_text.length() > 1:
 		fs = int(r * 1.0)
 	var tw := f.get_string_size(badge_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	draw_string(f, Vector2(c.x - tw * 0.5, c.y + f.get_ascent(fs) * 0.36 + 0.5), badge_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.BROWN)
+	draw_string(f, Vector2(c.x - tw * 0.5, c.y + f.get_ascent(fs) * 0.36 + 0.5), badge_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.PAPER_0 if calm else UIKit.BROWN)

@@ -118,7 +118,7 @@ func _build() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	_panel.add_child(col)
-	_pity = HeroEngravedBar.make("L", 0, 30, 600)
+	_pity = HeroEngravedBar.make(HeroEngravedBar.neutral(), 0, 30, 600)
 	_pity.tick_every = 1.0
 	col.add_child(_pity)
 	var srow := HBoxContainer.new()
@@ -159,7 +159,9 @@ func _build() -> void:
 	_root.add_child(_chips)
 	for c: Array in [["PORTAL_FOCUS", "target", "focus"], ["PORTAL_HISTORY", "calendar", "history"], ["PORTAL_ODDS", "odds", "odds"]]:
 		var chip := HeroChip.make(HeroesText.t(str(c[0])), str(c[1]))
-		chip.on_art = true
+		# Porcelain: on the night the chips are ink glass too (porcelain is the one light shape).
+		chip.on_night = UITokens.calm_cta()
+		chip.on_art = not chip.on_night
 		var which := str(c[2])
 		chip.pressed.connect(func(): open_sheet(which))
 		_chips.add_child(chip)
@@ -184,6 +186,7 @@ func _build() -> void:
 	_root.add_child(_dock)
 	# v3.1 (§7.9): back is a glass edge disc with one 1 dpx ring.
 	_back = UIKit.edge_button("back", 38.0)
+	(_back as RoundButton).night = UITokens.calm_cta()
 	_back.pressed.connect(close)
 	_dock.add_child(_back)
 
@@ -203,10 +206,9 @@ func _summon_button(count: int, amber: bool, can: bool, cost: int, have: int, we
 		# line, warm-white text, like the summary's «Готово»). The kit's 0.5 secondary glass turns
 		# a grey slab over the night with ink at ~3:1; the ghost keeps ~6:1 and leaves porcelain
 		# the one filled button. Disabled: the same ghost, the text at 0.55.
-		b = UIKit.ghost_button(label + "\n" + sub, Vector2(160, 104), 24, true)
-		b.add_theme_stylebox_override("disabled", UIKit.lux("ghost"))
-		var dc := UITokens.ON_SCENE
-		b.add_theme_color_override("font_disabled_color", Color(dc.r, dc.g, dc.b, 0.55))
+		# Pass 2: ink glass (KEY_INK @ 0.58) with one grey-blue line: the warm-white label keeps
+		# >= 7:1 on any sky (the 0.16 white ghost over the old warm horizon measured 3.8:1).
+		b = UIKit.night_button(label + "\n" + sub, Vector2(160, 104), 24)
 	else:
 		b = UIKit.button(label + "\n" + sub, false, 160)
 		b.add_theme_font_size_override("font_size", 24)
@@ -244,7 +246,7 @@ func refresh() -> void:
 	for id in pool:
 		_pool_row.add_child(_pool_cell(str(id), float(pct.get(str(id), 0.0)), _first_of(str(id), pool)))
 	# Pity: one bar, Topaz-or-better countdown; the Amethyst+ countdown engraved on the right.
-	_pity.gem = "L"
+	_pity.gem = HeroEngravedBar.neutral()
 	_pity.max_value = float(ps["pity_l_hard"])
 	_pity.value = float(ps["since_l"])
 	_pity.marker = float(ps["pity_l_soft"]) - 1.0

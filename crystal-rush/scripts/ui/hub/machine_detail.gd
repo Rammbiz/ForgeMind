@@ -960,19 +960,19 @@ class BpBar extends Control:
 		if kw > k:
 			# The Wild share: pale amber (never another rarity's colour).
 			var wr := Rect2(r.position, Vector2(maxf(r.size.x * kw, ch * 2.0), bh))
-			draw_colored_polygon(GemDraw.chamfer_rect(wr, ch), Color(UITokens.CTA_HI.r, UITokens.CTA_HI.g, UITokens.CTA_HI.b, 0.7))
+			draw_colored_polygon(GemDraw.chamfer_rect(wr, ch), Color(UITokens.PIP_WALKED, 0.85) if UITokens.calm_cta() else Color(UITokens.CTA_HI.r, UITokens.CTA_HI.g, UITokens.CTA_HI.b, 0.7))
 		if k > 0.0:
 			var fr := Rect2(r.position, Vector2(maxf(r.size.x * k, ch * 2.0), bh))
 			var fp := GemDraw.chamfer_rect(fr, ch)
 			var cols := PackedColorArray()
 			for p in fp:
-				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (p.y - fr.position.y) / bh))
+				cols.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), (p.y - fr.position.y) / bh))
 			draw_polygon(fp, cols)
 			var ly := GemDraw.pixel_y(self, fr.position.y + 1.5)
 			draw_line(Vector2(fr.position.x + ch, ly), Vector2(fr.end.x - ch, ly), Color(1.0, 0.98, 0.9, 0.85), UIKit.px(1.0))
 		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
 		if k >= 0.999:
-			GemDraw.draw_diamond(self, Vector2(r.end.x + 2.0, r.get_center().y), 11.0, UITokens.TOPAZ, UITokens.LINE_GOLD_DEEP)
+			GemDraw.draw_diamond(self, Vector2(r.end.x + 2.0, r.get_center().y), 11.0, UITokens.key_gem(), UITokens.LINE_GOLD_DEEP)
 		var x := r.end.x + 18.0
 		var y := roundf(size.y * 0.5 + (f.get_ascent(fs) - f.get_descent(fs)) * 0.5)
 		draw_string(f, Vector2(x, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
@@ -997,15 +997,15 @@ class BeatTrack extends Control:
 		GemDraw.draw_hairline(self, Vector2(x0 - 8, y), Vector2(x1 + 8, y), UITokens.HAIRLINE, 1.0, false)
 		var xl := lerpf(x0, x1, float(clampi(lvl, 1, n) - 1) / float(n - 1))
 		if lvl >= 1:
-			draw_line(Vector2(x0, y), Vector2(xl, y), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5))
+			draw_line(Vector2(x0, y), Vector2(xl, y), Color(UITokens.key_line(), 0.9), UIKit.line_px(1.5))
 		for l in range(1, n + 1):
 			var x := lerpf(x0, x1, float(l - 1) / float(n - 1))
 			var beat := Meta.beat_at(l)
 			var done := l <= lvl
 			if beat != "" and _live(beat):
-				GemDraw.draw_pip(self, Vector2(x, y), 22.0, done, UITokens.TOPAZ)
+				GemDraw.draw_pip(self, Vector2(x, y), 22.0, done, UITokens.key_gem())
 			else:
-				GemDraw.draw_pip(self, Vector2(x, y), 13.0, done, UITokens.CTA, 1.0 if beat == "" or done else 0.5)
+				GemDraw.draw_pip(self, Vector2(x, y), 13.0, done, UITokens.pip_walked(), 1.0 if beat == "" or done else 0.5)
 
 	static func _live(beat: String) -> bool:
 		match beat:
@@ -1033,8 +1033,8 @@ class _BeatNode extends Control:
 		var r := minf(size.x, size.y) * 0.5 - 1.0
 		match state:
 			"done":
-				draw_circle(c, r, UITokens.CTA_HI.lerp(Color.WHITE, 0.35))
-				draw_arc(c, r - UIKit.px(0.75), 0, TAU, 64, UITokens.CTA_LO, UIKit.line_px(1.5), true)
+				draw_circle(c, r, UITokens.PAPER_0 if UITokens.calm_cta() else UITokens.CTA_HI.lerp(Color.WHITE, 0.35))
+				draw_arc(c, r - UIKit.px(0.75), 0, TAU, 64, UITokens.key_line(), UIKit.line_px(1.5), true)
 			"next":
 				draw_circle(c, r, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.9))
 				draw_arc(c, r - UIKit.px(0.5), 0, TAU, 64, UITokens.HAIRLINE, UIKit.line_px(1.0), true)
@@ -1044,7 +1044,7 @@ class _BeatNode extends Control:
 		var isz := r * 1.15
 		var col := UITokens.INK if state != "off" else UITokens.INK_DIM
 		if state == "done":
-			col = UITokens.CTA_RIM
+			col = UITokens.KEY_INK if UITokens.calm_cta() else UITokens.CTA_RIM
 		Icons.draw_icon(self, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), col if KitIcons.has_line(icon) else Color(1, 1, 1, 1.0 if state != "off" else 0.5))
 
 
@@ -1074,7 +1074,7 @@ class TalentCard extends Control:
 		var locked := state == "locked"
 		draw_style_box(UIKit.lux("card_sel" if chosen else ("card_dim" if locked else "card")), r)
 		if state == "pick":
-			GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-UIKit.px(1.0)), 10.0), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.85), UIKit.line_px(1.5))
+			GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-UIKit.px(1.0)), 10.0), Color(UITokens.key_line(), 0.85), UIKit.line_px(1.5))
 		var name := Loc.t("TAL_" + talent.to_upper())
 		var desc := Loc.t("TAL_" + talent.to_upper() + "_DESC")
 		var fs := UIKit.fit_size(name, r.size.x - 64, 24, 22)
@@ -1085,9 +1085,10 @@ class TalentCard extends Control:
 			draw_string(fr, r.position + Vector2(16, 70 + i * 27), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIKit.INK_DIM)
 		var ic := Rect2(Vector2(r.end.x - 42, r.position.y + 12), Vector2(30, 30))
 		if chosen:
-			draw_circle(ic.get_center(), 15, UITokens.CTA)
-			draw_arc(ic.get_center(), 15, 0, TAU, 48, UITokens.CTA_RIM, UIKit.line_px(1.0), true)
-			Icons.line(self, "check", ic.grow(-6), UIKit.CTA_TEXT)
+			var calm := UITokens.calm_cta()
+			draw_circle(ic.get_center(), 15, UITokens.KEY_INK if calm else UITokens.CTA)
+			draw_arc(ic.get_center(), 15, 0, TAU, 48, UITokens.KEY_GOLD if calm else UITokens.CTA_RIM, UIKit.line_px(1.0), true)
+			Icons.line(self, "check", ic.grow(-6), UITokens.PAPER_0 if calm else UIKit.CTA_TEXT)
 		elif locked:
 			Icons.line(self, "lock", ic.grow(-4), UITokens.INK_DIM)
 

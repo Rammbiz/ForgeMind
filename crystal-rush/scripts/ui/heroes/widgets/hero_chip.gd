@@ -29,6 +29,9 @@ var visual_h := 56.0
 ## Over painted art (the Showcase dock): the inactive chip is real glass (0.84 with its 1 dpx
 ## gold line) instead of the frameless page chip, so its label keeps >= 4.5:1 on any art.
 var on_art := false
+## On the Portal night (porcelain): ink glass with one 1 dpx grey-blue line, warm-white label and
+## icon (never a light chip competing with the porcelain key button on the dark screen).
+var on_night := false
 
 
 static func make(p_label: String, p_icon := "", p_gem := "") -> HeroChip:
@@ -75,7 +78,11 @@ func _draw() -> void:
 	# deep-gold line and deep-gold ink (never an amber fill: amber is for the key verbs only).
 	var vr := Rect2(Vector2(0, (size.y - visual_h) * 0.5), Vector2(size.x, visual_h))
 	var down := is_pressed() or (button_pressed and toggle_mode)
-	if active:
+	if on_night and not active:
+		var pts := GemDraw.chamfer_rect(vr, UITokens.CHAMFER_XS)
+		draw_colored_polygon(pts, UITokens.NIGHT_GLASS_DOWN if down else UITokens.NIGHT_GLASS)
+		HeroV3.frame(self, pts, UITokens.NIGHT_LINE)
+	elif active:
 		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.94, HeroV3.DEEP, 0.9, 0.7)
 	elif on_art:
 		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.9 if down else 0.84, HeroV3.GOLD, 0.8, 0.62, 0.08,
@@ -90,7 +97,7 @@ func _draw() -> void:
 	var gapw := 10.0 if iw > 0.0 and tw > 0.0 else 0.0
 	var x := (size.x - (tw + iw + gapw)) * 0.5
 	var cy := vr.get_center().y
-	var ink := UITokens.GOLD_TEXT_GLASS if active else UITokens.INK
+	var ink := UITokens.GOLD_TEXT_GLASS if active else (UITokens.ON_SCENE if on_night else UITokens.INK)
 	if gem != "":
 		GemDraw.draw_mark(self, UITokens.gem_of(gem), Vector2(x + iw * 0.5, cy), iw * 0.78, 1.0 if active else 0.92)
 	elif icon_kind != "":

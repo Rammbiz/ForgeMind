@@ -294,10 +294,14 @@ func _draw() -> void:
 			if ov:
 				draw_texture_rect(ov, gr, false, Color(1, 1, 1, dim))
 			else:
-				KitIcons.nav(self, id, gr, col, UITokens.NAV_DUOTONE * on, UITokens.CTA_HI)
+				# Porcelain: the active glyph's duotone fill is a light key-gold wash, not CTA_HI.
+				if UITokens.calm_cta():
+					KitIcons.nav(self, id, gr, col, 0.25 * on, UITokens.KEY_GOLD)
+				else:
+					KitIcons.nav(self, id, gr, col, UITokens.NAV_DUOTONE * on, UITokens.CTA_HI)
 		var label := HomeText.t(LABELS[id])
 		var lw := _label_w(id, r)
-		var lc := UITokens.INK_DIM_GLASS.lerp(UITokens.NAV_LABEL_ON, on)
+		var lc := UITokens.INK_DIM_GLASS.lerp(UITokens.NAV_LABEL_ON_CALM if UITokens.calm_cta() else UITokens.NAV_LABEL_ON, on)
 		lc.a = 0.5 if locked else 1.0
 		draw_string(_lfont(), Vector2(roundf(cx - lw.x * 0.5), roundf(label_y)), label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lw.y), lc)
 		if locked:
@@ -342,6 +346,13 @@ func _draw_badge(id: String, at: Vector2) -> void:
 	if b == "" or is_locked(id):
 		return
 	var tex := UIKit.kit_texture("badge_gem")
+	if UITokens.calm_cta():
+		# Porcelain: a 9 px ink diamond with a gold edge on a cream keyline (no amber bitmap).
+		var hc := 4.5 + UIKit.px(1.0)
+		var wc := hc * 0.75
+		draw_colored_polygon(PackedVector2Array([at + Vector2(0, -hc - 1.0), at + Vector2(wc + 1.0, 0), at + Vector2(0, hc + 1.0), at + Vector2(-wc - 1.0, 0)]), Color(1.0, 0.98, 0.92, 0.95))
+		GemDraw.draw_diamond(self, at, 9.0, UITokens.KEY_INK, UITokens.KEY_GOLD)
+		return
 	if tex:
 		draw_texture_rect(tex, Rect2(at - Vector2(7, 7), Vector2(14, 14)), false)
 		return

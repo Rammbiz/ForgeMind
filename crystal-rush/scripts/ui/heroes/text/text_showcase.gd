@@ -13,6 +13,7 @@ const T := {
 	"SHOW_FROM_LEVEL": ["Приєднається після рівня\u00A0%d", "Joins after level\u00A0%d"],
 	"SHOW_FROM_CHEST": ["Скриня героїв: за перемоги", "Hero Chest: from wins"],
 	"SHOW_TO_PORTAL": ["До Порталу", "To the Portal"],
+	"SHOW_CTA_MANAGE": ["Керувати", "Manage"],
 	"SHOW_3D_NONE": ["3D-вигляд з’явиться разом із моделлю героя", "The 3D view arrives with the hero’s model"],
 	"SHOW_3D_NONE_SUB": ["Поки що — мальований портрет", "For now: the painted portrait"],
 	"SHOW_3D_HINT": ["Тягни, щоб обернути", "Drag to turn"],

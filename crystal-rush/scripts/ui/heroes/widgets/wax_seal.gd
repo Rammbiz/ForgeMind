@@ -68,7 +68,7 @@ func _draw() -> void:
 		var d := clampf(s * 0.42, 18.0, 30.0)
 		draw_circle(c, d * 0.62, HeroV3.a(UITokens.PAPER_0, 0.9), true, -1.0, true)
 		draw_arc(c, d * 0.62, 0, TAU, 40, HeroV3.a(HeroV3.DEEP, 0.6), HeroV3.lp(1.0), true)
-		GemDraw.draw_diamond(self, c, d * 0.78, UITokens.TOPAZ, Color("#A8662A"))
+		GemDraw.draw_diamond(self, c, d * 0.78, UITokens.key_gem(), UITokens.key_gem_edge())
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
 	var h := 36.0
@@ -76,7 +76,7 @@ func _draw() -> void:
 	var w := tw + dz + 10.0 + 28.0
 	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
 	HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.95, HeroV3.DEEP, 0.9, 0.7, 0.12)
-	GemDraw.draw_diamond(self, Vector2(r.position.x + 14.0 + dz * 0.5, r.get_center().y), dz, UITokens.TOPAZ, Color("#A8662A"))
+	GemDraw.draw_diamond(self, Vector2(r.position.x + 14.0 + dz * 0.5, r.get_center().y), dz, UITokens.key_gem(), UITokens.key_gem_edge())
 	var x := r.position.x + 14.0 + dz + 10.0
 	var y := r.get_center().y + f.get_ascent(fs) * 0.36
 	for ch in text:

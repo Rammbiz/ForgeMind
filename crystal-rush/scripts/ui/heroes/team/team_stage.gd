@@ -16,7 +16,7 @@ var seats: Array[Dictionary] = []:
 	set(v):
 		seats = v
 		queue_redraw()
-## Seat being pointed at (roster sheet open): a soft amber glow under it ("" = none).
+## Seat being pointed at (roster sheet open): a soft key-gold glow under it ("" = none; amber only under --cta=amber).
 var focus_slot: StringName = &"":
 	set(v):
 		focus_slot = v
@@ -122,6 +122,11 @@ func _draw() -> void:
 	var light: Color = g["light"]
 	var rim: Color = g["rim"]
 	var deep: Color = g["deep"]
+	if UITokens.calm_cta() and UITokens.gem_of(gem) == "topaz":
+		# Porcelain: a topaz-led team gets a champagne dais, not a honey / amber pool.
+		light = Color("#F3E8D2")
+		rim = Color("#D8C49C")
+		deep = Color("#A8916A")
 	# Dais: gem-light pool, soft shadow, a marble drum, the top face warming from ivory into the
 	# gem's light, a gem-light rim and an inner gold ring.
 	var rx := size.x * 0.47
@@ -195,7 +200,7 @@ func _draw() -> void:
 		var srx := 66.0
 		var sry := srx * 0.36
 		if sl == focus_slot:
-			draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(srx * 2.2, sry * 3.2), Vector2(srx * 4.4, sry * 6.4)), false, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.45))
+			draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(srx * 2.2, sry * 3.2), Vector2(srx * 4.4, sry * 6.4)), false, Color(UITokens.key_line(), 0.2) if UITokens.calm_cta() else Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.45))
 		if st == "champion":
 			draw_line(c, p, Color(hl.r, hl.g, hl.b, 0.75), UIKit.line_px(1.0), true)
 			GemDraw.draw_marquise(self, p.lerp(c, 0.5), (c - p).normalized(), 9.0, hl)

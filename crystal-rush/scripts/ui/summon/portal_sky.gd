@@ -30,6 +30,10 @@ func _init() -> void:
 	_mat = ShaderMaterial.new()
 	_mat.shader = SHADER
 	material = _mat
+	if UITokens.calm_cta():
+		# Porcelain: the horizon is a cool violet-rose dusk, never a terracotta / amber haze behind
+		# the key button (the warm glow tinted the night controls brown, critic A7).
+		_mat.set_shader_parameter("horizon", Color("#7A6488"))
 	resized.connect(func(): _mat.set_shader_parameter("px_size", size))
 
 

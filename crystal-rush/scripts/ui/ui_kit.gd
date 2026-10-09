@@ -482,6 +482,22 @@ static func _spec(kind: String) -> Dictionary:
 			return _glass(8.0, _a(CREAM_2, 0.5), _a(CREAM_3, 0.5), 0.4, 0.3, 0.0, 0.0, 0.0, Vector2(28, 10))
 		"ghost":
 			return _glass(8.0, _a(PAPER_0, 0.16), _a(PAPER_0, 0.08), 0.85, 0.35, 0.0, 0.0, 0.0, Vector2(24, 8))
+		"ghost_night", "ghost_night_disabled":
+			# Porcelain pass 2: a control on the Portal night is INK glass (KEY_INK @ 0.58) with ONE
+			# 1 dpx grey-blue line, so a warm-white label reads >= 7:1 whatever the sky does and the
+			# porcelain key button stays the one light, filled shape on the dark screen.
+			var ng := UITokens.NIGHT_GLASS
+			var na := 0.42 if kind == "ghost_night_disabled" else 1.0
+			return {"cham": 8.0, "blur": 0.0, "pad": Vector2(24, 8), "layers": [
+				{"top": Color(ng.r, ng.g, ng.b, ng.a * na), "bot": Color(ng.r * 0.9, ng.g * 0.9, ng.b * 0.9, ng.a * na + 0.04)},
+				{"ring": UITokens.HAIRLINE_PX, "top": Color(UITokens.NIGHT_LINE, UITokens.NIGHT_LINE.a * na), "bot": Color(UITokens.NIGHT_LINE, UITokens.NIGHT_LINE.a * 0.8 * na)},
+			]}
+		"ghost_night_pressed":
+			var nd := UITokens.NIGHT_GLASS_DOWN
+			return {"cham": 8.0, "blur": 0.0, "pad": Vector2(24, 8), "shift": 2.0, "layers": [
+				{"top": nd, "bot": nd},
+				{"ring": UITokens.HAIRLINE_PX, "top": UITokens.NIGHT_LINE, "bot": UITokens.NIGHT_LINE},
+			]}
 		"ghost_pressed":
 			var gp := _glass(8.0, _a(PAPER_0, 0.42), _a(PAPER_0, 0.32), 0.95, 0.3, 0.0, 0.0, 0.0, Vector2(24, 8))
 			gp["shift"] = 2.0
@@ -528,7 +544,7 @@ static func _spec(kind: String) -> Dictionary:
 			]}
 		"tab_sel":
 			var ts := _glass(10.0, _a(PAPER_0, 0.9), _a(CREAM, 0.9), 0.78, 0.7, 10.0, sa * 0.8, 3.0, Vector2(8, 8))
-			(ts["layers"] as Array).append({"line": "bottom", "y": 5.0, "w": UITokens.SELECT_PX, "inset_x": 18.0, "col": CTA_LO})
+			(ts["layers"] as Array).append({"line": "bottom", "y": 5.0, "w": UITokens.SELECT_PX, "inset_x": 18.0, "col": UITokens.key_line()})
 			return ts
 		"band_amber":
 			# §7.10: 1 dpx rules (the result title band); the centre diamonds are drawn by band().
@@ -544,6 +560,12 @@ static func _spec(kind: String) -> Dictionary:
 				{"line": "bottom", "y": 6.0, "w": 1.0, "inset_x": 0.0, "col": _a(HAIRLINE, 0.8)},
 			]}
 		"tag_new":
+			if UITokens.calm_cta():
+				# Porcelain: the NEW tag is ink with one gold line (no amber on the key path).
+				return {"cham": 5.0, "blur": 0.0, "pad": Vector2(8, 1), "layers": [
+					{"top": UITokens.KEY_INK, "bot": UITokens.KEY_INK_LO},
+					{"ring": 1.0, "top": UITokens.KEY_GOLD, "bot": UITokens.KEY_GOLD},
+				]}
 			return {"cham": 5.0, "blur": 3.0, "sh_a": 0.10, "sh_dy": 1.0, "pad": Vector2(8, 1), "layers": [
 				{"top": Color("#FFDD6E"), "bot": UITokens.NEW_TAG},
 				{"ring": 1.0, "top": Color("#C99A2A"), "bot": Color("#B5861E")},
@@ -792,15 +814,16 @@ static func theme() -> Theme:
 	t.set_stylebox("panel", "GlassPanel", lux("cream_glass"))
 	# Sliders: thin cream track, amber fill, cream disc grabber with a gold ring.
 	var track := cbox(_a(CREAM_3, 0.7), 4, _a(HAIRLINE, 0.7), 1, Vector2(0, 3))
-	var fill := cbox(CTA, 4, CTA_LO, 1, Vector2(0, 4))
+	# Porcelain: the reached part is ink navy with a deep-gold edge (no amber on any bar).
+	var fill := cbox(UITokens.BAR_INK, 4, UITokens.LINE_GOLD_DEEP, 1, Vector2(0, 4)) if UITokens.calm_cta() else cbox(CTA, 4, CTA_LO, 1, Vector2(0, 4))
 	t.set_stylebox("slider", "HSlider", track)
 	t.set_stylebox("grabber_area", "HSlider", fill)
 	t.set_stylebox("grabber_area_highlight", "HSlider", fill)
 	t.set_icon("grabber", "HSlider", _disc_tex(34, PAPER_0, HAIRLINE))
-	t.set_icon("grabber_highlight", "HSlider", _disc_tex(34, Color.WHITE, CTA_LO))
+	t.set_icon("grabber_highlight", "HSlider", _disc_tex(34, Color.WHITE, UITokens.key_line()))
 	# Progress bars
 	t.set_stylebox("background", "ProgressBar", cbox(_a(CREAM_3, 0.7), 3, _a(HAIRLINE, 0.7), 1, Vector2.ZERO))
-	t.set_stylebox("fill", "ProgressBar", cbox(CTA, 3, CTA_LO, 0, Vector2.ZERO))
+	t.set_stylebox("fill", "ProgressBar", cbox(UITokens.BAR_INK, 3, UITokens.BAR_INK_LO, 0, Vector2.ZERO) if UITokens.calm_cta() else cbox(CTA, 3, CTA_LO, 0, Vector2.ZERO))
 	t.set_color("font_color", "ProgressBar", INK)
 	# Thin scrollbars (cream grabber, no track).
 	for sb: String in ["VScrollBar", "HScrollBar"]:
@@ -1071,6 +1094,23 @@ static func secondary_button(text: String, icon := "", min_size := Vector2(240, 
 	return b
 
 
+## A secondary action on a cream plate (Pause, Result): under the porcelain key style a text link
+## with its icon (no box, INK label), so the porcelain is the only box on the plate; otherwise the
+## secondary cream button.
+static func plate_link(text: String, icon := "", min_size := Vector2(420, 72), font_size := 26) -> Button:
+	var b := secondary_button(text, icon, min_size, font_size)
+	if UITokens.cta_style != "porcelain":
+		return b
+	for st: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var sb: StyleBox = lux("text_pressed" if st.contains("pressed") else "text", Vector2(20, 10)).duplicate()
+		sb.content_margin_left = 20.0 + 44.0
+		sb.content_margin_right = 20.0
+		b.add_theme_stylebox_override(st, sb)
+	for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(k, INK)
+	return b
+
+
 ## Tertiary text button (no surface, gold_text label).
 static func text_button(text: String, min_size := Vector2(0, 56), font_size := 24) -> Button:
 	return styled_button(text, "text", min_size, font_size)
@@ -1082,6 +1122,20 @@ static func ghost_button(text: String, min_size := Vector2(200, 64), font_size :
 	if on_scene:
 		for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 			b.add_theme_color_override(k, ON_SCENE)
+	return b
+
+
+## A secondary action on the Portal night (porcelain pass 2): ink glass, one 1 dpx grey-blue line,
+## a warm-white label (>= 7:1 on any sky); disabled = the same glass fainter, the label at 0.84.
+static func night_button(text: String, min_size := Vector2(200, 88), font_size := 24) -> Button:
+	var b := styled_button(text, "ghost_night", min_size, font_size)
+	b.add_theme_stylebox_override("pressed", lux("ghost_night_pressed"))
+	b.add_theme_stylebox_override("hover_pressed", lux("ghost_night_pressed"))
+	b.add_theme_stylebox_override("disabled", lux("ghost_night_disabled"))
+	for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(k, ON_SCENE)
+	# Disabled: the body dims, the label (it carries the price / what is missing) stays >= 4.5:1.
+	b.add_theme_color_override("font_disabled_color", Color(ON_SCENE.r, ON_SCENE.g, ON_SCENE.b, 0.84))
 	return b
 
 
@@ -1413,7 +1467,7 @@ static func band(text: String, style := "amber", height := 140.0) -> PanelContai
 static func new_tag(text := "NEW") -> PanelContainer:
 	var p := panel("tag_new")
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := label(text.to_upper(), 16, UITokens.NEW_INK, true)
+	var l := label(text.to_upper(), 16, UITokens.new_ink(), true)
 	l.add_theme_font_override("font", font_w("extrabold"))
 	p.add_child(l)
 	return p

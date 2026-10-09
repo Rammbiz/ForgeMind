@@ -59,8 +59,9 @@ var on_dark := false:
 	set(v):
 		on_dark = v
 		queue_redraw()
-## Dev galleries: draw the pressed state without a touch.
-var preview_down := false:
+## Dev galleries: draw the pressed state without a touch (`--pressed` on the command line sets it
+## on every key button, so any gallery shoots the pressed state: 1 px drop, darker body, no glow).
+var preview_down := "--pressed" in OS.get_cmdline_user_args():
 	set(v):
 		preview_down = v
 		queue_redraw()
@@ -306,10 +307,21 @@ func _draw() -> void:
 		x += ico_w
 	draw_string(f, Vector2(roundf(x), roundf(base_y)), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	if has_sub:
-		var sw := fsub.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
-		var sx := area_x0 + (avail - sw) * 0.5
+		# The sub-line stays inside the label column (right of the gem slot, inside the chamfers):
+		# it steps down to 17 px, then ellipsizes (never runs under the gem octagon).
+		var st := sub
+		var sw := fsub.get_string_size(st, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
 		var sy := base_y + desc + fsub.get_ascent(ss) - 2.0
-		draw_string(fsub, Vector2(roundf(sx), roundf(sy)), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, sub_col)
+		while sw > avail and ss > 17:
+			ss -= 1
+			sw = fsub.get_string_size(st, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
+		if sw > avail:
+			while st.length() > 1 and fsub.get_string_size(st + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x > avail:
+				st = st.substr(0, st.length() - 1)
+			st = st.strip_edges() + "…"
+			sw = fsub.get_string_size(st, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
+		var sx := area_x0 + (avail - sw) * 0.5
+		draw_string(fsub, Vector2(roundf(sx), roundf(sy)), st, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, sub_col)
 
 
 ## The vector cut-gem body: warm glow, 3-stop flat amber, the 1 dpx table light, the 1 dpx rim.
@@ -359,7 +371,7 @@ const STUDY := {
 	"porcelain": {"top": Color("#FFFDF8"), "mid": Color("#FBF6EC"), "bot": Color("#F6EEDF"),
 			"ptop": Color("#EFE5D2"), "pmid": Color("#ECE2CE"), "pbot": Color("#E9DECA"),
 			"rim": Color("#9A7436"), "label": UITokens.KEY_LABEL_DARK, "sub": Color("#4A4258"),
-			"shadow_a": 0.14, "gem_scale": 0.62},
+			"shadow_a": 0.24, "gem_scale": 0.62},
 	"ink": {"top": UITokens.KEY_INK, "mid": Color("#282D52"), "bot": UITokens.KEY_INK_LO,
 			"ptop": Color("#1F2342"), "pmid": Color("#1E2240"), "pbot": Color("#1C203D"),
 			"rim": UITokens.KEY_GOLD, "label": Color("#F7F1E6"), "sub": Color(0.914, 0.875, 0.788, 0.85),

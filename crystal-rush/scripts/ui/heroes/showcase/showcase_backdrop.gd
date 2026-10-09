@@ -22,6 +22,9 @@ const SKY := {
 	"L": [Color("#FFF7E6"), Color("#FCE0AE"), Color("#F1C27E"), Color("#E8AE5C"), Color("#FFF1CF")],
 	"M": [Color("#F7F3FF"), Color("#E7DEF7"), Color("#D3C6EE"), Color("#B48CFF"), Color("#FFFFFF")],
 }
+## Porcelain pass 2: the topaz sky is a pale champagne (saturation <= 0.15), never a full-screen
+## honey / orange wash behind the porcelain key button.
+const SKY_L_CALM := [Color("#FCF8F0"), Color("#F3EBDA"), Color("#EADFC8"), Color("#DCC9A2"), Color("#FFF8EA")]
 const OPAL_FIRE: Array[Color] = [Color("#7FE3FF"), Color("#B48CFF"), Color("#FF9FD6"), Color("#FFE28A")]
 const FPS := 30.0
 
@@ -137,6 +140,8 @@ func _process(delta: float) -> void:
 
 
 func _pal() -> Array:
+	if gem == "L" and UITokens.calm_cta():
+		return SKY_L_CALM
 	return SKY.get(gem, SKY["L"])
 
 

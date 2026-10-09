@@ -1059,8 +1059,8 @@ class Stamp extends Control:
 			fs -= 2
 		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var p := Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.36 + 2.0)
-		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS.lerp(UITokens.CTA_LO, 0.4))
-		GemDraw.draw_diamond(self, Vector2(size.x * 0.5, 0.0), 12.0, UITokens.TOPAZ, UITokens.LINE_GOLD_DEEP)
+		draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS.lerp(UITokens.CTA_LO, 0.0 if UITokens.calm_cta() else 0.4))
+		GemDraw.draw_diamond(self, Vector2(size.x * 0.5, 0.0), 12.0, UITokens.key_gem(), UITokens.LINE_GOLD_DEEP)
 
 
 ## One Crown of the 3 (v3.1): a topaz cushion gem set in a gold bezel (a gold gradient, ONE
@@ -1238,13 +1238,13 @@ class DripChip extends Control:
 			var fp := GemDraw.chamfer_rect(fr, 1.5)
 			var cols := PackedColorArray()
 			for p in fp:
-				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
+				cols.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))
 			draw_polygon(fp, cols)
 			var ty := GemDraw.pixel_y(self, fr.position.y + 0.5)
 			draw_line(Vector2(fr.position.x + 1.0, ty), Vector2(fr.end.x - 1.0, ty), Color(1.0, 0.98, 0.9, 0.85), -1.0)
 		GemDraw.outline(self, tp, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
 		if fk >= 1.0:
-			GemDraw.draw_diamond(self, Vector2(br.end.x, br.get_center().y), 11.0, UITokens.TOPAZ, UITokens.LINE_GOLD_DEEP)
+			GemDraw.draw_diamond(self, Vector2(br.end.x, br.get_center().y), 11.0, UITokens.key_gem(), UITokens.LINE_GOLD_DEEP)
 		var bt := "%d / %d" % [int(floor(shown + 0.001)), need]
 		draw_string(fm, Vector2(x0, size.y - 10.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UIKit.INK_DIM)
 		var gain := int(data.get("bp_after", 0)) - int(data.get("bp_before", 0))

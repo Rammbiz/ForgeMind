@@ -12,7 +12,7 @@ var value := 0.0:
 		set_process(true)
 var tiles := 0
 var bar_h := 12.0
-var fill_color := UITokens.CTA
+var fill_color := UITokens.bar_fill()
 var text := "":
 	set(v):
 		text = v
@@ -39,6 +39,11 @@ func _process(delta: float) -> void:
 		_shown = t
 		set_process(false)
 	queue_redraw()
+
+
+## The neutral ink bar (porcelain): the fill is the token, not a gem colour the caller chose.
+func _ink() -> bool:
+	return UITokens.calm_cta() and fill_color == UITokens.BAR_INK
 
 
 func _draw() -> void:
@@ -81,17 +86,25 @@ func _draw() -> void:
 			var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * frac, tch * 2.0), tr.size.y))
 			var fp := GemDraw.chamfer_rect(fr, tch)
 			var cols := PackedColorArray()
+			var ink := _ink()
 			for p in fp:
 				var t := (p.y - fr.position.y) / maxf(fr.size.y, 1.0)
-				cols.append(fill_color.lightened(0.3).lerp(fill_color.darkened(0.06), t))
+				if ink:
+					cols.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), t))
+				else:
+					cols.append(fill_color.lightened(0.3).lerp(fill_color.darkened(0.06), t))
 			draw_polygon(fp, cols)
 			if fr.size.y >= 5.0:
 				var ly := GemDraw.pixel_y(self, fr.position.y + 1.0)
-				draw_line(Vector2(fr.position.x + tch, ly), Vector2(fr.end.x - tch, ly), Color(1, 0.98, 0.9, 0.6), -1.0)
+				draw_line(Vector2(fr.position.x + tch, ly), Vector2(fr.end.x - tch, ly), Color(1, 0.98, 0.9, 0.22 if ink else 0.6), -1.0)
+			if ink and frac < 0.999:
+				# The 1 dpx deep-gold cap tick at the fill's end.
+				var cx := roundf(fr.end.x) - UIKit.px(0.5)
+				draw_line(Vector2(cx, fr.position.y), Vector2(cx, fr.end.y), UITokens.LINE_GOLD_DEEP, UIKit.px(1.0))
 		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), UIKit.line_px(1.0))
 	# v3: no crystal ticks on the ends (ornament only where it means something): a full bar
 	# earns one small topaz diamond at its end.
 	if frac >= 0.999:
-		GemDraw.draw_diamond(self, Vector2(r.end.x, r.get_center().y), 9.0, UITokens.TOPAZ, Color("#A8662A"))
+		GemDraw.draw_diamond(self, Vector2(r.end.x, r.get_center().y), 9.0, UITokens.key_gem(), UITokens.key_gem_edge())
 	if text != "":
 		draw_string(f, Vector2(r.end.x + tick * 0.5 + 8.0, size.y * 0.5 + f.get_ascent(fs) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)

@@ -399,7 +399,7 @@ func _draw_over(ci: CanvasItem) -> void:
 		var nw := nf.get_string_size(nt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 14.0
 		var nr := Rect2(Vector2(size.x - nw - 4.0, -6.0), Vector2(nw, 22.0))
 		ci.draw_style_box(UIKit.lux("tag_new"), nr)
-		ci.draw_string(nf, Vector2(nr.position.x + 7.0, nr.position.y + 16.5), nt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, UITokens.NEW_INK)
+		ci.draw_string(nf, Vector2(nr.position.x + 7.0, nr.position.y + 16.5), nt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, UITokens.new_ink())
 
 
 ## The inner rim above the seam only (open at the bottom), as a polyline.

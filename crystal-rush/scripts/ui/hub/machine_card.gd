@@ -385,7 +385,7 @@ func draw_over(ci: CanvasItem) -> void:
 	if locked == "" and bool(card.get("in_deck", false)):
 		var ch0 := _gem._cham()
 		var dy := UIKit.px(1.0)
-		ci.draw_line(Vector2(ch0 + 4.0, 2.0), Vector2(w - ch0 - 4.0, 2.0), UITokens.CTA_LO, UIKit.line_px(1.5))
+		ci.draw_line(Vector2(ch0 + 4.0, 2.0), Vector2(w - ch0 - 4.0, 2.0), UITokens.key_line(), UIKit.line_px(1.5))
 		ci.draw_line(Vector2(ch0 + 4.0, 2.0 + dy * 1.5), Vector2(w - ch0 - 4.0, 2.0 + dy * 1.5), Color(1.0, 0.97, 0.88, 0.85), dy)
 	# Locked: a lock socket in the middle of the art.
 	if locked == "world":
@@ -425,13 +425,17 @@ func _seam_bar(ci: CanvasItem, seam: float, maxed: bool) -> void:
 		var wk := clampf(float(have + wild) / float(need), 0.0, 1.0)
 		if wk > k:
 			var wr := Rect2(tr.position, Vector2(tr.size.x * wk, tr.size.y))
-			ci.draw_colored_polygon(GemDraw.chamfer_rect(wr, 2.0), UITokens.CTA_HI)
+			ci.draw_colored_polygon(GemDraw.chamfer_rect(wr, 2.0), UITokens.PIP_WALKED if UITokens.calm_cta() else UITokens.CTA_HI)
 	if k > 0.0:
 		var can := bool(card.get("can_upgrade", false))
 		var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * k, 4.0), tr.size.y))
 		var pts := GemDraw.chamfer_rect(fr, 2.0)
 		var top := UITokens.CTA_HI if (can or maxed) else UITokens.CTA.lightened(0.25)
 		var bot := UITokens.CTA_LO if (can or maxed) else UITokens.CTA
+		if UITokens.calm_cta():
+			# Porcelain: an ink-navy fill (a lighter slate while it cannot upgrade yet), no amber.
+			top = UITokens.bar_hi() if (can or maxed) else Color("#7A7E9E")
+			bot = UITokens.bar_lo() if (can or maxed) else Color("#666A8C")
 		var cols := PackedColorArray()
 		for p in pts:
 			cols.append(top.lerp(bot, (p.y - fr.position.y) / maxf(fr.size.y, 1.0)))

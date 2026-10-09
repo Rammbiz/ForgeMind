@@ -273,6 +273,15 @@ func _dock() -> Control:
 	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(_back)
 	d.add_child(back)
+	# Porcelain pass 2: while the auto-pick proposal is open, its «Застосувати» is the decision on
+	# the screen: the dock keeps only «Назад» (ГРАТИ returns once the proposal is resolved).
+	var proposing := not _auto_info.is_empty() and UITokens.calm_cta()
+	if proposing:
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.custom_minimum_size = Vector2(0, 88)
+		d.add_child(spacer)
+		return d
 	if _has_champions():
 		var auto := UIKit.secondary_button(HeroesText.t("TEAM_AUTO"), "auto", Vector2(196, 88), 24)
 		auto.pressed.connect(_auto)
@@ -440,7 +449,14 @@ func _auto_block(inner: float) -> Control:
 	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	no.pressed.connect(_close_auto)
 	row.add_child(no)
-	var yes := UIKit.secondary_button(HeroesText.t("TEAM_AUTO_APPLY"), "check", Vector2(0, 88), 24)
+	# Porcelain: «Застосувати» is the key action while the proposal is open (a compact porcelain,
+	# no gem), «Скасувати» the ghost beside it.
+	var yes: Button = UIKit.secondary_button(HeroesText.t("TEAM_AUTO_APPLY"), "check", Vector2(0, 88), 24)
+	if UITokens.calm_cta():
+		var yc := UIKit.cta_button(HeroesText.t("TEAM_AUTO_APPLY"), "", Vector2(0, 88), 30)
+		yc.topaz = false
+		yc.custom_minimum_size.x = 0
+		yes = yc
 	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	yes.pressed.connect(func():
 		var b := _preview

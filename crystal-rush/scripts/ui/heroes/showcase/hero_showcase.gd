@@ -371,7 +371,9 @@ func _fill_where() -> void:
 			row.add_child(gm)
 		var lb := UIKit.label(str(l[1]), 22, UITokens.INK)
 		lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lb.custom_minimum_size = Vector2(COL_W - (82.0 if str(l[0]) == "portal" else 44.0), 0)
+		# Pass 2: the where-to-find lines wrap 36 px short of the column (they ran onto the fur of
+		# art that reaches under the column, e.g. Сірко at 4.1:1).
+		lb.custom_minimum_size = Vector2(COL_W - 36.0 - (82.0 if str(l[0]) == "portal" else 44.0), 0)
 		row.add_child(lb)
 		_info.add_child(row)
 
@@ -480,9 +482,17 @@ func _build_dock() -> HBoxContainer:
 	var cta: Control
 	if not bool(h["owned"]):
 		if bool(HeroesUIModel.unlocks()["portal"]) and str((h["source"] as Dictionary)["kind"]) == "portal":
-			var b := UIKit.secondary_button(HeroesText.t("SHOW_TO_PORTAL"), "portal", Vector2(0, 88))
-			b.pressed.connect(func(): HeroesNav.open(hub, "portal"))
-			cta = b
+			# Porcelain pass 2: the screen's one real action is the key button, with the hero's gem in
+			# its octagon (the cream ghost over the art measured 3.7:1 and left no key action).
+			if UITokens.calm_cta():
+				var pb := UIKit.cta_button(HeroesText.t("SHOW_TO_PORTAL"), "", Vector2(0, 88), 30)
+				pb.ctx_gem = str(h["gem"])
+				pb.pressed.connect(func(): HeroesNav.open(hub, "portal"))
+				cta = pb
+			else:
+				var b := UIKit.secondary_button(HeroesText.t("SHOW_TO_PORTAL"), "portal", Vector2(0, 88))
+				b.pressed.connect(func(): HeroesNav.open(hub, "portal"))
+				cta = b
 		else:
 			cta = UIKit.spacer()
 	elif bool((h["recut"] as Dictionary)["can"]):
@@ -493,14 +503,17 @@ func _build_dock() -> HBoxContainer:
 	else:
 		var sub := ""
 		var price := 0
-		if int(h["eff_level"]) < int(h["level_cap"]):
+		var at_cap := int(h["eff_level"]) >= int(h["level_cap"])
+		if not at_cap:
 			sub = HeroesText.t("MANAGE_LEVEL_TO", [int(h["eff_level"]), int(h["eff_level"]) + 1])
 			price = HeroesUIModel.level_cost(hero_id)
 		else:
 			# At the world cap the CTA still opens Manage (facets, skills); say why there is no price.
 			sub = HeroesText.t("MANAGE_LEVEL_AT_CAP", [int(HeroesUIModel.unlocks()["world"]) + 1])
-		var up := HeroPriceCTA.make(HeroesText.t("SHOW_CTA_UPGRADE"), sub, price, Vector2(0, 88), 30)
-		up.ctx_gem = str(h["gem"])
+		# At the cap the key button never promises an upgrade it cannot give: it says what it does
+		# («Керувати»: facets, skills) and lights no gem.
+		var up := HeroPriceCTA.make(HeroesText.t("SHOW_CTA_MANAGE" if at_cap else "SHOW_CTA_UPGRADE"), sub, price, Vector2(0, 88), 30)
+		up.ctx_gem = "" if at_cap else str(h["gem"])
 		up.pressed.connect(func(): _open_manage("level"))
 		cta = up
 	cta.size_flags_horizontal = Control.SIZE_EXPAND_FILL

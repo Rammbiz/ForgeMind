@@ -96,7 +96,13 @@ static func draw_emblem(ci: CanvasItem, g: String, nat: String, c: Vector2, s: f
 	var deep: Color = spec["deep"]
 	if g == "C":
 		deep = Color("#7C8A99")
-	GemDraw.draw_gem(ci, cut, c, s, body, light, deep, s >= 30.0)
+	if g == "L" and UITokens.calm_cta() and (nat == "" or nat == g):
+		# Porcelain pass 2: the topaz is a flat ENGRAVED star (two-tone facets, one deep-gold line),
+		# never a glossy 3D star with specular sparkles next to the key button.
+		_draw_flat_star(ci, c, s)
+		return
+	# Porcelain: no specular star glint on any emblem (gloss and sparkle read as generated UI).
+	GemDraw.draw_gem(ci, cut, c, s, body, light, deep, s >= 30.0 and not UITokens.calm_cta())
 	if g == "M":
 		_draw_opal_fire(ci, c, s, t)
 	if nat != "" and nat != g:
@@ -109,6 +115,19 @@ static func draw_emblem(ci: CanvasItem, g: String, nat: String, c: Vector2, s: f
 		GemDraw.outline(ci, outer, cover, s * 0.024)
 		GemDraw.outline(ci, outer, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.95), UIKit.line_px(1.0))
 	_draw_girdle_light(ci, cut, c, s)
+
+
+## The calm topaz: ten flat facets in two muted tones (lit / shaded), one deep-gold engraved line.
+static func _draw_flat_star(ci: CanvasItem, c: Vector2, s: float) -> void:
+	var pts := GemDraw.cut_points("star", c, s)
+	var n := pts.size()
+	var lit := Color("#F0D394")
+	var shade := Color("#D6A75A")
+	for i in n:
+		var a := pts[i]
+		var b := pts[(i + 1) % n]
+		ci.draw_colored_polygon(PackedVector2Array([c, a, b]), lit if i % 2 == 0 else shade)
+	GemDraw.outline(ci, pts, UITokens.LINE_GOLD_DEEP, UIKit.line_px(1.5 if s >= 60.0 else 1.0))
 
 
 static func _draw_setting(ci: CanvasItem, g: String, cut: String, c: Vector2, s: float, metal: Color) -> void:
@@ -254,7 +273,8 @@ static func draw_facets(ci: CanvasItem, g: String, c: Vector2, s: float, lit: in
 		if i < lit:
 			ci.draw_line(start, end, Color(light.r, light.g, light.b, 0.95), maxf(1.4, s * 0.024), true)
 			ci.draw_line(start, end, Color(1, 1, 1, 0.55), maxf(0.8, s * 0.01), true)
-			GemDraw.draw_glint(ci, end, s * 0.16, Color(1, 1, 1, 0.85))
+			if not UITokens.calm_cta():
+				GemDraw.draw_glint(ci, end, s * 0.16, Color(1, 1, 1, 0.85))
 		else:
 			ci.draw_line(start, end, Color(0.1, 0.08, 0.15, 0.22), maxf(1.0, s * 0.014), true)
 			ci.draw_line(start + Vector2(0, 1), end + Vector2(0, 1), Color(1, 1, 1, 0.16), maxf(1.0, s * 0.012), true)

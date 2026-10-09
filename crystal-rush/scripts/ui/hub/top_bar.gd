@@ -239,11 +239,11 @@ class Avatar extends Control:
 				uvs.append(Vector2(0.5, 0.46) + d * 0.5 / 1.08)
 			draw_polygon(pts, PackedColorArray([Color.WHITE]), uvs, tex)
 		draw_arc(c, face + lw * 0.5, 0, TAU, 72, UITokens.HAIRLINE, lw, true)
-		# v3.1 (§7.9): world progress = a 2 dpx amber arc on a 1 dpx gold track.
+		# v3.1 (§7.9): world progress = a 2 dpx key-line arc (deep gold) on a 1 dpx gold track.
 		var pr := r - 3.0
 		draw_arc(c, pr, 0, TAU, 72, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.6), UIKit.line_px(1.0), true)
 		if progress > 0.0:
-			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 72, UITokens.CTA_LO, UIKit.line_px(2.0), true)
+			draw_arc(c, pr, -PI / 2.0, -PI / 2.0 + TAU * progress, 72, UITokens.key_line(), UIKit.line_px(2.0), true)
 		# The level on a chamfered glass plate with a 1 dpx deep-gold edge (Bold ink).
 		var f := UIKit.font_w("bold")
 		var txt := str(level)

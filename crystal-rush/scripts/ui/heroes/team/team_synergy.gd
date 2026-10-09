@@ -158,7 +158,9 @@ class _TagChip extends Control:
 			_: c.active = HeroesTeamLogic.element_has_machine(p_tag)
 		c.custom_minimum_size = Vector2(w, 66)
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		c.modulate.a = 1.0 if c.active else 0.4
+		# Pass 2: an idle tag keeps its information readable (>= 4.5:1): the quiet well and the dim
+		# ink say "not active", not a 0.4 fade of the whole chip (it measured 1.9:1).
+		c.modulate.a = 1.0
 		return c
 
 	func _name() -> String:
@@ -189,9 +191,10 @@ class _TagChip extends Control:
 		var fs := 22
 		while fs > 18 and f.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 20.0:
 			fs -= 1
-		draw_string(f, Vector2(x, 27), name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 20.0, fs, UITokens.INK)
+		var ink := UITokens.INK if active else UITokens.INK_DIM_GLASS
+		draw_string(f, Vector2(x, 27), name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 20.0, fs, ink)
 		var ic := Rect2(Vector2(x, 36), Vector2(24, 24))
-		Icons.draw_icon(self, _icon(), ic, UITokens.GOLD_TEXT_GLASS)
+		Icons.draw_icon(self, _icon(), ic, UITokens.GOLD_TEXT_GLASS if active else HeroV3.a(UITokens.GOLD_TEXT_GLASS, 0.6))
 		var tx := x + 30.0
 		var line := ""
 		match kind:
@@ -201,12 +204,12 @@ class _TagChip extends Control:
 				line = "%d / %d" % [n, HeroesTeamLogic.PAIR]
 			_:
 				line = "×%d" % n
-		draw_string(fm, Vector2(tx, 56), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.INK)
+		draw_string(fm, Vector2(tx, 56), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, ink)
 		var lw := fm.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 		var px := tx + lw + 14.0
 		if kind == "faction":
 			var tier := HeroesTeamLogic.faction_tier(n)
 			for i in TeamData.FACTION_MEMBERS_FOR_TIER.size() - 1:
-				GemDraw.draw_pip(self, Vector2(px + i * 15.0, 48), 16.0, i < tier, UITokens.TOPAZ)
+				GemDraw.draw_pip(self, Vector2(px + i * 15.0, 48), 16.0, i < tier, UITokens.key_gem())
 		elif kind == "class" and n >= HeroesTeamLogic.PAIR:
 			Icons.draw_icon(self, "check", Rect2(Vector2(px - 2, 36), Vector2(24, 24)), UITokens.PLUS)

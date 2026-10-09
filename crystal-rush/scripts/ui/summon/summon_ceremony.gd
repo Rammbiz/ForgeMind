@@ -368,7 +368,7 @@ func _ready() -> void:
 	add_child(_tap)
 	# «Пропустити» (UI v3.1 §7.7): a ghost on the night: 0.16 glass with ONE 1 dpx gold line and
 	# warm-white Medium text with the scene shadow (never a solid tile over the cinematic).
-	_skip = UIKit.ghost_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 22, true)
+	_skip = UIKit.night_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 22) if UITokens.calm_cta() else UIKit.ghost_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 22, true)
 	_skip.add_theme_font_override("font", UIKit.font_w("medium"))
 	_skip.pressed.connect(skip_to_end)
 	add_child(_skip)
@@ -381,7 +381,7 @@ func _ready() -> void:
 		if UITokens.cta_style == "porcelain":
 			# Porcelain key button: on the night both summary actions are ghosts (the kit's 0.5
 			# secondary glass reads as a grey slab with ink at ~2.6:1 here).
-			_to_hero = UIKit.ghost_button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), Vector2(300, 88), 24, true)
+			_to_hero = UIKit.night_button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), Vector2(300, 88), 24)
 		else:
 			_to_hero = UIKit.button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), false, 300)
 			_to_hero.custom_minimum_size = Vector2(300, 88)
@@ -391,7 +391,15 @@ func _ready() -> void:
 	# «Готово» is a ghost on the night (0.16 glass, one 1 dpx line, warm-white text), «До героя»
 	# the one secondary glass (a ghost too under the porcelain key style): never two equal cream
 	# slabs under the art.
-	_done = UIKit.ghost_button(HeroesText.t("SUMMON_DONE"), Vector2(300, 88), 24, true)
+	if UITokens.cta_style == "porcelain":
+		# Porcelain pass 2: the ceremony ends on ONE key action. «Готово» is a compact porcelain
+		# button (no gem: nothing to mean here), «До героя» the ink-glass night secondary.
+		var dn := UIKit.cta_button(HeroesText.t("SUMMON_DONE"), "", Vector2(300, 88), 30)
+		dn.topaz = false
+		dn.on_dark = true
+		_done = dn
+	else:
+		_done = UIKit.ghost_button(HeroesText.t("SUMMON_DONE"), Vector2(300, 88), 24, true)
 	_done.pressed.connect(_close)
 	_dock.add_child(_done)
 	resized.connect(_layout)
@@ -1497,10 +1505,16 @@ func _draw_doves_beat(ci: Control, u: float, bt: Dictionary, t: float) -> void:
 	var du := u - step + 0.1
 	if du > 0.0 and du < 1.2:
 		for j in 7:
-			var dir := Vector2.from_angle(deg_to_rad([-105.0, -125.0, -145.0, -165.0, 175.0, 155.0, 138.0][j]))
-			var k := clampf(du / 1.2, 0.0, 1.0)
-			var p := _cc + Vector2(-30.0, 0.0) + dir * (30.0 + _W * 0.95 * (0.35 * k + 0.65 * k * k) * (0.8 + 0.08 * float(j % 3)))
-			var da := clampf(du * 5.0, 0.0, 1.0) * (1.0 - SummonFx.seg(du, 0.9, 0.3))
+			# Pass 2: a flatter fan (left, up-left at most 30 degrees), so no dove crosses the gem emblem
+			# in the top-left corner.
+			var dir := Vector2.from_angle(deg_to_rad([-150.0, -160.0, -170.0, 178.0, 168.0, 158.0, 148.0][j]))
+			# A loose flock: each dove leaves a beat after the last and flies at its own pace.
+			var dj := du - 0.08 * float(j)
+			if dj <= 0.0:
+				continue
+			var k := clampf(dj / 1.15, 0.0, 1.0)
+			var p := _cc + Vector2(-30.0, 0.0) + dir * (30.0 + _W * 0.95 * (0.35 * k + 0.65 * k * k) * (0.72 + 0.12 * float(j % 4)))
+			var da := clampf(dj * 5.0, 0.0, 1.0) * (1.0 - SummonFx.seg(du, 0.9, 0.3))
 			_draw_dove(ci, p, dir, 46.0 + 10.0 * float(j % 3), t * 13.0 + float(j) * 1.3, da)
 
 
@@ -1530,6 +1544,10 @@ func _draw_feather(ci: Control, p: Vector2, ang: float, len: float, a: float, em
 ## never a cross shape: the wings rise from the back, not across the body).
 func _draw_dove(ci: Control, p: Vector2, dir: Vector2, s: float, flap: float, a: float) -> void:
 	if a <= 0.01:
+		return
+	var tex := _dove_tex()
+	if tex:
+		_draw_painted_dove(ci, tex, p, dir, s, flap, a)
 		return
 	var d := dir.normalized()
 	var up := Vector2(-d.y, d.x)
@@ -1567,6 +1585,40 @@ func _draw_dove(ci: Control, p: Vector2, dir: Vector2, s: float, flap: float, a:
 	ci.draw_colored_polygon(wing, col)
 	GemDraw.outline(ci, wing, Color(0.78, 0.8, 0.88, 0.7 * a), 1.0)
 
+
+
+static var _dove: Texture2D
+static var _dove_tried := false
+
+
+## The painted dove cut from Ольга's own splash (assets/heroes/olha/dove.png), or null.
+static func _dove_tex() -> Texture2D:
+	if not _dove_tried:
+		_dove_tried = true
+		var path := "res://assets/heroes/olha/dove.png"
+		if ResourceLoader.exists(path):
+			_dove = load(path) as Texture2D
+	return _dove
+
+
+## Pass 2 (critic: flat grey polygons read toy-like next to the painted art): the painted dove
+## (it faces left; mirrored when it flies right), tilted with its flight, a soft wing-beat squash and
+## a two-copy motion trail.
+func _draw_painted_dove(ci: Control, tex: Texture2D, p: Vector2, dir: Vector2, s: float, flap: float, a: float) -> void:
+	var d := dir.normalized()
+	var right := d.x > 0.0
+	var base := Vector2(-1, 0) if not right else Vector2(1, 0)
+	var rot := clampf(base.angle_to(d), -0.45, 0.45)
+	var w := s * 2.1
+	var sz := Vector2(w, w * float(tex.get_height()) / maxf(1.0, float(tex.get_width())))
+	var sq := 0.86 + 0.14 * sin(flap)
+	var sc := Vector2(-1.0 if right else 1.0, sq)
+	for k in [2, 1, 0]:
+		var q: Vector2 = p - d * s * 0.2 * float(k)
+		var ka := a * ([1.0, 0.28, 0.12][k] as float)
+		ci.draw_set_transform(q, rot, sc)
+		ci.draw_texture_rect(tex, Rect2(-sz * 0.5, sz), false, Color(1, 1, 1, ka))
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## An identity glyph on a light pillar: a cream socket with a gem-light ring and an ink glyph,

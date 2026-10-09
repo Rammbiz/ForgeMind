@@ -381,7 +381,8 @@ func _run_panel(inner: float, slot: String) -> Control:
 	t.add_theme_constant_override("separation", 6)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.add_child(_wrap(str(_c["role"]), 24, UITokens.INK, true, inner - 360.0))
-	t.add_child(_wrap(HeroesText.t("CHAMP_UI_RUN_SOON"), 22, UITokens.INK_DIM_GLASS, false, inner - 360.0))
+	# Pass 2: INK (the dim taupe read 2.4:1 where the card meets the dock fade).
+	t.add_child(_wrap(HeroesText.t("CHAMP_UI_RUN_SOON"), 22, UITokens.INK, false, inner - 360.0))
 	h.add_child(t)
 	return p
 

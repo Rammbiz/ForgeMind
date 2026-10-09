@@ -211,7 +211,12 @@ func set_ult(ratio: float, ready: bool) -> bool:
 	_ult_ready = ready
 	if edge:
 		ult_btn.burst()
-		toast(Loc.t("ULT_READY"), UITokens.TOPAZ)
+		# Porcelain: warm white with a deep-gold underline (never an amber heading on the key path).
+		if UITokens.calm_cta():
+			toast(Loc.t("ULT_READY"), UITokens.ON_SCENE)
+			_underline_toast()
+		else:
+			toast(Loc.t("ULT_READY"), UITokens.TOPAZ)
 		UIKit.sparkles(self, ult_btn.position + Vector2(ult_btn.size.x * 0.5, ULT_RADIUS + 4.0), UIKit.GOLD_LIGHT, 22, 220.0)
 	return edge
 
@@ -395,6 +400,27 @@ func toast(text: String, color := Color(1.0, 0.9, 0.5), size_px := 54) -> void:
 		if _big_toast == l:
 			_big_toast = null
 		l.queue_free())
+
+
+## A 1.5 dpx key-gold rule under the current big toast (its width = the text), with a small ink
+## diamond set in gold at its centre: the calm "ready" mark.
+func _underline_toast() -> void:
+	if _big_toast == null or not is_instance_valid(_big_toast):
+		return
+	var l := _big_toast
+	var fs := l.get_theme_font_size("font_size")
+	var tw := UIKit.font_w("extrabold").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var u := Control.new()
+	u.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	u.position = Vector2((l.size.x - tw) * 0.5, l.size.y * 0.5 + fs * 0.62)
+	u.size = Vector2(tw, 12)
+	u.draw.connect(func():
+		var g := UITokens.KEY_GOLD
+		var y := 6.0
+		u.draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(tw * 0.2, y), Vector2(tw * 0.8, y), Vector2(tw, y)]),
+				PackedColorArray([Color(g.r, g.g, g.b, 0.0), g, g, Color(g.r, g.g, g.b, 0.0)]), UIKit.line_px(1.5), true)
+		GemDraw.draw_diamond(u, Vector2(tw * 0.5, y), 11.0, UITokens.KEY_INK, UITokens.KEY_GOLD))
+	l.add_child(u)
 
 
 ## A soft slate glow behind on-scene text `l` (no panel, no stroke), sized to the text width.
@@ -758,11 +784,11 @@ func show_pause() -> void:
 	resume.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	resume.pressed.connect(func(): resume_pressed.emit())
 	box.add_child(resume)
-	var again := UIKit.secondary_button(Loc.t("RETRY"), "restart", Vector2(420, 76), 26)
+	var again := UIKit.plate_link(Loc.t("RETRY"), "restart", Vector2(420, 76), 26)
 	again.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	again.pressed.connect(func(): retry.emit())
 	box.add_child(again)
-	var to_menu := UIKit.secondary_button(Loc.t("MENU"), "home", Vector2(420, 76), 26)
+	var to_menu := UIKit.plate_link(Loc.t("MENU"), "home", Vector2(420, 76), 26)
 	to_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	to_menu.pressed.connect(func(): menu.emit())
 	box.add_child(to_menu)
@@ -876,7 +902,7 @@ func show_result(won: bool, reason: String, data: Dictionary, earned := 0) -> vo
 	else:
 		primary.pressed.connect(func(): retry.emit())
 	box.add_child(primary)
-	var to_menu := UIKit.secondary_button(Loc.t("MENU"), "home", Vector2(440, 72), 26)
+	var to_menu := UIKit.plate_link(Loc.t("MENU"), "home", Vector2(440, 72), 26)
 	to_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	to_menu.pressed.connect(func(): menu.emit())
 	box.add_child(to_menu)

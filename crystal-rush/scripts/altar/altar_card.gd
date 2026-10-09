@@ -432,11 +432,11 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 			var fp := GemDraw.chamfer_rect(fr, 1.5)
 			var fc := PackedColorArray()
 			for q in fp:
-				fc.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (q.y - fr.position.y) / fr.size.y))
+				fc.append(UITokens.bar_hi().lerp(UITokens.bar_lo(), (q.y - fr.position.y) / fr.size.y))
 			draw_polygon(fp, fc)
 		GemDraw.outline(self, tp, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), UIKit.line_px(1.0))
 		if _bar_hit > 0.0:
-			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(1.0, 0.82, 0.45, _bar_hit * 0.7))
+			draw_texture_rect(UIKit.glow_texture(), br.grow(12), false, Color(1.0, 0.98, 0.94, _bar_hit * 0.6) if UITokens.calm_cta() else Color(1.0, 0.82, 0.45, _bar_hit * 0.7))
 		draw_string(UIKit.font_w("medium"), Vector2(body.end.x - 12.0 - _count_w(), br.get_center().y + _count_fs() * 0.36), "%d/%d" % [int(round(shown)), need],
 				HORIZONTAL_ALIGNMENT_RIGHT, _count_w(), _count_fs(), UITokens.GOLD_TEXT_GLASS if up else UITokens.INK_DIM_GLASS)
 		if up:
@@ -444,9 +444,10 @@ func _draw_face(body: Rect2, pts: PackedVector2Array, gk: String, g: Dictionary)
 			# a 1 dpx cream ring, one halo; never on the name / bar row.
 			var bc := Vector2(body.end.x - 18.0, body.position.y + 18.0)
 			draw_texture_rect(UIKit.glow_texture(), Rect2(bc - Vector2(20, 18), Vector2(40, 40)), false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.25))
-			draw_circle(bc, 14.0, UITokens.NOTIFY, true, -1.0, true)
-			draw_arc(bc, 14.0 - UIKit.px(0.5), 0, TAU, 40, Color(1, 0.98, 0.92, 0.95), UIKit.line_px(1.0), true)
-			_text_c(UIKit.font_w("bold"), "!", bc + Vector2(0, 7.5), 22, UIKit.BROWN)
+			var calm := UITokens.calm_cta()
+			draw_circle(bc, 14.0, UITokens.KEY_INK if calm else UITokens.NOTIFY, true, -1.0, true)
+			draw_arc(bc, 14.0 - UIKit.px(0.5), 0, TAU, 40, UITokens.KEY_GOLD if calm else Color(1, 0.98, 0.92, 0.95), UIKit.line_px(1.0), true)
+			_text_c(UIKit.font_w("bold"), "!", bc + Vector2(0, 7.5), 22, UITokens.PAPER_0 if calm else UIKit.BROWN)
 	# Frame: the gem's light rim 1 dpx inside, ONE 1 dpx gold line outside.
 	var rim: Color = g["rim"]
 	GemDraw.outline(self, GemDraw.chamfer_rect(body.grow(-2.5), 9.0), Color(rim.r, rim.g, rim.b, 0.6), UIKit.px(1.0))
@@ -468,7 +469,7 @@ func _draw_over() -> void:
 		var nw := nf.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 		var tr := Rect2(Vector2(body.get_center().x - nw * 0.5 - 11, body.position.y - 14), Vector2(nw + 22, 28))
 		_over.draw_style_box(UIKit.lux("tag_new"), tr)
-		_over.draw_string(nf, tr.position + Vector2(11, 21.0), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UITokens.NEW_INK)
+		_over.draw_string(nf, tr.position + Vector2(11, 21.0), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UITokens.new_ink())
 	for sp in _sparks:
 		if float(sp["t"]) < 0.0:
 			continue
