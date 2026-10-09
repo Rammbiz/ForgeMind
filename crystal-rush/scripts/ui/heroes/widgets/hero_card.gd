@@ -7,7 +7,7 @@ extends Control
 ##    render per hero, shared by every card), or the engraved class emblem ("unknown" card);
 ##  * the gem emblem top-left, a DOUBLET stone for a recut character (rule #3);
 ##  * class (cream socket) + element (slate socket) bottom-right of the art; S shows the class only;
-##  * the «НОВИЙ» wax seal top-right; facet pips on the seam once the character has fragments;
+##  * the «НОВИЙ» mark top-right (v3.1: the amber notify diamond, HeroWaxSeal under 76 px); facet pips on the seam once the character has fragments;
 ##  * locked / unowned: dimmed ground, a lock disc and the source line («Портал», «Після рівня 24»).
 ## Sizes: "S" 124x186 (x10 summary, team slots) · "M" 156x208 (champions, compact grids) ·
 ## "L" 216x300 (Hall heroes) · "XL" 300x416 (the Hall while it lists < 6 heroes). Every size
@@ -118,7 +118,8 @@ func _layout() -> void:
 	_lock.size = Vector2(s.x * 0.3, s.x * 0.3)
 	_lock.position = Vector2((s.x - _lock.size.x) * 0.5, (s.y - fh) * 0.3 - _lock.size.y * 0.5)
 	if _seal:
-		_seal.position = Vector2(s.x - _seal.size.x * 0.82, -_seal.size.y * 0.18)
+		# v3.1: the amber notify diamond sits inside the top-right corner (never over the face).
+		_seal.position = Vector2(s.x - _seal.size.x - 2.0, 2.0)
 
 
 func _apply() -> void:
@@ -179,7 +180,7 @@ func _apply() -> void:
 	# NEW wax seal.
 	if bool(data.get("is_new", false)) and owned:
 		if _seal == null:
-			var px := 52.0 if size_kind == "S" else (58.0 if size_kind == "M" else (68.0 if size_kind == "L" else 84.0))
+			var px := 40.0 if size_kind == "S" else (44.0 if size_kind == "M" else (50.0 if size_kind == "L" else 56.0))
 			_seal = HeroWaxSeal.make(px)
 			add_child(_seal)
 	elif _seal:
@@ -305,18 +306,16 @@ class _Footer extends Control:
 		var y := seam + room + (body - th - sh - gap) * 0.5
 		if title != "":
 			var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-			draw_string(f, Vector2((size.x - tw) * 0.5, y + th), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, UITokens.INK if not dim else UITokens.INK_DIM)
+			draw_string(f, Vector2((size.x - tw) * 0.5, y + th), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, UITokens.INK if not dim else UITokens.INK_DIM_GLASS)
 		if sub != "":
 			var sw := fm.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
-			draw_string(fm, Vector2((size.x - sw) * 0.5, y + th + gap + sh), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_SOFT)
+			draw_string(fm, Vector2((size.x - sw) * 0.5, y + th + gap + sh), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM_GLASS)
 
 
 class _LockDisc extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var R := minf(size.x, size.y) * 0.5
-		draw_circle(c + Vector2(0, 2), R, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14))
-		draw_circle(c, R, UITokens.PAPER_0)
-		draw_arc(c, R - 0.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+		HeroV3.disc(self, c, R, 0.88, HeroV3.GOLD, 0.8, 0.1)
 		var s := R * 1.0
-		Icons.draw_icon(self, "lock", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.INK_DIM)
+		Icons.draw_icon(self, "lock", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.INK_DIM_GLASS)

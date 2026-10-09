@@ -26,6 +26,7 @@ var _ins := Vector4.ZERO
 var _c: Dictionary = {}
 var _dirty := false
 
+var _frost: HeroFrost
 var _bg: HeroShowcaseBackdrop
 var _art: HeroesChampionParts.CardArt
 var _scroll: ScrollContainer
@@ -55,6 +56,9 @@ func _ready() -> void:
 	_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_bg.focus = Vector2(0.72, 0.24)
 	add_child(_bg)
+	# UI v3.1: the plates frost this screen's own sky (HeroFrost), body text on the 94 % bed.
+	_frost = HeroFrost.attach(self)
+	_bg.baked.connect(func(): _frost.set_layers([{"tex": _bg.baked_texture(), "rect": Rect2(Vector2.ZERO, size)}]))
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(_scroll)
@@ -127,9 +131,9 @@ func _build() -> void:
 	_left.add_child(_role_line(str(_c["role"])))
 	var nm := UIKit.heading(str(_c["name"]), 62, UITokens.INK)
 	_left.add_child(nm)
-	_left.add_child(UIKit.label(str(_c["title"]), 26, UITokens.GOLD_TEXT, true))
+	_left.add_child(UIKit.label(str(_c["title"]), 26, UITokens.GOLD_TEXT_GLASS, true))
 	if bool(_c["is_recut"]):
-		_left.add_child(UIKit.label(HeroesText.t("RECUT_FROM", [HeroesText.gem_name(str(_c["native"]), "GEN")]), 22, UITokens.INK_DIM))
+		_left.add_child(UIKit.label(HeroesText.t("RECUT_FROM", [HeroesText.gem_name(str(_c["native"]), "GEN")]), 22, UITokens.INK_DIM_GLASS))
 	var badges := HBoxContainer.new()
 	badges.add_theme_constant_override("separation", 8)
 	badges.add_child(UIKit.socket("cls_" + str(_c["class"]), 52))
@@ -151,14 +155,14 @@ func _build() -> void:
 		lv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lv.custom_minimum_size = Vector2(COL_W - COL_PAD, 0)
 		_left.add_child(lv)
-		_left.add_child(UIKit.label(HeroesText.t("CHAMP_UI_SHARED"), 22, UITokens.INK_DIM))
+		_left.add_child(UIKit.label(HeroesText.t("CHAMP_UI_SHARED"), 22, UITokens.INK_DIM_GLASS))
 		if bool(_c["in_team"]):
 			var it := UIKit.label(HeroesText.t("SHOW_IN_TEAM") + " · " + HeroesTeamLogic.slot_label(StringName(slot)), 22, UITokens.PLUS, true)
 			_left.add_child(it)
 	else:
 		_left.add_child(UIKit.gap(6))
 		_left.add_child(UIKit.label(HeroesText.t("SHOW_NOT_OWNED"), 24, UITokens.INK, true))
-		_left.add_child(UIKit.label(HeroesText.t("SHOW_FROM_CHEST"), 22, UITokens.INK_DIM))
+		_left.add_child(UIKit.label(HeroesText.t("SHOW_FROM_CHEST"), 22, UITokens.INK_DIM_GLASS))
 	var art_holder := Control.new()
 	art_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	art_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -188,7 +192,8 @@ func _build() -> void:
 	_body.add_child(_relic_row(inner))
 	_body.add_child(UIKit.gap(6))
 	# Dock.
-	var back := UIKit.secondary_button("", "back", Vector2(96, 88))
+	var back := UIKit.edge_button("back", 38.0)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(_back)
 	_dock.add_child(back)
 	var to_team := UIKit.secondary_button(HeroesText.t("CHAMP_UI_TO_TEAM"), "team", Vector2(0, 88), 26)
@@ -200,8 +205,18 @@ func _build() -> void:
 	if str(rp["state"]) == "ready":
 		var rc := UIKit.cta_button(HeroesText.t("RECUT_CTA"), HeroesText.t("RECUT_TO", [HeroesText.gem_name(str(rp["next"]))]), Vector2(0, 88), 30)
 		rc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rc.ctx_gem = str(rp["next"])
 		rc.pressed.connect(func(): HeroesNav.open(hub, "recut/" + champ_id))
 		_dock.add_child(rc)
+
+
+## A frosted glass panel over this screen (text on the 94 % bed), or the flat text glass.
+func _glass_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	# The kit card's pad (16, 14): the plates size their text columns to it (w - 36).
+	if not HeroFrost.frost_panel(p, "panel", Vector2(16, 14), _frost):
+		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(16, 14)))
+	return p
 
 
 func _inner_w() -> float:
@@ -214,10 +229,10 @@ func _role_line(text: String) -> Control:
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	p.add_theme_stylebox_override("panel", UIKit.cbox(UITokens.PAPER_0, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, 1, Vector2(14, 6)))
+	p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(14, 6)))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
-	var ic := Icons.make("cls_" + str(_c["class"]), 26.0, UITokens.GOLD_TEXT)
+	var ic := Icons.make("cls_" + str(_c["class"]), 26.0, UITokens.GOLD_TEXT_GLASS)
 	ic.custom_minimum_size = Vector2(26, 26)
 	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(ic)
@@ -245,7 +260,7 @@ func _facets_row() -> Control:
 
 
 func _plate_shell(title: String, w: float) -> Array:
-	var p := UIKit.panel("card")
+	var p := _glass_panel()
 	p.custom_minimum_size = Vector2(w, 0)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
@@ -277,12 +292,12 @@ func _action_plate(n: Dictionary, w: float) -> Control:
 		note = HeroesText.t("CHAMP_UI_TIER_HAVE", [HeroesText.roman(top), HeroesText.gem_name(Ladder.CHAMPION_MAX_GEM)])
 	else:
 		note = HeroesText.t("CHAMP_UI_TIER_NATIVE", [HeroesText.roman(top), HeroesText.gem_name(Ladder.CHAMPION_MAX_GEM, "PL")])
-	v.add_child(_wrap(note, 22, UITokens.GOLD_TEXT, true, tw))
+	v.add_child(_wrap(note, 22, UITokens.GOLD_TEXT_GLASS, true, tw))
 	if bool(_c["is_recut"]):
-		v.add_child(_wrap(HeroesText.t("CHAMP_UI_TIER_KEPT", [HeroesText.roman(tier)]), 22, UITokens.INK_DIM, false, tw))
+		v.add_child(_wrap(HeroesText.t("CHAMP_UI_TIER_KEPT", [HeroesText.roman(tier)]), 22, UITokens.INK_DIM_GLASS, false, tw))
 	v.add_child(UIKit.hairline())
 	v.add_child(_wrap(str(n["action_text"]), 22, UITokens.INK, true, tw))
-	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper() + "_DESC"), 22, UITokens.INK_DIM, false, tw))
+	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper() + "_DESC"), 22, UITokens.INK_DIM_GLASS, false, tw))
 	return sh[0]
 
 
@@ -294,7 +309,7 @@ func _aura_plate(n: Dictionary, w: float) -> Control:
 	v.add_child(_wrap(HeroesText.t("AURA_" + cls.to_upper()), 26, UITokens.INK, true, tw))
 	var val := UIKit.number(str(n["aura_text"]).split(" ")[0], 44)
 	v.add_child(val)
-	v.add_child(_wrap(HeroesText.t("CHAMP_UI_AURA_NOTE"), 22, UITokens.INK_DIM, false, tw))
+	v.add_child(_wrap(HeroesText.t("CHAMP_UI_AURA_NOTE"), 22, UITokens.INK_DIM_GLASS, false, tw))
 	var sr := HBoxContainer.new()
 	sr.add_theme_constant_override("separation", 10)
 	var map := HeroesChampionParts.SlotMap.new()
@@ -317,7 +332,7 @@ func _wrap(text: String, fs: int, col: Color, bold: bool, w: float) -> Label:
 
 
 func _relic_row(inner: float) -> Control:
-	var p := UIKit.panel("card")
+	var p := _glass_panel()
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
 	p.add_child(h)
@@ -330,13 +345,15 @@ func _relic_row(inner: float) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(UIKit.caps(HeroesText.t("SKL_RELIC"), 20, UITokens.INK_SOFT))
+	v.add_child(UIKit.caps(HeroesText.t("SKL_RELIC"), 20, UITokens.INK_DIM_GLASS))
 	v.add_child(UIKit.label(HeroesText.t("RELIC_" + champ_id.to_upper()), 26, UITokens.INK, true))
 	var line := HeroesText.t("CHAMP_UI_RELIC_RANK", [0]) if open else HeroesText.t("CHAMP_UI_RELIC_LOCKED", [int(HeroData.UNLOCK_AT["workshop"])])
-	v.add_child(_wrap(line, 22, UITokens.INK_DIM, false, inner - 140.0))
+	# The line's width leaves room for the pad (2 x 16), the socket (72 + 16) and, when locked, the
+	# lock (16 + 30): it was inner - 140 and pushed the locked row 26 px past the screen.
+	v.add_child(_wrap(line, 22, UITokens.INK_DIM_GLASS, false, inner - 124.0 - (0.0 if open else 46.0)))
 	h.add_child(v)
 	if not open:
-		var lk := Icons.make("lock", 30.0, UITokens.INK_DIM)
+		var lk := Icons.make("lock", 30.0, UITokens.INK_DIM_GLASS)
 		lk.custom_minimum_size = Vector2(30, 30)
 		lk.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(lk)
@@ -344,7 +361,7 @@ func _relic_row(inner: float) -> Control:
 
 
 func _run_panel(inner: float, slot: String) -> Control:
-	var p := UIKit.panel("card")
+	var p := _glass_panel()
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	p.add_child(v)
@@ -364,7 +381,7 @@ func _run_panel(inner: float, slot: String) -> Control:
 	t.add_theme_constant_override("separation", 6)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.add_child(_wrap(str(_c["role"]), 24, UITokens.INK, true, inner - 360.0))
-	t.add_child(_wrap(HeroesText.t("CHAMP_UI_RUN_SOON"), 22, UITokens.INK_DIM, false, inner - 360.0))
+	t.add_child(_wrap(HeroesText.t("CHAMP_UI_RUN_SOON"), 22, UITokens.INK_DIM_GLASS, false, inner - 360.0))
 	h.add_child(t)
 	return p
 
@@ -409,7 +426,8 @@ func _place_art() -> void:
 		holder.custom_minimum_size = Vector2(0, ch + 100.0)
 	if holder.has_meta("seal"):
 		var seal: Control = holder.get_meta("seal")
-		seal.position = Vector2(W - 70.0, 76.0)
+		# The «НОВИЙ» tag sits inside the card's top-right corner, on its top edge.
+		seal.position = Vector2(W - 6.0 - 70.0 - seal.size.x * 0.5, 96.0 - seal.size.y * 0.5)
 
 
 # ------------------------------------------------------------------ actions

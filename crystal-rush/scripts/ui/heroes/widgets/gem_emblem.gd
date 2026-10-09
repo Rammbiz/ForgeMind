@@ -87,7 +87,8 @@ static func draw_emblem(ci: CanvasItem, g: String, nat: String, c: Vector2, s: f
 	var cut: String = spec["cut"]
 	var metal: Color = spec["metal"]
 	# Soft contact shadow.
-	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c + Vector2(-s * 0.55, s * 0.18), Vector2(s * 1.1, s * 0.6)), false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.28))
+	# v3.1: one quiet halo (was a 0.28 contact blot), so the stone sits on the page, not on a shadow.
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c + Vector2(-s * 0.5, s * 0.22), Vector2(s * 1.0, s * 0.5)), false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
 	if setting:
 		_draw_setting(ci, g, cut, c, s, metal)
 	var body: Color = BODY.get(g, spec["rim"])
@@ -105,8 +106,8 @@ static func draw_emblem(ci: CanvasItem, g: String, nat: String, c: Vector2, s: f
 		# it with the setting's metal and let a fine gold hairline carry the edge.
 		var outer := GemDraw.cut_points(cut, c, s)
 		var cover: Color = metal if setting else Color(spec["rim"]).lerp(Color.WHITE, 0.3)
-		GemDraw.outline(ci, outer, cover, s * 0.032)
-		GemDraw.outline(ci, outer, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.95), maxf(1.5, s * 0.008))
+		GemDraw.outline(ci, outer, cover, s * 0.024)
+		GemDraw.outline(ci, outer, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.95), UIKit.line_px(1.0))
 	_draw_girdle_light(ci, cut, c, s)
 
 
@@ -117,7 +118,7 @@ static func _draw_setting(ci: CanvasItem, g: String, cut: String, c: Vector2, s:
 	for p in bez:
 		cols.append(metal.lightened(0.25).lerp(metal.darkened(0.12), clampf((p.y - c.y + s * 0.6) / (s * 1.2), 0.0, 1.0)))
 	ci.draw_polygon(bez, cols)
-	GemDraw.outline(ci, bez, Color(dark.r, dark.g, dark.b, 0.5), clampf(s * 0.01, 1.0, 1.8))
+	GemDraw.outline(ci, bez, Color(dark.r, dark.g, dark.b, 0.45), UIKit.line_px(1.0))
 	var outer := GemDraw.cut_points(cut, c, s * 1.0)
 	var n := int(PRONGS.get(g, 4))
 	var tips := _prong_points(cut, outer, n, c)
@@ -127,12 +128,12 @@ static func _draw_setting(ci: CanvasItem, g: String, cut: String, c: Vector2, s:
 		var L := s * 0.11
 		var claw := PackedVector2Array([p - d * L * 0.5 + Vector2(-d.y, d.x) * w, p + d * L * 0.55, p - d * L * 0.5 - Vector2(-d.y, d.x) * w])
 		ci.draw_colored_polygon(claw, metal.lightened(0.15))
-		GemDraw.outline(ci, claw, Color(dark.r, dark.g, dark.b, 0.7), 1.0)
+		GemDraw.outline(ci, claw, Color(dark.r, dark.g, dark.b, 0.55), UIKit.line_px(1.0))
 		if g == "R":
 			var off := Vector2(-d.y, d.x) * w * 2.1
 			var claw2 := PackedVector2Array([claw[0] + off, claw[1] + off, claw[2] + off])
 			ci.draw_colored_polygon(claw2, metal.lightened(0.15))
-			GemDraw.outline(ci, claw2, Color(dark.r, dark.g, dark.b, 0.7), 1.0)
+			GemDraw.outline(ci, claw2, Color(dark.r, dark.g, dark.b, 0.55), UIKit.line_px(1.0))
 	if g == "M":
 		# The 12-diamond halo around the black opal.
 		for i in 12:
@@ -269,9 +270,7 @@ func _draw_name_plate(r: Rect2) -> void:
 	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var pw := minf(r.size.x, tw + r.size.y * 1.6)
 	var pr := Rect2(Vector2(r.position.x + (r.size.x - pw) * 0.5, r.position.y), Vector2(pw, r.size.y))
-	var pts := GemDraw.chamfer_rect(pr, minf(8.0, r.size.y * 0.3))
-	draw_colored_polygon(pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
-	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.2)
+	HeroV3.glass(self, pr, minf(UITokens.CHAMFER_XS, r.size.y * 0.3), 0.94, HeroV3.GOLD, 0.8, 0.6)
 	GemDraw.draw_marquise(self, Vector2(pr.position.x - 6.0, pr.get_center().y), Vector2.RIGHT, 9.0)
 	GemDraw.draw_marquise(self, Vector2(pr.end.x + 6.0, pr.get_center().y), Vector2.RIGHT, 9.0)
-	draw_string(f, Vector2(pr.get_center().x - tw * 0.5, pr.get_center().y + f.get_ascent(fs) * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT)
+	draw_string(f, Vector2(pr.get_center().x - tw * 0.5, pr.get_center().y + f.get_ascent(fs) * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS)

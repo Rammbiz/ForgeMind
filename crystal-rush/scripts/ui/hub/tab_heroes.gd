@@ -123,18 +123,19 @@ func _ready() -> void:
 	_head.add_theme_constant_override("separation", 4)
 	_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_head)
+	_head.item_rect_changed.connect(func(): _stage.queue_redraw())
 	_gem_chip = PanelContainer.new()
 	_gem_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gem_chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_head.add_child(_gem_chip)
-	_name = UIKit.scene_label("", 56)
-	UIKit.scene_halo(_name, 0.45, 1.15)
+	# v3.1: the stage is a pale frosted sky now (not the dark 3D), so the name is the screen
+	# title in INK Bold and the hero's title INK_DIM_GLASS caps, on the stage's local cream veil
+	# (_HeroStage) - no shadow, no halo, no outline (warm white measured 2.05-2.35:1 here).
+	_name = UIKit.label("", 56, UIKit.INK, true)
+	_name.add_theme_font_override("font", UIKit.font_w("bold"))
 	_head.add_child(_name)
-	# The title in warm white on the scene (gold caps were 1.2-2.2:1 on quartz / sapphire).
-	_title = UIKit.label("", 22, UIKit.ON_SCENE, true)
+	_title = UIKit.label("", 22, UITokens.INK_DIM_GLASS)
 	_title.add_theme_font_override("font", UIKit.font_caps(22))
-	UIKit.soft_shadow(_title, 22, 1.6)
-	UIKit.scene_halo(_title, 0.7, 1.1)
 	_head.add_child(_title)
 	_head.add_child(UIKit.gap(6))
 	_sockets = HBoxContainer.new()
@@ -216,7 +217,11 @@ func _layout() -> void:
 	var foot := _sheet.get_child(0).get_node_or_null("Foot") as Control
 	if foot:
 		foot.custom_minimum_size.y = maxf(0.0, below - 12.0)
-	_show.offset_bottom = -SHEET_H + 78.0
+	# The dais rim stays above the sheet top (the feet and the crystal ring read), and the
+	# region is wide enough that a tall phone (width-limited fit) never cuts the dais at the
+	# viewport's left edge.
+	_show.offset_bottom = -SHEET_H + 12.0
+	_show.hero_region = Vector2(1.95, 2.2)
 	# Tall phones: the art band grows and the hero (framed by height) grows with it.
 	_show.offset_top = 60.0
 	_stage.queue_redraw()
@@ -335,12 +340,12 @@ func refresh() -> void:
 	_stage.queue_redraw()
 	# Head
 	_clear(_gem_chip)
-	_gem_chip.add_theme_stylebox_override("panel", UIKit.cbox(Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.9), 6, UIKit.HAIRLINE, 1, Vector2(8, 3)))
+	_gem_chip.add_theme_stylebox_override("panel", UIKit.lux("chip", Vector2(10, 3)))
 	var gr := HBoxContainer.new()
 	gr.add_theme_constant_override("separation", 6)
 	gr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gr.add_child(_GemMark.make(str(inf["gem"]), 24.0))
-	gr.add_child(UIKit.label(tr2("GEM_" + str(inf["gem"]).to_upper()), 19, UIKit.INK, true))
+	gr.add_child(UIKit.label(tr2("GEM_" + str(inf["gem"]).to_upper()), 22, UIKit.INK))
 	gr.add_child(UIKit.gap(2))
 	_gem_chip.add_child(gr)
 	var nm := Loc.t(str(def["name"]))
@@ -365,7 +370,7 @@ func refresh() -> void:
 		var ci := Icons.make("crown", 28.0)
 		ci.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		cr.add_child(ci)
-		cr.add_child(UIKit.label(Loc.t("HERO_SELECTED"), 20, UIKit.INK, true))
+		cr.add_child(UIKit.label(Loc.t("HERO_SELECTED"), 22, UIKit.INK))
 		chip.add_child(cr)
 		_pick_row.add_child(chip)
 	elif unlocked:
@@ -403,6 +408,11 @@ func _socket(icon: String, slate: bool, tip: String) -> Control:
 		Audio.play("click", -10.0)
 		hub.toast(tip))
 	return s
+
+
+## §4.6: the frost behind a modal over this tab leans toward the hero's gem light.
+func page_tint() -> Color:
+	return UITokens.gem(str(info(HEROES[_idx])["gem"]))["light"]
 
 
 func _hero_center() -> Vector2:
@@ -454,7 +464,7 @@ func _attr_page(id: String, unlocked: bool) -> Control:
 		var l1 := UIKit.label(Loc.f("HERO_LOCKED", [at]), 24, UIKit.INK, true)
 		l1.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tv.add_child(l1)
-		var l2 := UIKit.label(Loc.t(str(Balance.HEROES[id]["desc"])), 20, UIKit.INK_DIM)
+		var l2 := UIKit.label(Loc.t(str(Balance.HEROES[id]["desc"])), 22, UIKit.INK_DIM)
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tv.add_child(l2)
 		row.add_child(tv)
@@ -479,7 +489,7 @@ func _attr_page(id: String, unlocked: bool) -> Control:
 	var right := VBoxContainer.new()
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
 	right.add_theme_constant_override("separation", 4)
-	var cl := UIKit.caps("%s · %d" % [tr2("H_CAP"), cap], 18, UIKit.INK_SOFT)
+	var cl := UIKit.caps("%s · %d" % [tr2("H_CAP"), cap], 20, UIKit.INK_DIM)
 	cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(cl)
 	var bar := UIKit.progress(lvl, cap, 290.0, 10.0)
@@ -507,7 +517,7 @@ func _stat_row(icon: String, text: String, value: String, delta: float, delta_te
 	var dt := delta_text
 	if dt == "" and delta > 0.0005:
 		dt = "+%d%%" % int(round(delta * 100.0))
-	var d := UIKit.label(("→ " + dt) if delta_text != "" else dt, 20, UIKit.PLUS, true)
+	var d := UIKit.label(("→ " + dt) if delta_text != "" else dt, 22, UIKit.PLUS)
 	d.custom_minimum_size.x = 76
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -540,13 +550,13 @@ func _ult_page(id: String, unlocked: bool) -> Control:
 	var sub := Loc.f("ULT_RANK", [_roman(rank)])
 	if bonus > 0:
 		sub += " · " + tr2("H_ULT_EFFECT") % bonus
-	tv.add_child(UIKit.label(sub, 20, UIKit.INK_DIM))
+	tv.add_child(UIKit.label(sub, 22, UIKit.INK_DIM))
 	row.add_child(tv)
 	v.add_child(row)
 	v.add_child(UIKit.gap(10))
 	v.add_child(UIKit.hairline())
 	v.add_child(UIKit.gap(12))
-	v.add_child(UIKit.section(tr2("H_MILESTONES"), 18))
+	v.add_child(UIKit.section(tr2("H_MILESTONES"), 20))
 	var ms := _Milestones.new()
 	ms.lvl = lvl
 	ms.custom_minimum_size = Vector2(0, 96)
@@ -575,11 +585,11 @@ func _aspect_page(id: String, unlocked: bool) -> Control:
 		tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tv.add_child(UIKit.label(tr2("ASP_" + a.to_upper()), 24, UIKit.INK if i == 0 else UIKit.INK_DIM, true))
 		var desc := Loc.t(str(Balance.HEROES[id]["desc"])) if i == 0 else tr2("ASPD_" + a.to_upper())
-		var dl := UIKit.label(desc, 18, UIKit.INK_SOFT)
+		var dl := UIKit.label(desc, 22, UIKit.INK_DIM)
 		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tv.add_child(dl)
 		r.add_child(tv)
-		var tag := UIKit.label(tr2("H_ASPECT_ON") if on else tr2("H_ASPECT_AT") % int(at[i] if i < at.size() else 1), 18, UIKit.PLUS if on else UIKit.INK_DIM, true)
+		var tag := UIKit.label(tr2("H_ASPECT_ON") if on else tr2("H_ASPECT_AT") % int(at[i] if i < at.size() else 1), 22, UIKit.PLUS if on else UIKit.INK_DIM)
 		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		r.add_child(tag)
 		v.add_child(r)
@@ -683,6 +693,11 @@ static func _roman(n: int) -> String:
 ## under the dais), a slate whisper under the top plates. Paints the whole screen behind the
 ## page; the cream sheet (KitSheet) covers the lower part.
 class _HeroStage extends Control:
+	const HAZE := 0.55
+	## v3.1 MF-8: the band above the hero (y < the name block's foot) keeps less haze so the
+	## frosted islands and clouds read through the glass, even at thumbnail size.
+	const HAZE_TOP := 0.28
+	const HAZE_MID := 0.45
 	var page: Control
 	var gem := "sapphire"
 
@@ -714,6 +729,10 @@ class _HeroStage extends Control:
 			c_top = top
 			c_mid = bot
 			c_low = bot.lerp(Color("#6B5AA6"), 0.4)
+		# v3.1 (§4.5): the haze alphas x 0.55, so the hub's frosted world shows through the stage.
+		c_top.a *= HAZE_TOP
+		c_mid.a *= HAZE_MID
+		c_low.a *= HAZE
 		var ym := lerpf(y0, sheet_y, 0.5)
 		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + w, y0), Vector2(x0 + w, ym), Vector2(x0, ym)]), PackedColorArray([c_top, c_top, c_mid, c_mid]))
 		draw_polygon(PackedVector2Array([Vector2(x0, ym), Vector2(x0 + w, ym), Vector2(x0 + w, size.y + 40.0), Vector2(x0, size.y + 40.0)]), PackedColorArray([c_mid, c_mid, c_low, c_low]))
@@ -736,14 +755,43 @@ class _HeroStage extends Control:
 		# A warm floor glow where the dais stands.
 		var fy := sheet_y - 40.0
 		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - w * 0.42, fy - 70.0), Vector2(w * 0.84, 140.0)), false, Color(1.0, 0.96, 0.86, 0.35))
-		# Soft side vignette and a slate whisper under the top plates (header text sits there).
-		var vg := Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14)
-		var cl := Color(vg.r, vg.g, vg.b, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + 70, y0), Vector2(x0 + 70, size.y), Vector2(x0, size.y)]), PackedColorArray([vg, cl, cl, vg]))
-		draw_polygon(PackedVector2Array([Vector2(x0 + w - 70, y0), Vector2(x0 + w, y0), Vector2(x0 + w, size.y), Vector2(x0 + w - 70, size.y)]), PackedColorArray([cl, vg, vg, cl]))
-		var sc := Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.2)
-		var sc0 := Color(sc.r, sc.g, sc.b, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + w, y0), Vector2(x0 + w, 200.0), Vector2(x0, 200.0)]), PackedColorArray([sc, sc, sc0, sc0]))
+		# v3.1: the header is INK on the pale frost now, so no slate whisper or side vignette;
+		# instead a local cream veil (light falling from the upper left) under the name block
+		# keeps the name >= 3:1 and the caps >= 4.5:1 on every gem ground. It fades out to
+		# the right and below, so the world still reads through the rest of the band.
+		_header_veil(x0)
+
+	func _header_veil(x0: float) -> void:
+		var head := page.get("_head") as Control
+		if head == null:
+			return
+		var r := head.get_rect()
+		var p0 := UITokens.PAPER_0
+		var a := 0.72
+		var solid := Color(p0.r, p0.g, p0.b, a)
+		var clear := Color(p0.r, p0.g, p0.b, 0.0)
+		# Covers the chip, the name and the title (the sockets and the pick row are glass).
+		var name_l := page.get("_name") as Control
+		var title_l := page.get("_title") as Control
+		var foot := r.position.y + (title_l.position.y + title_l.size.y if title_l.visible else name_l.position.y + name_l.size.y)
+		var right := r.position.x + maxf(_text_w(name_l), _text_w(title_l)) + 40.0
+		var top := -get_global_rect().position.y
+		var y1 := foot + 18.0
+		var y2 := y1 + 90.0
+		var x1 := maxf(right, 260.0)
+		var x2 := x1 + 200.0
+		# Solid core, a soft right fade, a soft bottom fade and the corner between them.
+		draw_rect(Rect2(Vector2(x0, top), Vector2(x1 - x0, y1 - top)), solid)
+		draw_polygon(PackedVector2Array([Vector2(x1, top), Vector2(x2, top), Vector2(x2, y1), Vector2(x1, y1)]), PackedColorArray([solid, clear, clear, solid]))
+		draw_polygon(PackedVector2Array([Vector2(x0, y1), Vector2(x1, y1), Vector2(x1, y2), Vector2(x0, y2)]), PackedColorArray([solid, solid, clear, clear]))
+		draw_polygon(PackedVector2Array([Vector2(x1, y1), Vector2(x2, y1), Vector2(x1, y2)]), PackedColorArray([solid, clear, clear]))
+
+	static func _text_w(l: Control) -> float:
+		if not (l is Label) or not l.visible:
+			return 0.0
+		var lb := l as Label
+		var fs := lb.get_theme_font_size("font_size")
+		return lb.get_theme_font("font").get_string_size(lb.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 
 ## A portrait on the right rail: the hero's painted close-up in a disc on its gem ground, a
@@ -786,23 +834,24 @@ class _RailItem extends Control:
 				uvs.append(Vector2(0.5, 0.5) + d * 0.5 * 0.86 + Vector2(0, -0.02))
 			var tint := Color(0.5, 0.52, 0.58, 0.85) if locked else Color.WHITE
 			draw_colored_polygon(pts, tint, uvs, tex)
-		var ring := UITokens.HAIRLINE if not selected else Color("#E0B85C")
-		draw_arc(c, r - 0.75, 0, TAU, 56, ring, 2.5 if selected else 1.5, true)
-		draw_arc(c, ir, 0, TAU, 56, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.6), 1.0, true)
+		# v3 lines: a 1 dpx gold ring (1.5 dpx deep gold when shown), a light line inside.
+		var ring := UITokens.HAIRLINE if not selected else UITokens.LINE_GOLD_DEEP
+		draw_arc(c, r - 0.75, 0, TAU, 64, ring, UIKit.line_px(1.5 if selected else 1.0), true)
+		draw_arc(c, ir, 0, TAU, 64, Color(1, 1, 1, 0.6), UIKit.px(1.0), true)
 		if selected:
-			draw_arc(c, r + 3.0, 0, TAU, 56, Color(1.0, 0.95, 0.8, 0.85), 1.5, true)
+			draw_arc(c, r + 3.0, 0, TAU, 64, Color(1.0, 0.97, 0.88, 0.9), UIKit.px(1.0), true)
 			GemDraw.draw_keystone(self, Vector2(c.x - r - 6.0, c.y), 9.0)
 		else:
 			draw_circle(c, r, Color(UITokens.PAPER_1.r, UITokens.PAPER_1.g, UITokens.PAPER_1.b, 0.18))
 		if locked:
 			var lc2 := c + Vector2(r * 0.62, r * 0.62)
 			draw_circle(lc2, 13.0, UITokens.PAPER_0)
-			draw_arc(lc2, 12.5, 0, TAU, 32, UITokens.HAIRLINE, 1.2, true)
+			draw_arc(lc2, 12.5, 0, TAU, 40, UITokens.HAIRLINE, UIKit.line_px(1.0), true)
 			Icons.line(self, "lock", Rect2(lc2 - Vector2(8, 8), Vector2(16, 16)), UITokens.INK)
 		elif chosen:
 			var cc := c + Vector2(r * 0.66, -r * 0.66)
 			draw_circle(cc, 14.0, UITokens.PAPER_0)
-			draw_arc(cc, 13.5, 0, TAU, 32, UITokens.HAIRLINE, 1.2, true)
+			draw_arc(cc, 13.5, 0, TAU, 40, UITokens.HAIRLINE, UIKit.line_px(1.0), true)
 			Icons.draw_icon(self, "crown", Rect2(cc - Vector2(10, 10), Vector2(20, 20)))
 
 
@@ -832,17 +881,16 @@ class _Milestones extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var f := UIKit.font_w("bold")
 		var fm := UIKit.font_w("medium")
 		var x0 := 34.0
 		var x1 := size.x - 34.0
 		var y := 30.0
 		var mx := float(EconData.HERO["max"])
-		draw_line(Vector2(x0, y), Vector2(x1, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), 1.5, true)
+		y = GemDraw.pixel_y(self, y)
+		draw_line(Vector2(x0, y), Vector2(x1, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
 		var xl := lerpf(x0, x1, clampf(float(lvl - 1) / (mx - 1.0), 0.0, 1.0))
 		if lvl > 1:
-			draw_line(Vector2(x0, y), Vector2(xl, y), UITokens.CTA, 4.0, true)
-			draw_line(Vector2(x0, y - 1.0), Vector2(xl, y - 1.0), Color(1, 0.95, 0.8, 0.7), 1.0, true)
+			draw_line(Vector2(x0, y), Vector2(xl, y), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5))
 		GemDraw.draw_marquise(self, Vector2(x0 - 4.0, y), Vector2(-1, 0), 10.0)
 		GemDraw.draw_marquise(self, Vector2(x1 + 4.0, y), Vector2(1, 0), 10.0)
 		var marks: Array = []
@@ -874,9 +922,9 @@ class _Milestones extends Control:
 			if m.size() < 4:
 				continue
 			var t := str(m[1])
-			var fs := 18
-			var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-			draw_string(f, Vector2(clampf(x - tw * 0.5, 0, size.x - tw), y + 38), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
+			var fs := 22
+			var tw := fm.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			draw_string(fm, Vector2(clampf(x - tw * 0.5, 0, size.x - tw), y + 40), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
 			var lt := Loc.f("LV", [l])
-			var lw := fm.get_string_size(lt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-			draw_string(fm, Vector2(clampf(x - lw * 0.5, 0, size.x - lw), y + 62), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITokens.INK_DIM)
+			var lw := fm.get_string_size(lt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			draw_string(fm, Vector2(clampf(x - lw * 0.5, 0, size.x - lw), y + 66), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.INK_DIM)

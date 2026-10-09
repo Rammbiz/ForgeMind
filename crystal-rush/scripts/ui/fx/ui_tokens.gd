@@ -47,9 +47,9 @@ const MIN_TOUCH := 88.0
 const MIN_TEXT := 20
 const TOP_BAR_H := 96.0            ## 0-96: portrait ring + currency plates
 const RIBBON_Y := 104.0            ## world ribbon / screen title row (44 tall)
-const NAV_H := 120.0               ## bottom nav bar body (y 1160-1280 at H 1280)
-const NAV_RISE := 28.0             ## the active medallion rises above the bar
-const TAB_BAR_H := NAV_H + NAV_RISE ## legacy name: room the nav takes at the bottom
+const NAV_H := 100.0               ## v3: slim frosted strip (was a 120 slab + 28 medallion rise)
+const NAV_RISE := 10.0             ## v3.1: the slender Play ring rises 10 px above the hairline, no more
+const TAB_BAR_H := NAV_H + NAV_RISE ## legacy name: room the nav takes at the bottom (110)
 const DOCK_H := 132.0              ## a screen dock (back tab + CTA) above the nav
 const GUTTER := 24.0               ## side margin
 const GAP := 12.0                  ## default gap between cards / rows
@@ -59,7 +59,59 @@ const CHAMFER_L := 12.0            ## CTA, sheets, modals
 const CHAMFER := 10.0              ## panels, cards
 const CHAMFER_S := 8.0             ## buttons, plates
 const CHAMFER_XS := 6.0            ## chips, tags
-const HAIRLINE_W := 1.5            ## gold hairline (2.0 on CTA rims and sheet tops)
+const HAIRLINE_W := 1.0            ## v3: legacy canvas width; new code sizes lines in DEVICE px (UIKit.px)
+const HAIRLINE_PX := 1.0           ## v3: every frame / divider / ring = 1 device px (crisp at 1080 / 1440)
+const SELECT_PX := 1.5             ## v3.1: active underline, active Play ring, CTA rim, selected card. Nothing heavier.
+
+# ------------------------------------------------------------------ v3.1 porcelain glass (binding spec ui_v3_spec.md §1)
+## Glass = translucent cream over the frosted world (KitGlass) + ONE 1 px gold hairline + a 1 px
+## inner LIGHT line just inside it (light catching the glass edge). No dark borders, soft shadows.
+## Lines (§1.1). At s < 0.9 (540-class) gold lines on frost draw at 1.25x (UIKit.line_px).
+const LINE_GOLD := Color(0.788, 0.659, 0.416, 0.78)   ## #C9A86A @ 0.78: the 1 px gold frame on glass
+const LINE_GOLD_DEEP := Color(0.659, 0.514, 0.247, 0.90) ## #A8833F @ 0.90: lines that must read on light frost (nav hairline, Play ring, flourishes)
+const LINE_LIGHT := Color(1.0, 1.0, 1.0, 0.62)        ## inner light line (top), fades to 0.18 at the bottom
+const LOW_DENSITY_LINE := 1.25     ## §1.1a: line width factor when the device scale is < 0.9
+## Glass (§1.2).
+const GLASS_TOP := Color(0.988, 0.976, 0.949, 0.80)   ## #FCF9F2 @ 0.80: flat glass panel tint (no snapshot)
+const GLASS_BOT := Color(0.969, 0.949, 0.910, 0.86)   ## #F7F2E8 @ 0.86
+const GLASS_TEXT_A := 0.94         ## any surface under BODY text: text beds, list rows, toasts (0.93-0.99)
+const GLASS_THIN_A := 0.72         ## plates / chips / pills / ribbons over the 3D (+0.10..0.14 per kind)
+const SHEET_FILL := Color(0.969, 0.949, 0.910, 0.84)  ## sheet body outside the text zones (flat fallback)
+const FROST_RIM_TINT := 0.62       ## frosted modal / sheet body: share of cream over the world (rim, margins)
+const FROST_TEXT_TINT := 0.94      ## effective tint behind the text column (the text bed)
+const FROST_DESAT := 0.25          ## modal / sheet frost: the sky stays faintly blue (0.45 turned it greige)
+const FROST_LIFT := 0.22           ## ... and bright (Genshin glass, not a grey rim on paper)
+const NAV_FROST_CONTRAST := 0.75   ## nav frost keeps more of the world (the floor ring, map lines ghost through)
+const NAV_FROST_DESAT := 0.30
+const BED_FEATHER_MODAL := 12.0    ## modal / panel text bed feather (a crisp glass rim, no milky band)
+const FROST_TINT := FROST_RIM_TINT ## legacy name
+const FROST_MODAL_TINT := 0.72     ## modal / panel rim: closer to the bed (no grey inner band), still glass
+const NAV_TINT_TOP := 0.20         ## nav strip tint at the hairline (v3.1 fix: 0.40 read opaque; the world ghosts through)
+const NAV_TINT_MID := 0.80         ## ... at the label cap height
+const NAV_TINT_BOT := 0.88         ## ... at the strip bottom
+const BACKDROP_VEIL := [0.42, 0.48, 0.56] ## cream veil over the frosted world on the cream tabs: PAPER_0 top / mid, PAPER_1 bottom
+const SHADOW_A := 0.10             ## soft slate shadow (x0.6-1.4 per kind); the CTA glows warm at 0.18 instead
+const SCRIM_MODAL := 0.42          ## modal dim (v2 0.50, A 0.36); ceremonies stay at SCRIM_CEREMONY
+const SCRIM_CEREMONY := 0.56
+## Ink (§1.3). Rule: text >= 4.5:1 on the worst 5 % of its own surface, glyphs >= 3.5:1.
+const INK_DIM_GLASS := Color("#62574F")   ## secondary text on any glass / frost, inactive nav labels (4.8 worst)
+const GOLD_TEXT_GLASS := Color("#7A5520") ## engraved caps / amber-ink labels on frost; active nav label (4.6 worst)
+## Bottom nav v3.1 (§1.4, §6; 720 canvas): a frosted strip, monoline gold glyphs, one clear active state.
+const NAV_GLYPH := 48.0            ## glyph box (stroke 2.0 canvas px, min UIKit.px(1.5))
+const NAV_STROKE := 2.0
+const NAV_LABEL := 22              ## label size, Medium, +1 px tracking, both states
+const NAV_GOLD := Color("#7E6136") ## inactive glyph (3.95:1 worst frost)
+const NAV_GOLD_ON := Color("#5A4220") ## active glyph (7.6:1 typical)
+const NAV_PLAY_R := 30.0           ## slender Play ring (60 px double ring)
+const NAV_SAG := 5.0               ## hairline arch: the sides sit 5 px lower than the centre
+const NAV_WASH := Color("#F1D99A") ## gold-leaf wash behind the active glyph (a glow, never a tile)
+const NAV_WASH_A := 0.50           ## wash alpha (white core NAV_WASH_CORE_A): visible at arm's length (MF-1)
+const NAV_WASH_CORE_A := 0.40
+const NAV_DUOTONE := 0.40          ## active glyph duotone fill share
+const NAV_LABEL_ON := Color("#80470A") ## active nav label: clear burnt amber (6.4:1 typical, AA-safe at 540)
+const NAV_PLAY_QUIET := 0.72       ## inactive Play topaz value (the active tab must outweigh it, MF-2)
+const NAV_PLAY_QUIET_A := 0.85     ## ... its alpha; the inactive ring sits at 0.70
+const NAV_BADGE := Color("#E3922C") ## 9 px amber diamond badge
 
 # ------------------------------------------------------------------ palette v2 (fusion §6.5)
 ## Surfaces (cream "documents you hold").
@@ -70,10 +122,10 @@ const PAPER_3 := Color("#E3D8C4")  ## pressed, wells, unowned cards
 ## Gold line language.
 const HAIRLINE := Color("#C9A86A") ## hairlines, frames, chamfer lines (decorative)
 const GOLD_HI := Color("#E3CB94")  ## lines and labels over art
-const GOLD_TEXT := Color("#8A6A2F") ## engraved section titles on cream (4.5:1)
+const GOLD_TEXT := Color("#8A6A2F") ## engraved caps on opaque cream or the text bed only (4.5:1)
 ## Text.
 const INK := Color("#4B5669")      ## text on cream (6.6:1)
-const INK_DIM := Color("#6E625B")  ## taupe labels on cream (4.9:1 on PAPER_1)
+const INK_DIM := Color("#6E625B")  ## taupe labels on OPAQUE cream only (5.3:1); on glass use INK_DIM_GLASS
 const INK_SOFT := Color("#675C56") ## small labels that need more contrast (18 px, 5.5:1)
 const ON_SCENE := Color("#FFF8EC") ## warm white on 3D / art, always with a soft shadow
 const SCRIM := Color("#1E2433")    ## shadows, scrims (never a flat dark panel)
@@ -83,6 +135,20 @@ const CTA := Color("#F5AE45")
 const CTA_LO := Color("#D9822E")
 const CTA_RIM := Color("#9C5A1F")
 const TOPAZ := Color("#FFB52E")
+## The key button (owner's pick «порцеляна»; the amber read as AI): the KitCTA body style.
+## "porcelain" is the game. "ink" (the runner-up) and "amber" (the old CTA) stay only for dev
+## comparisons: any scene takes --cta=<name> on the command line.
+const CTA_STYLE := "porcelain"
+const CTA_STYLES: Array[String] = ["porcelain", "ink", "amber"]
+## The live CTA style (KitCTA.style forwards here). Read from `--cta=<name>` on the command line
+## at load, so the theme and every painted style see it before the first screen is built.
+static var cta_style: String = _boot_cta_style()
+## The calm key styles ("porcelain", "ink"): the key-action path has no amber either (nav Play
+## crystal, hub progress diamonds, Victory band, multiplier glow, toggle fill, lux primary).
+const KEY_INK := Color("#2C3158")      ## ink enamel, top
+const KEY_INK_LO := Color("#252A4D")   ## ink enamel, bottom (a ~3 % step, nearly flat)
+const KEY_GOLD := Color("#C9AE78")     ## the one muted gold hairline of the calm key button
+const KEY_LABEL_DARK := Color("#2B2440")  ## ink label on porcelain / the calm Victory title
 const TOPAZ_HI := Color("#FFC860")
 ## States.
 const PLUS := Color("#2F7322")     ## stat increase on cream (5:1)
@@ -132,6 +198,23 @@ const STAGE_BOTTOM := Color("#C9B79A")
 ## Upgrade-ready green and claim gold (readable on cream).
 const READY := PLUS
 const CLAIM := CTA
+
+
+static func _boot_cta_style() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cta=") and a.trim_prefix("--cta=") in CTA_STYLES:
+			return a.trim_prefix("--cta=")
+	return CTA_STYLE
+
+
+## True for the refined calm key-action styles (no amber on the key-action path).
+static func calm_cta() -> bool:
+	return cta_style == "ink" or cta_style == "porcelain"
+
+
+## The accent of the key-action path: the calm deep gold line (amber only under --cta=amber).
+static func key_line() -> Color:
+	return LINE_GOLD_DEEP if calm_cta() else CTA_LO
 
 
 ## Gem key ("quartz".."opal") of a rarity letter ("C".."M") or a gem key passed through.

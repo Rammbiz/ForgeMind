@@ -3,7 +3,7 @@ extends Control
 ## «Портал / Portal» (heroes_design.md §7.1-§7.3, §9.3 Portal row, §9.5; part U §2.8; fusion §6.8 #4).
 ## The one dark screen of the game: the Portal night sky with a big gold Portal ring on a crystal
 ## dais. Top bar = Beacons only (no shop link, no "+"). Pool carousel «Хто може з’явитися» with each
-## hero's current chance under the card (generated, §9.5 row 3). One cream document panel holds the
+## hero's current chance under the card (generated, §9.5 row 3). One frosted glass panel holds the
 ## pity bar «Топаз або краще ≤ N» with the engraved «Аметист+ ≤ N» label and the Seals bar + «Вибір».
 ## Chips Фокус / Історія / Шанси. Dock: back · ×1 · ×10 (the amber jewel goes to the summon you can
 ## afford; ×10 first). Welcome state: one free ×10 under «Серед десяти — щонайменше Топаз».
@@ -33,11 +33,12 @@ var _hint: Label
 var _chips: HBoxContainer
 var _rule: PanelContainer
 var _dock: Control
-var _back: Button
+var _back: Control
 var _x1: Button
 var _x10: Button
 var _overlay: Control
 var _sheet: Control
+var _frost: HeroFrost
 var _busy := false
 
 
@@ -54,6 +55,9 @@ func _ready() -> void:
 	_sky = PortalSky.new()
 	_sky.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_sky)
+	# UI v3.1: the Portal's glass frosts the Portal night (its sky + the ring's light), not the hub.
+	_frost = HeroFrost.attach(self)
+	_frost.night = true
 	_ring = PortalRing.new()
 	add_child(_ring)
 	_root = Control.new()
@@ -104,7 +108,11 @@ func _build() -> void:
 	_pool_row.add_theme_constant_override("separation", 12)
 	_pool_scroll.add_child(_pool_row)
 	# The document panel: pity + Seals.
-	_panel = UIKit.panel("panel", Vector2(26, 18))
+	# v3.1: frosted glass (the night glows through the rim), the pity / Seals rows on the text bed.
+	_panel = PanelContainer.new()
+	if not HeroFrost.frost_panel(_panel, "panel", Vector2(26, 18), _frost):
+		_panel.free()
+		_panel = UIKit.panel("banner", Vector2(26, 18))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(_panel)
 	var col := VBoxContainer.new()
@@ -125,7 +133,7 @@ func _build() -> void:
 	sv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	srow.add_child(sv)
-	_seals_label = UIKit.label("", 22, UITokens.INK_DIM)
+	_seals_label = UIKit.label("", 22, UITokens.INK_DIM_GLASS)
 	_seals_label.clip_text = true
 	_seals_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	sv.add_child(_seals_label)
@@ -134,10 +142,13 @@ func _build() -> void:
 	sv.add_child(_seals)
 	_seal_btn = UIKit.button(HeroesText.t("PORTAL_SEALS_PICK"), false, 150)
 	_seal_btn.custom_minimum_size = Vector2(150, 88)
+	# Disabled, the label still carries information (the pick opens at the price): only the body
+	# dims, the label keeps INK_DIM_GLASS at full strength (>= 4.5:1).
+	_seal_btn.add_theme_color_override("font_disabled_color", UITokens.INK_DIM_GLASS)
 	_seal_btn.pressed.connect(func(): open_sheet("seals"))
 	srow.add_child(_seal_btn)
 	# Out of Beacons: one quiet line on where they come from (never a shop link).
-	_hint = UIKit.label(HeroesText.t("CUR_BEACON_NOTE"), 22, UITokens.INK_DIM)
+	_hint = UIKit.label(HeroesText.t("CUR_BEACON_NOTE"), 22, UITokens.INK_DIM_GLASS)
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.custom_minimum_size.x = 300
 	col.add_child(_hint)
@@ -148,6 +159,7 @@ func _build() -> void:
 	_root.add_child(_chips)
 	for c: Array in [["PORTAL_FOCUS", "target", "focus"], ["PORTAL_HISTORY", "calendar", "history"], ["PORTAL_ODDS", "odds", "odds"]]:
 		var chip := HeroChip.make(HeroesText.t(str(c[0])), str(c[1]))
+		chip.on_art = true
 		var which := str(c[2])
 		chip.pressed.connect(func(): open_sheet(which))
 		_chips.add_child(chip)
@@ -170,7 +182,8 @@ func _build() -> void:
 	_dock = Control.new()
 	_dock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_dock)
-	_back = UIKit.secondary_button("", "back", Vector2(96, 88))
+	# v3.1 (§7.9): back is a glass edge disc with one 1 dpx ring.
+	_back = UIKit.edge_button("back", 38.0)
 	_back.pressed.connect(close)
 	_dock.add_child(_back)
 
@@ -183,11 +196,25 @@ func _summon_button(count: int, amber: bool, can: bool, cost: int, have: int, we
 		var cta := UIKit.cta_button(label, sub, Vector2(160, 104), 30)
 		cta.sub_size = 22
 		cta.topaz = count == PortalData.X10_SUMMONS or welcome
+		cta.on_dark = true
 		b = cta
+	elif UITokens.cta_style == "porcelain":
+		# Porcelain key button: the other summon is a ghost on the night (0.16 glass, one 1 dpx
+		# line, warm-white text, like the summary's «Готово»). The kit's 0.5 secondary glass turns
+		# a grey slab over the night with ink at ~3:1; the ghost keeps ~6:1 and leaves porcelain
+		# the one filled button. Disabled: the same ghost, the text at 0.55.
+		b = UIKit.ghost_button(label + "\n" + sub, Vector2(160, 104), 24, true)
+		b.add_theme_stylebox_override("disabled", UIKit.lux("ghost"))
+		var dc := UITokens.ON_SCENE
+		b.add_theme_color_override("font_disabled_color", Color(dc.r, dc.g, dc.b, 0.55))
 	else:
 		b = UIKit.button(label + "\n" + sub, false, 160)
 		b.add_theme_font_size_override("font_size", 24)
 		b.custom_minimum_size = Vector2(160, 104)
+		# v3.1: a disabled summon stays readable porcelain on the night (the kit's 0.5 disabled
+		# glass turns a grey slab over dark); the quieter ink says "not yet".
+		b.add_theme_stylebox_override("disabled", UIKit.lux("button"))
+		b.add_theme_color_override("font_disabled_color", UITokens.INK_DIM_GLASS)
 	b.disabled = not can
 	b.pressed.connect(func(): _summon(count))
 	return b
@@ -294,7 +321,8 @@ func _pool_cell(id: String, p: float, first: String) -> Control:
 		what = HeroesText.t("SUMMON_FRAGS", [HeroData.dup_frags(HeroData.native(id))])
 	else:
 		what = HeroesText.t("PORTAL_POOL_NEW")
-	var w := UIKit.label(what, 22, UITokens.GOLD_HI if not bool(h["owned"]) else UITokens.ON_SCENE, false)
+	# v3.1: warm white on the night for every line (amber is for the key verbs, never a label).
+	var w := UIKit.label(what, 22, UITokens.ON_SCENE, not bool(h["owned"]))
 	UIKit.soft_shadow(w, 22)
 	w.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	w.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -342,8 +370,8 @@ func _layout() -> void:
 	var dock_y := H - ins.w - 28.0 - dock_h
 	_dock.position = Vector2(g, dock_y)
 	_dock.size = Vector2(W - 2.0 * g, dock_h)
-	_back.position = Vector2(0, (dock_h - 88.0) * 0.5)
-	_back.size = Vector2(96, 88)
+	_back.size = _back.get_combined_minimum_size()
+	_back.position = Vector2((96.0 - _back.size.x) * 0.5, (dock_h - _back.size.y) * 0.5)
 	var avail := _dock.size.x - 96.0 - 12.0
 	if _x1 and _x10:
 		# The amber jewel (the summon you can afford) gets the larger share.
@@ -377,6 +405,10 @@ func _layout() -> void:
 	var D := minf(W * 0.76, band * 1.0)
 	_ring.size = Vector2(D, D)
 	_ring.position = Vector2((W - D) * 0.5, band_top + (band - D * 1.02) * 0.5 - D * 0.02)
+	if _frost:
+		var rr := Rect2(_ring.position - Vector2(D, D) * 0.25, Vector2(D, D) * 1.5)
+		_frost.set_layers([{"mat": _sky.material, "rect": Rect2(Vector2.ZERO, Vector2(W, H))},
+				{"tex": UIKit.glow_texture(), "rect": rr, "mod": Color(0.86, 0.72, 0.5, 0.55)}])
 
 
 # ------------------------------------------------------------------ actions
@@ -412,7 +444,7 @@ func open_sheet(which: String) -> void:
 	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.0)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(dim)
-	dim.create_tween().tween_property(dim, "color:a", 0.5, UITokens.MENU_IN)
+	dim.create_tween().tween_property(dim, "color:a", UITokens.SCRIM_MODAL, UITokens.MENU_IN)
 	dim.gui_input.connect(func(e: InputEvent):
 		if UIJuice.is_tap(e):
 			_close_sheet())

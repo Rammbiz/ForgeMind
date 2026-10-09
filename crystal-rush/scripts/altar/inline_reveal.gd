@@ -3,7 +3,7 @@ extends Control
 ## The inline Stone Cache reveal on the result screen (arsenal_design.md §5.6 first paragraph,
 ## Brawl Stars Starr Drop length, <= 2.5 s, skippable from 0.5 s). The bundle (§6.6) was
 ## rolled, granted and SAVED by Meta before this node exists; nothing here decides anything.
-##   present: the egg drops onto its dais, "Торкнись, щоб розбити" pulses;
+##   present: the egg drops onto its dais, "Торкнись, щоб розбити" fades in once (static after);
 ##   strike:  one tap or 1.0 s auto (EconData.REVEAL.auto_strike);
 ##   tell:    +0.15 s the crack glows in the FINAL best rarity colour at once (no ladder);
 ##   burst:   +0.25 s the egg shatters with a flare and sparks in that colour;
@@ -14,7 +14,7 @@ extends Control
 signal done
 
 const CARD_FULL := Vector2(176, 250)
-const CARD_COMPACT := Vector2(160, 228)
+const CARD_COMPACT := Vector2(172, 236)   ## v3.1: +8 % wide so the footer keeps 22 px text
 const GAP := 16.0
 const EGG_FULL := 300.0
 const EGG_COMPACT := 220.0
@@ -64,7 +64,7 @@ func _ready() -> void:
 	_egg.frame_k = 1.45
 	add_child(_egg)
 	# It plays on the cream result sheet: ink / gold text, no strokes.
-	_hint = UIKit.label(Loc.t("TAP_TO_CRACK"), 22, UIKit.GOLD_TEXT, true)
+	_hint = UIKit.label(Loc.t("TAP_TO_CRACK"), 24, UIKit.GOLD_TEXT_GLASS)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
@@ -93,9 +93,7 @@ func _ready() -> void:
 	_layout()
 	_egg.present()
 	UIJuice.haptic("THUD", 0.7)
-	var hint_tw := _hint.create_tween().set_loops()
-	hint_tw.tween_property(_hint, "modulate:a", 0.45, 0.6)
-	hint_tw.tween_property(_hint, "modulate:a", 1.0, 0.6)
+	tap_hint(_hint, UIKit.GOLD_TEXT_GLASS)
 	if UITokens.reduce_motion() or bool(Meta.setting("quick_reveal", false)):
 		_quick()
 		return
@@ -109,13 +107,52 @@ func _layout() -> void:
 	_rays.size = Vector2(EGG * 2.2, EGG * 2.2)
 	_rays.position = Vector2(w * 0.5, EGG * 0.5) - _rays.size * 0.5
 	_hint.size = Vector2(w, 34)
-	_hint.position = Vector2(0, EGG + 40)
+	# Under the egg's frame (it reaches 1.225 x EGG), so the hint and its chevron never sit on
+	# the dais (the full-size reveal on the loss screen used to print over it).
+	_hint.position = Vector2(0, EGG * 1.225 + 20.0)
 	for i in _cards.size():
 		_cards[i].position = slot(i)
 	_coins_row.size = Vector2(w, 44)
 	_coins_row.position = Vector2(0, EGG + CARD.y + 22 - _lift)
 	_flash.size = size
 	_flash.position = Vector2.ZERO
+
+
+## v3.1 tap hint (nothing pulses): the label fades in ONCE after `delay`, then stays still,
+## with a static 1 dpx chevron above its text pointing at what to tap (the egg / the cards).
+static func tap_hint(l: Label, col: Color, delay := 0.35) -> void:
+	l.modulate.a = 0.0
+	l.create_tween().tween_property(l, "modulate:a", 1.0, 0.45).set_delay(delay).set_trans(Tween.TRANS_SINE)
+	for c in l.get_children():
+		if c is HintChevron:
+			return
+	var ch := HintChevron.new()
+	ch.color = Color(col.r, col.g, col.b, 0.85)
+	l.add_child(ch)
+
+
+## The hint's chevron: ONE device px, 18 x 8, centred over the label, pointing up.
+class HintChevron extends Control:
+	var color := Color.WHITE
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var l := get_parent() as Control
+		if l:
+			l.resized.connect(_place)
+		_place()
+
+	func _place() -> void:
+		var l := get_parent() as Control
+		if l == null:
+			return
+		size = Vector2(18, 8)
+		position = Vector2((l.size.x - size.x) * 0.5, -12.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		var w := -1.0 if UIKit.ui_scale() >= 0.9 else UIKit.line_px(1.0)
+		draw_polyline(PackedVector2Array([Vector2(0, size.y), Vector2(size.x * 0.5, 0), Vector2(size.x, size.y)]), color, w, true)
 
 
 ## Top-left of card `i` in its final row.

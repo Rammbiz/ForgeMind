@@ -32,7 +32,7 @@ func _ready() -> void:
 		title = HeroesText.t("TEAM_ROSTER_HERO")
 	else:
 		title = HeroesText.t("TEAM_ROSTER_CHAMP", [HeroesTeamLogic.slot_label(slot_name) if slot_name != &"" else ""])
-	var hint := UIKit.label(HeroesText.t("TEAM_ROSTER_HINT"), 22, UITokens.INK_DIM)
+	var hint := UIKit.label(HeroesText.t("TEAM_ROSTER_HINT"), 22, UITokens.INK_DIM_GLASS)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(620, 0)
 	body.add_child(hint)
@@ -122,29 +122,25 @@ func _cell(d: Dictionary) -> Control:
 func _badge(text: String, kind: String) -> Control:
 	if kind == "none" or kind == "here":
 		# Plain 20 px status lines (no box).
-		var t := UIKit.label(text, 20, UITokens.GOLD_TEXT if kind == "here" else UITokens.INK_SOFT, kind == "here")
+		var t := UIKit.label(text, 20, UITokens.GOLD_TEXT_GLASS if kind == "here" else UITokens.INK_DIM_GLASS, kind == "here")
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		return t
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fill := UITokens.PAPER_0
+	# v3.1: a gain is the selected-segment glass (cream 0.92, one 1 dpx gold line, deep-gold ink:
+	# never an amber fill); a loss is a frameless well; anything else a plain glass tag.
 	var ink := UITokens.INK
-	var line := 1
+	var kind_lux := "seg_sel"
 	match kind:
 		"gain":
-			fill = UITokens.CTA_HI
-			ink = UIKit.BROWN
+			ink = UITokens.GOLD_TEXT_GLASS
 		"loss":
-			fill = UITokens.PAPER_2
-			ink = UITokens.INK_DIM
-		"here":
-			fill = UITokens.PAPER_0
-			ink = UITokens.GOLD_TEXT
+			ink = UITokens.INK_DIM_GLASS
+			kind_lux = "well"
 		_:
-			fill = UITokens.PAPER_1
-			ink = UITokens.INK_SOFT
-			line = 0
-	p.add_theme_stylebox_override("panel", UIKit.cbox(fill, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, line, Vector2(8, 2)))
+			ink = UITokens.INK_DIM_GLASS
+			kind_lux = "row"
+	p.add_theme_stylebox_override("panel", UIKit.lux(kind_lux, Vector2(8, 2)))
 	var l := UIKit.label(text, 22, ink, kind == "gain")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(l)

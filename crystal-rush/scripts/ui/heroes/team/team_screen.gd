@@ -30,6 +30,7 @@ var _bg: HeroShowcaseBackdrop
 var _stage: HeroesTeamStage
 var _header: HBoxContainer
 var _presets: HBoxContainer
+var _frost: HeroFrost
 var _sheet: KitSheet
 var _sheet_box: VBoxContainer
 var _auto_info: Dictionary = {}    ## auto_team() result while the preview is open
@@ -58,10 +59,14 @@ func _ready() -> void:
 	_bg.focus = Vector2(0.5, 0.2)
 	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_bg)
+	# UI v3.1: the sheet frosts this screen's own sky (HeroFrost), not the hub world.
+	_frost = HeroFrost.attach(self)
+	_bg.baked.connect(func(): _frost.set_layers([{"tex": _bg.baked_texture(), "rect": Rect2(Vector2.ZERO, _vp())}]))
 	_stage = HeroesTeamStage.new()
 	add_child(_stage)
 	_build_header()
 	_sheet = UIKit.sheet(Vector2(UITokens.GUTTER, 22.0))
+	HeroFrost.frost_sheet(_sheet, Vector2(UITokens.GUTTER, 22.0), _frost)
 	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_sheet)
 	_sheet_box = VBoxContainer.new()
@@ -237,8 +242,9 @@ func _member(it: Dictionary, ghost: bool) -> Control:
 func _role_chip(text: String) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.add_theme_stylebox_override("panel", UIKit.cbox(UITokens.PAPER_0, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, 1, Vector2(10, 3)))
-	var l := UIKit.label(text, 22, UITokens.INK, true)
+	# v3.1: a glass tag at the text alpha with its 1 dpx line (no StyleBoxFlat border).
+	p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(10, 3)))
+	var l := UIKit.label(text, 22, UITokens.INK, false)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(l)
 	return p
@@ -263,7 +269,8 @@ func _fill_presets() -> void:
 func _dock() -> Control:
 	var d := HBoxContainer.new()
 	d.add_theme_constant_override("separation", 12)
-	var back := UIKit.secondary_button("", "back", Vector2(96, 88))
+	var back := UIKit.edge_button("back", 38.0)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(_back)
 	d.add_child(back)
 	if _has_champions():
@@ -413,7 +420,7 @@ func _auto_block(inner: float) -> Control:
 	# Why: the synergy change, then (when the synergy does not rise) the power reason.
 	var why := HBoxContainer.new()
 	why.add_theme_constant_override("separation", 14)
-	why.add_child(UIKit.label(HeroesText.t("TEAM_AUTO_GAINS", [int(best["syn_now"]), int(best["syn"])]), 22, UITokens.INK_DIM))
+	why.add_child(UIKit.label(HeroesText.t("TEAM_AUTO_GAINS", [int(best["syn_now"]), int(best["syn"])]), 22, UITokens.INK_DIM_GLASS))
 	var cur := HeroesTeamLogic.score(str(_team["hero"]), _team["champions"])
 	var nxt := HeroesTeamLogic.score(str(best["hero"]), best["champions"])
 	for k: String in ["faction", "class", "element"]:
@@ -456,7 +463,7 @@ static func _delta_tag(text: String, gain: bool) -> Control:
 	dot.custom_minimum_size = Vector2(12, 12)
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(dot)
-	h.add_child(UIKit.label(text, 20, UITokens.PLUS if gain else UITokens.INK_DIM, gain))
+	h.add_child(UIKit.label(text, 20, UITokens.PLUS if gain else UITokens.INK_DIM_GLASS, gain))
 	return h
 
 
@@ -528,8 +535,9 @@ class _Seat extends Control:
 		var pts := GemDraw.chamfer_rect(r, UITokens.CHAMFER)
 		var hl := UITokens.HAIRLINE
 		draw_colored_polygon(pts, Color(1, 1, 1, 0.42 if not locked else 0.3))
+		var lw := UIKit.line_px(1.0)
 		if locked:
-			GemDraw.outline(self, pts, Color(hl.r, hl.g, hl.b, 0.7), 1.5)
+			HeroV3.frame(self, pts, Color(hl.r, hl.g, hl.b, 0.7))
 		else:
 			for i in pts.size():
 				var a := pts[i]
@@ -538,11 +546,10 @@ class _Seat extends Control:
 				var n := int(L / 12.0)
 				for k in n:
 					if k % 2 == 0:
-						draw_line(a.lerp(b, float(k) / n), a.lerp(b, float(k + 1) / n), hl, 2.0, true)
+						draw_line(a.lerp(b, float(k) / n), a.lerp(b, float(k + 1) / n), HeroV3.DEEP, lw, true)
 		var c := Vector2(size.x * 0.5, size.y * 0.42)
-		draw_circle(c, 30.0, UITokens.PAPER_0)
-		draw_arc(c, 29.0, 0, TAU, 40, hl, 1.5, true)
-		Icons.draw_icon(self, "lock" if locked else "plus", Rect2(c - Vector2(18, 18), Vector2(36, 36)), UITokens.INK_DIM if locked else UITokens.GOLD_TEXT)
+		HeroV3.disc(self, c, 30.0, 0.9)
+		Icons.draw_icon(self, "lock" if locked else "plus", Rect2(c - Vector2(18, 18), Vector2(36, 36)), UITokens.INK_DIM_GLASS if locked else UITokens.GOLD_TEXT_GLASS)
 		var f := UIKit.font(true)
 		var fs := 22
 		while fs > 18 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x > size.x - 10.0:
@@ -557,12 +564,12 @@ class _Seat extends Control:
 					fs -= 1
 		var y := size.y * 0.42 + 62.0
 		for ln: String in lines:
-			draw_string(f, Vector2(5, y), ln, HORIZONTAL_ALIGNMENT_CENTER, size.x - 10.0, fs, UITokens.INK_DIM if locked else UITokens.INK)
+			draw_string(f, Vector2(5, y), ln, HORIZONTAL_ALIGNMENT_CENTER, size.x - 10.0, fs, UITokens.INK_DIM_GLASS if locked else UITokens.INK)
 			y += fs + 4.0
 
 
 ## A preset key (part U §2.7: 88 x 88, the preset hero's gem): numeral + the hero's gem-cut mark;
-## active (the current team) = gold fill. Tap loads, hold saves.
+## active (the current team) = the selected-segment look (UI v3.1). Tap loads, hold saves.
 class _PresetKey extends Button:
 	var num := 1
 	var gem := ""
@@ -581,16 +588,15 @@ class _PresetKey extends Button:
 		var r := Rect2(Vector2(2, 6), Vector2(size.x - 4.0, size.y - 12.0))
 		if button_pressed:
 			r = r.grow(-1.5)
-		var pts := GemDraw.chamfer_rect(r, UITokens.CHAMFER_XS)
-		var sh := PackedVector2Array()
-		for p in pts:
-			sh.append(p + Vector2(0, 3))
-		draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
-		draw_colored_polygon(pts, UITokens.CTA_HI if active else (UITokens.PAPER_0 if gem != "" else UITokens.PAPER_2))
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-3.0), 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.4), 1.0)
-		var f := UIKit.font_w("extrabold")
-		var ink := UIKit.BROWN if active else (UITokens.INK if gem != "" else UITokens.INK_DIM)
+		# v3.1: the selected-segment idiom (cream 0.94 + one 1.5 dpx deep-gold line), never an amber
+		# fill; the others are glass chips with their 1 dpx line, an empty preset quieter.
+		if active:
+			HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.95, HeroV3.DEEP, 0.95, 0.7, 0.08)
+			HeroV3.frame(self, GemDraw.chamfer_rect(r, UITokens.CHAMFER_XS), HeroV3.a(HeroV3.DEEP, 0.95), 1.5)
+		else:
+			HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.84 if gem != "" else 0.6, HeroV3.GOLD, 0.78 if gem != "" else 0.5, 0.6)
+		var f := UIKit.font_w("bold")
+		var ink := UITokens.GOLD_TEXT_GLASS if active else (UITokens.INK if gem != "" else UITokens.INK_DIM_GLASS)
 		if gem != "":
 			# The preset hero's gem (22 px) left of the numeral, on one line.
 			var cy := r.get_center().y
@@ -610,9 +616,9 @@ class _Dot extends Control:
 		var pts := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.72, 0), c + Vector2(0, r), c + Vector2(-r * 0.72, 0)])
 		if gain:
 			draw_colored_polygon(pts, UITokens.GOLD_HI)
-			GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.0)
+			HeroV3.frame(self, pts, HeroV3.DEEP)
 		else:
-			GemDraw.outline(self, pts, UITokens.INK_DIM, 1.2)
+			HeroV3.frame(self, pts, UITokens.INK_DIM_GLASS)
 
 
 ## Removes every child at once (queue_free alone leaves them in the layout until the frame ends).

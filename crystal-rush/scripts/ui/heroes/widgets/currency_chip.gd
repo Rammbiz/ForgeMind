@@ -22,5 +22,7 @@ static func make(currency: String, p_value: String, width := 172.0) -> HeroCurre
 func _draw() -> void:
 	var ic := _icon_size()
 	var plate := Rect2(Vector2(ic * 0.38, size.y * 0.1), Vector2(size.x - ic * 0.38, size.y * 0.8))
-	draw_style_box(UIKit.lux("plate"), plate)
+	# v3.1: the value is text, so the plate is glass at the text alpha (§4.3) with its 1 dpx line;
+	# it stays porcelain on the Portal night instead of turning a grey slab.
+	draw_style_box(UIKit.lux("banner"), plate)
 	HeroIcons.paint(self, icon, Rect2(Vector2(0, (size.y - ic) * 0.5), Vector2(ic, ic)))

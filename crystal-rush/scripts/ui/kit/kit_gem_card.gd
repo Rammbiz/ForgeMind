@@ -1,5 +1,8 @@
 class_name KitGemCard
 extends Control
+## UI v3.1 rarity card (spec §7.3: opaque gem ground for identity, a 1 dpx frame, two faint
+## shadow layers, a glass footer and pip bed at 0.94, Medium footer text >= 22 px; the strip
+## grows upward when the title + footer need it, and a long "a · b" footer takes 2 lines).
 ## UI v2 rarity card (Genshin construction, our marks): a gem-coloured vertical gradient ground
 ## with that gem's faint fracture pattern (quartz 60/120 planes, sapphire 12-degree grid,
 ## amethyst triangles, topaz 5 rays, opal conchoidal arcs + play-of-colour flecks), the art in
@@ -19,10 +22,14 @@ var title := "":
 	set(v):
 		title = v
 		_redraw_all()
+		if is_inside_tree():
+			_layout()
 var footer := "":
 	set(v):
 		footer = v
 		_redraw_all()
+		if is_inside_tree():
+			_layout()
 var pips := -1:                ## lit facet pips (0..pip_count); -1 hides the row
 	set(v):
 		pips = v
@@ -39,7 +46,9 @@ var dim := false:              ## unowned / locked: desaturated ground, art at 1
 		if art:
 			art.modulate = Color(0.3, 0.32, 0.38, 0.35) if v else Color.WHITE
 		_redraw_all()
-var footer_ratio := 0.21       ## footer strip height / card height
+var footer_ratio := 0.21       ## footer strip height / card height (grown for 22 px text)
+const MIN_TEXT := 22             ## footer title / line floor (MF-15)
+const FOOT_A := 0.94             ## glass footer + pip bed alpha (INK / INK_DIM_GLASS stay >= 4.5:1)
 var art: TextureRect           ## the painted bust / 3D thumb
 var content: Control           ## extra children over the art (clipped to the card)
 var _clip: Control
@@ -95,8 +104,34 @@ func _layout() -> void:
 	content.offset_bottom = -fh
 
 
+## The footer strip: footer_ratio of the card, grown upward when the title + footer lines need
+## more room at the 22 px floor (MF-15: footer text is never below 22 px).
 func _footer_h() -> float:
-	return roundf(size.y * footer_ratio)
+	var fh := roundf(size.y * footer_ratio)
+	if title == "" and footer == "":
+		return fh
+	var f := UIKit.font_w("medium")
+	var need := (8.0 if pips >= 0 else 0.0) + 2.0 + 6.0
+	if title != "":
+		need += f.get_ascent(MIN_TEXT) + f.get_descent(MIN_TEXT) * 0.5
+	for ln in _footer_lines(MIN_TEXT):
+		need += f.get_ascent(MIN_TEXT) + f.get_descent(MIN_TEXT) * 0.5
+	return maxf(fh, ceilf(need))
+
+
+## The footer text as 1 line, or split at " · " into 2 lines when it does not fit at `fs`.
+func _footer_lines(fs: int) -> Array[String]:
+	var out: Array[String] = []
+	if footer == "":
+		return out
+	var f := UIKit.font_w("medium")
+	if f.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= size.x - 12.0 or not footer.contains(" · "):
+		out.append(footer)
+		return out
+	var i := footer.find(" · ")
+	out.append(footer.substr(0, i))
+	out.append(footer.substr(i + 3))
+	return out
 
 
 func _sync_opal() -> void:
@@ -120,9 +155,9 @@ func _shape() -> PackedVector2Array:
 
 func _draw() -> void:
 	var pts := _shape()
-	# Soft shadow under the card.
-	for i in 4:
-		var o := Vector2(0, 2.0 + i * 1.6)
+	# v3.1: two faint shadow layers (not four).
+	for i in 2:
+		var o := Vector2(0, 2.0 + i * 2.4)
 		var sp := PackedVector2Array()
 		for p in pts:
 			sp.append(p + o)
@@ -267,7 +302,12 @@ static func draw_stage_fracture(ci: CanvasItem, gk: String, r: Rect2) -> void:
 			var t0 := float(k) / n
 			var t1 := float(k + 1) / n
 			var fade := sin(PI * (t0 + t1) * 0.5) * (0.55 + 0.45 * absf(cos(PI * (t0 + t1) * 1.5)))
-			ci.draw_line(o + d * L * (t0 - 0.5), o + d * L * (t1 - 0.5), Color(lc.r, lc.g, lc.b, 0.09 * fade), 1.0 + 2.5 * fade, true)
+			var pa := o + d * L * (t0 - 0.5)
+			var pb := o + d * L * (t1 - 0.5)
+			# No facet edge behind the header text (canvas y 0-160): fade them out above 200.
+			fade *= smoothstep(110.0, 200.0, minf(pa.y, pb.y))
+			if fade > 0.01:
+				ci.draw_line(pa, pb, Color(lc.r, lc.g, lc.b, 0.09 * fade), 1.0 + 2.5 * fade, true)
 	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(r.position + Vector2(w * 0.08, h * 0.05), Vector2(w * 0.7, h * 0.55)), false, Color(lc.r, lc.g, lc.b, 0.16))
 
 
@@ -285,33 +325,59 @@ func _draw_over(ci: CanvasItem) -> void:
 	foot.append(Vector2(size.x - ch, size.y))
 	foot.append(Vector2(ch, size.y))
 	foot.append(Vector2(0, size.y - ch))
-	ci.draw_colored_polygon(foot, UITokens.PAPER_2 if not dim else UITokens.PAPER_3)
-	ci.draw_line(Vector2(0, seam), Vector2(size.x, seam), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0, true)
-	var f := UIKit.font_w("bold")
+	# v3.1: a glass footer (cream @ 0.94 over the ground: the gem tint barely shows, the text
+	# keeps >= 4.5:1 on the worst 5 %), a 1 dpx seam rule.
+	var p0 := UITokens.PAPER_0
+	ci.draw_colored_polygon(foot, Color(p0.r, p0.g, p0.b, FOOT_A) if not dim else UITokens.PAPER_3)
+	var sy := GemDraw.pixel_y(ci, seam)
+	ci.draw_line(Vector2(0, sy), Vector2(size.x, sy), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), -1.0)
+	var f := UIKit.font_w("medium")
 	var fm := UIKit.font_w("medium")
-	var ts := int(clampf(fh * 0.36, 16.0, 26.0))
-	var ss := int(clampf(fh * 0.27, 14.0, 20.0))
+	var ts := int(clampf(fh * 0.38, MIN_TEXT, 26.0))
+	var ss := int(clampf(fh * 0.34, MIN_TEXT, 24.0))
 	var pip_room := 8.0 if pips >= 0 else 0.0
+	# Title over footer, stacked by their real ascents (no overlap at any card size).
+	var top := seam + pip_room + 2.0
+	var avail := size.y - 4.0 - top
+	var fs := ts
 	if title != "":
-		var fs := ts
-		while fs > 13 and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 16.0:
+		# Width fit: down to the 22 px floor (20 only for a name that cannot fit otherwise).
+		while fs > MIN_TEXT and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 16.0:
 			fs -= 1
+		while fs > 20 and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 8.0:
+			fs -= 1
+	while ss > MIN_TEXT and footer != "" and fm.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x > size.x - 12.0:
+		ss -= 1
+	var lines := _footer_lines(ss)
+	var lh := fm.get_ascent(ss) + fm.get_descent(ss) * 0.5
+	var th := (f.get_ascent(fs) + f.get_descent(fs) * 0.5) if title != "" else 0.0
+	var sh2 := lh * lines.size()
+	while th + sh2 > avail and (fs > MIN_TEXT or ss > MIN_TEXT):
+		if fs > ss:
+			fs -= 1
+		else:
+			ss -= 1
+		lh = fm.get_ascent(ss) + fm.get_descent(ss) * 0.5
+		th = (f.get_ascent(fs) + f.get_descent(fs) * 0.5) if title != "" else 0.0
+		sh2 = lh * lines.size()
+	var y0 := top + maxf(0.0, (avail - th - sh2) * 0.5)
+	if title != "":
 		var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var ty := seam + pip_room + (fh - pip_room) * (0.48 if footer != "" else 0.62)
-		ci.draw_string(f, Vector2((size.x - tw) * 0.5, ty), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK if not dim else UITokens.INK_DIM)
-	if footer != "":
-		var fw := fm.get_string_size(footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
-		var fy := size.y - fh * 0.14
-		ci.draw_string(fm, Vector2((size.x - fw) * 0.5, fy), footer, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM)
+		ci.draw_string(f, Vector2(roundf((size.x - tw) * 0.5), roundf(y0 + f.get_ascent(fs))), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK if not dim else UITokens.INK_DIM_GLASS)
+	var ly := y0 + th
+	for ln: String in lines:
+		var fw := fm.get_string_size(ln, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
+		ci.draw_string(fm, Vector2(roundf((size.x - fw) * 0.5), roundf(ly + fm.get_ascent(ss))), ln, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK_DIM_GLASS)
+		ly += lh
 	# Frame: inner 1 px rim in the gem's light tone, outer gold hairline.
 	var inner := GemDraw.chamfer_rect(Rect2(Vector2(3, 3), size - Vector2(6, 6)), maxf(ch - 1.5, 1.0))
 	var rim: Color = g["rim"] if not dim else UITokens.PAPER_3
-	ci.draw_polyline(_open_top(inner, seam), Color(rim.r, rim.g, rim.b, 0.75), 1.0, true)
+	ci.draw_polyline(_open_top(inner, seam), Color(rim.r, rim.g, rim.b, 0.75), UIKit.px(1.0), true)
 	var ftex := UIKit.kit_texture("card_frame")
 	if ftex:
 		ci.draw_style_box(UIKit.lux("card_frame"), Rect2(Vector2.ZERO, size))
 	else:
-		GemDraw.outline(ci, pts, UITokens.HAIRLINE, 1.5)
+		GemDraw.outline(ci, pts, UITokens.HAIRLINE, UIKit.line_px(1.0))
 	# Facet pips on the seam.
 	if pips >= 0 and pip_count > 0:
 		var ps := clampf(size.x * 0.07, 10.0, 16.0)
@@ -320,7 +386,7 @@ func _draw_over(ci: CanvasItem) -> void:
 		var light: Color = g["rim"] if gem != "opal" else Color("#E8D8FF")
 		# Cream bed behind the pips so they read on any ground.
 		var bed := Rect2(Vector2((size.x - total) * 0.5 - ps * 0.7, seam - ps * 0.55), Vector2(total + ps * 1.4, ps * 1.1))
-		ci.draw_colored_polygon(GemDraw.chamfer_rect(bed, ps * 0.5), UITokens.PAPER_2 if not dim else UITokens.PAPER_3)
+		ci.draw_colored_polygon(GemDraw.chamfer_rect(bed, ps * 0.5), Color(p0.r, p0.g, p0.b, FOOT_A) if not dim else UITokens.PAPER_3)
 		for i in pip_count:
 			GemDraw.draw_pip(ci, Vector2((size.x - total) * 0.5 + i * gapx, seam), ps, i < pips, light)
 	# Gem-cut mark top-left.

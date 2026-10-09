@@ -114,7 +114,7 @@ func _row(parent: Control, sep := 12.0) -> HBoxContainer:
 func _page_base() -> void:
 	_new_root("light")
 	var v := _col(24, 28, 16)
-	v.add_child(UIKit.caps("Crystal Rush · UI v2 · специмен"))
+	v.add_child(UIKit.caps("Crystal Rush · UI v3 · специмен"))
 	v.add_child(UIKit.gradient_heading("Кришталевий Ривок", 46))
 	var body := UIKit.label("Кремові панелі, одна золота лінія, м’які тіні, гранований зріз кутів. Шрифт M PLUS Rounded 1c: і ї є ґ ’ « » — №.", 22, UIKit.INK)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -366,10 +366,11 @@ func _page_home(bg: String) -> void:
 	play.position = Vector2((W - 448) * 0.5, H - 120 - 28 - 140)
 	play.size = Vector2(448, 112)
 	ui.add_child(play)
-	# Bottom nav: arched bar, painted icons + labels, raised medallion for the active tab.
-	var nav := _NavMock.new()
-	nav.position = Vector2(0, H - 120)
-	nav.size = Vector2(W, 120)
+	# Bottom nav: the real v3.1 HubTabBar (frosted strip fallback here: no world snapshot).
+	var nav := HubTabBar.new()
+	nav.position = Vector2(0, H - UITokens.TAB_BAR_H)
+	nav.size = Vector2(W, UITokens.TAB_BAR_H)
+	nav.set_badge("arsenal", "!")
 	ui.add_child(nav)
 
 

@@ -43,8 +43,8 @@ func _ready() -> void:
 	var tv := VBoxContainer.new()
 	tv.add_theme_constant_override("separation", 0)
 	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tv.add_child(UIKit.heading(Loc.t("ODDS_TITLE"), 34, UIKit.INK))
-	tv.add_child(UIKit.label(Loc.t("ODDS_POOL"), 19, UIKit.INK_DIM))
+	tv.add_child(UIKit.heading(Loc.t("ODDS_TITLE"), UIKit.fit_size(Loc.t("ODDS_TITLE"), 520.0, 40, 32), UIKit.INK))
+	tv.add_child(UIKit.label(Loc.t("ODDS_POOL"), UIKit.fit_size(Loc.t("ODDS_POOL"), 520.0, 22, 20, false), UIKit.INK_DIM))
 	head.add_child(tv)
 	var close := UIKit.edge_button("close", 26.0)
 	close.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -63,7 +63,9 @@ func _ready() -> void:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	col.add_child(sc)
-	UIKit.scroll_fade(sc, Color("#F8F3E9"), 40.0, 18.0)
+	# When the table does not fit (short phones) a tall 56 px fade melts the last lines into the
+	# bed; the body also ends with 24 px of air, so at the end of travel no line is sliced.
+	UIKit.scroll_fade(sc, Color("#F8F3E9"), 56.0, 18.0)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", 0)
@@ -119,12 +121,12 @@ func _fill() -> void:
 	var head := HBoxContainer.new()
 	head.custom_minimum_size.y = 40
 	head.add_theme_constant_override("separation", 8)
-	var h0 := UIKit.caps(Loc.t("RARITY"), 18, UIKit.INK_SOFT)
+	var h0 := UIKit.caps(Loc.t("RARITY"), 20, UIKit.INK_DIM)
 	h0.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h0.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	head.add_child(h0)
 	for k in ["ODDS_PER_CARD", "ODDS_BEST"]:
-		var hl := UIKit.caps(Loc.t(k), 18, UIKit.INK_SOFT)
+		var hl := UIKit.caps(Loc.t(k), 20, UIKit.INK_DIM)
 		hl.custom_minimum_size = Vector2(COL_W, 0)
 		hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		hl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
@@ -139,7 +141,7 @@ func _fill() -> void:
 			continue
 		var row := _TintRow.new()
 		row.gem = UITokens.gem_of(r)
-		row.custom_minimum_size = Vector2(0, 62)
+		row.custom_minimum_size = Vector2(0, 56)
 		row.add_theme_constant_override("separation", 8)
 		var mark := _Mark.new()
 		mark.gem = UITokens.gem_of(r)
@@ -184,29 +186,30 @@ func _fill() -> void:
 	rules.append(["swap", Loc.t("ODDS_DUPES")])
 	rules.append(["trophy", Loc.t("PITY_EPIC")])
 	rules.append(["coin", "%s %s" % [Loc.f("ODDS_SLOTS", [int(o.get("slots", 3))]), Loc.t("ODDS_COINS")]])
-	_body.add_child(UIKit.gap(18))
-	var sec := UIKit.section("Гарантії та правила" if Loc.lang == "uk" else "Guarantees and rules", 18)
+	_body.add_child(UIKit.gap(14))
+	var sec := UIKit.section("Гарантії та правила" if Loc.lang == "uk" else "Guarantees and rules", 20)
 	_body.add_child(sec)
 	_body.add_child(UIKit.gap(4))
 	for rr: Array in rules:
 		var row2 := HBoxContainer.new()
 		row2.add_theme_constant_override("separation", 14)
-		row2.custom_minimum_size.y = 44
+		row2.custom_minimum_size.y = 40
 		var ik := str(rr[0])
 		var ic := Icons.make(ik, 28.0, Color.WHITE if KitIcons.has_painted(ik) else UIKit.INK_DIM)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row2.add_child(ic)
-		var l2 := UIKit.label(str(rr[1]), 20, UIKit.INK, false)
+		var l2 := UIKit.label(str(rr[1]), 22, UIKit.INK, false)
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l2.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		l2.custom_minimum_size.x = 420.0
 		row2.add_child(l2)
 		_body.add_child(row2)
-	_body.add_child(UIKit.gap(14))
+	_body.add_child(UIKit.gap(10))
 	_body.add_child(UIKit.hairline())
-	_body.add_child(UIKit.gap(12))
+	_body.add_child(UIKit.gap(10))
 	_body.add_child(VaultView.PityBar.make())
+	_body.add_child(UIKit.gap(24))
 
 
 ## A table row: a faint wash of the gem's light from the left (Genshin rarity tint, no box)
@@ -220,8 +223,12 @@ class _TintRow extends HBoxContainer:
 		var z := Color(lc.r, lc.g, lc.b, 0.0)
 		draw_polygon(PackedVector2Array([Vector2(0, 2), Vector2(size.x * 0.6, 2), Vector2(size.x * 0.6, size.y - 2), Vector2(0, size.y - 2)]),
 				PackedColorArray([a, z, z, a]))
-		var y := size.y - 0.5
-		draw_line(Vector2(0, y), Vector2(size.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.5), 1.0, true)
+		# A 1 dpx rule on a pixel row, fading over its outer 22 % (§3.1 list-row separators).
+		var y := GemDraw.pixel_y(self, size.y - UIKit.px(0.5))
+		var hc := Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.55)
+		var h0 := Color(hc.r, hc.g, hc.b, 0.0)
+		draw_polyline_colors(PackedVector2Array([Vector2(0, y), Vector2(size.x * 0.22, y), Vector2(size.x * 0.78, y), Vector2(size.x, y)]),
+				PackedColorArray([h0, hc, hc, h0]), -1.0)
 
 
 class _Mark extends Control:

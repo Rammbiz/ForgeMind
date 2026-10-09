@@ -12,7 +12,7 @@ extends VBoxContainer
 var team: Dictionary = {}
 var width := 672.0
 
-const COL_GAP := 12.0
+const COL_GAP := 16.0
 
 
 static func make(p_team: Dictionary, p_width := 672.0) -> HeroesTeamSynergy:
@@ -41,7 +41,7 @@ func _build() -> void:
 		cols.add_child(_column(HeroesText.t("FACTION"), "faction", syn["factions"], cw))
 		add_child(cols)
 	if lines.is_empty():
-		var none := UIKit.label(HeroesText.t("SYN_NONE"), 22, UITokens.INK_DIM)
+		var none := UIKit.label(HeroesText.t("SYN_NONE"), 22, UITokens.INK_DIM_GLASS)
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		none.custom_minimum_size = Vector2(width, 0)
 		add_child(none)
@@ -50,10 +50,10 @@ func _build() -> void:
 	# Elements with no live machine yet say so (§5.2).
 	for e: String in (syn["elements"] as Dictionary):
 		if not HeroesTeamLogic.element_has_machine(e):
-			var l := UIKit.label(HeroesText.t("TEAM_NO_MACHINE", [HeroesText.element_label(e)]), 22, UITokens.INK_DIM)
+			var l := UIKit.label(HeroesText.t("TEAM_NO_MACHINE", [HeroesText.element_label(e)]), 22, UITokens.INK_DIM_GLASS)
 			add_child(l)
 	if str(syn["mode"]) != "full":
-		var note := UIKit.label(HeroesText.t("TEAM_SYN_SIMPLE_NOTE"), 22, UITokens.INK_SOFT)
+		var note := UIKit.label(HeroesText.t("TEAM_SYN_SIMPLE_NOTE"), 22, UITokens.INK_DIM_GLASS)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		note.custom_minimum_size = Vector2(width, 0)
 		add_child(note)
@@ -99,7 +99,7 @@ func _line(ln: Dictionary) -> Control:
 	else:
 		var f := k.trim_prefix("SYN_").to_lower()
 		icon = "fac_" + f
-	var ic := Icons.make(icon, 30.0, UITokens.GOLD_TEXT)
+	var ic := Icons.make(icon, 30.0, UITokens.GOLD_TEXT_GLASS)
 	ic.custom_minimum_size = Vector2(30, 30)
 	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(ic)
@@ -117,13 +117,13 @@ func _column(title: String, kind: String, counts: Dictionary, cw: float) -> Cont
 	var keys: Array = counts.keys()
 	keys.sort_custom(func(a, b): return _rank(kind, str(a), int(counts[a])) > _rank(kind, str(b), int(counts[b])) \
 			or (_rank(kind, str(a), int(counts[a])) == _rank(kind, str(b), int(counts[b])) and str(a) < str(b)))
+	# The «+N more» count sits right after ITS OWN header («КЛАС +1»), never at the column's right
+	# end where it read as the next header's prefix («+1 СТИХІЯ»).
 	var head := HBoxContainer.new()
-	head.add_child(UIKit.caps(title, 20, UITokens.INK_SOFT))
+	head.add_theme_constant_override("separation", 8)
+	head.add_child(UIKit.caps(title, 20, UITokens.INK_DIM_GLASS))
 	if keys.size() > 1:
-		var sp := Control.new()
-		sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		head.add_child(sp)
-		head.add_child(UIKit.caps("+%d" % (keys.size() - 1), 20, UITokens.INK_SOFT))
+		head.add_child(UIKit.caps("+%d" % (keys.size() - 1), 20, UITokens.GOLD_TEXT_GLASS))
 	col.add_child(head)
 	if not keys.is_empty():
 		col.add_child(_TagChip.make(kind, str(keys[0]), int(counts[keys[0]]), cw))
@@ -176,9 +176,12 @@ class _TagChip extends Control:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		var pts := GemDraw.chamfer_rect(r, UITokens.CHAMFER_XS)
-		draw_colored_polygon(pts, UITokens.PAPER_0 if active else UITokens.PAPER_2)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-3.0), 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), 1.0)
+		# v3.1 (§3.2: no borders on chips inside a card): frameless glass, an active tag lifted
+		# to white with its 1 dpx light line, an idle one a quiet well.
+		if active:
+			HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.78, HeroV3.GOLD, 0.0, 0.8, 0.0, Color.WHITE)
+		else:
+			draw_colored_polygon(pts, HeroV3.a(UITokens.PAPER_3, 0.42))
 		var f := UIKit.font(true)
 		var fm := UIKit.font(false)
 		var x := 10.0
@@ -188,7 +191,7 @@ class _TagChip extends Control:
 			fs -= 1
 		draw_string(f, Vector2(x, 27), name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 20.0, fs, UITokens.INK)
 		var ic := Rect2(Vector2(x, 36), Vector2(24, 24))
-		Icons.draw_icon(self, _icon(), ic, UITokens.GOLD_TEXT)
+		Icons.draw_icon(self, _icon(), ic, UITokens.GOLD_TEXT_GLASS)
 		var tx := x + 30.0
 		var line := ""
 		match kind:

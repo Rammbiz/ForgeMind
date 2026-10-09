@@ -76,7 +76,8 @@ static func _dot(ci: CanvasItem, c: Vector2, rad: float, col: Color) -> void:
 static func line(ci: CanvasItem, k: String, r: Rect2, col: Color, width := -1.0) -> bool:
 	k = LINE_ALIASES.get(k, k)
 	var s := r.size.x
-	var w := width if width > 0.0 else clampf(s * 0.075, 1.6, 3.2)
+	# v3: finer monoline (was s * 0.075, 1.6..3.2): 1.3..2.4 canvas px.
+	var w := width if width > 0.0 else clampf(s * 0.055, 1.3, 2.4)
 	var c := r.get_center()
 	match k:
 		"settings":
@@ -507,15 +508,20 @@ static func painted(ci: CanvasItem, k: String, r: Rect2, mod := Color.WHITE) -> 
 		"fragment":
 			GemDraw.draw_gem(ci, "triangle", c, s * 0.8, Color("#B06CFF") * shade, Color("#E7D2FF"), Color("#5E2BA8"), s >= 28.0, a)
 		"tab_shop":
-			_pouch(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "shop", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_arsenal":
-			_cannon_cog(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "arsenal", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_play":
-			_bridge(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "play", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_heroes":
-			_sun_shield(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "heroes", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		"tab_barracks":
-			_tent(ci, r, shade, a)
+			# v3: the tab family is the monoline gold nav glyph everywhere (unlock cards, chips).
+			nav(ci, "barracks", r, Color(UITokens.NAV_GOLD.r * shade.r, UITokens.NAV_GOLD.g * shade.g, UITokens.NAV_GOLD.b * shade.b, a))
 		_:
 			return false
 	return true
@@ -761,3 +767,182 @@ static func _tent(ci: CanvasItem, r: Rect2, shade: Color, a: float) -> void:
 	ci.draw_line(_p(r, 0.5, 0.2), _p(r, 0.5, 0.05), gold, maxf(1.5, s * 0.035), true)
 	var flag := _pp(r, [0.5, 0.05, 0.72, 0.095, 0.5, 0.14])
 	_nav_fill(ci, flag, "gold", r, Color(1.0, 0.82, 0.6) * shade, a, false)
+
+
+# ------------------------------------------------------------------ v3 nav glyphs (monoline gold)
+## UI v3.1 bottom-nav family ("porcelain glass", spec §6.5): ONE monoline family in gold ink on
+## a 48 px box, 2.0 px strokes (min UIKit.px(1.5), +0.5 dpx below s 0.9) with round joins, one
+## silhouette per tab and one small cut-gem accent each (the gem DNA). `fill_a` > 0 lays a thin
+## duotone wash of `fill` into the closed shapes (the active tab: 28 % CTA_HI). No gradients, no
+## rims, no shadows, no multi-colour, no hatch strokes.
+##   shop = a brilliant-cut gem (table, crown, pavilion; no sparkle) · arsenal = a field cannon
+##   (barrel up-right, muzzle ring, breech knob, one spoked wheel, a short trail; a diamond on the
+##   barrel band) · play = an arch gate (small uses; the nav slot shows the Play ring) ·
+##   heroes = a crested helm with a T-visor and a brow gem · barracks = a swallow-tail banner.
+const NAV := ["shop", "arsenal", "play", "heroes", "barracks"]
+
+
+## Nav stroke for a glyph box of `s` px (2.0 at 48, scaled for other sizes, device-px floor).
+static func nav_stroke(s: float) -> float:
+	var w := maxf(s * UITokens.NAV_STROKE / UITokens.NAV_GLYPH, UIKit.px(1.5))
+	if UIKit.ui_scale() < 0.9:
+		w += UIKit.px(0.5)
+	return w
+
+
+static func nav(ci: CanvasItem, k: String, r: Rect2, col: Color, fill_a := 0.0, fill := UITokens.CTA, width := -1.0) -> bool:
+	var s := r.size.x
+	var w := width if width > 0.0 else nav_stroke(s)
+	var w2 := w * 0.8
+	var fc := Color(fill.r, fill.g, fill.b, fill_a * col.a)
+	match k:
+		"shop":
+			var body := _pts(r, [0.31, 0.24, 0.69, 0.24, 0.89, 0.42, 0.5, 0.88, 0.11, 0.42])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(body, fc)
+			_ln(ci, body, col, w, true)
+			# Girdle, crown facets (from the table to the girdle), pavilion facets to the culet.
+			_ln(ci, _pts(r, [0.11, 0.42, 0.89, 0.42]), col, w2)
+			_ln(ci, _pts(r, [0.31, 0.24, 0.39, 0.42, 0.5, 0.24, 0.61, 0.42, 0.69, 0.24]), col, w2)
+			_ln(ci, _pts(r, [0.39, 0.42, 0.5, 0.88, 0.61, 0.42]), col, w2)
+		"arsenal":
+			# Field cannon: a tapered barrel on a diagonal up-right.
+			var b0 := _p(r, 0.14, 0.53)
+			var b1 := _p(r, 0.86, 0.18)
+			var d := (b1 - b0).normalized()
+			var n := Vector2(-d.y, d.x)
+			var br := s * 0.095
+			var mr := s * 0.062
+			var barrel := PackedVector2Array([b0 + n * br, b1 + n * mr, b1 - n * mr, b0 - n * br])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(barrel, fc)
+			_ln(ci, barrel, col, w, true)
+			# Muzzle ring (a little proud of the barrel) and the breech knob.
+			var mz := b1 - d * s * 0.05
+			_ln(ci, PackedVector2Array([mz + n * (mr + s * 0.035), mz - n * (mr + s * 0.035)]), col, w2)
+			_arc(ci, b0 - d * s * 0.075, s * 0.045, 0, TAU, col, w2, false)
+			# The barrel band carries the gem accent: a 6 px diamond.
+			var bq := b0.lerp(b1, 0.6)
+			_diamond_line(ci, bq, s * 0.13, col, w2, d, fill_a, fc)
+			# One spoked wheel under the trunnion, and a short trail to the ground.
+			var wc := _p(r, 0.42, 0.68)
+			var wr := s * 0.2
+			_arc(ci, wc, wr, 0, TAU, col, w, false)
+			var sp := PackedVector2Array()
+			for i in 4:
+				var ang := PI * 0.25 + i * PI * 0.5
+				var dv := Vector2(cos(ang), sin(ang))
+				sp.append_array([wc + dv * s * 0.03, wc + dv * (wr - w * 0.4)])
+			ci.draw_multiline(sp, col, w2 * 0.85, true)
+			var tdir := Vector2(-0.9, 0.44).normalized()
+			_ln(ci, PackedVector2Array([wc + tdir * (wr + s * 0.01), wc + tdir * (wr + s * 0.15)]), col, w)
+		"play":
+			var gate := PackedVector2Array()
+			gate.append(_p(r, 0.24, 0.84))
+			for i in 17:
+				var ang := PI + PI * float(i) / 16.0
+				gate.append(_p(r, 0.5, 0.48) + Vector2(cos(ang), sin(ang)) * s * 0.26)
+			gate.append(_p(r, 0.76, 0.84))
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(gate.duplicate(), fc)
+			_ln(ci, gate, col, w)
+			_arc(ci, _p(r, 0.5, 0.52), s * 0.14, PI, TAU, col, w2, false)
+			_ln(ci, _pts(r, [0.36, 0.52, 0.36, 0.84]), col, w2)
+			_ln(ci, _pts(r, [0.64, 0.52, 0.64, 0.84]), col, w2)
+			_ln(ci, _pts(r, [0.12, 0.86, 0.88, 0.86]), col, w)
+			_diamond_line(ci, _p(r, 0.5, 0.12), s * 0.11, col, w2)
+		"heroes":
+			var helm := PackedVector2Array()
+			helm.append(_p(r, 0.38, 0.87))
+			helm.append(_p(r, 0.21, 0.78))
+			helm.append(_p(r, 0.2, 0.52))
+			for i in 17:
+				var ang := PI + PI * float(i) / 16.0
+				helm.append(_p(r, 0.5, 0.52) + Vector2(cos(ang), sin(ang)) * s * 0.3)
+			helm.append(_p(r, 0.79, 0.78))
+			helm.append(_p(r, 0.62, 0.87))
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(helm, fc)
+			_ln(ci, helm, col, w)
+			# T-visor.
+			_ln(ci, _pts(r, [0.3, 0.6, 0.45, 0.6, 0.47, 0.82]), col, w2)
+			_ln(ci, _pts(r, [0.7, 0.6, 0.55, 0.6, 0.53, 0.82]), col, w2)
+			# Crest ridge and the brow gem.
+			_arc(ci, _p(r, 0.5, 0.52), s * 0.38, PI * 1.28, PI * 1.72, col, w2, false)
+			_diamond_line(ci, _p(r, 0.5, 0.41), s * 0.11, col, w2, Vector2.ZERO, fill_a, fc)
+		"barracks":
+			_ln(ci, _pts(r, [0.26, 0.17, 0.26, 0.9]), col, w)
+			_ln(ci, _pts(r, [0.26, 0.21, 0.78, 0.21]), col, w2)
+			_diamond_line(ci, _p(r, 0.26, 0.1), s * 0.1, col, w2)
+			var cloth := _pts(r, [0.34, 0.21, 0.34, 0.75, 0.53, 0.63, 0.72, 0.75, 0.72, 0.21])
+			if fill_a > 0.0:
+				ci.draw_colored_polygon(cloth, fc)
+			_ln(ci, cloth, col, w)
+			_diamond_line(ci, _p(r, 0.53, 0.41), s * 0.15, col, w2, Vector2.ZERO, fill_a, fc)
+		_:
+			return false
+	return true
+
+
+## A small rhombus outline (the family's gem accent).
+## `axis` (optional) turns its long axis (a gem set on a diagonal barrel); `fill_a` > 0 washes it.
+static func _diamond_line(ci: CanvasItem, c: Vector2, sz: float, col: Color, w: float, axis := Vector2.ZERO, fill_a := 0.0, fc := Color(0, 0, 0, 0)) -> void:
+	var h := sz * 0.5
+	var hw := sz * 0.36
+	var u := Vector2(0, -1)
+	if axis != Vector2.ZERO:
+		u = Vector2(-axis.y, axis.x).normalized()
+		if u.y > 0.0:
+			u = -u
+	var v := Vector2(-u.y, u.x)
+	var pts := PackedVector2Array([c + u * h, c + v * hw, c - u * h, c - v * hw])
+	if fill_a > 0.0:
+		ci.draw_colored_polygon(pts, fc)
+	_ln(ci, pts, col, w, true)
+
+
+## The Play key's jewel: a slender faceted topaz crystal (a hexagonal point), lit from the upper
+## left, edged by one fine deep-amber line. `glow` adds a soft inner light (the active Play tab).
+## `value` < 1 is the quiet (inactive Play) state: the same topaz hue at that value (0.85),
+## never grey and never "disabled".
+static func topaz_crystal(ci: CanvasItem, c: Vector2, h: float, alpha := 1.0, glow := 0.0, value := 1.0) -> void:
+	var w := h * 0.62
+	var t := c + Vector2(0, -h * 0.5)
+	var b := c + Vector2(0, h * 0.5)
+	var ul := c + Vector2(-w * 0.5, -h * 0.2)
+	var ur := c + Vector2(w * 0.5, -h * 0.2)
+	var ll := c + Vector2(-w * 0.5, h * 0.24)
+	var lr := c + Vector2(w * 0.5, h * 0.24)
+	var tm := c + Vector2(0, -h * 0.12)
+	var bm := c + Vector2(0, h * 0.16)
+	var calm := UITokens.calm_cta()
+	if glow > 0.0 and not calm:
+		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(h, h) * 0.9, Vector2(h, h) * 1.8), false, Color(1.0, 0.82, 0.45, 0.45 * glow * alpha))
+	# Quiet = the same topaz pulled toward its deep amber (never grey, never "disabled").
+	var quiet := clampf((1.0 - value) * 2.0, 0.0, 1.0)
+	var fp := PackedVector2Array([t, tm, ul, t, ur, tm, ul, tm, bm, ul, bm, ll, tm, ur, lr, tm, lr, bm, ll, bm, b, bm, lr, b])
+	var fcs := PackedColorArray()
+	var facets := [Color("#FFF1C9"), Color("#FFD27A"), Color("#FFC560"), Color("#FFC560"), Color("#F0A23C"), Color("#F0A23C"), Color("#E89434"), Color("#C9772A")]
+	if calm:
+		# CTA study (calm): the Play key is an ink crystal set in gold, like the key button.
+		facets = [Color("#6A7099"), Color("#4A5080"), Color("#3C4270"), Color("#3C4270"), Color("#2C3158"), Color("#2C3158"), Color("#252A4D"), Color("#1D2140")]
+	for fcol: Color in facets:
+		# (v3.1 fix: toward a muted honey, so the quiet stone is not the most saturated thing in
+		# the strip; MF-2.)
+		var cc := _ca(fcol.lerp(Color("#C99A5E") if not calm else Color("#4A4F72"), quiet), alpha)
+		fcs.append_array([cc, cc, cc])
+	var fi := PackedInt32Array()
+	for i in fp.size():
+		fi.append(i)
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), fi, fp, fcs)
+	var edge := _ca(Color(0.62, 0.36, 0.1, 0.9) if not calm else Color(UITokens.KEY_GOLD, 1.0), alpha)
+	var lw := UIKit.px(1.0)
+	ci.draw_polyline(PackedVector2Array([t, ur, lr, b, ll, ul, t]), edge, lw, true)
+	var facet := _ca(Color(1, 0.97, 0.88, 0.75 if not calm else 0.35), alpha)
+	ci.draw_polyline(PackedVector2Array([ul, tm, ur]), facet, lw, true)
+	ci.draw_polyline(PackedVector2Array([tm, bm]), facet, lw, true)
+	ci.draw_polyline(PackedVector2Array([ll, bm, lr]), Color(edge.r, edge.g, edge.b, edge.a * 0.5), lw, true)
+
+
+static func _ca(c: Color, a: float) -> Color:
+	return Color(c.r, c.g, c.b, c.a * a)

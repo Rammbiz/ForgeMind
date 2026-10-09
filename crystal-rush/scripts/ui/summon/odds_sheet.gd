@@ -97,7 +97,7 @@ func _gem_row(g: String, name: String, base: float, total: float, one_in: float,
 	h.add_child(l)
 	var vals := [HeroesText.pct(base), HeroesText.pct(total), HeroesText.t("PORTAL_ODDS_ONE_IN", [_one_in(one_in)])]
 	for i in 3:
-		var c := UIKit.label(str(vals[i]), 24 if i < 2 else 22, UITokens.INK if i == 1 else UITokens.INK_DIM, i == 1)
+		var c := UIKit.label(str(vals[i]), 24 if i < 2 else 22, UITokens.INK if i == 1 else UITokens.INK_DIM_GLASS, i == 1)
 		c.custom_minimum_size.x = COL[i]
 		c.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		c.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

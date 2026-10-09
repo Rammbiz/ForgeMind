@@ -130,8 +130,8 @@ func _ready() -> void:
 	_clip.add_child(_new)
 	_title = UIKit.gradient_heading(HeroesText.t("CER_RECUT", [HeroesText.gem_name(new_gem)]), 56)
 	_name = UIKit.label(HeroesText.name_of(hero_id), 30, UITokens.INK, true)
-	_sub = UIKit.label(HeroesText.t("RECUT_DOUBLET", [HeroesText.gem_name(native), HeroesText.gem_name(new_gem)]), 24, UITokens.GOLD_TEXT, true)
-	_note = UIKit.label(HeroesText.t("RECUT_NO_DROP"), 22, UITokens.INK_DIM)
+	_sub = UIKit.label(HeroesText.t("RECUT_DOUBLET", [HeroesText.gem_name(native), HeroesText.gem_name(new_gem)]), 24, UITokens.GOLD_TEXT_GLASS, true)
+	_note = UIKit.label(HeroesText.t("RECUT_NO_DROP"), 22, UITokens.INK_DIM_GLASS)
 	for l: Label in [_title, _name, _sub, _note]:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -142,7 +142,7 @@ func _ready() -> void:
 	_next = UIKit.secondary_button(HeroesText.t("RECUT_CONTINUE"), "", Vector2(320, 88), 28)
 	_next.pressed.connect(func(): finished.emit())
 	add_child(_next)
-	_skip = UIKit.label(HeroesText.t("RECUT_SKIP_HINT"), 22, UITokens.INK_SOFT)
+	_skip = UIKit.label(HeroesText.t("RECUT_SKIP_HINT"), 22, UITokens.INK_DIM_GLASS)
 	_skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_skip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_skip)

@@ -1,7 +1,7 @@
 class_name KitProgress
 extends Control
-## UI v2 progress bar: a thin chamfered cream track with a gold hairline, an amber gradient
-## fill with a light table line, and small crystal ticks at both ends. `tiles` > 0 draws it as
+## UI v3.1 progress bar (§7.5): a 1 dpx hairline frame, a glass track, an amber fill with a 1 dpx
+## table light; no end ticks: a 9 px topaz diamond lights at the end when full. `tiles` > 0 draws it as
 ## bridge tiles (chamfered crystal planks that light up one by one). Value changes animate.
 ## Optional `text` is drawn to the right ("12 / 40").
 
@@ -43,7 +43,7 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var tw := 0.0
-	var f := UIKit.font_w("bold")
+	var f := UIKit.font_w("medium")
 	var fs := int(clampf(bar_h * 1.6, 16.0, 22.0))
 	if text != "":
 		tw = f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 12.0
@@ -59,31 +59,39 @@ func _draw() -> void:
 			var tr := Rect2(Vector2(r.position.x + i * (tw1 + gap), r.position.y), Vector2(tw1, bar_h))
 			var pts := GemDraw.chamfer_rect(tr, minf(ch, tw1 * 0.3))
 			var k := clampf(lit - i, 0.0, 1.0)
-			draw_colored_polygon(pts, UITokens.PAPER_3)
+			draw_colored_polygon(pts, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.55))
 			if k > 0.0:
 				var on := UITokens.PAPER_3.lerp(fill_color, k)
 				var cols := PackedColorArray()
 				for p in pts:
 					cols.append(on.lightened(0.28 * (1.0 - (p.y - tr.position.y) / bar_h)))
 				draw_polygon(pts, cols)
-				draw_line(tr.position + Vector2(3, bar_h * 0.32), Vector2(tr.end.x - 3, tr.position.y + bar_h * 0.32), Color(1, 1, 1, 0.5 * k), 1.0, true)
-			GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), 1.0)
+				draw_line(tr.position + Vector2(3, bar_h * 0.32), Vector2(tr.end.x - 3, tr.position.y + bar_h * 0.32), Color(1, 1, 1, 0.5 * k), UIKit.px(1.0), true)
+			GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), UIKit.line_px(1.0))
 	else:
+		# v3.1 (§7.5): a 1 dpx hairline frame around a glass track (2 px inside it), an amber
+		# fill with a 1 dpx table light.
 		var pts := GemDraw.chamfer_rect(r, ch)
-		draw_colored_polygon(pts, UITokens.PAPER_3)
+		var p0 := UITokens.PAPER_0
+		draw_colored_polygon(pts, Color(p0.r, p0.g, p0.b, 0.5))
+		var tr := r.grow(-2.0)
+		var tch := minf(ch, tr.size.y * 0.5)
+		draw_colored_polygon(GemDraw.chamfer_rect(tr, tch), Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.45))
 		if frac > 0.002:
-			var fr := Rect2(r.position, Vector2(maxf(r.size.x * frac, ch * 2.0), r.size.y))
-			var fp := GemDraw.chamfer_rect(fr, ch)
+			var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * frac, tch * 2.0), tr.size.y))
+			var fp := GemDraw.chamfer_rect(fr, tch)
 			var cols := PackedColorArray()
 			for p in fp:
-				var t := (p.y - fr.position.y) / maxf(bar_h, 1.0)
-				cols.append(fill_color.lightened(0.35).lerp(fill_color.darkened(0.08), t))
+				var t := (p.y - fr.position.y) / maxf(fr.size.y, 1.0)
+				cols.append(fill_color.lightened(0.3).lerp(fill_color.darkened(0.06), t))
 			draw_polygon(fp, cols)
-			draw_line(fr.position + Vector2(ch, bar_h * 0.3), Vector2(fr.end.x - ch, fr.position.y + bar_h * 0.3), Color(1, 1, 1, 0.55), 1.0, true)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.2)
-	# Crystal ticks at both ends.
-	GemDraw.draw_keystone(self, Vector2(r.position.x, r.get_center().y), tick)
-	GemDraw.draw_keystone(self, Vector2(r.end.x, r.get_center().y), tick, 1.0 if frac >= 0.999 else 0.75,
-			Color(1.0, 0.86, 0.5) if frac >= 0.999 else Color(0.86, 0.96, 1.0))
+			if fr.size.y >= 5.0:
+				var ly := GemDraw.pixel_y(self, fr.position.y + 1.0)
+				draw_line(Vector2(fr.position.x + tch, ly), Vector2(fr.end.x - tch, ly), Color(1, 0.98, 0.9, 0.6), -1.0)
+		GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), UIKit.line_px(1.0))
+	# v3: no crystal ticks on the ends (ornament only where it means something): a full bar
+	# earns one small topaz diamond at its end.
+	if frac >= 0.999:
+		GemDraw.draw_diamond(self, Vector2(r.end.x, r.get_center().y), 9.0, UITokens.TOPAZ, Color("#A8662A"))
 	if text != "":
 		draw_string(f, Vector2(r.end.x + tick * 0.5 + 8.0, size.y * 0.5 + f.get_ascent(fs) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)

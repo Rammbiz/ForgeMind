@@ -1,7 +1,7 @@
 class_name HeroesChampionParts
 extends RefCounted
 ## Drawn parts of the Champion Showcase (heroes_design.md §4, §9.3; part U §2.6):
-##   CardArt   the art: the painted 3:4 card in a thin gold double frame when HeroArt has one;
+##   CardArt   the art: the painted 3:4 card in one 1 dpx gold frame (UI v3.1) when HeroArt has one;
 ##             otherwise NO card and no frame: the class sigil in metal relief (HeroArt.draw_relief)
 ##             painted straight into the gem sky over a faint silhouette of the gem's cut, slow
 ##             0.8 % breathing and a light sweep, the honest 20 px caps line «Арт чемпіона —
@@ -30,7 +30,7 @@ class CardArt extends Control:
 		if st in ["splash", "card"]:
 			_tex = HeroArt.card_texture(id)
 		if _tex == null:
-			_note = UIKit.caps(HeroesText.t("CHAMP_UI_ART_SOON"), 20, UITokens.GOLD_TEXT)
+			_note = UIKit.caps(HeroesText.t("CHAMP_UI_ART_SOON"), 20, UITokens.GOLD_TEXT_GLASS)
 			_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			add_child(_note)
@@ -92,11 +92,10 @@ class CardArt extends Control:
 				var fc: Color = fl[i]
 				draw_texture_rect(glow, Rect2(c - Vector2(80, 80), Vector2(160, 160)), false, Color(fc.r, fc.g, fc.b, 0.35))
 		draw_texture_rect(_tex, r.grow(-6.0), false, Color(1, 1, 1, 0.5 if dim else 1.0))
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 2.0)
-		var hi := UITokens.GOLD_HI
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-7.0), 10.0), Color(hi.r, hi.g, hi.b, 0.75), 1.2)
-		for cy: float in [0.0, 1.0]:
-			GemDraw.draw_keystone(self, Vector2(size.x * 0.5, size.y * cy), 14.0, 1.0, Color(1.0, 0.92, 0.7))
+		# v3.1 (§7.3): ONE 1 dpx gold frame with the 1 dpx light line inside (no double band, no
+		# keystones): the painted card leads.
+		HeroV3.light_line(self, r, UITokens.CHAMFER, 0.7)
+		HeroV3.frame(self, pts, HeroV3.a(HeroV3.GOLD, 0.95))
 
 
 	func _draw_relief() -> void:
@@ -112,8 +111,8 @@ class CardArt extends Control:
 		var cut := str(g["cut"])
 		var pts := GemDraw.cut_points(cut, c, gp * 1.28)
 		draw_colored_polygon(pts, Color(light.r, light.g, light.b, 0.18 * a))
-		GemDraw.outline(self, pts, Color(1, 1, 1, 0.5 * a), 1.6)
-		GemDraw.outline(self, GemDraw.cut_points(cut, c, gp * 1.4), Color(light.r, light.g, light.b, 0.35 * a), 1.0)
+		GemDraw.outline(self, pts, Color(1, 1, 1, 0.5 * a), UIKit.line_px(1.0))
+		GemDraw.outline(self, GemDraw.cut_points(cut, c, gp * 1.4), Color(light.r, light.g, light.b, 0.35 * a), UIKit.px(1.0))
 		var reduce := UITokens.reduce_motion()
 		var k := 0.0 if reduce else sin(_t * TAU / 5.2)
 		draw_set_transform(c + Vector2(0, -3.0 * k), 0.0, Vector2.ONE * (1.0 + 0.008 * k))
@@ -139,9 +138,9 @@ class SlotMap extends Control:
 			var a := TAU * i / 40.0
 			ring.append(c + Vector2(cos(a) * R.x, sin(a) * R.y))
 		draw_colored_polygon(ring, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.9))
-		GemDraw.outline(self, ring, hl, 1.5)
-		draw_circle(c, 7.0, UITokens.CTA_HI)
-		draw_arc(c, 7.0, 0, TAU, 20, hl, 1.2, true)
+		HeroV3.frame(self, ring, hl)
+		draw_circle(c, 7.0, UITokens.GOLD_HI, true, -1.0, true)
+		draw_arc(c, 7.0, 0, TAU, 20, HeroV3.DEEP, UIKit.px(1.0), true)
 		var gc: Color = UITokens.gem(gem)["rim"]
 		for sl: StringName in ChampionKinds.SLOT_ORDER:
 			var o := ChampionKinds.slot_offset(sl, 1.0)
@@ -149,9 +148,9 @@ class SlotMap extends Control:
 			if str(sl) == slot:
 				draw_circle(p, 13.0, Color(gc.r, gc.g, gc.b, 0.25))
 				draw_circle(p, 7.5, gc)
-				draw_arc(p, 7.5, 0, TAU, 20, hl, 1.5, true)
+				draw_arc(p, 7.5, 0, TAU, 20, HeroV3.DEEP, UIKit.line_px(1.0), true)
 			else:
-				draw_arc(p, 5.0, 0, TAU, 16, Color(hl.r, hl.g, hl.b, 0.7), 1.2, true)
+				draw_arc(p, 5.0, 0, TAU, 16, Color(hl.r, hl.g, hl.b, 0.7), UIKit.line_px(1.0), true)
 
 
 ## The relic socket: a cream disc in a thin gold ring with the engraved relic glyph.
@@ -162,12 +161,9 @@ class RelicSocket extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var R := minf(size.x, size.y) * 0.5 - 2.0
-		draw_circle(c + Vector2(0, 2), R, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
-		draw_circle(c, R, UITokens.PAPER_0)
-		draw_arc(c, R, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-		draw_arc(c, R - 5.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), 1.0, true)
+		HeroV3.disc(self, c, R, 0.92, HeroV3.GOLD, 0.85, 0.08)
 		var s := R * 1.1
-		HeroIcons.paint(self, "sk_relic", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.GOLD_TEXT)
+		HeroIcons.paint(self, "sk_relic", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.GOLD_TEXT_GLASS)
 
 
 class TierPips extends Control:
@@ -185,7 +181,7 @@ class TierPips extends Control:
 			var lit := i < tier
 			GemDraw.draw_pip(self, c, 28.0, lit, HeroFacetPips.pip_color(g) if lit else UITokens.TOPAZ)
 			draw_string(f, Vector2(c.x - 22.0, 52.0), HeroesText.roman(i + 1), HORIZONTAL_ALIGNMENT_CENTER, 44.0, 20,
-					UITokens.INK if lit else Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.7))
+					UITokens.INK if lit else Color(UITokens.INK_DIM_GLASS.r, UITokens.INK_DIM_GLASS.g, UITokens.INK_DIM_GLASS.b, 0.7))
 
 
 class RunDemo extends Control:
@@ -224,7 +220,7 @@ class RunDemo extends Control:
 		var deck := PackedVector2Array([Vector2((W - top_w) * 0.5, 8), Vector2((W + top_w) * 0.5, 8),
 				Vector2((W + bot_w) * 0.5, H - 6), Vector2((W - bot_w) * 0.5, H - 6)])
 		draw_colored_polygon(deck, UITokens.BRIDGE_BODY)
-		GemDraw.outline(self, deck, UITokens.BRIDGE_EDGE, 1.5)
+		GemDraw.outline(self, deck, UITokens.BRIDGE_EDGE, UIKit.line_px(1.0))
 		var scroll := fposmod(_t * 0.45, 1.0)
 		for k in 7:
 			var v := fposmod(float(k) / 7.0 + scroll, 1.0)
@@ -246,7 +242,7 @@ class RunDemo extends Control:
 			var a := TAU * i / 40.0
 			ring.append(cp + Vector2(cos(a) * ar.x, sin(a) * ar.y))
 		draw_colored_polygon(ring, Color(gc.r, gc.g, gc.b, 0.16))
-		GemDraw.outline(self, ring, Color(gc.r, gc.g, gc.b, 0.6), 1.5)
+		GemDraw.outline(self, ring, Color(gc.r, gc.g, gc.b, 0.6), UIKit.line_px(1.0))
 		for p in _crowd:
 			var q := c + Vector2(p.x * R.x, p.y * R.y) + Vector2(0, sin(_t * 6.0 + p.x * 9.0) * 1.2)
 			var inside := ((q - cp) / ar).length() < 1.0
@@ -254,12 +250,10 @@ class RunDemo extends Control:
 			draw_circle(q, 5.0, UITokens.INK if not inside else UITokens.INK.lerp(gc, 0.45))
 			draw_circle(q + Vector2(-1.5, -2), 1.6, Color(1, 1, 1, 0.7))
 		# The hero leads at the centre (white-gold ring, the run palette, §2.1).
-		draw_circle(c, 11.0, UITokens.CTA_HI)
-		draw_arc(c, 11.0, 0, TAU, 24, UITokens.HAIRLINE, 1.5, true)
+		draw_circle(c, 11.0, UITokens.GOLD_HI, true, -1.0, true)
+		draw_arc(c, 11.0, 0, TAU, 24, HeroV3.DEEP, UIKit.line_px(1.0), true)
 		# The champion token: gem-cut mark in a white-gold ring.
-		draw_circle(cp + Vector2(0, 3), 17.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.16))
-		draw_circle(cp, 16.0, UITokens.PAPER_0)
-		draw_arc(cp, 16.0, 0, TAU, 32, UITokens.HAIRLINE, 2.0, true)
+		HeroV3.disc(self, cp, 16.0, 0.96, HeroV3.DEEP, 0.9, 0.12)
 		Icons.draw_icon(self, "cls_" + cls, Rect2(cp - Vector2(11, 11), Vector2(22, 22)), UITokens.INK)
 		# The Action beat by class (every 1.5 s).
 		var k := beat
@@ -283,4 +277,4 @@ class RunDemo extends Control:
 					var sp := cp + Vector2(-14 + i * 14, -18 - k * 26.0 - i * 4.0)
 					draw_line(sp + Vector2(-4, 0), sp + Vector2(4, 0), fx, 2.0, true)
 					draw_line(sp + Vector2(0, -4), sp + Vector2(0, 4), fx, 2.0, true)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
+		HeroV3.frame(self, pts, UITokens.HAIRLINE)

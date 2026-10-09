@@ -366,12 +366,10 @@ func _ready() -> void:
 	_tap = UIKit.scene_label(HeroesText.t("SUMMON_TAP"), 24, false)
 	_tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_tap)
-	# «Пропустити»: a light cream-glass ghost with ink text (a dark box reads generic on the sky).
-	_skip = UIKit.ghost_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 22, false)
-	for st: String in ["normal", "hover", "pressed", "hover_pressed"]:
-		_skip.add_theme_stylebox_override(st, UIKit.lux("cream_glass", Vector2(18, 8)))
-	for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		_skip.add_theme_color_override(k, UITokens.INK)
+	# «Пропустити» (UI v3.1 §7.7): a ghost on the night: 0.16 glass with ONE 1 dpx gold line and
+	# warm-white Medium text with the scene shadow (never a solid tile over the cinematic).
+	_skip = UIKit.ghost_button(HeroesText.t("SUMMON_SKIP"), Vector2(176, 88), 22, true)
+	_skip.add_theme_font_override("font", UIKit.font_w("medium"))
 	_skip.pressed.connect(skip_to_end)
 	add_child(_skip)
 	_dock = HBoxContainer.new()
@@ -380,13 +378,20 @@ func _ready() -> void:
 	add_child(_dock)
 	var target := _hero_target()
 	if target != "":
-		_to_hero = UIKit.button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), false, 300)
-		_to_hero.custom_minimum_size = Vector2(300, 88)
-		_to_hero.add_theme_font_size_override("font_size", 24)
+		if UITokens.cta_style == "porcelain":
+			# Porcelain key button: on the night both summary actions are ghosts (the kit's 0.5
+			# secondary glass reads as a grey slab with ink at ~2.6:1 here).
+			_to_hero = UIKit.ghost_button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), Vector2(300, 88), 24, true)
+		else:
+			_to_hero = UIKit.button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), false, 300)
+			_to_hero.custom_minimum_size = Vector2(300, 88)
+			_to_hero.add_theme_font_size_override("font_size", 24)
 		_to_hero.pressed.connect(func(): _open_hero(target))
 		_dock.add_child(_to_hero)
-	_done = UIKit.button(HeroesText.t("SUMMON_DONE"), false, 300)
-	_done.custom_minimum_size = Vector2(300, 88)
+	# «Готово» is a ghost on the night (0.16 glass, one 1 dpx line, warm-white text), «До героя»
+	# the one secondary glass (a ghost too under the porcelain key style): never two equal cream
+	# slabs under the art.
+	_done = UIKit.ghost_button(HeroesText.t("SUMMON_DONE"), Vector2(300, 88), 24, true)
 	_done.pressed.connect(_close)
 	_dock.add_child(_done)
 	resized.connect(_layout)
@@ -421,7 +426,18 @@ func _build_card() -> void:
 	_card_dup.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var h := HeroesUIModel.hero(str(r["id"]))
 	# The duplicate's fragments on one cream-glass slip (never white text over the bright dais).
-	var pnl := UIKit.panel("cream_glass", Vector2(20, 10))
+	# v3.1: text sits on it, so the slip is glass at the text alpha with its 1 dpx line.
+	# Fixer: the slip is painted at 0.97 (the kit banner let the night and the dais rim through and
+	# read greige under the label): one 1 dpx gold line, the inner light, one quiet halo.
+	var pnl := PanelContainer.new()
+	var psb := StyleBoxEmpty.new()
+	psb.content_margin_left = 20
+	psb.content_margin_right = 20
+	psb.content_margin_top = 10
+	psb.content_margin_bottom = 12
+	pnl.add_theme_stylebox_override("panel", psb)
+	pnl.draw.connect(func():
+		HeroV3.glass(pnl, Rect2(Vector2.ZERO, pnl.size), 10.0, 0.97, HeroV3.GOLD, 0.85, 0.7, 0.12))
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 6)
 	pnl.add_child(pv)
@@ -430,7 +446,8 @@ func _build_card() -> void:
 	pv.add_child(fl)
 	_card_dup_bar = HeroEngravedBar.make(str(h["gem"]), float(h["frags"]), float(maxi(1, int(h["frags_need"]))), 300)
 	_card_dup_bar.label = HeroesText.t("CUR_FRAGS")
-	_card_dup_bar.value_text = "%d / %d" % [int(h["frags"]), int(h["frags_need"])]
+	_card_dup_bar.label_color = UITokens.INK
+	_card_dup_bar.value_text = _frags_value(int(h["frags"]), int(h["frags_need"]))
 	pv.add_child(_card_dup_bar)
 	_card_dup.add_child(pnl)
 	add_child(_card_dup)
@@ -451,16 +468,20 @@ func _build_ribbon() -> void:
 	hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hl.draw.connect(func():
 		var w := minf(hl.size.x, maxf(260.0, _name_w() + 40.0))
-		GemDraw.draw_hairline(hl, Vector2(0, 7), Vector2(w, 7), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.95), 1.6, false, false))
+		# v3.1: one 1 dpx gold rule that fades out to the right (no end ticks).
+		var py := GemDraw.pixel_y(hl, 7.0)
+		var gh := UITokens.GOLD_HI
+		hl.draw_polyline_colors(PackedVector2Array([Vector2(0, py), Vector2(w * 0.7, py), Vector2(w, py)]),
+				PackedColorArray([Color(gh.r, gh.g, gh.b, 0.95), Color(gh.r, gh.g, gh.b, 0.8), Color(gh.r, gh.g, gh.b, 0.0)]), UIKit.line_px(1.0)))
 	_ribbon.add_child(hl)
-	_rtitle = UIKit.label("", 28, UITokens.CTA_HI, true)
+	_rtitle = UIKit.label("", 28, UITokens.GOLD_HI, true)
 	UIKit.soft_shadow(_rtitle, 28, 1.8)
 	UIKit.scene_halo(_rtitle, 2.0, 1.4)
 	_ribbon.add_child(_rtitle)
 	_chips = HBoxContainer.new()
 	_chips.add_theme_constant_override("separation", 18)
 	_ribbon.add_child(_chips)
-	_rdup = UIKit.panel("cream_glass", Vector2(18, 8))
+	_rdup = UIKit.panel("banner", Vector2(18, 8))
 	_rdup.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rdup.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	var row := HBoxContainer.new()
@@ -546,12 +567,22 @@ func _show_result(i: int) -> void:
 		_rdup_bar.gem = str(h.get("gem", g))
 		_rdup_bar.max_value = float(maxi(1, int(h.get("frags_need", 1))))
 		_rdup_bar.value = float(h.get("frags", 0))
-		_rdup_bar.value_text = "%d / %d" % [int(h.get("frags", 0)), int(h.get("frags_need", 0))]
+		_rdup_bar.value_text = _frags_value(int(h.get("frags", 0)), int(h.get("frags_need", 0)))
 	_emblem.gem = str(h.get("gem", g))
 	_emblem.native = str(h.get("native", g)) if bool(h.get("is_recut", false)) else ""
 	_name.add_theme_font_size_override("font_size", UIKit.fit_size(_name.text, _W - 2.0 * UITokens.GUTTER - 120.0, 72, 48))
 	_ribbon.reset_size()
 	_layout_ribbon()
+
+
+## The fragment bar's value: «18 / 30» while filling; once the next facet is paid for, «Грань
+## готова» (never «68 / 30», which reads like a bug; the bar itself is full with its diamond).
+static func _frags_value(frags: int, need: int) -> String:
+	if need > 0 and frags < need:
+		return "%d / %d" % [frags, need]
+	if need > 0:
+		return HeroesText.t("FRAGS_FACET_READY")
+	return str(frags)
 
 
 func _hero_target() -> String:
@@ -596,7 +627,7 @@ func _layout() -> void:
 	_tap.position = Vector2(0, _H - _ins.w - 96.0)
 	var dm := _dock.get_combined_minimum_size()
 	_dock.size = Vector2(_W - 2.0 * UITokens.GUTTER, dm.y)
-	_dock.position = Vector2(UITokens.GUTTER, _H - _ins.w - 28.0 - dm.y)
+	_dock.position = Vector2(UITokens.GUTTER, _H - _ins.w - 52.0 - dm.y)
 	if _card:
 		_card.size = HeroCard.SIZES["L"]
 		_card.pivot_offset = _card.size * 0.5
@@ -611,7 +642,7 @@ func _layout_ribbon() -> void:
 	var rs := _ribbon.get_combined_minimum_size()
 	_ribbon.size = Vector2(_W - 2.0 * UITokens.GUTTER, rs.y)
 	# Bottom-left on the art, clear of the end-state dock.
-	_ribbon.position.y = _H - _ins.w - 28.0 - 88.0 - 34.0 - rs.y
+	_ribbon.position.y = _H - _ins.w - 52.0 - 88.0 - 34.0 - rs.y
 
 
 ## Splash rect (the art fills ~90 % of the height; its body sits on focus_x).
@@ -1030,15 +1061,17 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 			(c as Control).modulate.a = SummonFx.seg(u, float(bt["name"]) + 0.2 + 0.06 * ci, 0.16) if not stat else 1.0
 			ci += 1
 		_rdup.modulate.a = SummonFx.seg(u, float(bt["hold"]), 0.2) if not stat else 1.0
-	# NEW wax seal: stamps at the hold beat (drop from 1.5, squash 0.9, settle).
+	# NEW tag: presses in at the hold beat (from 1.15, a soft 0.94 squash, settle), scaled about its
+	# LEFT edge, so it never grows back over the name's last letter.
 	var r := results[_cur]
 	var sk := SummonFx.seg(u, float(bt["hold"]), 0.36) if not stat else 1.0
 	_rseal.visible = bool(r.get("is_new", false)) and sk > 0.0 and _ribbon.visible
 	if _rseal.visible:
-		_rseal.pivot_offset = _rseal.size * 0.5
-		var nx := minf(_ribbon.position.x + _name_w() + 22.0, _W - _rseal.size.x - 12.0)
+		var tw := _rseal.drawn_size().x
+		_rseal.pivot_offset = Vector2((_rseal.size.x - tw) * 0.5, _rseal.size.y * 0.5)
+		var nx := minf(_ribbon.position.x + _name_w() + 22.0 + (tw - _rseal.size.x) * 0.5, _W - 12.0 - (_rseal.size.x + tw) * 0.5)
 		_rseal.position = Vector2(nx, _ribbon.position.y + _name.size.y * 0.5 - _rseal.size.y * 0.5)
-		var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
+		var sq := 1.15 - 0.21 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.94, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
 		_rseal.scale = Vector2.ONE * sq
 		_rseal.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
 	out["motes"] = SummonFx.seg(u, float(bt["hold"]) - 0.3, 0.6) if not stat else 0.0
@@ -1083,15 +1116,19 @@ func _render_card(u: float, L: float, st: Dictionary) -> void:
 	if _card_seal.visible:
 		_card_seal.pivot_offset = _card_seal.size * 0.5
 		var vd := Rect2(dest + cs * 0.5 - vs * 0.5, vs)
-		_card_seal.position = vd.position + Vector2(vs.x - _card_seal.size.x * 0.66, -_card_seal.size.y * 0.34)
-		var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
+		# The «НОВИЙ» tag rides the card's top edge, inside its right corner.
+		_card_seal.position = vd.position + Vector2(vs.x - 6.0 - _card_seal.drawn_size().x * 0.5 - _card_seal.size.x * 0.5, -_card_seal.size.y * 0.5)
+		var sq := 1.15 - 0.21 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.94, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
 		_card_seal.scale = Vector2.ONE * sq
 		_card_seal.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
 	_card_dup.visible = not bool(r["is_new"]) and ck >= 1.0
 	if _card_dup.visible:
 		_card_dup.reset_size()
 		_card_dup.position = Vector2((_W - _card_dup.size.x) * 0.5, dest.y + cs.y * 0.5 + vs.y * 0.5 + 30.0)
-		_card_dup.modulate.a = SummonFx.seg(u, float(b["card"]) * k + 0.25, 0.2) if not reduce else 1.0
+		# Fully opaque by the end of the beat (it used to stop at ~0.75 when the beat is short, so
+		# the dais showed through the slip and the label fell to 3.8:1).
+		var d0 := minf(float(b["card"]) * k + 0.25, L - 0.2)
+		_card_dup.modulate.a = SummonFx.seg(u, d0, 0.2) if not reduce else 1.0
 
 
 ## A deterministic FX layer: "back" (additive light behind the art), "mid" (seeds, crystal, cracks,
@@ -1538,21 +1575,19 @@ func _draw_identity(ci: Control, p: Vector2, icon: String, label: String, g: Str
 	var r := 34.0
 	var col := SummonFx.hex(g)
 	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(r, r) * 1.7, Vector2(r, r) * 3.4), false, Color(col.r, col.g, col.b, 0.4 * a))
-	ci.draw_circle(p + Vector2(0, 3), r + 2.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.18 * a))
 	var p0 := UITokens.PAPER_0
-	ci.draw_circle(p, r, Color(p0.r, p0.g, p0.b, 0.97 * a))
+	ci.draw_circle(p, r, Color(p0.r, p0.g, p0.b, 0.97 * a), true, -1.0, true)
 	var lc := col.lightened(0.25)
-	ci.draw_arc(p, r + 1.0, 0.0, TAU, 48, Color(lc.r, lc.g, lc.b, a), 3.0, true)
-	ci.draw_arc(p, r - 4.0, 0.0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8 * a), 1.2, true)
-	KitIcons.line(ci, icon, Rect2(p - Vector2(r, r) * 0.6, Vector2(r, r) * 1.2), Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, a), 2.6)
-	var f := UIKit.font_w("bold")
+	# v3.1: one 1.5 dpx gem-light ring + a 1 dpx light line inside (no 3 px band).
+	ci.draw_arc(p, r - UIKit.line_px(1.5) * 0.5, 0.0, TAU, 48, Color(lc.r, lc.g, lc.b, a), UIKit.line_px(1.5), true)
+	ci.draw_arc(p, r - 3.0, PI * 1.05, PI * 1.95, 24, Color(1, 1, 1, 0.7 * a), UIKit.px(1.0), true)
+	KitIcons.line(ci, icon, Rect2(p - Vector2(r, r) * 0.6, Vector2(r, r) * 1.2), Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, a), 2.0)
+	var f := UIKit.font_w("medium")
 	var fs := 22
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var sr := Rect2(p + Vector2(-tw * 0.5 - 14.0, r + 10.0), Vector2(tw + 28.0, 36.0))
 	sr.position.x = clampf(sr.position.x, 6.0, _W - sr.size.x - 6.0)
-	var slip := GemDraw.chamfer_rect(sr, 6.0)
-	ci.draw_colored_polygon(slip, Color(p0.r, p0.g, p0.b, 0.96 * a))
-	GemDraw.outline(ci, slip, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9 * a), 1.2)
+	HeroV3.glass(ci, sr, UITokens.CHAMFER_XS, 0.96 * a, HeroV3.GOLD, 0.85 * a, 0.6 * a)
 	ci.draw_string(f, Vector2(sr.position.x + 14.0, sr.position.y + 26.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, a))
 
 

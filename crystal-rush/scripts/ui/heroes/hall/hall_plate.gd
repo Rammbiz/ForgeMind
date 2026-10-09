@@ -1,7 +1,7 @@
 class_name HeroesHallPlate
 extends Control
 ## A Hall header plate (heroes_design.md §9.2): the Portal plate (L20) and the Workshop plate
-## (L32). A cream card with one gold hairline and, at its left, a small chamfered "window" into
+## (L32). A glass plate at the text alpha with one 1 dpx gold line and, at its left, a small chamfered "window" into
 ## the place it opens: the Portal's night sky with its ring (the one place dark is allowed), the
 ## Workshop's warm forge light with a Star Ore crystal. `frosted` = the teaser state two levels
 ## before the unlock (dimmed, a lock, «Майстерня · після рівня 32»). The Portal plate never has
@@ -42,7 +42,7 @@ func _init() -> void:
 	_title = UIKit.label("", 28, UITokens.INK, true)
 	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	col.add_child(_title)
-	_sub = UIKit.label("", 22, UITokens.INK_DIM)
+	_sub = UIKit.label("", 22, UITokens.INK_DIM_GLASS)
 	_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	col.add_child(_sub)
 	resized.connect(_layout)
@@ -51,7 +51,7 @@ func _init() -> void:
 func _ready() -> void:
 	_layout()
 	if frosted:
-		_title.add_theme_color_override("font_color", UITokens.INK_DIM)
+		_title.add_theme_color_override("font_color", UITokens.INK_DIM_GLASS)
 
 
 func _win() -> Rect2:
@@ -81,7 +81,8 @@ func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	if _down:
 		r.position.y += 1.0
-	draw_style_box(UIKit.lux("card"), r)
+	# v3.1: body text sits on it, so the plate is glass at the text alpha (§4.3) with its 1 dpx line.
+	draw_style_box(UIKit.lux("banner"), r)
 	var w := _win()
 	w.position.y += r.position.y
 	var pts := GemDraw.chamfer_rect(w, UITokens.CHAMFER_S)
@@ -107,12 +108,11 @@ func _draw() -> void:
 		var g2 := UIKit.glow_texture()
 		draw_texture_rect(g2, Rect2(c - w.size * 0.5, w.size), false, Color(1.0, 0.95, 0.8, 0.7 * a))
 		HeroIcons.paint(self, "ore", Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), Color(1, 1, 1, a))
-	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
-	var inner := GemDraw.chamfer_rect(w.grow(-3.0), UITokens.CHAMFER_S - 1.5)
-	GemDraw.outline(self, inner, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.4 * a), 1.0)
+	HeroV3.light_line(self, w, UITokens.CHAMFER_S, 0.35 * a)
+	HeroV3.frame(self, pts, HeroV3.a(HeroV3.GOLD, 0.85 * a))
 	# Right end: a chevron (open) or a lock (frosted teaser).
 	var ic := Rect2(Vector2(size.x - 40.0, r.position.y + size.y * 0.5 - 13.0), Vector2(26, 26))
 	if frosted:
-		Icons.draw_icon(self, "lock", ic, UITokens.INK_DIM)
+		Icons.draw_icon(self, "lock", ic, UITokens.INK_DIM_GLASS)
 	elif not compact:
-		Icons.line(self, "chevron", ic, UITokens.GOLD_TEXT)
+		Icons.line(self, "chevron", ic, UITokens.GOLD_TEXT_GLASS)

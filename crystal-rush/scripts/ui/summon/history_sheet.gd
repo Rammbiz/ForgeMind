@@ -18,7 +18,7 @@ func _fill(b: VBoxContainer) -> void:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 12)
 		h.custom_minimum_size.y = 56
-		var n := UIKit.label(HeroesText.t("PORTAL_HISTORY_NO", [int(r["n"])]), 22, UITokens.INK_DIM)
+		var n := UIKit.label(HeroesText.t("PORTAL_HISTORY_NO", [int(r["n"])]), 22, UITokens.INK_DIM_GLASS)
 		n.custom_minimum_size.x = 92
 		n.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(n)

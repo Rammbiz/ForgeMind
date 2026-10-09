@@ -2,22 +2,27 @@ extends Control
 ## Арсенал tab (arsenal_design.md §7.1-7.2; UI v2: fusion §6.8 "5. Arsenal", ui_v2_contract):
 ## a sunlit workshop stage on top (warm haze, a soft light pool in the selected machine's gem
 ## colour, the machine on the 3D turntable; its name in ink, a gem-cut rarity chip, a family
-## socket chip, the level, the next milestone on a porcelain chip), then a cream sheet with an
-## arched top (the bridge span + keystone) holding the sub-tabs Машини · Колода, the filters as
-## Genshin underline tabs, and the 4-column grid of rarity cards (MachineCard; tap opens
-## MachineDetail). The Best-upgrade plate is pinned at the bottom (one pre-selected upgrade; the
-## compact amber CTA opens its two-tap confirm; never spent automatically).
+## socket chip, the level, the next milestone on a porcelain chip), then the frosted sheet
+## (UI v3.1 §4.5: KitGlass frost, a straight fading top rule with a centre diamond) holding the
+## sub-tabs Машини · Колода, the filters as underline tabs, and the 4-column grid of rarity cards
+## (MachineCard; tap opens MachineDetail). The frosted world shows between the cards; the filter
+## header and the Best-upgrade row sit on 94 % cream text beds (§4.3). The Best-upgrade plate is
+## pinned at the bottom (one pre-selected upgrade; the compact amber price CTA with a coin opens
+## its two-tap confirm; never spent automatically).
 
 const FILTERS := [["all", "FILTER_ALL"], ["owned", "FILTER_OWNED"], ["upgradable", "FILTER_UPGRADABLE"]]
 const STRIP_H := 300.0
 const COLS := 4
-const CARD := Vector2(156, 200)
+const CARD := MachineCard.SIZE
 
 var hub: Hub
 var selected_id := ""
 var _sub := "machines"
 var _filter := "all"
 var _stage: _Stage
+var _sheet: KitSheet
+var _beds: _Beds
+var _frow: HBoxContainer
 var _strip: Control
 var _show: HubShowcase
 var _name: Label
@@ -37,6 +42,7 @@ var _best_wrap: MarginContainer
 var _cards := {}             ## id -> MachineCard
 var _info: VBoxContainer
 var _first_fill := true
+var _fade: KitScrollFade
 
 
 func setup(p_hub: Hub) -> void:
@@ -49,6 +55,18 @@ func _ready() -> void:
 	_stage.page = self
 	_stage.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_stage)
+	# The frosted sheet behind the sub-tabs and the grid (placed by hand, it runs under the nav).
+	# Its own bed is off: the beds go only under the filter header and the Best-upgrade row, so
+	# the world frosts through between the cards.
+	_sheet = UIKit.sheet()
+	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_sheet)
+	var tb := UIKit.text_bed_of(_sheet)
+	if tb:
+		tb.bed = false
+	_beds = _Beds.new()
+	_beds.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_beds)
 	var col := VBoxContainer.new()
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	col.add_theme_constant_override("separation", 8)
@@ -90,10 +108,10 @@ func _ready() -> void:
 	var mrow := HBoxContainer.new()
 	mrow.add_theme_constant_override("separation", 8)
 	mrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mi := Icons.make("events", 24.0, UIKit.GOLD_TEXT)
+	var mi := Icons.make("events", 24.0, UIKit.GOLD_TEXT_GLASS)
 	mi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mrow.add_child(mi)
-	_milestone_lbl = UIKit.label("", 20, UIKit.INK)
+	_milestone_lbl = UIKit.label("", 22, UIKit.INK)
 	mrow.add_child(_milestone_lbl)
 	_milestone.add_child(mrow)
 	_strip.add_child(_milestone)
@@ -114,6 +132,7 @@ func _ready() -> void:
 	_machines_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(_machines_view)
 	var frow := HBoxContainer.new()
+	_frow = frow
 	frow.add_theme_constant_override("separation", 12)
 	frow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frow.add_child(UIKit.gap(UITokens.GUTTER - 12))
@@ -127,7 +146,7 @@ func _ready() -> void:
 	_filters.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	frow.add_child(_filters)
 	frow.add_child(UIKit.gap(8))
-	_count_lbl = UIKit.label("", 20, UIKit.INK_DIM, true)
+	_count_lbl = UIKit.label("", 22, UIKit.INK_DIM)
 	_count_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frow.add_child(_count_lbl)
 	frow.add_child(UIKit.gap(UITokens.GUTTER - 12))
@@ -137,7 +156,11 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_machines_view.add_child(_scroll)
-	UIKit.scroll_fade(_scroll, Color("#F2EBDF"), 30.0, 16.0)
+	# The bottom fade melts the partly visible row into the Best-upgrade bed instead of slicing
+	# it through its caption: its height follows that row (_fit_fade), so the full rows above it
+	# keep their footers crisp (720) and a half row under the dock dissolves whole (540 class).
+	_fade = UIKit.scroll_fade(_scroll, Color("#F2EBDF"), 30.0, 16.0)
+	_scroll.resized.connect(_fit_fade)
 	var cc := CenterContainer.new()
 	cc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(cc)
@@ -165,6 +188,7 @@ func _ready() -> void:
 	_best_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_best_wrap.add_child(_best)
 	col.add_child(_best_wrap)
+	_beds.targets = [_frow, _best_wrap, _deck.header]
 	resized.connect(_on_resized)
 	_on_resized()
 	refresh()
@@ -180,8 +204,21 @@ func _on_resized() -> void:
 		if n:
 			n.visible = _sub != "deck"
 	_place_milestone()
+	_place_sheet()
 	_stage.queue_redraw()
 
+
+## The frosted sheet: from the floor of the stage down to the screen bottom (behind the nav),
+## a little wider than the screen so its side edges never show.
+func _place_sheet() -> void:
+	if _sheet == null or not is_inside_tree():
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var gp := get_global_rect().position
+	var top := _strip.custom_minimum_size.y - 6.0
+	_sheet.position = Vector2(-gp.x - 2.0, top)
+	_sheet.size = Vector2(vp.x + 4.0, vp.y - gp.y - top + 2.0)
+	_beds.queue_redraw()
 
 func on_show() -> void:
 	refresh()
@@ -259,6 +296,24 @@ func _place_milestone() -> void:
 		_milestone.position = Vector2((size.x - _milestone.size.x) * 0.5, _strip.custom_minimum_size.y - _milestone.size.y - 14.0)
 
 
+## At rest the grid shows N full rows and maybe part of the next one: the fade then starts just
+## under the last full row and covers the partial one (at least 30 px, the normal edge fade).
+func _fit_fade() -> void:
+	if _fade == null or _grid == null:
+		return
+	var h := _scroll.size.y
+	var pitch := CARD.y + 26.0
+	var full := floori((h - 26.0 + 26.0) / pitch)
+	var rows := ceili(float(_cards.size()) / COLS)
+	var fh := 30.0
+	if full < rows:
+		var bottom := 26.0 + full * pitch - 26.0
+		fh = clampf(h - bottom - 4.0, 30.0, 220.0)
+	if not is_equal_approx(fh, _fade.bottom_h):
+		_fade.bottom_h = fh
+		_fade.queue_redraw()
+
+
 func _fill_grid() -> void:
 	var list := Meta.machine_cards(_filter)
 	# Deck first, then owned, then the ones to find, then Meta-2 ("Скоро").
@@ -303,6 +358,7 @@ func _fill_grid() -> void:
 	_first_fill = false
 	var owned := Meta.owned_ids().size()
 	_count_lbl.text = Loc.f("OWNED_COUNT", [owned, ArsenalData.live_ids().size()])
+	_fit_fade()
 
 
 func _fill_best() -> void:
@@ -334,27 +390,15 @@ func _fill_best() -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 0)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(UIKit.section(Loc.t("BEST_UPGRADE"), 18))
+	v.add_child(UIKit.section(Loc.t("BEST_UPGRADE"), 20))
 	var title := "%s · %s" % [Loc.t(str(b["label"])), Loc.f("LV", [int(b["to_lvl"])])]
-	v.add_child(UIKit.label(title, UIKit.fit_size(title, 300.0, 24, 18), UIKit.INK, true))
+	v.add_child(UIKit.label(title, UIKit.fit_size(title, 300.0, 24, 22, false), UIKit.INK))
 	row.add_child(v)
-	var btn := UIKit.cta_button("", "", Vector2(176, 72), 28)
+	# §7.6 price button: the vector cut gem with the coin in place of the topaz, the number in
+	# the CTA's own Bold amber-brown label (no emboss, no shadow).
+	var btn := UIKit.cta_button(Loc.num(int(b["cost"])), "", Vector2(176, 72), 30)
 	btn.topaz = false
-	var cc := HBoxContainer.new()
-	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	cc.alignment = BoxContainer.ALIGNMENT_CENTER
-	cc.add_theme_constant_override("separation", 6)
-	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var coin := Icons.make("coin", 32.0)
-	coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	cc.add_child(coin)
-	var cl := UIKit.number(Loc.num(int(b["cost"])), 28, false, UIKit.CTA_TEXT)
-	cl.add_theme_color_override("font_shadow_color", Color(0.52, 0.24, 0.03, 0.45))
-	cl.add_theme_constant_override("shadow_offset_y", 2)
-	cl.add_theme_constant_override("shadow_outline_size", 4)
-	cl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	cc.add_child(cl)
-	btn.add_child(cc)
+	btn.gem_icon = "coin"
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	btn.pressed.connect(_go_best.bind(kind, id))
 	row.add_child(btn)
@@ -411,12 +455,17 @@ class _BestMedal extends Control:
 			Icons.draw_icon(self, ik, ir.grow(-r * 0.3))
 
 
-## The page backdrop: a sunlit workshop stage (warm haze, a sunbeam, a light pool in the
+## The page backdrop: a sunlit workshop haze (warm paper, a sunbeam, a light pool in the
 ## selected machine's gem colour, faint gem fracture planes, a soft floor) behind the
-## showcase, and the cream sheet with an arched top (bridge span + keystone) under the tabs
-## and the grid. Paints the whole screen behind the page (top bar and nav included), so the
-## tab reads light whatever the hub backdrop is.
+## showcase. v3.1 (§4.5): every haze alpha is x 0.55, so the hub's frosted world (the blurred
+## Home still under the cream veil) shows through above and beside the sheet; the sheet itself is
+## the frosted KitSheet (`_sheet`).
 class _Stage extends Control:
+	const HAZE := 0.55
+	## v3.1 MF-8: the top of the band keeps less haze, so the frosted islands and clouds read
+	## through the glass above the sheet (also at thumbnail size).
+	const HAZE_TOP := 0.26
+	const HAZE_MID := 0.40
 	var page: Control
 	var gem := "quartz"
 
@@ -436,6 +485,9 @@ class _Stage extends Control:
 		var top := UITokens.PAPER_0.lerp(Color("#F3E6CF"), 0.5)
 		var mid := Color("#EADBC0").lerp(gt, 0.12)
 		var low := UITokens.STAGE_TOP.lerp(gt, 0.1)
+		top.a = HAZE_TOP
+		mid.a = HAZE_MID
+		low.a = HAZE
 		var y0 := full.position.y
 		var y1 := floor_y
 		var ym := lerpf(y0, y1, 0.55)
@@ -444,7 +496,7 @@ class _Stage extends Control:
 		draw_polygon(PackedVector2Array([Vector2(full.position.x, ym), Vector2(full.end.x, ym), Vector2(full.end.x, y1 + 40.0), Vector2(full.position.x, y1 + 40.0)]),
 				PackedColorArray([mid, mid, low, low]))
 		# Sunbeam from the upper left.
-		var sun := Color(UITokens.SUN.r, UITokens.SUN.g, UITokens.SUN.b, 0.22)
+		var sun := Color(UITokens.SUN.r, UITokens.SUN.g, UITokens.SUN.b, 0.22 * HAZE)
 		var clear := Color(sun.r, sun.g, sun.b, 0.0)
 		draw_polygon(PackedVector2Array([Vector2(-40, y0), Vector2(220, y0), Vector2(size.x * 0.78, y1), Vector2(size.x * 0.28, y1)]),
 				PackedColorArray([sun, sun, clear, clear]))
@@ -452,25 +504,42 @@ class _Stage extends Control:
 		var cx := size.x * 0.5
 		var cy := strip_h * 0.52
 		var R := size.x * 0.52
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R * 0.85), Vector2(R * 2.0, R * 1.7)), false, Color(lc.r, lc.g, lc.b, 0.55))
-		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R * 0.6, cy - R * 0.5), Vector2(R * 1.2, R)), false, Color(1, 1, 1, 0.35))
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R, cy - R * 0.85), Vector2(R * 2.0, R * 1.7)), false, Color(lc.r, lc.g, lc.b, 0.55 * HAZE))
+		draw_texture_rect(UIKit.glow_texture(), Rect2(Vector2(cx - R * 0.6, cy - R * 0.5), Vector2(R * 1.2, R)), false, Color(1, 1, 1, 0.35 * HAZE))
 		KitGemCard.draw_stage_fracture(self, gem, Rect2(Vector2(0, y0), Vector2(size.x, y1 - y0)))
 		# Soft floor: a darker warm band with a gentle shadow pool under the turntable.
 		var fl := UITokens.STAGE_BOTTOM.lerp(gt, 0.08)
 		var fl0 := Color(fl.r, fl.g, fl.b, 0.0)
 		var fy := floor_y - 70.0
 		draw_polygon(PackedVector2Array([Vector2(full.position.x, fy), Vector2(full.end.x, fy), Vector2(full.end.x, floor_y + 30.0), Vector2(full.position.x, floor_y + 30.0)]),
-				PackedColorArray([fl0, fl0, Color(fl.r, fl.g, fl.b, 0.55), Color(fl.r, fl.g, fl.b, 0.55)]))
-		# The cream sheet with the arched top (the bridge span + crystal keystone).
-		var sheet := Rect2(Vector2(full.position.x - 2.0, floor_y), Vector2(full.size.x + 4.0, full.end.y - floor_y + 2.0))
-		for i in 4:
-			var sp := KitNav._arch_points(Rect2(sheet.position + Vector2(0, -2.0 - i * 2.0), sheet.size), 10.0, 0.0, 32)
-			sp.append(Vector2(sheet.end.x, sheet.position.y + 24.0))
-			sp.append(Vector2(sheet.position.x, sheet.position.y + 24.0))
-			draw_colored_polygon(sp, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.035))
-		draw_rect(sheet, UITokens.PAPER_1)
-		KitNav.draw_arch_top(self, sheet, 10.0, 0.0, UITokens.PAPER_1, true, UITokens.HAIRLINE, 1.5)
-		# A faint paper gradient down the sheet.
-		var p2 := Color(UITokens.PAPER_2.r, UITokens.PAPER_2.g, UITokens.PAPER_2.b, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(full.position.x, floor_y + 160.0), Vector2(full.end.x, floor_y + 160.0), Vector2(full.end.x, full.end.y), Vector2(full.position.x, full.end.y)]),
-				PackedColorArray([p2, p2, UITokens.PAPER_2, UITokens.PAPER_2]))
+				PackedColorArray([fl0, fl0, Color(fl.r, fl.g, fl.b, 0.55 * HAZE), Color(fl.r, fl.g, fl.b, 0.55 * HAZE)]))
+
+
+## §4.3 text beds on the frosted sheet: a feathered 94 % cream bed under each target row (the
+## filter header, the Best-upgrade row), full sheet width, so their text never sits on the moving
+## world while the frost still shows between the cards. Drawn above the sheet, below the content.
+class _Beds extends Control:
+	const GROW := 14.0
+	var targets: Array = []:
+		set(v):
+			targets = v
+			for t: Control in targets:
+				t.item_rect_changed.connect(queue_redraw)
+				t.visibility_changed.connect(queue_redraw)
+			queue_redraw()
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var inv := get_global_transform().affine_inverse()
+		var vp := get_viewport().get_visible_rect().size
+		var x0 := (inv * Vector2.ZERO).x + 6.0
+		var x1 := (inv * Vector2(vp.x, 0)).x - 6.0
+		for t: Control in targets:
+			if not is_instance_valid(t) or not t.is_visible_in_tree() or t.size.y < 4.0:
+				continue
+			var r := t.get_global_rect()
+			var a := inv * r.position
+			var b := inv * r.end
+			draw_style_box(UIKit.lux("text_bed"), Rect2(Vector2(x0, a.y - GROW), Vector2(x1 - x0, b.y - a.y + GROW * 2.0)))

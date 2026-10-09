@@ -242,7 +242,10 @@ func _build_dais() -> void:
 func _build_glow_fx(r: float, floor_y: float) -> void:
 	var glow := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(r * 4.2, r * 4.2)
+	# Hero mode frames a narrow region (tall phones fit it by width): the glow must fade out
+	# inside the viewport, or its cut edge shows as a vertical seam beside the dais.
+	var gs := r * (2.5 if mode == "hero" else 4.2)
+	q.size = Vector2(gs, gs)
 	q.orientation = PlaneMesh.FACE_Y
 	glow.mesh = q
 	var gm := StandardMaterial3D.new()

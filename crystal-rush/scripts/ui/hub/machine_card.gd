@@ -10,18 +10,21 @@ extends Control
 ## badge (an up chevron / "!"; no green arrows). Prestige frames (Lv13+) add a metal hairline.
 ## Unowned: desaturated ground, slate silhouette, lock socket, "Світ 1, рівень 5"; Meta-2: the
 ## family glyph and "Скоро".
+## UI v3.1 (§7.3): the selected card is a 1.5 dpx deep-gold frame with a diagonal pair of corner
+## brackets (top-left, bottom-right) and a small diamond on the top edge, with no glow slab; the
+## name is Medium 20 and the footer line Medium 22; every ring is 1 dpx.
 ## Draw-call budget: every static layer (ground, fracture, art, frame, footer text, seam bar,
-## sockets, badges, crown) is rendered once into a per-card SubViewport at the screen's pixel
-## scale and shown as ONE premultiplied texture; it is re-rendered only when the card data, the
-## selection, the thumb or the size changes. Only the selection glow behind the card and the
-## Epic+ frame light (_Fx) stay live.
+## sockets, badges, crown, selection frame) is rendered once into a per-card SubViewport at the
+## screen's pixel scale and shown as ONE premultiplied texture; it is re-rendered only when the
+## card data, the selection, the thumb or the size changes. Only the Legendary+ glint (_Fx) is
+## live (nothing travels around the frame).
 
 signal pressed(id: String)
 
-const SIZE := Vector2(156, 200)
-const FOOTER_RATIO := 0.36
-const NAME_SIZE := 18               ## one name size for the whole grid (2 lines allowed)
-const SMALL_SIZE := 18              ## footer line 2 (never below 18 px)
+const SIZE := Vector2(156, 212)
+const FOOTER_RATIO := 0.4
+const NAME_SIZE := 20               ## one name size for the whole grid (2 lines allowed), Medium
+const SMALL_SIZE := 22              ## footer line 2 (>= 22 px on glass, §5 / MF-15)
 const PAD := 30.0                   ## bake margin: selection glow ring, crown above the top edge
 const PRESTIGE := {"bronze": Color("#C98B5A"), "silver": Color("#C9D2DC"), "gold": Color("#E8B84A")}
 
@@ -240,7 +243,7 @@ func _on_rendered(key: String, tex: Texture2D) -> void:
 
 
 func _animated() -> bool:
-	return _locked() == "" and (selected or str(card.get("rarity", "C")) in ["E", "L", "M"])
+	return _locked() == "" and str(card.get("rarity", "C")) in ["L", "M"]
 
 
 func _process(delta: float) -> void:
@@ -265,11 +268,37 @@ func _gui_input(event: InputEvent) -> void:
 			_press = false
 
 
-## Behind the card: the selection glow (warm, soft).
+## v3: no glow slab behind a selected card (the frame and brackets are in the bake).
 func _draw() -> void:
-	if selected and _locked() == "":
-		var r := Rect2(Vector2.ZERO, size)
-		draw_texture_rect(UIKit.glow_texture(), r.grow(size.x * 0.22), false, Color(UITokens.TOPAZ_HI.r, UITokens.TOPAZ_HI.g, UITokens.TOPAZ_HI.b, 0.5))
+	pass
+
+
+## §7.3 / §3.4 selected frame on any CanvasItem: a 1.5 dpx LINE_GOLD_DEEP chamfer frame just
+## outside `r` (cut `cham`), a 1 dpx light line inside it, a diagonal pair of corner brackets
+## (top-left and bottom-right: 12 px arms following the 45-degree cut, a small lozenge on the cut)
+## and a 10 px cut-gem diamond on the top edge. Shared by the Vault's cache picker.
+static func draw_sel_frame(ci: CanvasItem, r: Rect2, cham: float) -> void:
+	var deep := UITokens.LINE_GOLD_DEEP
+	var o := UIKit.px(1.0)
+	var fr := r.grow(o * 1.5)
+	GemDraw.outline(ci, GemDraw.chamfer_rect(fr, cham + o), Color(deep.r, deep.g, deep.b, 0.95), UIKit.line_px(1.5))
+	GemDraw.outline(ci, GemDraw.chamfer_rect(r.grow(-o * 0.5), maxf(cham - o, 2.0)), Color(1, 1, 1, 0.55), UIKit.px(1.0))
+	var g := 6.0
+	var br := r.grow(g)
+	var c := cham + g * 0.41
+	var arm := 12.0
+	var col := Color(deep.r, deep.g, deep.b, 0.8)
+	for k in 2:
+		var o0 := br.position if k == 0 else br.end
+		var dx := Vector2(1, 0) if k == 0 else Vector2(-1, 0)
+		var dy := Vector2(0, 1) if k == 0 else Vector2(0, -1)
+		var pts := PackedVector2Array([o0 + dy * (c + arm), o0 + dy * c, o0 + dx * c, o0 + dx * (c + arm)])
+		ci.draw_polyline(pts, col, UIKit.line_px(1.0), true)
+		var n := (dx + dy).normalized()
+		var m := o0 + (dx + dy) * (c * 0.5) + n * 3.0
+		var t := Vector2(-n.y, n.x)
+		ci.draw_colored_polygon(PackedVector2Array([m + n * 2.6, m + t * 1.4, m - n * 2.6, m - t * 1.4]), col)
+	GemDraw.draw_diamond(ci, Vector2(r.get_center().x, fr.position.y), 10.0, Color("#F3E2B8"), deep)
 
 
 # ------------------------------------------------------------------ layers
@@ -315,7 +344,7 @@ func draw_over(ci: CanvasItem) -> void:
 	var seam := _seam()
 	var locked := _locked()
 	var lvl := int(card.get("lvl", 0))
-	var fb := UIKit.font_w("bold")
+	var fb := UIKit.font_w("medium")
 	var fm := UIKit.font_w("medium")
 	# Name (footer line 1): one size for the grid; a long name wraps to 2 lines (over the art
 	# edge on a soft cream lip), ellipsis only as a last resort.
@@ -329,34 +358,35 @@ func draw_over(ci: CanvasItem) -> void:
 		var nw := fb.get_string_size(lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
 		ci.draw_string(fb, Vector2((w - nw) * 0.5, ny), lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, ns, ncol)
 	else:
-		var y0 := seam + 6.0 + ns + 1.0
+		var y0 := seam + 5.0 + ns + 1.0
 		for i in 2:
 			var nw2 := fb.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
-			ci.draw_string(fb, Vector2((w - nw2) * 0.5, y0 + (ns + 1.0) * i), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, ns, ncol)
+			ci.draw_string(fb, Vector2((w - nw2) * 0.5, y0 + (ns + 2.0) * i), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, ns, ncol)
 	# Footer line 2: level + blueprint count, or where to find it.
 	var ss := SMALL_SIZE
 	var y2 := size.y - 8.0
 	if locked == "world":
 		var home := int(card.get("home_level", 0))
 		var txt := Loc.f("LOCKED_WORLD", [ArsenalData.world_of(home), ArsenalData.level_in_world(home)]) if home > 0 else Loc.t("LOCKED_SOON")
-		_center_text(ci, txt, w * 0.5, y2, ss, UITokens.INK_SOFT, w - 12.0)
+		_center_text(ci, txt, w * 0.5, y2, ss, UIKit.INK_DIM, w - 12.0)
 	elif locked == "phase":
-		_center_text(ci, Loc.t("LOCKED_SOON"), w * 0.5, y2, ss, UITokens.INK_SOFT, w - 12.0)
+		_center_text(ci, Loc.t("LOCKED_SOON"), w * 0.5, y2, ss, UIKit.INK_DIM, w - 12.0)
 	elif compact:
-		_center_text(ci, Loc.f("LV", [lvl]), w * 0.5, y2, ss, UITokens.GOLD_TEXT, w - 12.0)
+		_center_text(ci, Loc.f("LV", [lvl]), w * 0.5, y2, ss, UITokens.GOLD_TEXT_GLASS, w - 12.0)
 	else:
 		var maxed := lvl >= ArsenalData.MAX_LEVEL
 		var lt := Loc.f("LV", [lvl])
-		ci.draw_string(fb, Vector2(10.0, y2), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.GOLD_TEXT)
+		ci.draw_string(fm, Vector2(10.0, y2), lt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.GOLD_TEXT_GLASS)
 		var bt := Loc.t("LV_MAX") if maxed else "%d/%d" % [maxi(int(card.get("bp", 0)), 0), int(card.get("bp_need", 0))]
 		var bw := fm.get_string_size(bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss).x
-		ci.draw_string(fm, Vector2(w - 10.0 - bw, y2), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK if bool(card.get("can_upgrade", false)) else UITokens.INK_DIM)
+		ci.draw_string(fm, Vector2(w - 10.0 - bw, y2), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, ss, UITokens.INK if bool(card.get("can_upgrade", false)) else UIKit.INK_DIM)
 		_seam_bar(ci, seam, maxed)
 	# Deck membership: a thin gold hairline along the top edge (Focus lives on the detail).
 	if locked == "" and bool(card.get("in_deck", false)):
 		var ch0 := _gem._cham()
-		ci.draw_line(Vector2(ch0 + 4.0, 2.5), Vector2(w - ch0 - 4.0, 2.5), UITokens.CTA, 3.0, true)
-		ci.draw_line(Vector2(ch0 + 4.0, 4.5), Vector2(w - ch0 - 4.0, 4.5), Color(1.0, 0.95, 0.8, 0.8), 1.0, true)
+		var dy := UIKit.px(1.0)
+		ci.draw_line(Vector2(ch0 + 4.0, 2.0), Vector2(w - ch0 - 4.0, 2.0), UITokens.CTA_LO, UIKit.line_px(1.5))
+		ci.draw_line(Vector2(ch0 + 4.0, 2.0 + dy * 1.5), Vector2(w - ch0 - 4.0, 2.0 + dy * 1.5), Color(1.0, 0.97, 0.88, 0.85), dy)
 	# Locked: a lock socket in the middle of the art.
 	if locked == "world":
 		var lc := Vector2(w * 0.5, seam * 0.52)
@@ -365,12 +395,10 @@ func draw_over(ci: CanvasItem) -> void:
 	# Prestige frame: a metal hairline just inside the gold one.
 	var fr := str(card.get("frame", ""))
 	if PRESTIGE.has(fr) and locked == "":
-		GemDraw.outline(ci, GemDraw.chamfer_rect(Rect2(Vector2(1.5, 1.5), size - Vector2(3, 3)), _gem._cham() - 1.0), PRESTIGE[fr], 2.0)
-	# Selected: a warm double hairline + keystone at the top.
+		GemDraw.outline(ci, GemDraw.chamfer_rect(Rect2(Vector2(1.5, 1.5), size - Vector2(3, 3)), _gem._cham() - 1.0), PRESTIGE[fr], UIKit.line_px(1.0))
+	# Selected (§7.3): 1.5 dpx deep gold + the diagonal bracket pair, no glow slab.
 	if selected and locked == "":
-		var pts := GemDraw.chamfer_rect(Rect2(Vector2(-2, -2), size + Vector2(4, 4)), _gem._cham() + 1.0)
-		GemDraw.outline(ci, pts, UITokens.CTA, 2.0)
-		GemDraw.draw_keystone(ci, Vector2(w * 0.5, -2.0), 14.0, 1.0, Color(1.0, 0.86, 0.5))
+		draw_sel_frame(ci, Rect2(Vector2.ZERO, size), _gem._cham())
 	# Lead: a painted crown over the top edge (the state badge slot: not with the "!").
 	if bool(card.get("is_lead", false)) and locked == "" and not _badge.visible:
 		var cs := clampf(w * 0.26, 30.0, 46.0)
@@ -386,7 +414,7 @@ func _seam_bar(ci: CanvasItem, seam: float, maxed: bool) -> void:
 	var bed_h := 12.0
 	var bed := Rect2(Vector2(10.0, seam - bed_h * 0.5), Vector2(w - 20.0, bed_h))
 	ci.draw_colored_polygon(GemDraw.chamfer_rect(bed, 4.0), UITokens.PAPER_1)
-	GemDraw.outline(ci, GemDraw.chamfer_rect(bed, 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), 1.0)
+	GemDraw.outline(ci, GemDraw.chamfer_rect(bed, 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9), UIKit.line_px(1.0))
 	var tr := bed.grow_individual(-4.0, -3.5, -4.0, -3.5)
 	ci.draw_colored_polygon(GemDraw.chamfer_rect(tr, 2.0), UITokens.PAPER_3)
 	var need := maxi(int(card.get("bp_need", 0)), 1)
@@ -414,11 +442,9 @@ func _seam_bar(ci: CanvasItem, seam: float, maxed: bool) -> void:
 
 func _mini_socket(ci: CanvasItem, c: Vector2, s: float, icon: String) -> void:
 	var r := s * 0.5
-	for i in 3:
-		ci.draw_circle(c + Vector2(0, 1.0 + i), r - 0.5 + i * 0.5, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.07))
-	ci.draw_circle(c, r, UITokens.PAPER_1)
-	ci.draw_circle(c + Vector2(0, -r * 0.1), r * 0.84, UITokens.PAPER_0)
-	ci.draw_arc(c, r - 0.75, 0, TAU, 40, UITokens.HAIRLINE, 1.5, true)
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.3 + Vector2(0, 2), Vector2(r, r) * 2.6), false, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
+	ci.draw_circle(c, r, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
+	ci.draw_arc(c, r - UIKit.px(0.5), 0, TAU, 64, UITokens.HAIRLINE, UIKit.line_px(1.0), true)
 	var isz := r * 1.15
 	Icons.line(ci, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), UITokens.INK)
 
@@ -431,18 +457,13 @@ func _center_text(ci: CanvasItem, txt: String, cx: float, y: float, fs: int, col
 	ci.draw_string(f, Vector2(cx - tw * 0.5, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
-## The animated layer (Epic+ only, redrawn per frame): a soft light travelling along the frame;
-## Legendary+ adds the signature glint on the gem mark now and then.
+## The animated layer (Legendary+ only, redrawn per frame): the signature glint on the gem mark
+## now and then. v3: no light travels around the frame (no looping shine).
 func draw_fx(ci: CanvasItem) -> void:
 	var r := str(card.get("rarity", "C"))
-	if card.is_empty() or _locked() != "" or not r in ["E", "L", "M"]:
+	if card.is_empty() or _locked() != "" or not r in ["L", "M"]:
 		return
 	var w := size.x
-	var body := Rect2(Vector2(1, 1), size - Vector2(2, 2))
-	var per := 2.0 * (body.size.x + body.size.y)
-	var p := _perimeter(body, fposmod(_t * 70.0, per))
-	var lc2: Color = (UITokens.gem(r) as Dictionary)["light"]
-	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(16, 16), Vector2(32, 32)), false, Color(lc2.r, lc2.g, lc2.b, 0.55))
 	if r in ["L", "M"]:
 		var k := fposmod(_t, 4.0)
 		if k < 0.6:

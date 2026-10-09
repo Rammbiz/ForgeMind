@@ -89,7 +89,7 @@ func _ready() -> void:
 			add_child(s)
 		_seals.append(s)
 	# The document: Seals, pity after the bundle, fragments per hero.
-	_panel = UIKit.panel("panel", Vector2(26, 18))
+	_panel = UIKit.panel("banner", Vector2(26, 18))   # v3.1: text on it: glass at the text alpha
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_panel)
 	var col := VBoxContainer.new()
@@ -112,7 +112,7 @@ func _ready() -> void:
 	_pity.label = HeroesText.t("PORTAL_PITY_L", [int(after.get("pity_l_left", 30))])
 	_pity.value_text = HeroesText.t("PORTAL_PITY_E", [int(after.get("pity_e_left", 10))])
 	col.add_child(_pity)
-	_frags = UIKit.label(_frag_line(), 22, UITokens.INK_DIM)
+	_frags = UIKit.label(_frag_line(), 22, UITokens.INK_DIM_GLASS)
 	_frags.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_frags.custom_minimum_size.x = 560
 	col.add_child(_frags)
@@ -151,6 +151,9 @@ func _layout() -> void:
 	var cs := HeroCard.SIZES["S"] as Vector2
 	var pitch := 134.0
 	# Centre the whole frame (title, two rows, the document) between the top bar and the dock.
+	# The fragments line wraps at the panel's real inner width (a narrower minimum reserved a
+	# second, empty line: the dead band under the text).
+	_frags.custom_minimum_size.x = W - 2.0 * UITokens.GUTTER - 52.0
 	_panel.size = Vector2(W - 2.0 * UITokens.GUTTER, 0)
 	_panel.reset_size()
 	var ph := _panel.get_combined_minimum_size().y
@@ -208,7 +211,7 @@ func render(u: float) -> void:
 			var p := (sl["pos"] as Vector2) + Vector2(cs.x * 0.5 * sc - 30.0, -cs.y * 0.5 * sc + 10.0)
 			s.position = p - s.size * 0.5
 			s.pivot_offset = s.size * 0.5
-			var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.45) if sk < 0.45 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.45) / 0.55))
+			var sq := 1.15 - 0.21 * SummonFx.in2(sk / 0.45) if sk < 0.45 else lerpf(0.94, 1.0, SummonFx.out3((sk - 0.45) / 0.55))
 			s.scale = Vector2.ONE * (1.0 if reduce else sq)
 			s.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
 	_glow.best = _slots[2]["pos"] if _slots.size() > 2 else Vector2.ZERO

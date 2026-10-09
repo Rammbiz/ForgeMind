@@ -1,7 +1,7 @@
 class_name SettingsPanel
 extends Control
-## Settings (UI v2, Genshin settings rows): a cream modal with a quiet ink title and a close
-## disc, engraved section titles, and flat rows (line icon in a thin gold ring, ink label, a
+## Settings (UI v3.1, Genshin settings rows): a frosted modal (text bed under the rows, top-corner
+## flourishes) with a 40 Bold ink title and a 1 dpx ring close disc, engraved section titles, and flat rows (line icon in a thin gold ring, ink label, a
 ## chamfered toggle or a gold value) separated by hairlines - no boxes. Sound and screen
 ## (music, sounds, vibration, graphics, language) are kept on Save, the gameplay settings of
 ## the account (Reduce Motion, Fast ceremonies, Quick reveal, Caches to Vault,
@@ -23,7 +23,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", UIKit.lux("modal", Vector2(30, 24)))
+	UIKit.frost_into(_panel, "modal", Vector2(30, 24))
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ins := hub.insets()
 	_panel.offset_left = 28 + ins.x
@@ -36,7 +36,7 @@ func _ready() -> void:
 	_panel.add_child(col)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
-	var t := UIKit.heading(Loc.t("SETTINGS"), 36, UIKit.INK)
+	var t := UIKit.heading(Loc.t("SETTINGS"), 40, UIKit.INK)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(t)
@@ -45,6 +45,9 @@ func _ready() -> void:
 	x.pressed.connect(func(): hub.close_modal(self))
 	head.add_child(x)
 	col.add_child(head)
+	# v3.1 §4.3: the title sits on the frost ramp; the text bed starts under it.
+	if UIKit.text_bed_of(_panel):
+		UIKit.text_bed_of(_panel).header = head
 	var div := UIKit.divider(560.0)
 	div.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(div)
@@ -84,7 +87,7 @@ func _ready() -> void:
 			Meta.set_setting(key, v)))
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 12)
-	var ver := UIKit.label(Loc.f("VERSION", [str(ProjectSettings.get_setting("application/config/version", "1.0"))]), 18, UITokens.INK_SOFT)
+	var ver := UIKit.label(Loc.f("VERSION", [str(ProjectSettings.get_setting("application/config/version", "1.0"))]), 22, UIKit.INK_DIM)
 	ver.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ver.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	ver.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -119,7 +122,7 @@ func _fit_height() -> void:
 	var list_h := 0.0
 	for c in _list.get_children():
 		list_h += 50.0 if c is MarginContainer else UITokens.ROW_H + 6.0
-	var chrome := 36.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
+	var chrome := 40.0 + 10.0 + 18.0 + 10.0 + 76.0 + 10.0 * 2.0 + 48.0
 	var h := minf(list_h + chrome, avail)
 	_sc.custom_minimum_size.y = maxf(120.0, h - chrome)
 	if list_h + chrome > avail:
@@ -170,11 +173,11 @@ func _row(key: String, icon: String, get_on: Callable, set_on: Callable, on_key 
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(l)
 	if on_key != "":
-		var val := UIKit.label("", 22, UITokens.GOLD_TEXT, true)
+		var val := UIKit.label("", 22, UITokens.GOLD_TEXT_GLASS)
 		val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		val.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(val)
-		var chev := Icons.make("chevron", 22.0, UITokens.GOLD_TEXT)
+		var chev := Icons.make("chevron", 22.0, UITokens.GOLD_TEXT_GLASS)
 		chev.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		chev.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(chev)
@@ -229,29 +232,9 @@ class Toggle extends Control:
 			_k = t
 			queue_redraw()
 		if not is_equal_approx(_k, t):
-			_k = move_toward(_k, t, delta / 0.16)
+			_k = move_toward(_k, t, delta / KitToggle.TRAVEL)
 			queue_redraw()
 
 	func _draw() -> void:
-		var k := ease(maxf(_k, 0.0), -1.8)
-		var r := Rect2(Vector2(0, 2), Vector2(size.x, size.y - 4))
-		var ch := r.size.y * 0.32
-		var track := GemDraw.chamfer_rect(r, ch)
-		draw_colored_polygon(track, UITokens.PAPER_3)
-		if k > 0.01:
-			# Amber fill grows from the left with the knob.
-			var fr := Rect2(r.position, Vector2(lerpf(r.size.y, r.size.x, k), r.size.y))
-			var fill := GemDraw.chamfer_rect(fr, ch)
-			var cols := PackedColorArray()
-			for p in fill:
-				var ty := (p.y - fr.position.y) / fr.size.y
-				cols.append(UITokens.CTA_HI.lerp(UITokens.CTA, smoothstep(0.0, 0.5, ty)).lerp(UITokens.CTA_LO, smoothstep(0.5, 1.0, ty)))
-			draw_polygon(fill, cols)
-		GemDraw.outline(self, track, UITokens.HAIRLINE, 1.5)
-		var kr := r.size.y * 0.5 - 4.0
-		var kc := Vector2(lerpf(r.position.x + r.size.y * 0.5, r.end.x - r.size.y * 0.5, k), r.get_center().y)
-		var sc := UITokens.SCRIM
-		draw_circle(kc + Vector2(0, 2), kr + 1.0, Color(sc.r, sc.g, sc.b, 0.18))
-		draw_circle(kc, kr, UITokens.PAPER_0)
-		draw_arc(kc, kr - 0.6, 0, TAU, 32, UITokens.HAIRLINE, 1.2, true)
-		draw_arc(kc, kr * 0.62, PI * 1.1, PI * 1.9, 12, Color(1, 1, 1, 0.9), 1.5, true)
+		# v3.1 slim toggle (spec §7.8; KitToggle).
+		KitToggle.draw_toggle(self, Rect2(Vector2.ZERO, size), maxf(_k, 0.0))

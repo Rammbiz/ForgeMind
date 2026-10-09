@@ -116,7 +116,7 @@ func _build_ui() -> void:
 	coins_row.add_theme_constant_override("separation", 8)
 	coins_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	coins_row.add_child(Icons.make("coin", 36.0))
-	_coins_lbl = UIKit.heading(str(Save.coins), 32, UIKit.GOLD, 6)
+	_coins_lbl = UIKit.number(str(Save.coins), 30, false, UIKit.INK)
 	coins_row.add_child(_coins_lbl)
 	pill.add_child(coins_row)
 	top.add_child(pill)
@@ -126,23 +126,26 @@ func _build_ui() -> void:
 	var fs := 72
 	while fs > 36 and UIKit.font(true).get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 28.0 > width:
 		fs -= 2
-	var title := UIKit.gradient_heading(title_text, fs, Color(1, 1, 0.9), Color(1.0, 0.82, 0.32), Color(0.9, 0.45, 0.08), 12)
+	# v3.1: warm white into soft gold, the soft scene shadow only (no extruded drop).
+	var title := UIKit.gradient_heading(title_text, fs, UIKit.ON_SCENE, Color("#FFF1D2"), UIKit.GOLD_HI)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_constant_override("shadow_offset_y", 6)
 	col.add_child(title)
 	var world := HBoxContainer.new()
 	world.alignment = BoxContainer.ALIGNMENT_CENTER
 	world.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var wp := UIKit.pill(true)
+	var wp := UIKit.pill()
 	var wrow := HBoxContainer.new()
 	wrow.add_theme_constant_override("separation", 8)
 	wrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrow.add_child(Icons.make("crystal", 24.0))
-	wrow.add_child(UIKit.heading(Loc.t("WORLD_SPACE").to_upper(), 20, Color(0.7, 0.9, 1.0), 4))
+	var wl := UIKit.caps(Loc.t("WORLD_SPACE"), 22, UIKit.GOLD_TEXT_GLASS)
+	wl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	wrow.add_child(wl)
 	wp.add_child(wrow)
 	world.add_child(wp)
 	col.add_child(world)
-	var tag := UIKit.heading(Loc.t("GAME_TAGLINE"), 26, UIKit.TEXT, 6)
+	var tag := UIKit.scene_label(Loc.t("GAME_TAGLINE"), 26, false)
+	UIKit.scene_halo(tag, 1.0)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(tag)
@@ -153,7 +156,7 @@ func _build_ui() -> void:
 	choose_row.add_theme_constant_override("separation", 14)
 	choose_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	choose_row.add_child(UIKit.divider(110.0))
-	var choose := UIKit.heading(Loc.t("CHOOSE_HERO"), 30, UIKit.TEXT, 7)
+	var choose := UIKit.scene_label(Loc.t("CHOOSE_HERO"), 28, false)
 	choose_row.add_child(choose)
 	choose_row.add_child(UIKit.divider(110.0))
 	for d in [choose_row.get_child(0), choose_row.get_child(2)]:
@@ -166,7 +169,7 @@ func _build_ui() -> void:
 	col.add_child(cards)
 	for type: String in ["bolt", "titan"]:
 		cards.add_child(_hero_card(type))
-	_desc_lbl = UIKit.heading("", 22, Color(0.86, 0.9, 1.0), 7)
+	_desc_lbl = UIKit.scene_label("", 24, false)
 	_desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_desc_lbl)
 	col.add_child(UIKit.gap(2))
@@ -179,7 +182,6 @@ func _build_ui() -> void:
 	_play_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_play_btn.pressed.connect(func(): play.emit())
 	col.add_child(_play_btn)
-	UIKit.add_shine(_play_btn, 30.0, 1.0, 3.0, 0.5)
 	_refresh()
 	UIKit.stagger([title, world, tag], 0.05, 0.08, 0.45)
 	UIKit.stagger([cards.get_child(0), cards.get_child(1)], 0.2, 0.08, 0.4)
@@ -202,8 +204,8 @@ func _hero_card(type: String) -> Control:
 	medal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(medal)
 	_portraits[type] = medal
-	var name_lbl := UIKit.gradient_heading(Loc.t(def["name"]), 34, hc.lightened(0.75), hc.lightened(0.3), hc.darkened(0.15), 8)
-	name_lbl.add_theme_color_override("font_outline_color", hc.darkened(0.85))
+	# v3.1: the name in ink Medium on the card glass (the hero colour lives in the medallion).
+	var name_lbl := UIKit.label(Loc.t(def["name"]), 28, UIKit.INK)
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(name_lbl)
 	card.gui_input.connect(func(e: InputEvent):
@@ -234,8 +236,8 @@ func _upgrade_row(kind: String) -> Control:
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(v)
 	var key := "UPGRADE_ARMY" if kind == "army" else "UPGRADE_POWER"
-	v.add_child(UIKit.heading(Loc.t(key), 28, UIKit.TEXT, 5))
-	v.add_child(UIKit.label(Loc.t(key + "_DESC"), 20, UIKit.TEXT_DIM))
+	v.add_child(UIKit.label(Loc.t(key), 26, UIKit.INK))
+	v.add_child(UIKit.label(Loc.t(key + "_DESC"), 22, UIKit.INK_DIM))
 	var pips := LevelPips.new()
 	pips.custom_minimum_size = Vector2(200, 14)
 	v.add_child(pips)
@@ -253,7 +255,7 @@ func _upgrade_row(kind: String) -> Control:
 	var pc := Icons.make("coin", 30.0)
 	pc.name = "Coin"
 	prow.add_child(pc)
-	var price := UIKit.heading("", 30, UIKit.GOLD, 6)
+	var price := UIKit.number("", 28, false, UIKit.GOLD_TEXT_GLASS)
 	prow.add_child(price)
 	cc.add_child(prow)
 	b.add_child(cc)
@@ -287,7 +289,7 @@ func _refresh() -> void:
 		var sel := Save.hero == type
 		var card := _cards[type] as PanelContainer
 		card.add_theme_stylebox_override("panel", UIKit.lux("card_sel" if sel else "card_dim", Vector2(14, 12)))
-		card.self_modulate = Color.WHITE if sel else Color(0.85, 0.87, 0.95)
+		card.self_modulate = Color.WHITE
 		var medal := _portraits.get(type) as HeroMedallion
 		if medal:
 			medal.selected = sel
@@ -306,7 +308,7 @@ func _refresh() -> void:
 			price.text = "%d" % Save.upgrade_cost(kind)
 			coin.visible = true
 			b.disabled = not Save.can_upgrade(kind)
-		price.add_theme_color_override("font_color", UIKit.GOLD if not b.disabled else Color(0.6, 0.62, 0.68))
+		price.add_theme_color_override("font_color", UIKit.GOLD_TEXT_GLASS if not b.disabled else UIKit.INK_DIM)
 		coin.modulate = Color.WHITE if not b.disabled else Color(0.6, 0.6, 0.65)
 	_play_btn.text = Loc.f("PLAY_LEVEL", [Save.level])
 	_desc_lbl.text = Loc.t(Balance.HEROES[Save.hero]["desc"])
@@ -331,8 +333,9 @@ func _open_settings() -> void:
 	_settings = Control.new()
 	_settings.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ui.add_child(_settings)
+	# §1.2: the modal dim (slate @ SCRIM_MODAL), flat 0.97 modal (no world still outside the hub).
 	var dim := ColorRect.new()
-	dim.color = Color(0.01, 0.02, 0.06, 0.7)
+	dim.color = Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, UITokens.SCRIM_MODAL)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.pressed:
@@ -343,12 +346,12 @@ func _open_settings() -> void:
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_settings.add_child(center)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIKit.lux("panel", Vector2(40, 34)))
+	panel.add_theme_stylebox_override("panel", UIKit.lux("modal", Vector2(40, 34)))
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	panel.add_child(box)
-	var t := UIKit.gradient_heading(Loc.t("SETTINGS"), 52)
+	var t := UIKit.heading(Loc.t("SETTINGS"), 40, UIKit.INK)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
 	box.add_child(UIKit.divider(420.0))
@@ -362,7 +365,7 @@ func _open_settings() -> void:
 		Save.quality = "low" if Save.quality == "high" else "high", "QUALITY_HIGH", "QUALITY_LOW")
 	var lang := _setting_button(box, "globe")
 	lang.text = Loc.t("LANGUAGE")
-	var lv := UIKit.heading(Loc.t("LANG_NAME"), 24, UIKit.GOLD, 5)
+	var lv := UIKit.label(Loc.t("LANG_NAME"), 24, UIKit.GOLD_TEXT_GLASS)
 	lv.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lv.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lv.size = Vector2(220, 60)
@@ -385,7 +388,7 @@ func _setting_button(box: Control, icon: String) -> Button:
 		var base := UIKit.lux("button_pressed" if st.ends_with("pressed") else "button").duplicate() as StyleBox
 		base.content_margin_left = 76
 		b.add_theme_stylebox_override(st, base)
-	var ic := Icons.make(icon, 36.0, UIKit.GOLD)
+	var ic := Icons.make(icon, 36.0, UIKit.GOLD_TEXT_GLASS)
 	ic.position = Vector2(24, 16)
 	b.add_child(ic)
 	box.add_child(b)
@@ -397,7 +400,7 @@ func _toggle(box: Control, key: String, icon: String, get_on: Callable, flip: Ca
 	var b := _setting_button(box, icon)
 	b.text = Loc.t(key)
 	var sw := Switch.new()
-	var val := UIKit.heading("", 24, UIKit.GOLD, 5)
+	var val := UIKit.label("", 24, UIKit.GOLD_TEXT_GLASS)
 	if on_key == "":
 		sw.custom_minimum_size = Vector2(76, 40)
 		sw.size = sw.custom_minimum_size
@@ -439,13 +442,22 @@ class LevelPips extends Control:
 	func _draw() -> void:
 		var gap := 3.0
 		var w := (size.x - gap * (max_level - 1)) / max_level
+		# v3.1: chamfered glass planks in a 1 dpx hairline; the reached ones flat amber with a
+		# 1 dpx table light (no gloss slab, no dark sockets).
+		var lw := UIKit.line_px(1.0)
 		for i in max_level:
-			var r := Rect2(Vector2(i * (w + gap), 2), Vector2(w, size.y - 4))
+			var r := Rect2(Vector2(i * (w + gap), 3), Vector2(w, size.y - 6))
+			var pts := GemDraw.chamfer_rect(r, 2.5)
 			if i < level:
-				draw_style_box(UIKit.box(Color(1.0, 0.72, 0.22), Color(0.5, 0.26, 0.04), 4, 1, 0, Vector2.ZERO), r)
-				draw_rect(Rect2(r.position + Vector2(2, 1.5), Vector2(r.size.x - 4, r.size.y * 0.35)), Color(1, 1, 0.85, 0.6))
+				var cols := PackedColorArray()
+				for q in pts:
+					cols.append(UITokens.CTA_HI.lerp(UITokens.CTA_LO, (q.y - r.position.y) / maxf(r.size.y, 1.0)))
+				draw_polygon(pts, cols)
+				draw_line(r.position + Vector2(2, 1.0), Vector2(r.end.x - 2, r.position.y + 1.0), Color(1.0, 0.98, 0.9, 0.85), UIKit.px(1.0))
+				GemDraw.outline(self, pts, Color(UITokens.CTA_RIM.r, UITokens.CTA_RIM.g, UITokens.CTA_RIM.b, 0.6), lw)
 			else:
-				draw_style_box(UIKit.box(Color(0.03, 0.04, 0.1, 0.8), Color(1, 1, 1, 0.12), 4, 1, 0, Vector2.ZERO), r)
+				draw_colored_polygon(pts, Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.5))
+				GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), lw)
 
 
 ## Hero portrait in a round gold medallion (clipped to the circle, hero-coloured backdrop).
@@ -464,18 +476,18 @@ class HeroMedallion extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var r := minf(size.x, size.y) * 0.5 - 6.0
+		# v3.1 porcelain medallion: one halo, a cream glass ring, a 1 dpx gold line (1.5 dpx deep
+		# gold when selected), the portrait on a soft disc of the hero colour (no dark rims).
+		var sc := UITokens.SCRIM
+		var tex2 := UIKit.glow_texture()
 		if selected:
-			draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.7, Vector2(r, r) * 3.4), false, Color(color.r, color.g, color.b, 0.6))
-		draw_circle(c + Vector2(0, 4), r + 2.0, Color(0, 0, 0.02, 0.45))
-		var rim_hi := Color(1.0, 0.9, 0.55) if selected else Color(0.66, 0.72, 0.86)
-		var rim_lo := Color(0.62, 0.36, 0.08) if selected else Color(0.24, 0.27, 0.38)
-		draw_circle(c, r, rim_lo.darkened(0.4))
-		draw_circle(c + Vector2(0, -1.2), r - 1.2, rim_hi)
-		draw_circle(c + Vector2(0, 1.5), r - 4.0, rim_lo)
+			draw_texture_rect(tex2, Rect2(c - Vector2(r, r) * 1.6, Vector2(r, r) * 3.2), false, Color(color.r, color.g, color.b, 0.45))
+		draw_texture_rect(tex2, Rect2(c - Vector2(r * 1.3, r * 1.15) + Vector2(0, 4), Vector2(r * 2.6, r * 2.6)), false, Color(sc.r, sc.g, sc.b, 0.22))
+		var p0 := UITokens.PAPER_0
+		draw_circle(c, r, Color(p0.r, p0.g, p0.b, 0.92), true, -1.0, true)
 		var face := r - 6.0
-		for i in 6:
-			var k := 1.0 - i * 0.13
-			draw_circle(c - Vector2(0, face * 0.05 * i), face * k, Color(0.04, 0.05, 0.12).lerp(color.darkened(0.15), 0.12 + i * 0.12))
+		draw_circle(c, face, color.lightened(0.55), true, -1.0, true)
+		draw_texture_rect(tex2, Rect2(c - Vector2(face, face), Vector2(face, face) * 2.0), false, Color(color.r, color.g, color.b, 0.55))
 		if tex:
 			var pts := PackedVector2Array()
 			var uvs := PackedVector2Array()
@@ -487,9 +499,10 @@ class HeroMedallion extends Control:
 				uvs.append(Vector2(0.5, 0.47) + d * 0.5 / 1.08)
 			var m := 1.0 if selected else 0.62
 			draw_polygon(pts, PackedColorArray([Color(m, m, m * 1.05)]), uvs, tex)
-		# Glass gloss on top.
-		draw_arc(c, face - 1.0, PI * 1.08, PI * 1.92, 28, Color(1, 1, 1, 0.3), 2.5, true)
-		draw_arc(c, face - 0.5, 0, TAU, 64, Color(0, 0, 0, 0.35), 1.5, true)
+		var lw := UIKit.px(1.5) if selected else UIKit.line_px(1.0)
+		draw_arc(c, face, 0, TAU, 64, Color(1, 1, 1, 0.7), UIKit.px(1.0), true)
+		draw_arc(c, r - lw * 0.5, 0, TAU, 72, UITokens.LINE_GOLD_DEEP if selected else UITokens.LINE_GOLD, lw, true)
+		draw_arc(c, r - UIKit.px(2.0), PI * 1.05, PI * 1.7, 24, Color(1, 1, 1, 0.8), UIKit.px(1.0), true)
 
 
 ## Animated on/off switch for settings rows.
@@ -513,14 +526,5 @@ class Switch extends Control:
 			queue_redraw()
 
 	func _draw() -> void:
-		var r := Rect2(Vector2.ZERO, size)
-		var rad := int(size.y * 0.5)
-		var bg := Color(0.16, 0.18, 0.28).lerp(Color(0.22, 0.72, 0.36), _k)
-		draw_style_box(UIKit.box(Color(0, 0, 0.03, 0.5), Color(0, 0, 0, 0), rad, 0, 0, Vector2.ZERO), Rect2(r.position + Vector2(0, 2), r.size))
-		draw_style_box(UIKit.box(bg, Color(1, 0.85, 0.5, 0.55), rad, 2, 0, Vector2.ZERO), r)
-		var kr := size.y * 0.5 - 4.0
-		var kx := lerpf(size.y * 0.5, size.x - size.y * 0.5, _k)
-		var kc := Vector2(kx, size.y * 0.5)
-		draw_circle(kc + Vector2(0, 2), kr, Color(0, 0, 0, 0.35))
-		draw_circle(kc, kr, Color(0.98, 0.96, 0.9))
-		draw_arc(kc, kr * 0.6, PI * 1.1, PI * 1.9, 12, Color(1, 1, 1, 0.9), 2.0, true)
+		# v3.1 (§7.8): the slim kit toggle (56 x 28 track, 22 px knob, 1 dpx lines).
+		KitToggle.draw_toggle(self, Rect2(Vector2.ZERO, size), _k)

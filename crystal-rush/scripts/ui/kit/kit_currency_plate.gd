@@ -29,6 +29,7 @@ var _plus_down := false
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	value_label = UIKit.label(value, 24, UIKit.INK, true)
+	value_label.add_theme_font_override("font", UIKit.font_w("medium"))
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(value_label)
@@ -66,9 +67,15 @@ func _draw() -> void:
 	if plus:
 		var pc := Vector2(size.x - size.y * 0.42, size.y * 0.5)
 		var pr := size.y * 0.27
-		draw_circle(pc, pr, UITokens.PAPER_2)
-		draw_arc(pc, pr - 0.5, 0, TAU, 32, UITokens.HAIRLINE, 1.2, true)
-		var k := pr * 0.5
-		draw_line(pc - Vector2(k, 0), pc + Vector2(k, 0), UITokens.GOLD_TEXT, 2.2, true)
-		draw_line(pc - Vector2(0, k), pc + Vector2(0, k), UITokens.GOLD_TEXT, 2.2, true)
+		# v3.1 (§7.4): a thin line "+" (1.5 dpx amber ink, no disc, no ring) after a 1 dpx
+		# fading divider.
+		var k := roundf(pr * 0.62)
+		pc = Vector2(roundf(pc.x), roundf(pc.y))
+		var pw := UIKit.line_px(UITokens.SELECT_PX)
+		draw_line(pc - Vector2(k, 0), pc + Vector2(k, 0), UITokens.GOLD_TEXT_GLASS, pw, true)
+		draw_line(pc - Vector2(0, k), pc + Vector2(0, k), UITokens.GOLD_TEXT_GLASS, pw, true)
+		var dx := pc.x - pr - 6.0
+		var hl := UITokens.HAIRLINE
+		draw_polyline_colors(PackedVector2Array([Vector2(dx, plate.position.y + 6.0), Vector2(dx, plate.get_center().y), Vector2(dx, plate.end.y - 6.0)]),
+				PackedColorArray([Color(hl.r, hl.g, hl.b, 0.0), Color(hl.r, hl.g, hl.b, 0.6), Color(hl.r, hl.g, hl.b, 0.0)]), -1.0)
 	Icons.draw_icon(self, icon, Rect2(Vector2(0, (size.y - ic) * 0.5), Vector2(ic, ic)))

@@ -275,7 +275,8 @@ func _build_ui() -> void:
 	_title.size = Vector2(vp.x, 60)
 	_title.position = Vector2(0, ins.y + 72)
 	_root_ui.add_child(_title)
-	_info = UIKit.edge_button("info", 26.0)
+	_info = InfoDisc.new(26.0)
+	_info.icon_kind = "info"
 	_info.position = Vector2(vp.x - 86 - ins.z, ins.y + 74)
 	_info.pressed.connect(_toggle_odds)
 	_root_ui.add_child(_info)
@@ -298,9 +299,7 @@ func _build_ui() -> void:
 	_hint.size = Vector2(vp.x, 40)
 	_hint.position = Vector2(0, vp.y * 0.80)
 	_root_ui.add_child(_hint)
-	var hint_tw := _hint.create_tween().set_loops()
-	hint_tw.tween_property(_hint, "modulate:a", 0.45, 0.6)
-	hint_tw.tween_property(_hint, "modulate:a", 1.0, 0.6)
+	InlineReveal.tap_hint(_hint, UIKit.ON_SCENE, 0.6)
 	# Identity beats of a walkout (family glyph -> world emblem -> name).
 	_ident = Control.new()
 	_ident.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -383,7 +382,8 @@ func _build_ui() -> void:
 
 
 func _card_size() -> Vector2:
-	return Vector2(150, 214) if _n_cards() > 3 else Vector2(176, 250)
+	# v3.1: the 4+ card grid is 8 % wider than v2 (150) so the footer keeps 22 px text (MF-15).
+	return Vector2(162, 222) if _n_cards() > 3 else Vector2(176, 250)
 
 
 func _n_cards() -> int:
@@ -805,7 +805,7 @@ func _summary_settled() -> void:
 	UIJuice.pop(_done_btn, 0.16)
 	if up_id != "":
 		_up_btn.text = Loc.f("UPGRADE_MACHINE", [Loc.t(str((ArsenalData.MACHINES[up_id] as Dictionary)["name"]))])
-		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 18))
+		_up_btn.add_theme_font_size_override("font_size", UIKit.fit_size(_up_btn.text, 380.0, 26, 22, false))
 		_up_btn.visible = true
 		for cn in _up_btn.pressed.get_connections():
 			_up_btn.pressed.disconnect(cn["callable"])
@@ -942,7 +942,7 @@ func _toggle_odds() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	p.add_child(col)
-	var t := UIKit.heading(Loc.t("ODDS_TITLE"), 34, UIKit.INK)
+	var t := UIKit.heading(Loc.t("ODDS_TITLE"), 40, UIKit.INK)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
 	col.add_child(UIKit.divider(520.0))
@@ -955,13 +955,13 @@ func _toggle_odds() -> void:
 		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		mark.draw.connect(func(): GemDraw.draw_mark(mark, gk, mark.size * 0.5, 22.0))
 		row.add_child(mark)
-		var nm := UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 24, UIKit.INK, true)
+		var nm := UIKit.label(Loc.t(str((ArsenalData.RARITIES[r] as Dictionary)["name"])), 24, UIKit.INK)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nm)
 		var pc := float((od.get("per_card", {}) as Dictionary).get(r, 0.0)) * 100.0
 		var bc := float((od.get("best", {}) as Dictionary).get(r, 0.0)) * 100.0
-		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_PER_CARD"), pc], 20, UIKit.TEXT_DIM))
-		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_BEST"), bc], 20, UIKit.TEXT))
+		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_PER_CARD"), pc], 22, UIKit.TEXT_DIM))
+		row.add_child(UIKit.label("%s %.2f%%" % [Loc.t("ODDS_BEST"), bc], 22, UIKit.TEXT))
 		col.add_child(row)
 	col.add_child(UIKit.divider(520.0))
 	var g := str((EconData.CACHES[str(rev.get("type", "world"))] as Dictionary).get("guaranteed", "R"))
@@ -969,7 +969,7 @@ func _toggle_odds() -> void:
 	gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(gl)
 	for k in ["ODDS_WILD", "ODDS_FOCUS", "ODDS_DECK", "ODDS_DUPES", "PITY_EPIC"]:
-		var l := UIKit.label(Loc.t(k), 20, UIKit.TEXT_DIM)
+		var l := UIKit.label(Loc.t(k), 22, UIKit.TEXT_DIM)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(l)
 	_root_ui.add_child(p)
@@ -1064,3 +1064,24 @@ func _process(delta: float) -> void:
 	elif cam.h_offset != 0.0:
 		cam.h_offset = 0.0
 		cam.rotation.z = 0.0
+
+
+## The odds (i) button on the night altar (§7.9): a porcelain glass disc that reads as glass on a
+## dark scene (cream 0.86, not the 0.72 hub disc that turns grey over night skies), ONE 1 dpx
+## deep-gold ring, a 1 dpx light arc on its lit upper-left edge, one soft halo, a bare ink "i".
+class InfoDisc extends RoundButton:
+	func _draw() -> void:
+		var c := _circle_center()
+		var r := radius * _press_scale
+		draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(r, r) * 1.4 + Vector2(0, 3), Vector2(r, r) * 2.8), false,
+				Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.22))
+		var face := UITokens.PAPER_0
+		draw_circle(c, r, Color(face.r, face.g, face.b, 0.86), true, -1.0, true)
+		var lw := UIKit.line_px(1.0)
+		var gold := UITokens.LINE_GOLD_DEEP
+		draw_arc(c, r - lw * 0.5, 0, TAU, 96, gold, lw, true)
+		draw_arc(c, r - lw * 1.5, PI * 1.05, PI * 1.75, 40, Color(1, 1, 1, 0.85), UIKit.px(1.0), true)
+		# A bare ink "i" (the line glyph's own circle would ring the ring): a stem and a dot.
+		var k := r / 26.0
+		draw_line(c + Vector2(0, -2.5) * k, c + Vector2(0, 10.0) * k, UITokens.INK, 2.2 * k, true)
+		draw_circle(c + Vector2(0, -9.0) * k, 1.9 * k, UITokens.INK, true, -1.0, true)

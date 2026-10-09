@@ -274,7 +274,7 @@ class _Placeholder extends Control:
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", 18)
 		cc.add_child(col)
-		var l := UIKit.label(HeroesText.t("UI_NOT_BUILT", [what]), 26, UITokens.INK_DIM)
+		var l := UIKit.label(HeroesText.t("UI_NOT_BUILT", [what]), 26, UITokens.INK_DIM_GLASS)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(l)
 		var b := UIKit.button(HeroesText.t("UI_BACK"), false, 240)
