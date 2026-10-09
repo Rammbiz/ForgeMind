@@ -13,11 +13,15 @@ extends Node
 ##   with a one-champion team at the account's Champion Level, native gem f0, no relic: (a) the bare
 ##   template (`twist: {}`, the class template Action x mult), (b) the champion without its twist (its
 ##   own Action), (c) the champion. Value = the member's kills + heals + soldiers saved (Blocks, plants,
-##   rime, catches, the circle cut) + structure damage, per second of play (the aura is the same in every
-##   variant and left out; whole-run outcomes are dominated by timing: a shorter clash moves the ult and
-##   the blade phases, see --probe). ratio = sum (c) / sum (a), the target 1 +- CHAMP_KIT_TOL. Statuses,
-##   holds, groundings and reveals are not simulated (LevelSim is an expected-value model): a twist made
-##   only of those measures as its template.
+##   rime, catches, the circle cut) + structure damage + what its statuses and holds did (LevelSim's
+##   KindView records, booked on the State: State.st_kills = squad hp MARK's extra, BURN and JOLT chains
+##   removed, State.hold_saved = clash losses holds spared; the team has one champion, so they are its
+##   own), per second of play (the aura is the same in every variant and left out; whole-run outcomes are
+##   dominated by timing: a shorter clash moves the ult and the blade phases, see --probe). ratio =
+##   sum (c) / sum (a), the target 1 +- CHAMP_KIT_TOL. A twist whose column (c) equals (b) (within 1e-6)
+##   changed nothing LevelSim models (CHILL, SEAL and STAGGER change nothing in the Run's Statuses either;
+##   groundings and reveals need Flying / Phantom squads, Meta-2 properties; a tether needs two squads
+##   <= 4 u apart): it is UNMEASURED, counted apart (never a pass) and listed on the BUDGET_TABLE line.
 ##
 ## godot --headless --path . res://scenes/dev/test_champion_twists.tscn -- --autotest [--verbose]
 ##     [--budget=0] [--from=15] [--to=112] [--step=4] [--hero=bolt,seer] [--only=ivo,otto]
@@ -26,7 +30,7 @@ extends Node
 ##     [--set=field=v;field=v]   (with --sweep: fixed overrides of the same twist row)
 ##     [--paths=FILE]   (caches the planner's no-team paths as JSON between runs)
 ##     [--probe=L,L]   (per level: the no-team run and each champion's template / twist runs, in detail)
-## Exit code = failures (a budget miss counts as one).
+## Exit code = failures (a budget miss counts as one; an UNMEASURED twist is not a failure, not a pass).
 
 ## §4.3 template Action per class at f0 Lv1 (Quartz-normalised; x mult): leap kills, shot damage,
 ## spell kills per squad, kills per Block, soldiers per pulse.
@@ -737,33 +741,47 @@ func _budget() -> void:
 			print("  SWEEP %s %s=%s %s ratio %.4f (template %.4f/s, twist %.4f/s)" % [sweep_id, sweep_key, str(v),
 					str(_args.get("set", "")), float(r["ratio"]), float(r["tpl"]) / t_total, float(r["twist"]) / t_total])
 		return
-	print("  value / s = the champion's kills + heals + soldiers saved + structure damage, per second of play")
-	print("  (the aura is the same in every column and left out); ratio = twist / template, target 1 +- %.2f" %
+	print("  value / s = the champion's kills + heals + soldiers saved + structure damage + its statuses' kills and")
+	print("  its holds' spared soldiers, per second of play (the aura is the same in every column and left out);")
+	print("  ratio = twist / template, target 1 +- %.2f; statuses + holds = that part of the twist column" %
 			ChampionData.CHAMP_KIT_TOL)
-	print("  %-8s %-8s %-4s %-5s | %8s %8s %8s | %7s" % ["id", "class", "tier", "slot", "template", "no twist",
-			"twist", "ratio"])
+	print("  %-8s %-8s %-4s %-5s | %8s %8s %8s | %8s | %7s" % ["id", "class", "tier", "slot", "template", "no twist",
+			"twist", "st+hold", "ratio"])
 	var tol := ChampionData.CHAMP_KIT_TOL
 	var misses: PackedStringArray = PackedStringArray()
+	var unmeasured: PackedStringArray = PackedStringArray()
+	var within := 0
 	for id in ids:
 		var r := _measure(id, cases, army, ChampionKinds.twist(id))
 		var row: Dictionary = ChampionData.CHAMPIONS[id]
 		var ratio := float(r["ratio"])
 		var ok := absf(ratio - 1.0) <= tol + 1e-9
-		if not ok:
+		# The twist changed nothing LevelSim models: not measured, so never a pass (see the header).
+		var same := absf(float(r["twist"]) - float(r["plain"])) <= 1e-6 * maxf(absf(float(r["plain"])), 1.0)
+		var verdict := "UNMEASURED" if same else ("" if ok else "MISS")
+		if same:
+			unmeasured.append(id)
+		elif not ok:
 			misses.append("%s %.3f" % [id, ratio])
-		print("  %-8s %-8s %-4d %-5s | %8.4f %8.4f %8.4f | %7.4f %s" % [id, str(row["class"]),
+		else:
+			within += 1
+		print("  %-8s %-8s %-4d %-5s | %8.4f %8.4f %8.4f | %8.4f | %7.4f %s" % [id, str(row["class"]),
 				ChampionData.action_tier(id), str(row["slot"]), float(r["tpl"]) / t_total,
-				float(r["plain"]) / t_total, float(r["twist"]) / t_total, ratio, "" if ok else "MISS"])
-		_ok(ok, "budget %s: twist / template %.4f within 1 +- %.2f" % [id, ratio, tol])
-	print("BUDGET_TABLE %s: %d champions, %d runs, %d misses%s (%.1f s)" % ["PASS" if misses.is_empty() else "MISS",
-			ids.size(), cases.size(), misses.size(), "" if misses.is_empty() else " [" + ", ".join(misses) + "]",
+				float(r["plain"]) / t_total, float(r["twist"]) / t_total, float(r["twist_st"]) / t_total, ratio, verdict])
+		if not same:
+			_ok(ok, "budget %s: twist / template %.4f within 1 +- %.2f" % [id, ratio, tol])
+	var verdict_all := "MISS" if not misses.is_empty() else ("UNMEASURED" if not unmeasured.is_empty() else "PASS")
+	print("BUDGET_TABLE %s: %d champions, %d runs, %d measured within, %d misses%s, %d unmeasured%s (%.1f s)" % [verdict_all,
+			ids.size(), cases.size(), within, misses.size(), "" if misses.is_empty() else " [" + ", ".join(misses) + "]",
+			unmeasured.size(), "" if unmeasured.is_empty() else " [" + ", ".join(unmeasured) + "]",
 			float(Time.get_ticks_msec() - t0) / 1000.0])
 
 
-## Sums over `cases` of each variant's value (the member's kills + heals + saved + struct): tpl (the
-## bare class template), plain (the champion's own Action, no twist), twist (with `tw`).
+## Sums over `cases` of each variant's value (the member's kills + heals + saved + struct + the State's
+## st_kills + hold_saved, all the lone champion's): tpl (the bare class template), plain (the champion's
+## own Action, no twist), twist (with `tw`); twist_st = the statuses' and holds' part of twist.
 func _measure(id: String, cases: Array, army: int, tw: Dictionary) -> Dictionary:
-	var out := {"tpl": 0.0, "plain": 0.0, "twist": 0.0}
+	var out := {"tpl": 0.0, "plain": 0.0, "twist": 0.0, "twist_st": 0.0}
 	var cls := str(ChampionData.CHAMPIONS[id]["class"])
 	for cs: Dictionary in cases:
 		var hero := str(cs["hero"])
@@ -781,7 +799,10 @@ func _measure(id: String, cases: Array, army: int, tw: Dictionary) -> Dictionary
 			prof["team"] = {"hero": hero, "champions": [row], "synergy": {}, "synergy_ids": []}
 			var s := LevelSim.simulate(cs["lv"], hero, army, cs["path"], {"profile": prof})
 			var m: Dictionary = s.champs.members[0]
-			out[key] = float(out[key]) + float(m["kills"]) + float(m["heals"]) + float(m["saved"]) + float(m["struct"])
+			out[key] = float(out[key]) + float(m["kills"]) + float(m["heals"]) + float(m["saved"]) + float(m["struct"]) \
+					+ s.st_kills + s.hold_saved
+			if key == "twist":
+				out["twist_st"] = float(out["twist_st"]) + s.st_kills + s.hold_saved
 	out["ratio"] = float(out["twist"]) / maxf(float(out["tpl"]), 0.001)
 	return out
 
@@ -833,8 +854,9 @@ static func _probe_line(tag: String, s: LevelSim.State) -> void:
 	var extra := ""
 	if s.champs.active():
 		var m: Dictionary = s.champs.members[0]
-		extra = "| k %.1f h %.1f sv %.1f st %.1f hp %.0f %s" % [float(m["kills"]), float(m["heals"]), float(m["saved"]),
-				float(m["struct"]), float(m["hp"]), "A" if bool(m["alive"]) else "X"]
+		extra = "| k %.1f h %.1f sv %.1f st %.1f hp %.0f %s | statuses %.1f holds %.1f" % [float(m["kills"]),
+				float(m["heals"]), float(m["saved"]), float(m["struct"]), float(m["hp"]), "A" if bool(m["alive"]) else "X",
+				s.st_kills, s.hold_saved]
 	print("    %-20s mode %d army %.1f fort %.1f kills %.1f peak %.1f haz %.1f clash %.1f t %.1f casts %d %s" % [tag,
 			s.mode, s.army, s.army_at_fortress, s.kills, s.peak, s.hazard_deaths, s.clash_deaths, s.t, s.casts, extra])
 
