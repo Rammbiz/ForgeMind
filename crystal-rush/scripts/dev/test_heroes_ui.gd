@@ -78,6 +78,8 @@ func _test_states() -> void:
 	_test_joined_state("snaryad", "Снаряд", "E", 3, "guardian", "dawn")
 	# C25 Довбуш (§6.27): the same.
 	_test_joined_state("dovbush", "Довбуш", "L", 4, "warrior", "stoneheart")
+	# H26 Сірко (§6.28), the 11th hero: owned, NEW, native Опал and born awakened in 'late'; listed, not owned elsewhere.
+	_test_joined_hero_state("sirko", "Сірко", "M", "warrior", "dawn")
 	HeroesUIModel.set_state("fresh")
 	_check(not bool(HeroesUIModel.unlocks()["portal"]) and not bool(HeroesUIModel.hero("arin")["listed"]), "fresh: Portal heroes hidden")
 	_check(bool(HeroesUIModel.hero("seer")["listed"]) and not bool(HeroesUIModel.hero("seer")["owned"]), "fresh: Мейра listed, not owned")
@@ -96,6 +98,30 @@ func _test_joined_state(cid: String, uk: String, gem: String, tier: int, cls: St
 			continue
 		HeroesUIModel.set_state(st)
 		_check(HeroesUIModel.champion(cid).has("id") and not bool(HeroesUIModel.champion(cid)["owned"]), "%s: %s listed as not owned" % [st, uk])
+	HeroesUIModel.set_state("late")
+
+
+## A hero that joined after launch in the mock states: owned, NEW, native and born awakened in 'late' (all four skills
+## visible, name and title from Loc, class and faction, the Hall count follows the data); listed but not owned in every
+## other state; leaves the model in 'late'.
+func _test_joined_hero_state(hid: String, uk: String, gem: String, cls: String, fac: String) -> void:
+	HeroesUIModel.set_state("late")
+	var h := HeroesUIModel.hero(hid)
+	_check(bool(h["owned"]) and bool(h["is_new"]) and str(h["gem"]) == gem and str(h["native"]) == gem and not bool(h["is_recut"]),
+			"late: %s owned, NEW, native %s" % [uk, gem])
+	_check(str(h["name"]) != "HERO_%s" % hid.to_upper() and str(h["title"]) != "HERO_%s_TITLE" % hid.to_upper(), "late: %s name and title from Loc" % uk)
+	_check(str(h["class"]) == cls and str(h["faction"]) == fac, "late: %s %s of %s" % [uk, cls, fac])
+	var awk: Dictionary = h["skills"]["awakened"]
+	_check(int(awk["rank"]) >= 1 and bool(awk["visible"]) and int(h["skills"]["ult"]["cap"]) >= 10, "late: %s born awakened with the Opal caps" % uk)
+	var owned_h := 0
+	for row in HeroesUIModel.heroes():
+		owned_h += 1 if bool(row["owned"]) else 0
+	_check(owned_h < HeroesUIModel.heroes().size(), "late: the Hall hero count follows the data (%d / %d)" % [owned_h, HeroesUIModel.heroes().size()])
+	for st: String in HeroesUIModel.STATES:
+		if st == "late":
+			continue
+		HeroesUIModel.set_state(st)
+		_check(HeroesUIModel.hero(hid).has("id") and not bool(HeroesUIModel.hero(hid)["owned"]), "%s: %s listed as not owned" % [st, uk])
 	HeroesUIModel.set_state("late")
 
 
@@ -235,6 +261,7 @@ func _test_art() -> void:
 	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
 	_check(HeroArt.state("snaryad") == "splash" and HeroArt.card_texture("snaryad") != null, "Снаряд has the owner's card art")
 	_check(HeroArt.state("dovbush") == "splash" and HeroArt.card_texture("dovbush") != null, "Довбуш has the owner's card art")
+	_check(HeroArt.state("sirko") == "splash" and HeroArt.card_texture("sirko") != null, "Сірко has the owner's splash and a card crop")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 

@@ -1432,8 +1432,14 @@ func _test_meta_api_heroes() -> void:
 	for gid: String in ChampionData.CHAMPION_ORDER:
 		if str(ChampionData.CHAMPIONS[gid]["class"]) == "guardian":
 			guardians.append(gid)
-	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == ["lumen", "pava"] and Array(Meta.champion_ids("class:guardian")) == guardians
-			and guardians.slice(0, 3) == ["ivo", "otto", "nimb"], "hero_ids / champion_ids filters (%d Guardians)" % guardians.size())
+	# The native filter follows the data too (H26 Сірко is an Opal hero): every native Opal hero in collector order.
+	var opals: Array = []
+	for hid: String in HeroData.HERO_ORDER:
+		if HeroData.native(hid) == "M":
+			opals.append(hid)
+	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == opals and opals.slice(0, 2) == ["lumen", "pava"]
+			and Array(Meta.champion_ids("class:guardian")) == guardians and guardians.slice(0, 3) == ["ivo", "otto", "nimb"],
+			"hero_ids / champion_ids filters (%d Opal heroes, %d Guardians)" % [opals.size(), guardians.size()])
 	# Facets and recut through the API (fragments only, never coins).
 	var coins0 := MetaAcc.amount(acc, "coins")
 	Roster.ensure(acc, "bolt")["frags"] = 200
