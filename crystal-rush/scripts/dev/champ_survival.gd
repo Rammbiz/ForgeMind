@@ -15,8 +15,11 @@ extends Node
 ## measurement (EconData.phase_override, restored at the end). `--autotest` keeps the save read-only.
 ##
 ## Final line: CHAMP_SURVIVAL front_campaign=..% front_boss=..% side_rear=..% levels=N wins=W
-## (+ the win rate without the team and the delta). Targets (§4.2): the front champion survives
-## >= 75% of campaign levels and 40-60% of boss levels; side / rear >= 90%. Exit code 0.
+## (+ the win rate without the team and the delta), after one CHAMP_SURVIVAL_HERO line per hero
+## (the team depends on the hero; Bolt's has no front). front_campaign counts the non-boss levels of
+## the range (Invasion levels past CAMPAIGN_LEVELS included when the range reaches them), front_boss
+## the boss levels (8th of a world). Targets (§4.2): the front champion survives >= 75% of campaign
+## levels and 40-60% of boss levels; side / rear >= 90%. Exit code 0.
 
 var _lines: PackedStringArray = PackedStringArray()
 
@@ -39,10 +42,11 @@ func _ready() -> void:
 	var t0 := Time.get_ticks_msec()
 	_say("CHAMP_SURVIVAL_RUN profile=%s levels %d..%d step %d heroes %s (phase %d)" % [kind, from, to, step,
 			",".join(heroes), EconData.heroes_phase()])
-	# Tallies: [alive, total] per bucket; runs and wins with / without the team.
-	var front_c := [0, 0]
-	var front_b := [0, 0]
-	var side := [0, 0]
+	# Tallies: "all" and per hero -> bucket (fc front campaign, fb front boss, side) -> [alive, total];
+	# runs and wins with / without the team.
+	var tally := {"all": _buckets()}
+	for h in heroes:
+		tally[h] = _buckets()
 	var runs := 0
 	var wins := 0
 	var base_wins := 0
@@ -71,17 +75,16 @@ func _ready() -> void:
 			for m: Dictionary in st.champs.members:
 				var alive := bool(m["alive"])
 				var tag := "%s %s:%s" % [("L%d" % level), hero, str(m["id"])]
-				if StringName(str(m["slot"])) == ChampionKinds.FRONT:
-					var bucket: Array = front_b if boss else front_c
-					bucket[1] = int(bucket[1]) + 1
-					bucket[0] = int(bucket[0]) + (1 if alive else 0)
-					if not alive:
-						falls.append(tag)
-				else:
-					side[1] = int(side[1]) + 1
-					side[0] = int(side[0]) + (1 if alive else 0)
-					if not alive:
-						side_falls.append(tag)
+				var front := StringName(str(m["slot"])) == ChampionKinds.FRONT
+				var bucket := ("fb" if boss else "fc") if front else "side"
+				for key: String in ["all", hero]:
+					var t: Array = (tally[key] as Dictionary)[bucket]
+					t[0] = int(t[0]) + (1 if alive else 0)
+					t[1] = int(t[1]) + 1
+				if not alive and front:
+					falls.append(tag)
+				elif not alive:
+					side_falls.append(tag)
 				parts.append("%s:%s %s hp %.1f/%.1f k %d b %d h %d dmg %d" % [str(m["id"]), str(m["slot"]),
 						"A" if alive else "X", float(m["hp"]), float(m["hp_max"]),
 						int(round(float(m["kills"]))), int(m["blocks"]), int(round(float(m["heals"]))),
@@ -96,12 +99,15 @@ func _ready() -> void:
 	_say("SIDE_REAR_FALLS (%d): %s" % [side_falls.size(), ", ".join(side_falls) if not side_falls.is_empty() else "none"])
 	var wr := 100.0 * float(wins) / float(maxi(runs, 1))
 	var wr0 := 100.0 * float(base_wins) / float(maxi(runs, 1))
-	_say("CHAMP_SURVIVAL front_campaign=%s front_boss=%s side_rear=%s levels=%d wins=%d" % [_pct(front_c),
-			_pct(front_b), _pct(side), runs, wins] + " base_wins=%d win_delta=%+.1f%% (%.1f s)" % [base_wins, wr - wr0,
-			float(Time.get_ticks_msec() - t0) / 1000.0])
-	_say("  alive / samples: front campaign %d/%d, front boss %d/%d, side / rear %d/%d" % [int(front_c[0]),
-			int(front_c[1]), int(front_b[0]), int(front_b[1]), int(side[0]), int(side[1])]
-			+ "; targets front >= 75%, boss 40-60%, side / rear >= 90%")
+	for h in heroes:
+		var th: Dictionary = tally[h]
+		_say("CHAMP_SURVIVAL_HERO %-5s front_campaign=%s front_boss=%s side_rear=%s (%s)" % [h, _pct(th["fc"]),
+				_pct(th["fb"]), _pct(th["side"]), _counts(th)])
+	var ta: Dictionary = tally["all"]
+	_say("CHAMP_SURVIVAL front_campaign=%s front_boss=%s side_rear=%s levels=%d wins=%d" % [_pct(ta["fc"]),
+			_pct(ta["fb"]), _pct(ta["side"]), runs, wins] + " base_wins=%d win_delta=%+.1f%% (%.1f s)" % [base_wins,
+			wr - wr0, float(Time.get_ticks_msec() - t0) / 1000.0])
+	_say("  %s; targets front >= 75%%, boss 40-60%%, side / rear >= 90%%" % _counts(ta))
 	EconData.phase_override = old_phase
 	if args.has("out"):
 		_write(str(args["out"]), "champ_survival_%s_%d_%d_%s.txt" % [kind, from, to, "_".join(heroes)])
@@ -129,6 +135,16 @@ static func account_for(level: int, kind: String, hero: String) -> Dictionary:
 			roster[first] = EconData.new_champion_state(first, true, "chest")
 			champs[0] = first
 	return acc
+
+
+static func _buckets() -> Dictionary:
+	return {"fc": [0, 0], "fb": [0, 0], "side": [0, 0]}
+
+
+## "alive / samples: front campaign a/n, front boss a/n, side / rear a/n".
+static func _counts(t: Dictionary) -> String:
+	return "alive / samples: front campaign %d/%d, front boss %d/%d, side / rear %d/%d" % [int(t["fc"][0]),
+			int(t["fc"][1]), int(t["fb"][0]), int(t["fb"][1]), int(t["side"][0]), int(t["side"][1])]
 
 
 static func _pct(t: Array) -> String:
