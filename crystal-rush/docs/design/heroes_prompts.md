@@ -12,9 +12,9 @@
 - Фон завжди рівний сірий `#BFBFBF`; лівий верх кадру порожній під емблему та ім'я.
 - Імен персонажів у промтах НЕМАЄ (щоб генератор не малював текст і не тягнув асоціацій з чужими персонажами). Нічого не схоже на ваші референси з іншої гри, на відомих персонажів, прапори чи релігійні символи.
 
-Зміст: §1 Біблія стилю · §2 Порядок генерації і чекліст · §3 Герої (11) · §4 Чемпіони (15) · §5 Емблеми, значки, валюти, Портал, скрині, Майстерня, фони, спорядження, реліквії · §6 Відкриті питання.
+Зміст: §1 Біблія стилю · §2 Порядок генерації і чекліст · §3 Герої (12) · §4 Чемпіони (15) · §5 Емблеми, значки, валюти, Портал, скрині, Майстерня, фони, спорядження, реліквії · §6 Відкриті питання.
 
-## 1. Біблія стилю (одна на всіх 26 персонажів)
+## 1. Біблія стилю (одна на всіх 27 персонажів)
 
 ### 1.1 Еталон стилю
 
@@ -88,7 +88,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | P1 «Варта / Guard» | зброя впирається в землю, вага на задній нозі | Арін, Пава · Олена, Менгір |
 | P2 «Крок / Advance» | крок/випад на глядача, удар у лівий нижній кут | Горан, Веста, Сірко · Брант, Тарас, Довбуш |
 | P3 «Чари / Cast» | рука до глядача (магію додає гра) | Ейра, Мейра, Люмен · Міла, Тая |
-| P4 «Приціл / Aim» | лук/арбалет по діагоналі на лівий низ | Іскар · Альба, Тео, Дара |
+| P4 «Приціл / Aim» | лук/арбалет по діагоналі на лівий низ | Іскар, Ольга · Альба, Тео, Дара |
 | P5 «Щит / Bulwark» | низька стійка, щит уперед | Вартан · Іво, Отто, Німб, Снаряд |
 | P6 «Звір / Prowl» | низький присід/стрибок на глядача | Руді · Борко |
 
@@ -143,7 +143,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 5. **Анімації з бібліотеки** — за таблицею кліпів персонажа. Назви пресетів у Meshy можуть відрізнятися — беріть найближчий; тривалість і цикли я підріжу в Godot. Перейменовувати не треба — напишіть у повідомленні, який пресет на який кліп.
 6. **Download**: GLB з усіма анімаціями (або FBX). Пропи — окремі моделі без ригу.
 7. **Спроби**: до 3 на модель. Якщо «попливли» руки чи обличчя — краще перегенерувати лист, ніж модель.
-8. **Кредити**: перед хвилею 1 порахуйте — 22 персонажі (кожен: генерація + remesh + rig + 8–10 кліпів) + 16 пропів + 4 об'єкти (хвиля 4 додає ще 4 персонажі й 7 пропів), до 3 спроб кожне. Ціни Meshy змінюються, тому множте на поточну ціну в кабінеті.
+8. **Кредити**: перед хвилею 1 порахуйте — 22 персонажі (кожен: генерація + remesh + rig + 8–10 кліпів) + 16 пропів + 4 об'єкти (хвиля 4 додає ще 5 персонажів і 10 пропів), до 3 спроб кожне. Ціни Meshy змінюються, тому множте на поточну ціну в кабінеті.
 
 | Тип | Трикутники | Текстура в грі | Кістки | Примітка |
 |---|---|---|---|---|
@@ -166,7 +166,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | 6 | **Хвиля 1:** Арін, Ейра, Іскар · Іво, Борко | Портал L20 з Кварц–Аметист пулом; скрині L14 з першими Кварц-чемпіонами |
 | 7 | **Хвиля 2:** Вартан, Пава · Тая, Брант, Тео, Олена · Майстерня (станок) · 12 іконок спорядження | Топаз/Опал-пул; фаза H4 (Майстерня, L32) |
 | 8 | **Хвиля 3:** Німб, Дара, Менгір · Велика скриня · 22 реліквії · 5 аур · (опційно) 5 текстур самоцвітів | рідкісні скрині, полірування |
-| 9 | **Хвиля 4 (ваші запити 2026-10-09, після запуску):** Сірко · Тарас, Снаряд, Довбуш — сплеш і 3 картки вже ГОТОВІ; далі листи → пропи → Meshy → риг → кліпи → іконки · 4 реліквії | Сірко в Порталі (Опал), троє чемпіонів у Скрині героїв |
+| 9 | **Хвиля 4 (ваші запити 2026-10-09, після запуску):** Сірко, Ольга · Тарас, Снаряд, Довбуш — 2 сплеші й 3 картки вже ГОТОВІ; далі листи → пропи → Meshy → риг → кліпи → іконки · 5 реліквій | Сірко й Ольга в Порталі (Опал), троє чемпіонів у Скрині героїв |
 
 ### 2.1 Чекліст — герої
 
@@ -183,6 +183,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | 5 | 09 | Люмен `lumen` | ☐ | ☐ | ☐ | — | ☐ | ☐ | ☐☐☐☐ | ☐ |
 | 7 | 10 | Пава `pava` | ☐ | ☐ | ☐ | ☐ посох-перо · ☐ розкрите віяло | ☐ | ☐ | ☐☐☐☐ | ☐ |
 | 9 | 11 | Сірко `sirko` | ✓ | ☐ | ☐ | ☐ шабля · ☐ лист-сувій | ☐ | ☐ | ☐☐☐☐ | ☐ |
+| 9 | 12 | Ольга `olha` | ✓ | ☐ | ☐ | ☐ лук · ☐ сагайдак · ☐ голуб | ☐ | ☐ | ☐☐☐☐ | ☐ |
 
 ### 2.2 Чекліст — чемпіони
 
@@ -217,19 +218,19 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | 7 | Майстерня: концепт + `workshop.glb` | 1 | ☐ ☐ |
 | 7 | Спорядження `gear_*.png` | 12 | ☐☐☐☐☐☐☐☐☐☐☐☐ |
 | 8 | Велика скриня: концепт + `grand_hero_chest.glb` | 1 | ☐ ☐ |
-| 8/9 | Реліквії `relic_*.png` | 26 | ☐×26 |
+| 8/9 | Реліквії `relic_*.png` | 27 | ☐×27 |
 | 8 | Аури класів `aura_*.png` | 5 | ☐☐☐☐☐ |
 | 8 | (опційно) Текстури самоцвітів `gemtex_*.png` | 5 | ☐☐☐☐☐ |
 
 Разом: 10 сплешів (+1 «очі закриті» Мейри; для Вести — один із двох варіантів) · 12 карток · 22 фронт-листи (Вестин v1, можливо, вже годиться) · 22 «бік+спина» (кожен дає 2 кадри) · 16 листів пропів · 52 іконки навичок/дій · 5 аур · 4 герби · 5 ескізів класів · 4 валюти · 12 спорядження · 22 реліквії · 4 фони · 4 концепти об'єктів = **≈ 195 зображень** (+5 опційних текстур самоцвітів). Meshy: **22 персонажі** (19 нових + 3 ремейки стартерів) + **16 пропів** + **4 об'єкти**; глефа Вести вже є; спис Іво, спис Німба, призму Люмена, підвіску Таї й таблички Менгіра роблю сам.
 
-Хвиля 4 (Сірко, Тарас, Снаряд, Довбуш) додає: 1 сплеш + 3 картки (уже ГОТОВІ) · 4 фронт-листи · 4 «бік+спина» · 7 листів пропів · 7 іконок (4 навички Сірка + 3 дії) · 4 реліквії = ще 30 зображень, з них 4 уже є. Meshy: +4 персонажі, +7 пропів.
+Хвиля 4 (Сірко, Ольга, Тарас, Снаряд, Довбуш) додає: 2 сплеші + 3 картки (уже ГОТОВІ) · 5 фронт-листів · 5 «бік+спина» · 10 листів пропів · 11 іконок (8 навичок Сірка й Ольги + 3 дії) · 5 реліквій = ще 41 зображення, з них 5 уже є. Meshy: +5 персонажів, +10 пропів.
 
-## 3. Герої (11)
+## 3. Герої (12)
 
 Порядок усередині: (a) сплеш → (b) листи для Meshy (b1 фронт, b2 бік+спина, b3 пропи) → (c) Meshy текстовий промт (запасний, ≤ 600 символів) → (d) риг і кліпи → (e) 4 іконки навичок (Ульта · Атака · Клич · Пробудження).
 
-Розділи йдуть у порядку генерації (§2): Веста → Горан → Руді → Мейра → Люмен → Арін → Ейра → Іскар → Вартан → Пава → Сірко (хвиля 4).
+Розділи йдуть у порядку генерації (§2): Веста → Горан → Руді → Мейра → Люмен → Арін → Ейра → Іскар → Вартан → Пава → Сірко → Ольга (хвиля 4).
 
 ### H07 `vesta` — Веста — Сонцекута / Vesta — Sunforged
 
@@ -3485,6 +3486,372 @@ COMPOSITION
 
 AVOID
 Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark.
+```
+
+---
+
+### H12 `olha` — Ольга — Княгиня Помсти / Olha — Princess of Vengeance
+
+НОВА (2D → 3D). Хвиля 4 (запит власника 2026-10-09, після запуску: «Максимально епічно / Вона має бути найкращою»). Ольга Київська — велика княгиня (бл. 945–960), яка за літописною легендою попросила «легку данину» — по три голуби й по три горобці з кожного двору — і відправила птахів додому з жаром під крилом (у грі данину платять Жаророгі, і горять лише їхні вежі, стіни й ворота). Тон: царствений, холодно-дотепний, найепічніший образ у грі; без німба, хреста, церкви й політики; вогню на арті немає (його додає гра). Роль: the princess of the birds, a regal archer whose light tribute of doves flies home to burn the horde's gates.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Опал / Opal | Стрілець | Плазма | Дикі Ікла | людина, ж. (≈35 років) | P4 Aim «у спокої» (лук опущений по діагоналі на лівий низ, голуб на піднятій лівій руці) | precious white opal with fiery play-of-colour | oval cabochon (не marquise — так на затвердженому сплеші), the centre of her oplechie collar on her chest |
+
+**(a) 2D-сплеш** — `olha_splash.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/olha/olha_splash_src.jpg`, 3072×5504; у грі — `assets/heroes/olha/splash.png`).
+
+Налаштування: формат **9:16** · якість **4K** (мінімум 1440×2560, ідеально 2160×3840) · 2–4 варіанти · референс: `style_anchor.png` · завантажуйте ОРИГІНАЛ кнопкою «Завантажити» (PNG), не скріншот. Нижче — промт, з яким ви зробили цей сплеш, дослівно (перегенеровувати не треба).
+
+```
+Create ONE vertical hero splash illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 9:16 (portrait). Resolution 2160x3840 px (4K); never below 1440x2560.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas. No gradient, no vignette, no scenery, no floor, no ground shadow.
+- One single character (a single dove leaving her hand is part of her). No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; refined, beautiful face with clean features; soft luminous painterly rendering with crisp clean edges; delicate gold filigree; rich but controlled colour.
+- Proportions: realistic adult anatomy, about 8 heads tall, a tall, regal, strong woman of about thirty-five. No chibi or cartoon proportions, no oversized head, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. No coloured magic light. Crystals look like real cut gemstones with sharp facets and reflections, but they do not glow and cast no light.
+- Effects: none in the image (no fire, flames, embers, glow, sparks, particles, smoke, light beams or motion trails); the game adds every effect itself.
+- Rarity look (top tier, the most epic character in the game): the most lavish and majestic design of all: layers of gold, pearls and opal, an enormous sweeping silhouette, heroic and slightly larger than life.
+
+CHARACTER - the legendary Grand Princess of Kyiv, the lady of the birds, famous for her cunning and her terrible revenge: she asked for three doves and three sparrows from every household and sent them home carrying fire; regal, calm, brilliant and unforgiving
+- Face: a beautiful, regal, strong face of about thirty-five; high cheekbones; cool steel-grey eyes with a sharp, intelligent gaze; a faint knowing half-smile that says "never anger me"; dignified, never cruel-looking.
+- Hair and veil: ash-blonde hair in two thick braids wound with pearl strings, half covered by a sheer white silk veil that streams far behind her in the wind.
+- Crown: a tall gold Kyivan Rus diadem with enamel plaques, crowned by small opal stones, with long kolty temple pendants and cascades of pearl strands (riasna) hanging on both sides of her face down to the shoulders.
+- Dress: a long ivory silk gown with heavy gold Byzantine-style brocade; a wide embroidered oplechie collar of gold, pearls and crimson-rose (#B42E71) enamel across her shoulders and chest; crimson-rose panels down the front; a gold belt of plaques.
+- Mantle (the heroic exaggeration): an enormous mantle made of hundreds of layered feathers (white dove feathers, warm brown sparrow feathers, and long feathers whose tips are painted deep ember red-orange, painted colour only, no glow), fastened at her right shoulder with a large gold fibula; it sweeps out behind her and to the right like a pair of vast wings, wider than she is tall.
+- Bow: a tall recurved composite bow of dark horn and wood, inlaid with gold filigree, its grip wrapped in crimson-rose leather; a quiver of dove-fletched arrows at her hip.
+- Dove: one white dove taking off from her raised left hand, its wings spread wide above her head on the right side of the image.
+- Heart gem: one faceted oval cut of white opal with fiery play-of-colour (milky white body with vivid red, orange, gold and green flashes), about 4% of the figure height, set in the centre of her oplechie collar on her chest, clearly visible from the front.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is precious white opal with vivid play-of-colour: small shifting flecks of every rainbow colour, strongest in fiery red, orange and gold, inside a milky white body. No plain single-colour crystals or gems (no plain red, blue, green, violet, gold or clear stones); every stone shows opal play-of-colour. Pearls are allowed.
+- Palette: ivory silk, polished gold #D4A94A, crimson-rose #B42E71 enamel and panels, pearl white, white dove feathers, warm brown sparrow feathers, ember red-orange feather tips, dark horn bow, white opal.
+
+POSE & COMPOSITION
+- Pose: a commanding, regal stance in three-quarter view; her right hand holds the great bow low and diagonal toward the lower-left foreground; her left arm is raised high on the right side of the image, releasing the white dove from her open hand; the feather mantle and the veil sweep out to the right like wings; her chin is lifted and her eyes are fixed on the distant target.
+- Camera slightly below chest height looking up about 10 degrees, long lens, little perspective distortion; the body is turned about 30 degrees toward the viewer's left so the gaze leads into the empty upper-left area.
+- Framing: from the top of the crown down to the knees; the figure continues off the bottom edge. The whole crown stays inside the frame with a margin of at least 4% of the image height above it.
+- The character occupies the right two-thirds of the canvas. Keep the upper-left area (left 40% of the width, top 40% of the height) as empty flat background: it is reserved for the game's emblem and name. Only loose tips of the veil or feathers may touch its edge; never the face, hands, bow or dove.
+- The eyes are at about 30% of the image height from the top.
+- The bow is in the lower-left third and never enters the empty upper-left area; the dove and the mantle are on the right side.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, watermark, signature, logo, frame, border, UI, extra characters, a flock of birds, more than one bird, extra fingers, extra limbs, fused or deformed hands, a hand merged into the bow, cropped head or crown, background objects, a city, buildings, fire, flames, embers, burning, glow, sparks, particles, smoke, light rays, lens flare, motion blur, thick outlines, chibi or cartoon proportions, a halo, crosses, icons or any religious symbols, flags, brand marks, modern clothing, an angry or cruel expression, any resemblance to a character from an existing game, film, comic or anime, plain red or gold gems.
+```
+
+Примітка: голуб на сплеші не відлітає, а сидить на кінчиках пальців піднятої лівої руки з розкритими крилами; мантія з пір'я лежить на обох плечах і спадає крилами з обох боків, ширша праворуч. На короні, крім опалів, вийшли кілька дрібних рожевих і бірюзових камінців, а на оплечі — багряно-рожеві кабошони: сплеш лишаємо (гра обрізає його по коліна, рамка в `hero_art.gd`), але листи нижче тримають COLOR LOCK — усі камені опалові, а багряно-рожеве на оплечі — емаль, не камені. Сагайдак — біля лівого стегна (праворуч у кадрі) на багряному ремені.
+
+**(b) Листи для Meshy** (з них робиться 3D-модель; лук, сагайдак і голуб — окремими моделями, тому руки порожні).
+
+*b1 Фронт* — `olha_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджений сплеш цієї героїні + `style_anchor.png`. Перевірте: ступні видно, руки порожні, голуба й сагайдака немає, обличчя й кольори як на сплеші.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved splash): the tall, regal, strong princess of about thirty-five with a beautiful face, high cheekbones and cool steel-grey eyes; ash-blonde hair in two long thick braids wound with pearl strings, hanging in front of her shoulders; a tall gold crown of pointed enamel plaques edged with pearls and set with white opal stones, with gold kolty temple pendants and long cascades of pearl strands hanging on both sides of her face down to the shoulders; a sheer white silk veil falling from the crown down her back; a long ivory silk gown with heavy gold scroll brocade, a crimson-rose (#B42E71) panel down the front and gold cuffs edged with pearls; a wide oplechie collar of gold, pearls and crimson-rose enamel across her shoulders and chest with one large oval white fire-opal cabochon at its centre; a belt of square gold plaques on crimson-rose leather; an enormous mantle of layered feathers (white dove feathers, warm brown barred sparrow feathers and long white feathers with painted ember red-orange tips) on both shoulders, fastened by round gold fibulae and falling behind her like folded wings; the gown ends just above the ankles over soft ivory-and-gold slippers.
+- Same face, costume, colours, materials and heart gem as the reference; nothing added, nothing removed. The bow, the quiver with its strap and the dove are NOT in this image (they are made as separate models).
+- COLOR LOCK: every crystal and gemstone is precious white opal with vivid play-of-colour (a milky white body with small shifting flecks of every rainbow colour, strongest in fiery red, orange and gold). No plain single-colour crystals or gems (no plain red, pink, blue, teal, green, violet, gold or clear stones); every stone shows opal play-of-colour. The crimson-rose on the collar and the gown is enamel and silk, not gemstones. Pearls are allowed.
+
+POSE & VIEW
+- Full body from the top of the crown to the toes, both feet fully visible, centred; the figure fills about 88% of the image height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart; feet pointing forward.
+- Hands open and EMPTY, palms facing down, fingers together, clearly separated from the body.
+- The feather mantle hangs straight down behind the arms from the shoulders to the calves, its wing-like edges just visible on both sides, clear of the arms and hands; the veil hangs down the back; the braids hang in front of the shoulders, clear of the arms; the kolty and pearl strands hang straight beside the face.
+- Neutral calm expression with a faint knowing half-smile, mouth closed, eyes open looking forward.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; realistic adult anatomy, about 8 heads tall, a tall, regal, strong woman of about thirty-five; clean readable shapes.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, a held weapon or object, a bow, a quiver, a bird, a dove, cropped feet, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, fire, flames, floating parts, cape, feathers or hair covering the arms, extra fingers, background objects, text, watermark, a halo, crosses or religious symbols, plain pink, red or teal gems.
+```
+
+*b2 Бік + спина* — `olha_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `olha_sheet_front.png` + сплеш. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `olha_sheet_side.png`, права → `olha_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from the top of the crown to the toes with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the tall regal princess of about thirty-five with two long ash-blonde braids wound with pearls, a tall gold crown of enamel plaques with white opal stones, gold kolty pendants and pearl strands beside her face, a sheer white silk veil, a long ivory silk gown with gold brocade and a crimson-rose front panel, a gold-pearl-and-crimson-rose-enamel oplechie collar with an oval white fire-opal at its centre, a belt of gold plaques, an enormous mantle of white, warm brown and ember-tipped feathers on both shoulders falling behind her like folded wings, and ivory-and-gold slippers.
+- COLOR LOCK: every crystal and gemstone is precious white opal with vivid play-of-colour (a milky white body with small shifting flecks of every rainbow colour, strongest in fiery red, orange and gold). No plain single-colour crystals or gems (no plain red, pink, blue, teal, green, violet, gold or clear stones); every stone shows opal play-of-colour. Pearls are allowed.
+
+POSE & VIEW
+- The same A-pose as the front reference: arms straight, about 40 degrees down and away from the body; legs straight and slightly apart; hands open and empty.
+- In profile the feather mantle falls from the shoulder to the calves behind the arm, layered like a folded wing; from the back it covers the whole back from the shoulders to the calves in overlapping rows of white, brown-barred and ember-tipped feathers, the sheer veil lying over its upper part and the two braids hanging over the shoulders to the front.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; realistic adult anatomy, about 8 heads tall, a tall, regal, strong woman of about thirty-five.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, held weapons, a bow, a quiver, a bird, cropped feet, perspective distortion, dramatic light, glow, fire, text, watermark, a halo, religious symbols.
+```
+
+*b3 Проп «bow»* — `olha_prop_bow.png` → Meshy Image to 3D → `olha_prop_bow.glb` (~2 500 трикутників, без ригу; тятиву й натяг роблю кодом).
+Налаштування: формат **1:1** · якість **2K+** · референс: сплеш (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same bow as in the attached reference image (the character's approved splash): a tall recurved composite bow with dark polished horn limbs, gold filigree sleeves around the limbs above and below the grip and gold-capped tips, the grip and the tips wrapped in crimson-rose (#B42E71) leather, strung with a thin pale string.
+- The bow carries no gemstones.
+
+VIEW
+- The whole object alone, shown once, standing upright with the string on the left, straight side view with its most readable outline toward the camera, centred, filling about 85% of the image height; both tips fully inside the frame.
+- No hands, no character, no arrow, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no sparks, no particles, no motion blur. Every part physically connected.
+
+AVOID
+Hands, a character, an arrow, a second object, perspective distortion, cropped ends, dramatic light, glow, fire, text, watermark, coloured gemstones.
+```
+
+Запасний Meshy Text to 3D для «bow»:
+
+```
+Tall recurved composite bow, dark polished horn limbs, gold filigree sleeves above and below the grip, gold-capped tips, grip and tips wrapped in crimson-rose leather, thin pale string. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+*b3 Проп «quiver»* — `olha_prop_quiver.png` → Meshy Image to 3D → `olha_prop_quiver.glb` (~1 500 трикутників, без ригу; кріплю на кістку стегна, ремінь — частина пропа).
+Налаштування: формат **1:1** · якість **2K+** · референс: сплеш (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same quiver as in the attached reference image (the character's approved splash): a tall quiver of crimson-rose (#B42E71) leather with a wide gold filigree mouth cup and gold fittings, a short crimson-rose leather strap with a gold buckle, holding a bundle of six wooden arrows fletched with white dove feathers and gold nocks.
+- Any small stone on the quiver is precious white opal with vivid play-of-colour (a milky white body with flecks of every rainbow colour, strongest in red, orange and gold). No plain single-colour crystals or gems.
+
+VIEW
+- The whole object alone, shown once, standing upright and tilted slightly, the arrows pointing up, straight side view with its most readable outline toward the camera, centred, filling about 85% of the image height; both ends fully inside the frame.
+- No hands, no character, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no sparks, no particles, no motion blur. Every part physically connected.
+
+AVOID
+Hands, a character, a bow, loose arrows, a second object, perspective distortion, cropped ends, dramatic light, glow, fire, text, watermark.
+```
+
+Запасний Meshy Text to 3D для «quiver»:
+
+```
+Tall quiver of crimson-rose leather with a wide gold filigree mouth cup and gold fittings, short leather strap with a gold buckle, six wooden arrows with white dove-feather fletching and gold nocks. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+*b3 Проп «dove»* — `olha_prop_dove.png` → Meshy Image to 3D → `olha_prop_dove.glb` (~800 трикутників, без ригу; крила махають кодом — 2 скриптові кістки я додам). Окремий малий проп: голуб сідає на `hand_l` у кліпах `idle`, `rally` і `victory`, а зграю в ульті й у виході з Порталу гра робить із його копій.
+Налаштування: формат **1:1** · якість **2K+** · референс: сплеш (голуб на піднятій руці).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same white dove as in the attached reference image (the bird on the character's raised hand in the approved splash): a small pure white dove with soft layered feathers, dark round eyes, a small pink-coral beak and pink-coral feet, its wings spread wide.
+- The dove carries nothing and wears nothing.
+
+VIEW
+- The whole bird alone, shown once, in a gliding pose with both wings spread wide and level, the tail fanned and the feet tucked under the body, straight front view from slightly above with its most readable outline toward the camera, centred, filling about 85% of the image width; both wingtips fully inside the frame.
+- No hands, no character, no perch, no stand, no second bird.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no sparks, no particles, no motion blur. Every part physically connected.
+
+AVOID
+Hands, a character, a second bird, a flock, a branch or perch, perspective distortion, cropped wingtips, dramatic light, glow, fire, embers, text, watermark, an olive branch, religious symbols.
+```
+
+Запасний Meshy Text to 3D для «dove»:
+
+```
+Small pure white dove in a gliding pose, wings spread wide and level, tail fanned, feet tucked, dark round eyes, pink-coral beak and feet, soft layered feathers. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **15 000 трикутників** (Triangle) · текстура в грі 1024² (герой; normal 1024² — за бажанням) — завантажуйте як дає Meshy, я зменшу · Symmetry: **On (мантія з пір'я на обох плечах; сагайдак — окремий проп)**.
+
+```
+Tall regal princess of about thirty-five, two long ash-blonde braids wound with pearls, tall gold crown of enamel plaques with white opal stones, pearl temple pendants, sheer white veil, ivory silk gown with gold brocade and a crimson-rose front panel, gold and pearl collar with an oval white opal, gold plaque belt, huge mantle of white, brown and red-tipped feathers like folded wings. Stylized hand-painted 3D game character, realistic adult proportions, A-pose, empty hands, full body, front view, plain light grey background, soft lighting, no glow, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid. Коси — по 3 скриптові кістки, вуаль — 3, колти з низками перлів — по 2, довге пір'я мантії — 4 ланцюжки по 3 (+ `SpringBoneSimulator3D`, я додам); розкриття мантії в ульті — ці ж кістки. Лук на `hand_r` (як на сплеші; праворукі пресети Meshy «Archery» я віддзеркалю в Godot), сагайдак на кістці стегна, голуб на `hand_l` лише в кліпах `idle`, `rally` і `victory`.
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle / Breathing Idle | 3.0 с | так | лук опущений; голуб сідає на руку й знову злітає; вуаль ледь колишеться |
+| `run` | Running / Run Forward | цикл 0.7–0.8 с | так | статечний довгий крок, мантія й вуаль струменять назад |
+| `attack_a` | Archery Shot | 0.6–0.8 с | ні | «Соколиний лук»: швидко натягує й пускає стрілу |
+| `attack_b` | Archery Shot (upward) | 0.9–1.1 с | ні | повний натяг угору: пускає голуба (кожен 6-й постріл; голуб — кодом) |
+| `ult_cast` | Power Up / Arms Raise | 1.2–1.6 с | ні | «Летіть додому»: розкидає мантію, мов величезні крила, і випускає зграю (птахи й жар — кодом) |
+| `rally` | Battle Cry / Cheering | 1.2 с | ні | «Помста визріває»: повільно піднімає руку з голубом (опційно; якщо пресета немає — зроблю з `victory`) |
+| `hit` | Hit Reaction | 0.4 с | ні | короткий відсахнувся, без падіння |
+| `victory` | Victory | 2.5 с | ні | піднімає руку — голуб сідає їй на долоню; ледь помітна усмішка |
+| `flourish` | Weapon Twirl | 2.5 с | ні | обертає лук і відкидає вуаль |
+| `summon_pose` | Power Up / Heroic Pose (основа) | 1.2 с | ні | вихід із Порталу: виступає з хуртовини білого пір'я (хуртовина й голуби — кодом, SummonCeremony); кінцевий кадр я доведу до пози сплеша |
+
+Смерті для героя немає (бій програє армія), окремий кліп не потрібен. `summon_pose` я доводжу ключами до пози сплеша.
+
+**(e) Іконки навичок** (без рамки — рамку самоцвіту малює гра; колір мотиву — стихія Плазма).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + сплеш героїні · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+*Ульта — Летіть додому / Fly Home* — `olha_skill_ult.png`
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with plasma rose (#D80A71) and hot pink-white as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Fly Home (ultimate skill)
+- three white doves flying upward together in one rising sweep toward the upper right, wings spread wide, each trailing a long tail painted in plasma-rose ember tones (painted colour only, no flames)
+
+COLOUR
+- Main colours: plasma rose (#D80A71) and hot pink-white, ivory white and gold; the darkest shading in deep wine (#4A0F2C) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+- This is the hero's most powerful skill: make it the boldest, most dynamic motif of the set.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, fire, flames, a halo, crosses or religious symbols.
+```
+
+*Атака — Соколиний лук / Falcon Bow* — `olha_skill_attack.png`
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with plasma rose (#D80A71) and hot pink-white as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Falcon Bow (attack skill)
+- a recurved bow at full draw with a falcon-fletched arrow nocked, aimed toward the upper right
+
+COLOUR
+- Main colours: plasma rose (#D80A71) and hot pink-white, ivory white and gold; the darkest shading in deep wine (#4A0F2C) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark.
+```
+
+*Клич — Помста визріває / Revenge Ripens* — `olha_skill_rally.png`
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with plasma rose (#D80A71) and hot pink-white as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Revenge Ripens (army rally skill)
+- an open raised hand seen from the palm side with one white dove perched on the fingertips, its wings half open
+
+COLOUR
+- Main colours: plasma rose (#D80A71) and hot pink-white, ivory white and gold; the darkest shading in deep wine (#4A0F2C) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, an olive branch, religious symbols.
+```
+
+*Пробудження — Ольга не забуває / Olha Never Forgets* — `olha_skill_awaken.png`
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with plasma rose (#D80A71) and hot pink-white as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Olha Never Forgets (awakened skill)
+- one upright arrow with dove-feather fletching, a ribbon tied in a tight knot around its shaft like a knot of remembrance
+
+COLOUR
+- Main colours: plasma rose (#D80A71) and hot pink-white, ivory white and gold; the darkest shading in deep wine (#4A0F2C) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, crossed shapes, religious symbols.
 ```
 
 ---
@@ -7686,7 +8053,7 @@ AVOID
 Text, letters, frame, border, hands, characters, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
 ```
 
-### 5.8 Реліквії (26, по одній на персонажа)
+### 5.8 Реліквії (27, по одній на персонажа)
 
 Налаштування: 1:1 · 1K–2K · референси: `style_anchor.png` + сплеш/картка власника реліквії.
 
@@ -7974,6 +8341,32 @@ COMPOSITION
 
 AVOID
 Text, letters, frame, border, hands, characters, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
+```
+
+*Ольга: Княжий колт / The Princely Kolt* — `relic_olha.png`
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - The Princely Kolt
+- one crescent-shaped gold temple pendant (kolt) with crimson-rose enamel showing two small birds facing each other, its rim beaded with tiny gold grains, three short pearl strands hanging from its lower edge, a small gold loop at the top
+- Material language: heartwood leather, woven hide, fur, feathers, carved bone and coral beads.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side.
+
+AVOID
+Text, letters, frame, border, hands, characters, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, crosses or religious symbols, photorealism, emoji or clip-art look, watermark.
 ```
 
 *Міла: Ліхтар наставниці / Mentor's Lantern* — `relic_mila.png`
