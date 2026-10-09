@@ -379,7 +379,9 @@ static func _spec(kind: String) -> Dictionary:
 			return _glass(12.0, G0, G1, 0.78, 0.62, 22.0, sa * 0.8, 6.0, Vector2(36, 30))
 		"modal":
 			# Flat fallback (no world snapshot; run HUD, results, menus): text-heavy, 0.97.
-			var mf := _glass(12.0, _a(G0, 0.97), _a(G1, 0.97), 0.8, 0.7, 30.0, sa * 1.4, 10.0, Vector2(36, 32))
+			# Same frame as the frosted modal's line overlay (deep gold @ 0.85), so a flat modal's
+			# edge reaches the §14.2 peak (>= 0.8) instead of HAIRLINE @ 0.8 (measured 0.73).
+			var mf := _glass(12.0, _a(G0, 0.97), _a(G1, 0.97), 0.85, 0.7, 30.0, sa * 1.4, 10.0, Vector2(36, 32), UITokens.LINE_GOLD_DEEP.lerp(HAIRLINE, 0.5))
 			mf["flourish"] = _flourish("top")
 			return mf
 		"modal_frost", "panel_frost":

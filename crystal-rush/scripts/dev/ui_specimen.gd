@@ -114,7 +114,7 @@ func _row(parent: Control, sep := 12.0) -> HBoxContainer:
 func _page_base() -> void:
 	_new_root("light")
 	var v := _col(24, 28, 16)
-	v.add_child(UIKit.caps("Crystal Rush · UI v2 · специмен"))
+	v.add_child(UIKit.caps("Crystal Rush · UI v3 · специмен"))
 	v.add_child(UIKit.gradient_heading("Кришталевий Ривок", 46))
 	var body := UIKit.label("Кремові панелі, одна золота лінія, м’які тіні, гранований зріз кутів. Шрифт M PLUS Rounded 1c: і ї є ґ ’ « » — №.", 22, UIKit.INK)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

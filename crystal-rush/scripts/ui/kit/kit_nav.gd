@@ -76,7 +76,9 @@ static func draw_bar(ci: CanvasItem, r: Rect2, _sag := 0.0) -> void:
 ## outer 22 % on each side; `gap` = [x0, x1] left open (the Play ring); `sag` = how much lower
 ## the ends sit (0 = straight; then primitive 1 dpx lines on a pixel row).
 static func draw_top_line(ci: CanvasItem, y: float, x0: float, x1: float, gap := Vector2.ZERO, sag := 0.0) -> void:
-	if sag > 0.0 and UIKit.ui_scale() < 0.9:
+	if sag > 0.0:
+		# Every density: an AA'd arch splits across two device rows wherever it falls between them
+		# (peak ~0.45 at 1080), so the arch is always drawn as whole-row runs (§14.2: 1 px, >= 0.8).
 		_draw_top_line_rows(ci, y, x0, x1, gap, sag)
 		return
 	var w := x1 - x0
@@ -118,20 +120,24 @@ static func draw_top_line(ci: CanvasItem, y: float, x0: float, x1: float, gap :=
 			ci.draw_polyline_colors(pts, cols, lw, not straight)
 
 
-## Low-density (s < 0.9) hairline (MF-12): the arch as horizontal runs snapped to whole device
-## rows, drawn without AA at UIKit.line_px(1) (one solid row, peak alpha = the line's own 0.85);
-## the NAV_SAG arch shows as a few 1 px steps. One multiline per pass (2 canvas commands).
+## The arched hairline at every density (MF-11, MF-12): horizontal runs snapped to whole device
+## rows, drawn without AA at UIKit.line_px(1) (one solid row at the line's own alpha; 0.9 below
+## s 0.9 for PenTile), so the NAV_SAG arch shows as a few 1 px steps and never as a grey 2-row
+## smear. Both rows go out as one triangle array (1 canvas command).
 static func _draw_top_line_rows(ci: CanvasItem, y: float, x0: float, x1: float, gap: Vector2, sag: float) -> void:
 	var w := x1 - x0
 	var g := UITokens.LINE_GOLD_DEEP
-	var gold := Color(g.r, g.g, g.b, 0.9)
+	var gold := Color(g.r, g.g, g.b, 0.9 if UIKit.ui_scale() < 0.9 else 0.85)
 	var light := Color(1, 1, 1, UITokens.LINE_LIGHT.a)
-	var lw := UIKit.line_px(1.0)
+	var hw := UIKit.line_px(1.0) * 0.5
 	var step := 6.0
+	# Both rows of the engraved pair as 6 px quads (vertex colours carry the fade) in ONE
+	# triangle array: one canvas command, however many row steps the arch makes.
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
 	for pass_i in 2:
 		var col := light if pass_i == 1 else gold
-		var pts := PackedVector2Array()
-		var cols := PackedColorArray()
 		var x := x0
 		while x < x1 - 0.01:
 			var xb := minf(x + step, x1)
@@ -141,17 +147,23 @@ static func _draw_top_line_rows(ci: CanvasItem, y: float, x0: float, x1: float, 
 					continue
 				if x < gap.x and xb > gap.x:
 					xb = gap.x
-			var xm := (x + xb) * 0.5
-			var e := minf(xm - x0, x1 - xm) / maxf(w * 0.22, 1.0)
-			var k := clampf(e, 0.0, 1.0)
-			k = k * k * (3.0 - 2.0 * k)
-			if k > 0.02:
-				var row := GemDraw.pixel_y(ci, arch_y(xm - x0, w, y, sag)) + UIKit.px(1.0) * pass_i
-				pts.append_array([Vector2(x, row), Vector2(xb, row)])
-				cols.append(Color(col.r, col.g, col.b, col.a * k))
+			var row := GemDraw.pixel_y(ci, arch_y((x + xb) * 0.5 - x0, w, y, sag)) + UIKit.px(1.0) * pass_i
+			var ca := _fade(col, x, x0, x1, w)
+			var cb := _fade(col, xb, x0, x1, w)
+			if ca.a > 0.004 or cb.a > 0.004:
+				var n := pts.size()
+				pts.append_array([Vector2(x, row - hw), Vector2(xb, row - hw), Vector2(xb, row + hw), Vector2(x, row + hw)])
+				cols.append_array([ca, cb, cb, ca])
+				idx.append_array([n, n + 1, n + 2, n, n + 2, n + 3])
 			x = xb
-		if pts.size() >= 2:
-			ci.draw_multiline_colors(pts, cols, lw)
+	if not idx.is_empty():
+		RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols)
+
+
+static func _fade(col: Color, x: float, x0: float, x1: float, w: float) -> Color:
+	var k := clampf(minf(x - x0, x1 - x) / maxf(w * 0.22, 1.0), 0.0, 1.0)
+	k = k * k * (3.0 - 2.0 * k)
+	return Color(col.r, col.g, col.b, col.a * k)
 
 
 ## The slender Play key centred on `c` (§6.6). `on` 0..1 (bool accepted): inactive = an
