@@ -573,7 +573,7 @@ const STRINGS := {
 	"AURA_WARRIOR_VALUE": ["+%s втрат загонів у сутичці", "+%s squad clash losses"],
 	"AURA_RANGER": ["Залпи армії сильніші", "Army volleys hit harder"],
 	"AURA_RANGER_VALUE": ["+%s шкоди залпів армії", "+%s army volley damage"],
-	"AURA_MAGE": ["Залпи солдатів у колі накладають стан його стихії", "Soldiers' volleys in the ring apply its element status"],
+	"AURA_MAGE": ["Залпи солдатів у колі накладають стан стихії чемпіона", "Soldiers' volleys in the ring apply the champion's element status"],
 	"AURA_MAGE_VALUE": ["%s шансу стану на залп", "%s status chance per volley"],
 	"AURA_GUARDIAN": ["Армія втрачає менше в сутичках", "The army loses less in clashes"],
 	"AURA_GUARDIAN_VALUE": ["−%s втрат у сутичках", "−%s clash losses"],
