@@ -61,6 +61,7 @@ var _big_tw: Tween
 var _card: Control
 var _modal: Control
 var _modal_kind := ""          # "", "pause", "result"
+var _champ_layer: Control
 
 
 func _init() -> void:
@@ -228,6 +229,25 @@ func set_portrait(tex: Texture2D) -> void:
 
 func set_ult_visible(on: bool) -> void:
 	ult_btn.visible = on
+
+
+## The ult button's rect in this view's coordinates (the champion medallions stack above it).
+func ult_rect() -> Rect2:
+	return Rect2(ult_btn.position, ult_btn.size)
+
+
+## A full-rect, input-free layer right above the ult button for the run's champions (heroes
+## design §10.5: medallions, start banner; ChampionHud fills it). Made on the first call only, so
+## a run without champions has none.
+func champion_layer() -> Control:
+	if _champ_layer == null:
+		_champ_layer = Control.new()
+		_champ_layer.name = "Champions"
+		_champ_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_champ_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_champ_layer)
+		move_child(_champ_layer, ult_btn.get_index() + 1)
+	return _champ_layer
 
 
 # ------------------------------------------------------------------ drag hint

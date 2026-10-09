@@ -173,6 +173,23 @@ var _attack_kind: StringName = HeroKinds.ATTACK_DART
 var kind_view: RunKindView
 ## Champion slots (empty until the heroes phase H2; Champions.setup reads profile.team).
 var champions := Champions.new()
+## The champions on screen and on the HUD (null while Champions.active() is false).
+var champ_view: ChampionView
+## Champions.step cost (§10.6 budget 0.25 ms, dev): steps timed, total and worst microseconds,
+## steps over the budget, and the share spent in the run's own hit path (hurt: kill fx, statuses)
+## and in the champ_* VFX / HUD handlers, so the rules' own cost is us - hit_us - fx_us.
+var champ_perf := {"steps": 0, "us": 0, "max_us": 0, "over_250us": 0, "hit_us": 0, "fx_us": 0}
+## True while Champions.step runs (champ_perf counts its hit / fx shares only then).
+var champ_stepping := false
+# Champion-scaled losses (ChampionKinds multipliers): fractions carry, rounded (start at 0.5).
+var _clash_acc := 0.5
+var _haz_acc := 0.5
+var _turret_acc := 0.5
+## True inside a clash / siege tick: the tick feeds the Healer pools itself, after clash_hit.
+var _feed_hold := false
+var _champ_rng := RandomNumberGenerator.new()
+## Fallen champions: id -> {t, cause} for result.team_report.
+var _champ_down := {}
 ## Hazard clock (WS2b): blades and sweepers move on it; the Seer's rift slows it (hazard_slow).
 var hz_t := 0.0
 var _carry_placed := false            ## profile.new_carry: the first crate became the NEW crate
@@ -242,6 +259,7 @@ func setup(p_level: int, p_hero: String) -> void:
 	world = Worlds.for_level(level)
 	profile = _load_profile(level)
 	champions.setup(profile, level)
+	_champ_rng.seed = 7919 * level + 101
 	_pick_rng.seed = 7919 * level + 31 * int(profile.get("run_id", 0)) + 17
 	# Levels and the start army ignore account power (§6.4); Reinforcements add soldiers.
 	army = Balance.START_ARMY + int((profile.get("assist", {}) as Dictionary).get("soldiers", 0))
@@ -281,11 +299,15 @@ func hero_mult(key: String) -> float:
 	return float((profile.get("hero", {}) as Dictionary).get(key, 1.0))
 
 
-## Army volley multiplier (Barracks "volleys"): Army.volley_mult() when present, else the profile.
+## Army volley multiplier (Barracks "volleys"): Army.volley_mult() when present, else the profile;
+## x the Ranger aura while champions run (ChampionKinds.volley_mult).
 func volley_mult() -> float:
+	var k := float((profile.get("army", {}) as Dictionary).get("volley_mult", 1.0))
 	if army_view and army_view.has_method("volley_mult"):
-		return float(army_view.call("volley_mult"))
-	return float((profile.get("army", {}) as Dictionary).get("volley_mult", 1.0))
+		k = float(army_view.call("volley_mult"))
+	if champions.active():
+		k *= ChampionKinds.volley_mult(champions.members)
+	return k
 
 
 static func _fresh_stats() -> Dictionary:
@@ -351,6 +373,11 @@ func _ready() -> void:
 	if lead != "" and ArsenalData.is_live(lead) and bool(ArsenalData.FEATURES["lead"]):
 		arsenal.field(lead, 1, Vector3.INF, true)
 		weapons = arsenal.summary()
+	if champions.active():
+		champ_view = ChampionView.new()
+		champ_view.name = "Champions"
+		add_child(champ_view)
+		champ_view.setup(self)
 	_army_label = Models.label(str(army), 110, Color("#FFF8EC"), true)
 	_army_label.render_priority = 6
 	_army_label.no_depth_test = true
@@ -401,6 +428,8 @@ func _spawn_items(list: Array) -> void:
 	for spec: Dictionary in list:
 		var it: Dictionary = spec.duplicate(true)
 		it["alive"] = true
+		# KindView target id (RunKindView, kind_item): the item's index in `items`.
+		it["kid"] = items.size()
 		if not it.has("x"):
 			it["x"] = 0.0
 		var kind := str(it["kind"])
@@ -661,6 +690,8 @@ func _step(dt: float) -> void:
 	# The army follows the hero in every state.
 	_army_step(dt)
 	if active:
+		if champions.active():
+			_champions_step(dt)
 		hazards.check_army(army_view, _armor > 0.0)
 		hazards.step_turrets(dt * hazard_slow(), army_view)
 		match state:
@@ -1269,6 +1300,9 @@ func _change_army(delta_n: int, from := Vector3.INF, spread := Vector3(0.4, 0.0,
 func _army_changed(before: int) -> void:
 	if army == before:
 		return
+	# Every soldier lost feeds the Healers' revive pools (a clash / siege tick feeds after clash_hit).
+	if army < before and not _feed_hold and champions.active():
+		ChampionKinds.feed(champions.members, float(before - army))
 	_peak = maxi(_peak, army)
 	army_changed.emit(army)
 	juice.counter(_army_label, army)
@@ -1310,6 +1344,8 @@ func hazard_kills(it: Dictionary, idxs: PackedInt32Array, push: Vector3) -> void
 	if spared > 0:
 		lost -= spared
 		_side_popup("+%d" % spared, Vector3(float(it["x"]), 1.6, -float(it["d"])), GAIN, 0.7)
+	if lost > 0 and champions.active():
+		lost = _champion_hazard(it, lost)
 	army = maxi(army - lost, 0)
 	army_view.fit(mini(army, _max_shown))
 	_army_changed(before)
@@ -1368,6 +1404,13 @@ func turret_hit(_it: Dictionary, at: Vector3) -> void:
 		return
 	if army <= 0 or not (state == State.RUNNING or state == State.CLASH or state == State.SIEGE):
 		return
+	if champions.active():
+		# Healer aura: turret losses x hazard_loss_mult (never Blocked; turrets never aim at champions).
+		_turret_acc += ChampionKinds.hazard_loss_mult(champions.members)
+		if _turret_acc < 1.0:
+			effects.hit_spark(at, Color(0.86, 1.0, 0.9))
+			return
+		_turret_acc -= 1.0
 	var before := army
 	army -= 1
 	hazard_deaths += 1.0
@@ -1395,6 +1438,8 @@ func _army_step(dt: float) -> void:
 		solids.append_array(arsenal.solids())
 		for g in _gate_solids():
 			solids.append(g)
+		if champ_view:
+			champ_view.add_solids(solids)
 		army_view.set_solids(solids)
 	army_view.step(dt, adv)
 
@@ -1515,6 +1560,8 @@ func hurt(it: Dictionary, n: float, source := "") -> float:
 		_count_kills(source, dealt)
 		if arsenal and arsenal.statuses:
 			arsenal.statuses.on_hit(it, dealt, source)
+			if source == "volley" and champions.active():
+				_volley_procs(it)
 	elif kind == "crate":
 		_crate_hit(it)
 	var at := aim_point(it)
@@ -1995,11 +2042,21 @@ func _vault_check() -> void:
 	while _vk < _vaults.size() and float(_vaults[_vk]["d"]) - 0.35 <= d:
 		var it := _vaults[_vk]
 		_vk += 1
-		var wide := str(it.get("type", "")) == "sweeper"
-		var reach := 99.0 if wide else _hw(it) + (float(it.get("len", 0.0)) if str(it["kind"]) == "blade" else 0.0) + 0.35
 		var x := float(it.get("x0", it["x"]))
-		if (it["alive"] or str(it["kind"]) == "blade") and absf(hx - x) < reach:
+		if (it["alive"] or str(it["kind"]) == "blade") and absf(hx - x) < vault_reach(it):
 			hero.vault()
+
+
+## How far across from vault item `it` a runner still hops over it (sweepers span the bridge).
+func vault_reach(it: Dictionary) -> float:
+	if str(it.get("type", "")) == "sweeper":
+		return 99.0
+	return _hw(it) + (float(it.get("len", 0.0)) if str(it["kind"]) == "blade" else 0.0) + 0.35
+
+
+## The items the hero and the champions hop over, by d (ChampionView vaults its champions).
+func vault_items() -> Array[Dictionary]:
+	return _vaults
 
 
 # ------------------------------------------------------------------ ult
@@ -2222,7 +2279,9 @@ func _clash(dt: float) -> void:
 	while _tick <= 0.0 and state == State.CLASH:
 		_tick += Balance.FIGHT_TICK
 		var foes := float(_foe["hp"])
-		if army >= 1:
+		if army >= 1 and champions.active():
+			_champion_clash_tick(foes)
+		elif army >= 1:
 			var hit := mini(_burst(mini(army, ceili(foes))), mini(army, ceili(foes)))
 			# Slowed squads (Seer's rift) kill fewer of ours; Drill makes a hit squad lose more.
 			var lost := hit
@@ -2235,6 +2294,8 @@ func _clash(dt: float) -> void:
 			stats["clash_losses"] = int(stats["clash_losses"]) + lost
 			hurt(_foe, float(hit) * float(_foe.get("drill_k", 1.0)), "clash")
 			_clash_fx()
+		elif champions.active() and _champion_absorb_tick(foes):
+			pass
 		else:
 			var hit2 := int(minf(float(_burst(mini(hero_hp, ceili(foes)))), foes))
 			hero_hp -= maxi(hit2, 1)
@@ -2290,8 +2351,11 @@ func _siege(dt: float) -> void:
 		_tick += Balance.FIGHT_TICK
 		var hp := ceili(float(f["hp"]))
 		var hit := mini(_burst(mini(army, hp)), mini(army, hp))
-		_change_army(-hit, Vector3.INF, Vector3.ZERO, "front")
-		hurt(f, float(hit), "siege")
+		if champions.active():
+			_champion_siege_tick(f, hit)
+		else:
+			_change_army(-hit, Vector3.INF, Vector3.ZERO, "front")
+			hurt(f, float(hit), "siege")
 		juice.add_trauma(0.08, "clash")
 	if state != State.SIEGE:
 		return
@@ -2309,6 +2373,175 @@ func _fortress_hit(it: Dictionary, at: Vector3) -> void:
 	juice.counter(it["label"] as Label3D, ceili(float(it["hp"])))
 	if randf() < 0.35:
 		effects.hit_spark(at + Vector3(randf_range(-1.5, 1.5), randf_range(0.0, 1.5), 0.3), Color(1.0, 0.6, 0.3))
+
+
+# ------------------------------------------------------------------ champions (heroes design §4.2, §10.5)
+# The rules are ChampionKinds over kind_view; these are the run's hooks, applied at the same
+# moments as LevelSim (the H2 hook table). None of them runs while Champions.active() is false.
+
+## Every active step, after the army moved and before the hazards and the clash / siege.
+func _champions_step(dt: float) -> void:
+	var t0 := Time.get_ticks_usec()
+	champ_stepping = true
+	champions.step(kind_view, dt)
+	champ_stepping = false
+	var us := Time.get_ticks_usec() - t0
+	champ_perf["steps"] = int(champ_perf["steps"]) + 1
+	champ_perf["us"] = int(champ_perf["us"]) + us
+	champ_perf["max_us"] = maxi(int(champ_perf["max_us"]), us)
+	if us > 250:
+		champ_perf["over_250us"] = int(champ_perf["over_250us"]) + 1
+
+
+## A clash tick with the army alive: a Guardian's shield makes it free, else the Guardian aura
+## trims our losses (with the rift's slow; fractions carry); the squad takes the hit x Drill x the
+## Warrior aura + Cleave; the front champion takes its share; then the Healers are fed.
+func _champion_clash_tick(foes: float) -> void:
+	var m := champions.members
+	var hit := mini(_burst(mini(army, ceili(foes))), mini(army, ceili(foes)))
+	var lost := 0
+	if not ChampionKinds.tick_free(m):
+		_clash_acc += float(hit) * hazard_slow() * ChampionKinds.clash_loss_mult(m)
+		lost = mini(int(floor(_clash_acc + 0.0001)), army)
+		_clash_acc -= float(lost)
+	var before := army
+	_feed_hold = true
+	_change_army(-lost, Vector3.INF, Vector3.ZERO, "front")
+	_feed_hold = false
+	stats["clash_losses"] = int(stats["clash_losses"]) + lost
+	var drill := float(_foe.get("drill_k", 1.0))
+	hurt(_foe, float(hit) * drill * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), "clash")
+	ChampionKinds.clash_hit(kind_view, m, float(hit), champions.guardian_hero)
+	ChampionKinds.feed(m, float(before - army))
+	_clash_fx()
+
+
+## A clash tick at army 0: the first living champion (front -> left -> right -> rear) takes it
+## before the hero, the tick sized on its HP as the hero's is on hero_hp. False: none is left.
+func _champion_absorb_tick(foes: float) -> bool:
+	var who: Dictionary = {}
+	for sl in ChampionKinds.ABSORB_ORDER:
+		who = ChampionKinds.in_slot(champions.members, sl)
+		if not who.is_empty():
+			break
+	if who.is_empty():
+		return false
+	var hp := maxi(ceili(float(who["hp"])), 1)
+	var hit2 := maxi(int(minf(float(_burst(mini(hp, ceili(foes)))), foes)), 1)
+	if not ChampionKinds.absorb_tick(kind_view, champions.members, float(hit2)):
+		return false
+	hurt(_foe, float(hit2), "clash")
+	if champ_view:
+		var c := champ_view.model(str(who["id"]))
+		if c:
+			effects.hit_spark(c.root + Vector3(0.0, 0.7, -0.2), Color(1.0, 0.8, 0.5))
+	return true
+
+
+## A siege tick with the army alive: as a clash tick, on the fortress (no Drill).
+func _champion_siege_tick(f: Dictionary, hit: int) -> void:
+	var m := champions.members
+	var lost := 0
+	if not ChampionKinds.tick_free(m):
+		_clash_acc += float(hit) * ChampionKinds.clash_loss_mult(m)
+		lost = mini(int(floor(_clash_acc + 0.0001)), army)
+		_clash_acc -= float(lost)
+	var before := army
+	_feed_hold = true
+	_change_army(-lost, Vector3.INF, Vector3.ZERO, "front")
+	_feed_hold = false
+	hurt(f, float(hit) * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), "siege")
+	ChampionKinds.clash_hit(kind_view, m, float(hit), champions.guardian_hero)
+	ChampionKinds.feed(m, float(before - army))
+
+
+## Hazard `it` (spiked barricade or blade) takes `lost` soldiers: the Healer aura trims it, a ready
+## Guardian Blocks it (absorb_hazard); fractions carry. Returns the soldiers really lost (the
+## Healers are fed by _army_changed).
+func _champion_hazard(it: Dictionary, lost: int) -> int:
+	var m := champions.members
+	var lf := float(lost) * ChampionKinds.hazard_loss_mult(m)
+	var kind := StringName(str(it["kind"]))
+	lf = ChampionKinds.absorb_hazard(kind_view, m, int(it["kid"]), kind, lf, float(army), blob_radius())
+	_haz_acc += lf
+	var keep := mini(int(floor(_haz_acc + 0.0001)), army)
+	_haz_acc -= float(keep)
+	hazard_deaths -= float(lost - keep)
+	return keep
+
+
+## Mage aura: the soldiers' volley that hit squad `it` applies each living Mage's element status
+## with its chance (ChampionKinds.volley_status).
+func _volley_procs(it: Dictionary) -> void:
+	if not it["alive"]:
+		return
+	for row: Dictionary in ChampionKinds.volley_status(champions.members):
+		if _champ_rng.randf() < float(row["proc"]):
+			arsenal.statuses.apply(it, str(row["status"]), 1.0, {"id": str(row["id"])})
+
+
+## Healer Mend (RunKindView.add_soldiers): `n` soldiers come back at the blob front.
+func champion_mend(n: int) -> void:
+	if n <= 0 or army <= 0:
+		return
+	var front := army_view.front_point()
+	_change_army(n, front + Vector3(0.0, 0.5, 0.0), Vector3(0.45, 0.3, 0.2))
+	_side_popup("+%d" % n, front + Vector3(0.0, 1.2, 0.0), GAIN, 0.75)
+
+
+## The item behind KindView target id `id` ({} when there is none).
+func kind_item(id: int) -> Dictionary:
+	return items[id] if id >= 0 and id < items.size() else {}
+
+
+## The rules' champ_* events (RunKindView.fx): the fall is remembered for the report, the rest
+## is VFX and HUD (ChampionView).
+func _champ_fx(event: StringName, data: Dictionary) -> void:
+	var t0 := Time.get_ticks_usec()
+	if event == &"champ_down":
+		var cause := "siege" if state == State.SIEGE else "clash"
+		_champ_down[str(data.get("id", ""))] = {"t": snappedf(t, 0.1), "cause": cause}
+	elif event == &"champ_revive":
+		_champ_down.erase(str(data.get("id", "")))
+	if champ_view:
+		champ_view.on_fx(event, data)
+	if champ_stepping:
+		champ_perf["fx_us"] = int(champ_perf["fx_us"]) + Time.get_ticks_usec() - t0
+
+
+## result.team_report: Champions.report() + when and how each fallen champion fell (§10.5,
+## Rewards._team_run reads t and cause).
+func _team_report() -> Array:
+	var out := champions.report()
+	for row: Dictionary in out:
+		var down: Dictionary = _champ_down.get(str(row["id"]), {})
+		if not down.is_empty():
+			row["t"] = down["t"]
+			row["cause"] = down["cause"]
+	return out
+
+
+## Label-carrying items the HUD keeps the champion medallions clear of: the next gate row ahead
+## and the hostiles with counters within `reach` u (filled into `out`).
+func hud_label_items(reach: float, out: Array) -> void:
+	out.clear()
+	var row := -1
+	for i in range(maxi(_tk - 2, 0), _targ.size()):
+		var it := _targ[i]
+		var di := float(it["d"])
+		if di < d:
+			continue
+		if di > d + reach:
+			break
+		if not it["alive"] or not it.has("label") or str(it["kind"]) == "fortress":
+			continue
+		if str(it["kind"]) == "gate":
+			var r := int(it.get("row", -1))
+			if row == -1:
+				row = r
+			elif r != row:
+				continue
+		out.append(it)
 
 
 # ------------------------------------------------------------------ the end
@@ -2590,6 +2823,11 @@ func _fill_result(won: bool) -> void:
 	if won and ld != "":
 		(st["wins_with_lead"] as Dictionary)[ld] = 1
 	result["stats"] = st
+	if champions.active():
+		result["team_report"] = _team_report()
+		var team: Dictionary = profile.get("team", {}) if profile.get("team") is Dictionary else {}
+		var syn: Variant = team.get("synergy_ids", [])
+		result["synergies"] = (syn as Array).duplicate() if syn is Array else []
 
 
 func _lose(reason: String) -> void:
@@ -2621,6 +2859,8 @@ func _visuals(delta: float) -> void:
 	hero.fighting = state == State.CLASH or state == State.SIEGE
 	_animate_knights(delta)
 	army_view.draw()
+	if champ_view:
+		champ_view.draw(dt)
 	# Army counter above the hero, leading the blob.
 	var top := hero.position + Vector3(0, hero.top() + 0.75, 0.25)
 	if on_stairs and _stair_phase >= 2:

@@ -5,7 +5,7 @@ extends Node
 ## LossScreen (loss) plays over the run's last frame. World Caches open on the CacheAltar
 ## (from the result flow or the hub's Vault via Hub.open_altar).
 ## Dev flags (after `--`): --autotest, --levelcheck, --loop, --campaign, --shot=path.png, --screen=menu|run,
-## --level=N, --hero=bolt|titan
+## --level=N, --hero=bolt|titan, --heroes_phase=N [--team=id,id] (dev runs only, see _dev_heroes)
 ## The run scripts are loaded on demand, so the router (menu, level_check) still works while
 ## the run code is being rewritten.
 
@@ -32,11 +32,34 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		_args[kv[0]] = kv[1] if kv.size() > 1 else "1"
+	_dev_heroes()
 	for tool: String in ["autotest", "levelcheck", "shot", "loop", "campaign"]:
 		if _args.has(tool):
 			_start_dev(tool)
 			return
 	show_menu()
+
+
+## Dev runs only (Save.readonly: --autotest / --shot), never the shipped flow:
+## --heroes_phase=N sets EconData.phase_override (2 = champions in the run, heroes design §13.2)
+## and rebuilds the synthetic account under it; --team=id,id,.. (with it) fields those champions,
+## owned or not, in the team (up to 4, team order).
+func _dev_heroes() -> void:
+	if not Save.readonly or not _args.has("heroes_phase"):
+		return
+	EconData.phase_override = maxi(int(_args["heroes_phase"]), -1)
+	Meta.load_account()
+	if not _args.has("team") or not EconData.heroes_run():
+		return
+	var acc: Dictionary = Meta.account
+	var roster: Dictionary = (acc["champions"] as Dictionary)["roster"]
+	var ids: Array = []
+	for id in str(_args["team"]).split(",", false):
+		if ChampionData.CHAMPIONS.has(id) and not ids.has(id) and ids.size() < 4:
+			ids.append(id)
+			if not roster.has(id):
+				roster[id] = EconData.new_champion_state(id, true, "dev")
+	(acc["team"] as Dictionary)["champions"] = ids
 
 
 func _start_dev(tool: String) -> void:
@@ -145,6 +168,8 @@ func _on_run_finished(holder: Node, won: bool) -> void:
 		res = {"won": won}
 	var bundle := Meta.finish_run(res)
 	holder.set_meta("bundle", bundle)
+	if _args.has("autotest") and res.has("team_report"):
+		_print_champions(run, res)
 	if _args.has("autotest") or _args.has("levelcheck"):
 		return
 	var hud: CanvasLayer = holder.get_meta("hud")
@@ -172,6 +197,30 @@ func _on_run_finished(holder: Node, won: bool) -> void:
 		loss.arsenal.connect(func(): show_hub("arsenal"))
 		holder.add_child(loss)
 		holder.set_meta("flow", loss)
+
+
+## Autotest with champions: one CHAMPIONS line per level (members as id:slot:alive and the run's
+## team_report) and one CHAMPIONS_PERF line (Champions.step cost, the placeholders' budget).
+## (Duck-typed like the rest of the router: the run scripts stay loaded on demand.)
+func _print_champions(run: Node, res: Dictionary) -> void:
+	var ch: Variant = run.get("champions")
+	var ms: Variant = (ch as Object).get("members") if ch is Object else null
+	var parts: Array[String] = []
+	if ms is Array:
+		for m: Dictionary in ms:
+			parts.append("%s:%s:%s" % [str(m["id"]), str(m["slot"]), str(bool(m["alive"]))])
+	print("CHAMPIONS level=%d members=%s report=%s" % [int(res.get("level", 0)), ",".join(parts),
+			JSON.stringify(res["team_report"])])
+	var perf: Variant = run.get("champ_perf")
+	var cv: Variant = run.get("champ_view")
+	if perf is Dictionary:
+		var p: Dictionary = perf
+		var steps := maxi(int(p["steps"]), 1)
+		var bud: Variant = (cv as Object).call("budget") if cv is Object and (cv as Object).has_method("budget") else {}
+		var own := float(int(p["us"]) - int(p.get("hit_us", 0)) - int(p.get("fx_us", 0))) / float(steps)
+		print("CHAMPIONS_PERF level=%d step_us_avg=%.1f rules_us_avg=%.1f step_us_max=%d steps=%d over_250us=%d"
+				% [int(res.get("level", 0)), float(p["us"]) / float(steps), own, int(p["max_us"]), int(p["steps"]),
+				int(p.get("over_250us", 0))] + " budget=" + JSON.stringify(bud))
 
 
 func _switch(next: Node, instant := false) -> void:
