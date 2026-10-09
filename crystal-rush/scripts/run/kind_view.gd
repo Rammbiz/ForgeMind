@@ -10,8 +10,13 @@ extends RefCounted
 ## HeroKinds (H0) uses: distance, ult_power, clock / store_clock, area_hit, grant_armor, in_fight,
 ## threat_ahead, hazard_near, army, fx. ChampionKinds (H2) uses: army, in_fight, squads_in,
 ## hazards_in, hit, status, add_soldiers, fx (the champ_* events listed at ChampionKinds.FX).
+## HeroKinds (H2, the v3 hero kinds of §6) also uses: squads_in, hazards_in, structures_in, gates_in,
+## hit, status, hold, ground, expose, strip, silence, reveal, grant_ward, buff, add_soldiers,
+## champions, revive_champion, siege, army()["lost"] and the clock's H2 fields (HeroKinds.Clock: the
+## hero kind's counters persist in the view's clock from ult to ult).
 ## Target ids are ints the view owns (Run: RunKindView maps them to the run's item dictionaries,
-## LevelSim: the item index); hit / status accept exactly the ids squads_in / hazards_in returned.
+## LevelSim: the item index); hit / status accept exactly the ids squads_in / hazards_in /
+## structures_in / gates_in returned.
 
 
 # ------------------------------------------------------------------ H0: starters' rules
@@ -63,10 +68,12 @@ func hazard_near(_ahead: float) -> bool:
 	return false
 
 
-## {n, x, d, radius, reserves, revive_pool}: d = the blob CENTRE's run distance (champion slots
-## hang off it), x = the blob centre x.
+## {n, x, d, radius, reserves, revive_pool, lost}: d = the blob CENTRE's run distance (champion slots
+## hang off it), x = the blob centre x (= the hero's x), lost = soldiers the army has lost this run
+## from any cause (clash, siege, hazard, turret, gate; HeroKinds' ward and army_loss policy read it; a
+## view without it answers 0 and those rules see no loss).
 func army() -> Dictionary:
-	return {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0}
+	return {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0, "lost": 0.0}
 
 
 ## Run: VFX / SFX / HUD signals for `event`; LevelSim: counted only (budget checks).
@@ -77,12 +84,16 @@ func fx(_event: StringName, _data := {}) -> void:
 # ------------------------------------------------------------------ H2: champions and new hero kinds
 
 ## Living squads with d in [d0, d1] whose span overlaps [x0, x1]:
-## [{id, d, x, n, flying, armored, phantom, status}] (n = soldiers left).
+## [{id, d, x, n, flying, armored, phantom, status, hw}] (n = soldiers left, hw = half its width; a
+## row without hw counts as HeroKinds.SQUAD_HW).
 func squads_in(_d0: float, _d1: float, _x0: float, _x1: float) -> Array:
 	return []
 
 
-## [{row, x, kind, value}]
+## Gates still standing (rows not yet crossed) with d in [d0, d1], nearest first:
+## [{id, row, d, x, hw, kind, value, hidden}] (kind = the op it shows now, "+" "-" "charge" ...; hidden =
+## its value is not revealed yet). hit(id, n) on a gate = `n` hero hits (the view's own hero damage per
+## hit, as area_hit's gate hits; a charge gate fills, a "-" gate shrinks); it returns 0.
 func gates_in(_d0: float, _d1: float) -> Array:
 	return []
 
@@ -93,6 +104,23 @@ func hazards_in(_d0: float, _d1: float) -> Array:
 	return []
 
 
+## What a hero ult or attack may break with d in [d0, d1] (H2 hero kinds): the hazards_in structures (never
+## blades) plus crates (kind "crate") and the fortress (kind "fortress", hw = the half bridge): [{id, d, x,
+## kind, hp, hw}]. The champion rules never ask (they hit no crates and no fortress). Default: hazards_in
+## without the blades (a view that lists no crates or fortress: hero kinds then never break them).
+func structures_in(d0: float, d1: float) -> Array:
+	var out: Array = []
+	for h: Dictionary in hazards_in(d0, d1):
+		if str(h["kind"]) != "blade":
+			out.append(h)
+	return out
+
+
+## True during the fortress siege (in_fight() is a clash or the siege).
+func siege() -> bool:
+	return false
+
+
 ## The run's Champions.members (ChampionKinds.member rows; empty while champions are off).
 func champions() -> Array:
 	return []
@@ -100,6 +128,9 @@ func champions() -> Array:
 
 ## Damages one target ("src" = champion / hero id, "kind" = the action) and returns the kills (squad
 ## soldiers removed; 0 for structures). The owner's normal hurt path: kill coins, ult charge, statuses.
+## Hero kinds tag their hits "kind" &"attack" (a hero shot: MARK's vs applies, as on the starters' shots),
+## &"ult" (never MARK's vs: the Meta-1 rule, ults and volleys take none) or &"gate" (a gate id: `dmg` hero
+## hits, see gates_in). A crate or the fortress (structures_in ids) takes `dmg` like any structure.
 func hit(_target_id: int, _dmg: float, _tags := {}) -> int:
 	return 0
 
@@ -113,11 +144,16 @@ func lose(_n: int, _cause: StringName) -> void:
 	pass
 
 
+## A Healer hero stands fallen champion `id` back up at `hp_frac` of its max HP (§4.2: only Healer heroes
+## revive; Ейра form II, Пава forms II / V and her Awakening): ChampionKinds.revive. False when it is alive or
+## unknown.
 func revive_champion(_id: StringName, _hp_frac: float) -> bool:
 	return false
 
 
-## Soldiers come back to the army (Healer Mend; Run: spawned at the blob front with a heal fx).
+## Soldiers come back to the army (Healer Mend; Run: spawned at the blob front with a heal fx). Hero kinds:
+## cause &"heal" (Ейра's rime), &"ward" (Пава's close), &"mend" / &"eye" (Healer hero procs, paid from the
+## hero's revive pool, HeroKinds.Clock.pool). Whole soldiers.
 func add_soldiers(_n: float, _cause: StringName) -> void:
 	pass
 
@@ -144,8 +180,9 @@ func absorb(_kind: StringName) -> bool:
 
 
 ## The per-run ward store absorb() spends: `charges` more wards against `kind` hits (turret | blade |
-## contact) for `s` seconds (a hero kind's ult grants them; charges add up, the time keeps the longer,
-## an expired ward starts over). No-op by default.
+## contact | clash) for `s` seconds (a hero kind's ult grants them; charges add up, the time keeps the
+## longer, an expired ward starts over). `clash` (Вартан's wall HP): each charge takes one soldier of the
+## army's clash / siege losses before the army loses it (the owner's clash tick spends it). No-op by default.
 func grant_ward(_kind: StringName, _charges: int, _s: float) -> void:
 	pass
 
@@ -161,3 +198,36 @@ func tether(_a: int, _b: int, _share: float, _s: float) -> void:
 ## its Statuses, LevelSim its expected-value mirror. The rules never need it; views use it inside hit().
 func status_mult(_target_id: int) -> float:
 	return 1.0
+
+
+# ------------------------------------------------------------------ H2: the v3 hero kinds (§6.1-6.10, 6.28, 6.29)
+# Every default below is "nothing happens": a view that does not model a verb simply loses that rider.
+
+## Squad `squad_id` loses x (1 + `add`) of its clash losses for `s` seconds (Веста form II, Сірко form II:
+## "squads hit lose +20% in clashes"; a new exposure keeps the larger add and the longer time).
+func expose(_squad_id: int, _add: float, _s: float) -> void:
+	pass
+
+
+## Squad `squad_id` fights as a plain squad for `s` seconds: Armored and Shielded off (Сірко form IV).
+func strip(_squad_id: int, _s: float) -> void:
+	pass
+
+
+## Turret `turret_id` misses every shot for `s` seconds (Ольга form IV).
+func silence(_turret_id: int, _s: float) -> void:
+	pass
+
+
+## Hidden gates and Phantom squads with d in [d0, d1] are revealed (Мейра form III, Пава form IV, a row
+## reveal of a hero hit, Мейра's beat 6).
+func reveal(_d0: float, _d1: float) -> void:
+	pass
+
+
+## A timed team buff for `s` seconds (a new one keeps the larger value and the longer time): &"volleys"
+## = army volley damage x (1 + value) (Веста's Sun Field), &"machines" = machine damage + value (bucket 2,
+## inside TEAM_B2_CAP; Люмен form V), &"volley_status" = every army volley also applies data.statuses (id ->
+## stacks) to its target (Сірко form V).
+func buff(_kind: StringName, _value: float, _s: float, _data := {}) -> void:
+	pass

@@ -2,8 +2,10 @@ class_name Bot
 ## Test player for the autotest and screenshots. Every THINK seconds it scores ~21 target x
 ## across the bridge by simulating the next ~22 units with LevelSim from a snapshot of the live
 ## run, keeps its current line unless another is clearly better (hysteresis), then calls
-## run.steer_to(x). It fires the ult when LevelSim.ult_worth() says a big squad / the fortress /
-## (titan) a hazard is ahead.
+## run.steer_to(x). It fires the ult when LevelSim.ult_worth() says so: HeroKinds.ult_worth for every
+## kind (heroes design §10.4): a Meta-1 row (the starters at phase 0) keeps the Meta-1 rule (a big squad /
+## the fortress / (titan) a hazard ahead), a v3 row reads its kind's §10.4 policy (the snapshot carries
+## the run's hero clock, so Пава's army-loss window and the hero kind's counters are the live ones).
 ##
 ## Modes: "best" (the planner), "lazy" (always x 0), "random" (a new random x every 4-10 u).
 ## `skill` < 1 adds aim noise, a reaction delay and the odd random pick. Call reset() between
@@ -199,7 +201,22 @@ func snapshot(run: Object, fog := true) -> Array:
 	if up != null:
 		s.ult = float(up)
 	elif bool(run.call("ult_ready")):
-		s.ult = float((Balance.HEROES[hero]["ult"] as Dictionary)["charge"])
+		s.ult = float((s.def["ult"] as Dictionary)["charge"])
+	if s.uc != null:
+		# A v3 hero: the run's hero clock (loss samples, the revive pool, attack counters); ids held by it name
+		# Run items, not snapshot indices, so they are dropped, and the running ult stays the run's.
+		var rc: Variant = run.get("ult_clock")
+		if rc is HeroKinds.Clock:
+			s.uc = (rc as HeroKinds.Clock).copy()
+			s.uc.drop_refs()
+			s.ult_left = 0.0
+			s.quake_wave = 99
+			# The snapshot's army()["lost"] starts at 0: rebase the run's loss samples onto it.
+			var kvw: Variant = run.get("kind_view")
+			var base := float((kvw as KindView).army().get("lost", 0.0)) if kvw is KindView else 0.0
+			for k in s.uc.losses.size():
+				s.uc.losses[k] = Vector2(s.uc.losses[k].x, s.uc.losses[k].y - base)
+			s.uc.seen_lost = 0.0
 	for i in live.size():
 		var it := live[i]
 		s.alive[i] = 1 if bool(it.get("alive", true)) else 0

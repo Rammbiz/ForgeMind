@@ -79,6 +79,17 @@ class_name LevelSim
 ##   Statuses (MARK x1.25 on hero, machine and champion hits; BURN 1 unit / s; JOLT chains 75%; CHILL,
 ##   SEAL, STAGGER change nothing, as in the Run); a tether shares damage; wards spend per soldier. The
 ##   Mage aura's volley procs are left out (every Mage is Rune: SEAL changes nothing).
+## - Hero kinds (heroes design §6, §10.4; H2): the hero's run row is HeroKinds.def_for(hero, profile.hero),
+##   cached in State.def at start_state (State.copy shares it): exactly Balance.HEROES[hero] for the starters
+##   at phase 0; from heroes phase 2 with a v3 hero block, the hero's sheet with FINAL numbers (State.v3: the
+##   profile's dmg_mult / hp_mult / ult_rate_mult / Ult Rank are not applied again). A v3 hero that is not a
+##   starter attacks through HeroKinds.attack (its pattern and procs; the starters keep the path above), its
+##   ult runs the shape rules (drop, area, beam, fan, wall, ward, flock) and HeroKinds.hero_step keeps its
+##   own state (State.uc, the hero's HeroKinds.Clock: attack counters, the Healer revive pool, loss samples).
+##   The verbs those rules use land here: a clash ward (Вартан's wall HP) and an exposure (x (1 + add) foe
+##   losses) in the clash / siege ticks, a silenced turret kills nothing, team buffs scale volleys (and give
+##   them statuses) and machines, a reveal opens hidden gates; Phantoms, Shielded and Armored are not
+##   modelled (strip and the Phantom reveal change nothing here), structures take no statuses.
 
 enum K { TILE, COIN, RECRUITS, GATE, BARRICADE, BLADE, TURRET, SQUAD, GEODE, CRATE, FORTRESS, STAIRS }
 enum Mode { RUN, CLASH, SIEGE, WON, LOST }
@@ -202,6 +213,15 @@ class State extends RefCounted:
 	var wards := {}                     ## kind -> [charges, end run time] (KindView.grant_ward / absorb)
 	var st_kills := 0.0                 ## squad hp statuses and tethers added (MARK's extra, BURN, JOLT, tethers)
 	var hold_saved := 0.0               ## soldiers holds spared in clashes (KindView.hold)
+	## Hero kinds (H2): the hero's run row (HeroKinds.def_for; shared, read-only), v3 = a v3 row (final
+	## numbers, the hero kind rules), uc = the hero's clock (v3 rows only; null keeps the Meta-1 scalars
+	## above as the only ult record), gate_deaths = soldiers gates took (army()["lost"]), buffs = kind ->
+	## [value, end run time, data] (KindView.buff; empty unless a hero kind granted one).
+	var def: Dictionary = {}
+	var v3 := false
+	var uc: HeroKinds.Clock = null
+	var gate_deaths := 0.0
+	var buffs := {}
 
 	func copy() -> State:
 		var s := State.new()
@@ -237,6 +257,13 @@ class State extends RefCounted:
 			s.tethers = tethers.duplicate(true)
 		if not wards.is_empty():
 			s.wards = wards.duplicate(true)
+		s.def = def
+		s.v3 = v3
+		s.gate_deaths = gate_deaths
+		if uc != null:
+			s.uc = uc.copy()
+		if not buffs.is_empty():
+			s.buffs = buffs.duplicate(true)
 		return s
 
 
@@ -326,12 +353,16 @@ static func start_state(lv: Level, hero: String, army: int, opts := {}) -> State
 	s.hero = hero
 	s.army = float(army)
 	s.peak = s.army
-	var def: Dictionary = Balance.HEROES[hero]
-	s.hero_hp = float(def["hp"])
-	s.upgrade = int(opts.get("power", 0))
 	var prof: Dictionary = opts.get("profile", {})
 	if prof.is_empty():
 		prof = reference_profile(lv.level)
+	var ph: Variant = prof.get("hero", {})
+	s.def = HeroKinds.def_for(hero, ph if ph is Dictionary else {})
+	s.v3 = HeroKinds.scaled(s.def)
+	if s.v3:
+		s.uc = HeroKinds.Clock.new()
+	s.hero_hp = float(s.def["hp"])
+	s.upgrade = int(opts.get("power", 0))
 	apply_profile(s, prof)
 	s.tracing = bool(opts.get("trace", false))
 	s.auto_ult = bool(opts.get("ult", true))
@@ -432,7 +463,7 @@ static func result(lv: Level, s: State) -> Dictionary:
 static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> void:
 	s.t += dt
 	s.hz_t += dt * hazard_slow(s)
-	var def: Dictionary = Balance.HEROES[s.hero]
+	var def: Dictionary = s.def
 	if s.auto_ult and s.ult >= float((def["ult"] as Dictionary)["charge"]) - 0.001 and ult_ready(s) and ult_worth(lv, s):
 		use_ult(lv, s)
 	s.d_prev = s.d
@@ -456,6 +487,9 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 		_statuses(lv, s, dt)
 	_volleys(lv, s, dt)
 	_ult_step(lv, s, def, dt)
+	if s.v3:
+		# The hero kind's own state (H2): the revive pool, loss samples, drones, Eyes, Awakening.
+		HeroKinds.hero_step(_view(lv, s), def, dt)
 	if s.champs.active():
 		# §4.2: the champions follow their slots and act after the army moved, before the hazards and
 		# the clash / siege tick (the Run's order).
@@ -632,12 +666,14 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 			_gain(s, v, minf(v, GATE_GAIN_CAP))
 		"-":
 			s.army = maxf(s.army - v, 0.0)
+			s.gate_deaths += before - s.army
 			_fed(s, before - s.army)
 		"x":
 			var add := s.army * (v - 1.0)
 			_gain(s, add, minf(add, GATE_GAIN_CAP))
 		"/":
 			s.army = floorf(s.army / maxf(v, 1.0))
+			s.gate_deaths += before - s.army
 			_fed(s, before - s.army)
 		"arm":
 			s.arm = maxi(s.arm, clampi(int(v), 0, Balance.ARM_TIERS.size() - 1))
@@ -650,6 +686,7 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 		"charge":
 			if v < 0.0:
 				s.army = maxf(s.army + v, 0.0)
+				s.gate_deaths += before - s.army
 				_fed(s, before - s.army)
 			else:
 				var rw: Dictionary = lv.items[g].get("reward", {})
@@ -672,7 +709,7 @@ static func _apply(lv: Level, s: State, g: int, op: String, v: float) -> void:
 			else:
 				s.weapons[low][1] = int(s.weapons[low][1]) + 1
 		"ult":
-			s.ult = float((Balance.HEROES[s.hero]["ult"] as Dictionary)["charge"])
+			s.ult = float((s.def["ult"] as Dictionary)["charge"])
 
 
 static func _gain(s: State, n: float, points: float) -> void:
@@ -704,7 +741,7 @@ static func _view(lv: Level, s: State) -> SimKindView:
 static func _charge(s: State, points: float) -> void:
 	if s.ult_left > 0.0 or s.quake_wave < 99:
 		return
-	var cap := float((Balance.HEROES[s.hero]["ult"] as Dictionary)["charge"])
+	var cap := float((s.def["ult"] as Dictionary)["charge"])
 	s.ult = minf(s.ult + maxf(points, 0.0) * s.ult_rate, cap)
 
 
@@ -802,15 +839,20 @@ static func _crate_contact(lv: Level, s: State) -> void:
 # ------------------------------------------------------------------ shooting
 
 static func hero_rate(s: State) -> float:
-	var def: Dictionary = Balance.HEROES[s.hero]
-	return float(def["rate"]) * Balance.power_mult(s.upgrade) * (1.0 + s.p_rate)
+	return float(s.def["rate"]) * Balance.power_mult(s.upgrade) * (1.0 + s.p_rate)
 
 
+## Hero damage per hit: (row damage + damage gates) x the profile's dmg_mult (1 on a v3 row: its damage is
+## final) x Reinforcements x the Prism. A Meta-1 row's damage is an integer (as Run reads it).
 static func hero_damage(s: State) -> float:
-	return float(int(Balance.HEROES[s.hero]["damage"]) + s.p_dmg) * s.hero_dmg * (1.0 + prism_amp(s))
+	var base := float(s.def["damage"]) if s.v3 else float(int(s.def["damage"]))
+	return (base + float(s.p_dmg)) * s.hero_dmg * (1.0 + prism_amp(s))
 
 
 static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> void:
+	if s.v3 and not HeroKinds.starter(s.hero):
+		_kind_attack(lv, s, def, dt)
+		return
 	s.atk_cd -= dt
 	if s.atk_cd > 0.0:
 		return
@@ -854,6 +896,51 @@ static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> voi
 				_hurt_vs(lv, s, i, dmg + float(def["splash"]))
 		else:
 			_hurt(lv, s, i, float(dmg))
+
+
+## Item kind -> the KindView row kind of a target (HeroKinds.attack rows).
+const ROW_KIND := {K.SQUAD: "squad", K.GATE: "gate", K.BARRICADE: "barricade", K.TURRET: "turret", K.GEODE: "geode",
+		K.CRATE: "crate", K.FORTRESS: "fortress"}
+
+
+## A v3 hero's volley (heroes design §6 Run lines, H2): the starters' cooldown and targeting (corridor, range,
+## gates and crates, never the partner of a crate pair), then HeroKinds.attack applies the pattern and its
+## procs through the SimKindView (squad hits land MARK's vs there, as the starters' shots do).
+static func _kind_attack(lv: Level, s: State, def: Dictionary, dt: float) -> void:
+	s.atk_cd -= dt
+	if s.atk_cd > 0.0:
+		return
+	var view := _view(lv, s)
+	var shots := HeroKinds.volley_shots(view, def) + s.p_multi
+	var targets := _targets(lv, s, s.hx, float(def.get("corridor", Balance.CORRIDOR)), float(def["range"]), shots, true)
+	for j in range(targets.size() - 1, 0, -1):
+		var a := lv.items[targets[0]]
+		var b := lv.items[targets[j]]
+		if lv.kind[targets[j]] == K.CRATE and a.has("pair") and b.has("pair") and int(a["pair"]) == int(b["pair"]):
+			targets.remove_at(j)
+	if targets.is_empty():
+		s.atk_cd = 0.0
+		return
+	s.atk_cd += 1.0 / hero_rate(s)
+	s.atk_cd = maxf(s.atk_cd, 0.02)
+	s.casts += 1
+	var rows: Array = []
+	for i in targets:
+		var row := {"id": i, "kind": ROW_KIND.get(lv.kind[i], "barricade"), "d": float(lv.d[i]), "x": float(lv.x[i]),
+				"hp": float(s.hp[i])}
+		match lv.kind[i]:
+			K.GATE:
+				row["x"] = gate_x(lv, i, s.t)
+				row["op"] = str(gate_view(lv, s, i)[0])
+			K.SQUAD:
+				s.hit_t[i] = s.t
+				row["n"] = float(s.hp[i])
+				row["hw"] = float(lv.hw[i])
+				var props: Variant = lv.items[i].get("props")
+				row["flying"] = props is Array and (props as Array).has("flying") \
+						and (s.kv.is_empty() or not grounded(s, i))
+		rows.append(row)
+	HeroKinds.attack(view, def, rows, shots, hero_damage(s))
 
 
 ## Up to `count` live targets ahead, nearest first, whose span is within `lateral` of x.
@@ -990,7 +1077,7 @@ static func _hurt(lv: Level, s: State, i: int, n: float, chain := true) -> float
 # and draws them; STAGGER's knock-back only moves the drawn formation).
 
 ## Floats per item in State.kv.
-const KV := 13
+const KV := 16
 const KV_HOLD_END := 0          ## run time the hold ends
 const KV_HOLD_K := 1            ## hold strength (1 = a full stop)
 const KV_GROUND_END := 2        ## run time the grounding ends
@@ -1004,10 +1091,15 @@ const KV_CHILL := 9
 const KV_CHILL_N := 10
 const KV_SEAL := 11
 const KV_STAGGER := 12
+const KV_EXPOSE_END := 13       ## run time an exposure ends (KindView.expose: the squad loses x (1 + add))
+const KV_EXPOSE_K := 14         ## its add
+const KV_SILENCE_END := 15      ## run time a silenced turret fires again (KindView.silence)
 ## The timed status slots _statuses runs down.
 const KV_TIMED: Array[int] = [KV_MARK, KV_BURN, KV_JOLT, KV_CHILL, KV_SEAL, KV_STAGGER]
-## Ward kinds a hit of each kind may spend (KindView.absorb: a blade contact also spends a contact ward).
-const WARD_KINDS := {&"turret": [&"turret"], &"blade": [&"blade", &"contact"], &"contact": [&"contact"]}
+## Ward kinds a hit of each kind may spend (KindView.absorb: a blade contact also spends a contact ward;
+## a clash tick spends the clash wards of Вартан's wall).
+const WARD_KINDS := {&"turret": [&"turret"], &"blade": [&"blade", &"contact"], &"contact": [&"contact"],
+		&"clash": [&"clash"]}
 
 static var _tethering := false
 
@@ -1297,6 +1389,74 @@ static func ward_spend(s: State, kind: StringName, want: float) -> float:
 	return spent
 
 
+## KindView.expose: squad `i` loses x (1 + add) in clashes for `sec` s (the larger add, the longer time).
+static func expose(lv: Level, s: State, i: int, add: float, sec: float) -> void:
+	if not _live_squad(lv, s, i) or add <= 0.0 or sec <= 0.0:
+		return
+	kv_ready(lv, s)
+	var o := i * KV
+	var k := add
+	if s.kv[o + KV_EXPOSE_END] > s.t:
+		k = maxf(k, s.kv[o + KV_EXPOSE_K])
+	s.kv[o + KV_EXPOSE_K] = k
+	s.kv[o + KV_EXPOSE_END] = maxf(s.kv[o + KV_EXPOSE_END], s.t + sec)
+
+
+## The clash loss multiplier of item `i` now: 1 + its exposure, 1.0 when none.
+static func exposed(s: State, i: int) -> float:
+	var o := i * KV
+	if i < 0 or o + KV > s.kv.size() or s.kv[o + KV_EXPOSE_END] <= s.t:
+		return 1.0
+	return 1.0 + s.kv[o + KV_EXPOSE_K]
+
+
+## KindView.silence: turret `i` kills nothing for `sec` s (the longer time).
+static func silence(lv: Level, s: State, i: int, sec: float) -> void:
+	if i < 0 or i >= s.alive.size() or lv.kind[i] != K.TURRET or sec <= 0.0:
+		return
+	kv_ready(lv, s)
+	var o := i * KV
+	s.kv[o + KV_SILENCE_END] = maxf(s.kv[o + KV_SILENCE_END], s.t + sec)
+
+
+static func silenced(s: State, i: int) -> bool:
+	var o := i * KV
+	return i >= 0 and o + KV <= s.kv.size() and s.kv[o + KV_SILENCE_END] > s.t
+
+
+## KindView.reveal: the hidden gates with d in [d0, d1] show their value (Phantoms are not modelled).
+static func reveal(lv: Level, s: State, d0: float, d1: float) -> void:
+	var lo := _first_at(lv.d, lv.targ, d0)
+	for j in range(lo, lv.targ.size()):
+		var i := lv.targ[j]
+		if lv.d[i] > d1:
+			break
+		if lv.kind[i] == K.GATE:
+			s.rev[i] = 1
+
+
+## KindView.buff: `kind` -> [value, end run time, data] (a new one keeps the larger value, the longer time).
+static func buff(s: State, kind: StringName, value: float, sec: float, data: Dictionary) -> void:
+	if sec <= 0.0:
+		return
+	var b: Array = s.buffs.get(kind, [0.0, 0.0, {}])
+	if float(b[1]) <= s.t:
+		b = [0.0, 0.0, {}]
+	s.buffs[kind] = [maxf(float(b[0]), value), maxf(float(b[1]), s.t + sec), data if not data.is_empty() else b[2]]
+
+
+## The value of buff `kind` now (0 when none or over).
+static func buff_value(s: State, kind: StringName) -> float:
+	var b: Array = s.buffs.get(kind, [])
+	return float(b[0]) if not b.is_empty() and float(b[1]) > s.t else 0.0
+
+
+## The data of buff `kind` now ({} when none or over).
+static func buff_data(s: State, kind: StringName) -> Dictionary:
+	var b: Array = s.buffs.get(kind, [])
+	return b[2] if not b.is_empty() and float(b[1]) > s.t else {}
+
+
 ## Sim row of fielded machine `w` ([id, rank, timer, overflow]).
 static func machine_row(s: State, w: Array) -> Dictionary:
 	var id := str(w[0])
@@ -1335,6 +1495,8 @@ const NEW_WORTH := 80.0
 
 static func _machines(lv: Level, s: State, dt: float) -> void:
 	var amp := prism_amp(s)
+	# A hero kind's machine buff (KindView.buff &"machines", bucket 2: Люмен form V); 0 without one.
+	var b2 := buff_value(s, &"machines") if not s.buffs.is_empty() else 0.0
 	for w: Array in s.weapons:
 		w[2] = float(w[2]) + dt
 		if float(w[2]) < MACHINE_TICK:
@@ -1357,6 +1519,8 @@ static func _machines(lv: Level, s: State, dt: float) -> void:
 		for k in int(w[3]) if w.size() > 3 else 0:
 			over += ArsenalData.overflow_bonus(k + 1)
 		var mult := (1.0 + over) * (1.0 + (amp if lane and str(w[0]) != "prism" else 0.0))
+		if b2 > 0.0:
+			mult *= 1.0 + b2
 		if lv.kind[i] == K.SQUAD:
 			if s.kv.is_empty():
 				_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
@@ -1415,6 +1579,23 @@ static func profile_from_account(acc: Dictionary, level: int, kind := "account")
 		"tactics": {"crate_bonus_mult": 1.0}, "features": ArsenalData.FEATURES,
 		"levels": levels_of(acc),
 	}
+
+
+## The v3 hero block of hero `id` on account `acc` (the shape of Meta._hero_block, guest false: HeroesMeta.profile
+## + HeroesMeta.run_block + {skills, kind, gear, guest}) for dev tools that field any hero on a synthetic account
+## (an unowned hero plays at its Hero Sync level, rank 1, its native gem). HeroKinds.def_for scales by it from
+## heroes phase 2; profile_from_account keeps the Meta-1 block (the champion tools measure on it).
+static func v3_hero_block(acc: Dictionary, id: String) -> Dictionary:
+	var p := HeroesMeta.profile(acc, id)
+	p.merge(HeroesMeta.run_block(acc, id), true)
+	var sk := {}
+	for k in HeroesMeta.SKILLS:
+		sk[k] = HeroesMeta.skill_rank(acc, id, k)
+	p["skills"] = sk
+	p["kind"] = id
+	p["gear"] = HeroesMeta.NO_GEAR.duplicate()
+	p["guest"] = false
+	return p
 
 
 ## Account level of every owned machine {id: lvl} (CratePicker LEVEL_W).
@@ -1508,13 +1689,20 @@ static func apply_profile(s: State, prof: Dictionary) -> void:
 	s.new_crate = str(prof.get("new_crate", ""))
 	var hero: Dictionary = prof.get("hero", {})
 	var assist0: Dictionary = prof.get("assist", {})
-	s.hero_dmg = float(hero.get("dmg_mult", 1.0)) * (1.0 + float(assist0.get("dmg_add", 0.0)))
-	s.hero_hp *= float(hero.get("hp_mult", 1.0))
-	s.ult_rate = float(hero.get("ult_rate_mult", 1.0))
-	s.ult_pow = 1.0 + float(EconData.HERO.get("ult_rank_bonus", 0.2)) * float(clampi(int(hero.get("ult_rank", 1)), 1, 4) - 1)
+	if s.v3:
+		# A v3 row's numbers are final (HeroKinds.def_for): only Reinforcements apply on top.
+		s.hero_dmg = 1.0 + float(assist0.get("dmg_add", 0.0))
+		s.ult_rate = 1.0
+		s.ult_pow = 1.0
+	else:
+		s.hero_dmg = float(hero.get("dmg_mult", 1.0)) * (1.0 + float(assist0.get("dmg_add", 0.0)))
+		s.hero_hp *= float(hero.get("hp_mult", 1.0))
+		s.ult_rate = float(hero.get("ult_rate_mult", 1.0))
+		s.ult_pow = 1.0 + float(EconData.HERO.get("ult_rank_bonus", 0.2)) \
+				* float(clampi(int(hero.get("ult_rank", 1)), 1, 4) - 1)
 	s.aspect = str(hero.get("aspect", "")) if str(hero.get("id", s.hero)) == s.hero else ""
 	if s.aspect == "":
-		s.aspect = str((Balance.HEROES[s.hero] as Dictionary).get("aspect", ""))
+		s.aspect = str(s.def.get("aspect", ""))
 	var am: Dictionary = prof.get("army", {})
 	s.recruit_bonus = float(am.get("recruit_bonus", 0))
 	s.reserves = float(int(am.get("reserves", 0)) + int(am.get("glory_reserves", 0)))
@@ -1607,10 +1795,17 @@ static func _volleys(lv: Level, s: State, dt: float) -> void:
 		s.volley_cd = float(tier["period"])
 		# Ranger aura (§4.3) inside the floor, as in the Run (Weapons volley x Run.volley_mult()).
 		var vm := ChampionKinds.volley_mult(s.champs.members) if s.champs.active() else 1.0
+		if not s.buffs.is_empty():
+			# Hero kind buffs (KindView.buff): Веста's Sun Field x volleys, Сірко V's statuses on the target.
+			vm *= 1.0 + buff_value(s, &"volleys")
 		var dmg := maxf(1.0, s.army * float(tier["volley"]) * vm)
 		if k != K.SQUAD:
 			dmg = maxf(1.0, dmg * float(tier.get("struct_share", 1.0)))
 		_hurt(lv, s, i, dmg)
+		if not s.buffs.is_empty() and k == K.SQUAD:
+			var vs: Dictionary = buff_data(s, &"volley_status")
+			for st: String in (vs.get("statuses", {}) as Dictionary):
+				apply_status(lv, s, i, st, 0.0)
 		return
 	s.volley_cd = 0.0
 
@@ -1619,27 +1814,27 @@ static func _volleys(lv: Level, s: State, dt: float) -> void:
 
 ## True when the ult is charged and not running.
 static func ult_ready(s: State) -> bool:
-	var cap := float((Balance.HEROES[s.hero]["ult"] as Dictionary)["charge"])
+	var cap := float((s.def["ult"] as Dictionary)["charge"])
 	return s.ult >= cap - 0.001 and s.ult_left <= 0.0 and s.quake_wave >= 99
 
 
 ## The auto policy (HeroKinds.ult_worth over a SimKindView; one rule for Run, bot and sim):
-## is there enough to hit right now? The quake also fires for its armour when a hazard is about
-## to cut into a decent army.
+## is there enough to hit right now? A Meta-1 row: the quake also fires for its armour when a hazard
+## is about to cut into a decent army; a v3 row: the §10.4 policy of its kind.
 static func ult_worth(lv: Level, s: State) -> bool:
-	return HeroKinds.ult_worth(HeroKinds.ult_kind(s.hero), SimKindView.new(lv, s), Balance.HEROES[s.hero]["ult"]) >= 1.0
+	return HeroKinds.ult_worth(HeroKinds.ult_kind(s.hero), SimKindView.new(lv, s), s.def["ult"]) >= 1.0
 
 
 static func use_ult(lv: Level, s: State) -> bool:
 	if not ult_ready(s):
 		return false
 	s.ult = 0.0
-	HeroKinds.ult_cast(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), Balance.HEROES[s.hero]["ult"])
+	HeroKinds.ult_cast(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), s.def["ult"])
 	_log(s, "ult at %d" % int(s.d))
 	return true
 
 
-## A running ult (HeroKinds.ult_step: timed ticks or travelling bands).
+## A running ult (HeroKinds.ult_step: timed ticks, travelling bands or an H2 shape).
 static func _ult_step(lv: Level, s: State, def: Dictionary, dt: float) -> void:
 	if s.ult_left > 0.0 or s.quake_wave < 99:
 		HeroKinds.ult_step(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), def["ult"], dt)
@@ -1838,6 +2033,8 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 	for i in lv.tur:
 		if s.alive[i] == 0:
 			continue
+		if not s.kv.is_empty() and silenced(s, i):
+			continue
 		var it := lv.items[i]
 		var reach := float(it.get("range", 7.0))
 		var dz := lv.d[i] - c
@@ -1865,7 +2062,7 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 static func hazard_slow(s: State) -> float:
 	if s.ult_left <= 0.0:
 		return 1.0
-	return HeroKinds.hazard_slow(HeroKinds.ult_kind(s.hero), Balance.HEROES[s.hero]["ult"], s.ult_left)
+	return HeroKinds.hazard_slow(HeroKinds.ult_kind(s.hero), s.def["ult"], s.ult_left)
 
 
 ## Barracks Drill multiplier for a clash with squad `i` (hero hit within Balance.DRILL_WINDOW s).
@@ -1894,11 +2091,16 @@ static func _clash(lv: Level, s: State, dt: float) -> void:
 				_champ_tick(lv, s, f, hit, hazard_slow(s), s.drill_k)
 			else:
 				var lost := hit * hazard_slow(s)
+				var ex := 1.0
 				if not s.kv.is_empty():
 					lost = _held(s, f, lost)
+					ex = exposed(s, f)
+				if not s.wards.is_empty():
+					# Вартан's wall HP (a clash ward) takes the squad's blows first.
+					lost -= ward_spend(s, &"clash", lost)
 				s.army -= lost
 				s.clash_deaths += lost
-				_hurt(lv, s, f, hit * s.drill_k, false)
+				_hurt(lv, s, f, hit * s.drill_k * ex, false)
 		else:
 			s.army = 0.0
 			if not (s.champs.active() and _champ_absorb(lv, s, f)):
@@ -1923,10 +2125,13 @@ static func _champ_tick(lv: Level, s: State, f: int, hit: float, slow: float, dr
 		lost = hit * slow * ChampionKinds.clash_loss_mult(m)
 		if not s.kv.is_empty():
 			lost = _held(s, f, lost)
+		if not s.wards.is_empty() and s.mode == Mode.CLASH:
+			lost -= ward_spend(s, &"clash", lost)
 		lost = minf(lost, s.army)
 	s.army -= lost
 	s.clash_deaths += lost
-	_hurt(lv, s, f, hit * drill_k * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), false)
+	var ex := exposed(s, f) if not s.kv.is_empty() else 1.0
+	_hurt(lv, s, f, (hit * drill_k * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m)) * ex, false)
 	# The tick that breaks the foe costs the front nothing (the Run's result is final at that hit).
 	if s.alive[f] == 1:
 		ChampionKinds.clash_hit(_view(lv, s), m, hit, s.champs.guardian_hero)
@@ -2041,7 +2246,7 @@ static func value(lv: Level, s: State) -> float:
 	if s.arm > 0:
 		var tier: Dictionary = Balance.ARM_TIERS[s.arm]
 		v += s.army * float(tier["volley"]) / float(tier["period"]) * left * 0.1
-	var def: Dictionary = Balance.HEROES[s.hero]
+	var def: Dictionary = s.def
 	var hero_dps := hero_rate(s) * (hero_damage(s) + float(def["splash"])) * (int(def.get("targets", 1)) + s.p_multi)
 	# The hero's fire also pumps gates and opens crates, so it is worth more than its kills.
 	v += hero_dps * left * 0.3

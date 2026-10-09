@@ -9,6 +9,8 @@ extends KindView
 ## H2 verbs (hold, ground, status, status_mult, tether, grant_ward / absorb) keep their records in the
 ## State (LevelSim.State.kv, kv_live, tethers, wards; LevelSim's "KindView records" section), so the
 ## planner's copies branch them; the statuses are LevelSim's expected-value mirror of the Run's Statuses.
+## The v3 hero kinds' verbs (expose, silence, reveal, buff) do the same; the hero's clock is State.uc (a
+## v3 row: it carries the hero kind's counters between steps), the Meta-1 scalars otherwise.
 
 ## The shared empty answers (read-only constants: the rules never change what they get).
 const _NONE: Array = []
@@ -33,8 +35,9 @@ func ult_power() -> float:
 	return s.ult_pow
 
 
+## A v3 row: the State's own clock (State.uc) with the Meta-1 scalars synced in; else a fresh one from them.
 func clock() -> HeroKinds.Clock:
-	var c := HeroKinds.Clock.new()
+	var c := s.uc if s.uc != null else HeroKinds.Clock.new()
 	c.left = s.ult_left
 	c.tick = s.ult_tick
 	c.wave = s.quake_wave
@@ -47,10 +50,16 @@ func store_clock(c: HeroKinds.Clock) -> void:
 	s.ult_tick = c.tick
 	s.quake_wave = c.wave
 	s.quake_d = c.wave_d
+	if s.uc != null:
+		s.uc = c
 
 
 func area_hit(d0: float, d1: float, kills: float, breaks: float, gates: bool) -> void:
 	LevelSim._ult_hit(lv, s, d0, d1, kills, breaks, gates)
+
+
+func siege() -> bool:
+	return s.mode == LevelSim.Mode.SIEGE
 
 
 func grant_armor(sec: float) -> void:
@@ -87,7 +96,7 @@ func army() -> Dictionary:
 	# x = the hero's x, the Run's blob centre (Run._army_center); the lagged s.ax stays the hazards'
 	# model of the trailing soldiers. HeroKinds reads only n.
 	return {"n": s.army, "x": s.hx, "d": LevelSim.army_center_d(s), "radius": Balance.blob_radius(s.army),
-			"reserves": s.reserves, "revive_pool": 0.0}
+			"reserves": s.reserves, "revive_pool": 0.0, "lost": s.hazard_deaths + s.clash_deaths + s.gate_deaths}
 
 
 func fx(event: StringName, _data := {}) -> void:
@@ -120,7 +129,7 @@ func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 		var flying := props.has("flying") and (s.kv.is_empty() or not LevelSim.grounded(s, i))
 		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "n": float(s.hp[i]),
 				"flying": flying, "armored": props.has("armored"),
-				"phantom": props.has("phantom"), "status": _NO_STATUS})
+				"phantom": props.has("phantom"), "status": _NO_STATUS, "hw": float(lv.hw[i])})
 	return out
 
 
@@ -147,7 +156,8 @@ func hazards_in(d0: float, d1: float) -> Array:
 				continue
 		if is_same(out, _NONE):
 			out = []
-		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": kind, "hp": float(s.hp[i])})
+		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": kind, "hp": float(s.hp[i]),
+				"hw": float(lv.hw[i])})
 	var lo_h := LevelSim._first_at(lv.d, lv.haz, d0)
 	for j in range(lo_h, lv.haz.size()):
 		var i := lv.haz[j]
@@ -156,7 +166,54 @@ func hazards_in(d0: float, d1: float) -> Array:
 		if lv.kind[i] == LevelSim.K.BLADE:
 			if is_same(out, _NONE):
 				out = []
-			out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": &"blade", "hp": 0.0})
+			out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": &"blade", "hp": 0.0,
+					"hw": float(lv.hw[i])})
+	return out
+
+
+## hazards_in's structures (no blades) plus crates and the fortress (H2 hero kinds), by d.
+func structures_in(d0: float, d1: float) -> Array:
+	var out: Array = []
+	var lo := LevelSim._first_at(lv.d, lv.targ, d0)
+	for j in range(lo, lv.targ.size()):
+		var i := lv.targ[j]
+		if lv.d[i] > d1:
+			break
+		if s.alive[i] == 0:
+			continue
+		var kind: StringName
+		match lv.kind[i]:
+			LevelSim.K.BARRICADE:
+				kind = &"barricade"
+			LevelSim.K.TURRET:
+				kind = &"turret"
+			LevelSim.K.GEODE:
+				kind = &"geode"
+			LevelSim.K.CRATE:
+				kind = &"crate"
+			LevelSim.K.FORTRESS:
+				kind = &"fortress"
+			_:
+				continue
+		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": kind, "hp": float(s.hp[i]),
+				"hw": float(lv.hw[i])})
+	return out
+
+
+## Gates of rows not crossed yet with d in [d0, d1], nearest first: [{id, row, d, x, hw, kind (the op shown
+## now), value, hidden}].
+func gates_in(d0: float, d1: float) -> Array:
+	var out: Array = []
+	var lo := LevelSim._first_at(lv.d, lv.targ, maxf(d0, s.d))
+	for j in range(lo, lv.targ.size()):
+		var i := lv.targ[j]
+		if lv.d[i] > d1:
+			break
+		if s.alive[i] == 0 or lv.kind[i] != LevelSim.K.GATE:
+			continue
+		var v := LevelSim.gate_view(lv, s, i)
+		out.append({"id": i, "row": int(lv.items[i].get("row", i)), "d": float(lv.d[i]), "x": LevelSim.gate_x(lv, i, s.t),
+				"hw": float(lv.hw[i]), "kind": str(v[0]), "value": float(v[1]), "hidden": s.rev[i] == 0})
 	return out
 
 
@@ -167,14 +224,20 @@ func champions() -> Array:
 ## LevelSim's own hurt path (kills, ult charge, breaking pays out; on a squad x status_mult, then a Jolt
 ## chain and a tether's share, as Run.hurt). Returns the whole soldiers a squad lost (its shown count is
 ## ceil(hp)), MARK's extra included, so the caller books it; 0 for structures.
-func hit(target_id: int, dmg: float, _tags := {}) -> int:
+## Hero kinds (H2): a gate id takes `dmg` hero hits (LevelSim.hero_damage each, as an ult's gate hits); a
+## hit tagged "kind" &"ult" lands without MARK's vs (ults never take it, as in the Run).
+func hit(target_id: int, dmg: float, tags := {}) -> int:
 	if target_id < 0 or target_id >= s.alive.size() or s.alive[target_id] == 0:
+		return 0
+	if lv.kind[target_id] == LevelSim.K.GATE:
+		if dmg > 0.0 and lv.d[target_id] >= s.d:
+			LevelSim._hit_gate(lv, s, target_id, dmg * LevelSim.hero_damage(s))
 		return 0
 	if lv.kind[target_id] != LevelSim.K.SQUAD:
 		LevelSim._hurt(lv, s, target_id, dmg)
 		return 0
 	var before := ceilf(maxf(s.hp[target_id] - 0.001, 0.0))
-	if s.kv.is_empty():
+	if s.kv.is_empty() or tags.get("kind", &"") == &"ult":
 		LevelSim._hurt(lv, s, target_id, dmg)
 	else:
 		# MARK's extra stays out of State.st_kills: it is in the returned drop (the member's kills).
@@ -228,3 +291,30 @@ func absorb(kind: StringName) -> bool:
 func add_soldiers(n: float, _cause: StringName) -> void:
 	s.army += n
 	s.peak = maxf(s.peak, s.army)
+
+
+# ------------------------------------------------------------------ H2: the v3 hero kinds
+
+func revive_champion(id: StringName, hp_frac: float) -> bool:
+	return s.champs.active() and ChampionKinds.revive(self, s.champs.members, String(id), hp_frac)
+
+
+func expose(squad_id: int, add: float, sec: float) -> void:
+	LevelSim.expose(lv, s, squad_id, add, sec)
+
+
+## Armored and Shielded are not modelled in LevelSim: nothing to strip.
+func strip(_squad_id: int, _s: float) -> void:
+	pass
+
+
+func silence(turret_id: int, sec: float) -> void:
+	LevelSim.silence(lv, s, turret_id, sec)
+
+
+func reveal(d0: float, d1: float) -> void:
+	LevelSim.reveal(lv, s, d0, d1)
+
+
+func buff(kind: StringName, value: float, sec: float, data := {}) -> void:
+	LevelSim.buff(s, kind, value, sec, data)
