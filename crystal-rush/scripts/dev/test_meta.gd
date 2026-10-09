@@ -1565,7 +1565,10 @@ func _test_two_track() -> void:
 				a["champions"], a["pity"], a["vault"]["caches"]])
 	_ok(keys.call(free) == keys.call(paid) and int(free["wallet"]["beacons"]) > 0, "60 levels, same seed: Beacons, chest charge, chests, Tomes, Seals, pity, Caches identical with and without SKUs / Gems / coins")
 	# 3. Source scan: only the earned-income rules credit Beacons or Seals.
-	var allowed := ["res://scripts/meta/rewards.gd", "res://scripts/meta/summon.gd", "res://scripts/meta/save_migrate.gd"]
+	# HeroesUIModel is the H3a screens' dev mock: it credits Seals only in its own mock account (_acc), never in
+	# Meta.account, until H3b routes it through Meta / Summon.
+	var allowed := ["res://scripts/meta/rewards.gd", "res://scripts/meta/summon.gd", "res://scripts/meta/save_migrate.gd",
+			"res://scripts/ui/heroes/heroes_ui_model.gd"]
 	var bad: Array = []
 	for f2 in _gd_files("res://scripts"):
 		if f2.begins_with("res://scripts/dev/"):
@@ -1576,6 +1579,9 @@ func _test_two_track() -> void:
 		if credits and not allowed.has(f2):
 			bad.append(f2)
 		var fn := f2.get_file()
+		# seal_shop.gd is the Seal exchange (§7.3: earned Seals spent on a chosen hero), not a money shop.
+		if fn == "seal_shop.gd":
+			continue
 		if (fn.contains("shop") or fn.contains("billing") or fn.begins_with("ads")) and (src.contains("beacon") or src.contains("seals") or src.contains("hero_chest")):
 			bad.append(f2 + " (shop)")
 	_ok(bad.is_empty(), "Beacons / Seals are credited only by Rewards, Summon and the migration: %s" % str(bad))

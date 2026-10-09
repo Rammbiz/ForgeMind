@@ -9,6 +9,13 @@ extends Control
 ## Аспекти (the three aspects, Lv1/10/20), and the dock: the coin plate + the amber
 ## «Покращити» (two taps: arm, confirm). Level-ups are micro ceremonies (flare, glints, a spin);
 ## an Ult rank is a toast. Locked heroes show their gem and when they join.
+##
+## Heroes meta UI (phase H3a): when HeroesUIModel.enabled() (HeroKinds.phase() >= 3, or the dev
+## override HeroesUIModel.force_on) this tab only HOSTS the new «Зала героїв» (HALL_SCRIPT, built by
+## the Hall screen; HeroesHallStub until it exists) and none of the shipped tab below is built.
+## Otherwise the shipped tab runs exactly as before.
+
+const HALL_SCRIPT := "res://scripts/ui/heroes/hall/heroes_hall.gd"
 
 const HEROES: Array[String] = Balance.HERO_ORDER
 const SHEET_H := 468.0          ## the sheet's content height (from its arched top to the page bottom)
@@ -70,6 +77,7 @@ var _lvl_btn: KitCTA
 var _cost: KitCurrencyPlate
 var _lv_num: Label
 var _drag_x := -1.0
+var _hall: Control              ## the new Hall when HeroesUIModel.enabled() (else null)
 static var _portraits := {}     ## hero id -> Texture2D (rendered once per session)
 
 
@@ -90,6 +98,9 @@ func setup(p_hub: Hub) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if HeroesUIModel.enabled():
+		_build_hall()
+		return
 	_idx = maxi(0, HEROES.find(Meta.hero()))
 	# The stage paints the whole screen behind the page (under the top bar and the nav too).
 	_stage = _HeroStage.new()
@@ -177,6 +188,26 @@ func _ready() -> void:
 	UIJuice.sheet_in(_sheet)
 
 
+## Hosts the new Hall (setup(hub, args) / refresh() / on_show() / on_hide() / show_sub(id)).
+func _build_hall() -> void:
+	var scr: GDScript = load(HALL_SCRIPT) if ResourceLoader.exists(HALL_SCRIPT) else HeroesHallStub
+	_hall = scr.new()
+	_hall.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if _hall.has_method("setup"):
+		_hall.call("setup", hub, PackedStringArray())
+	add_child(_hall)
+
+
+## The hosted Hall (null on the shipped tab).
+func hall() -> Control:
+	return _hall
+
+
+func on_hide() -> void:
+	if _hall and _hall.has_method("on_hide"):
+		_hall.call("on_hide")
+
+
 func _layout() -> void:
 	# The sheet keeps its chrome; tall phones give the extra height to the stage. Placed by hand
 	# (not anchored) so an early zero-size layout cannot grow its offsets.
@@ -205,6 +236,10 @@ func _below_page() -> float:
 
 
 func on_show() -> void:
+	if _hall:
+		if _hall.has_method("on_show"):
+			_hall.call("on_show")
+		return
 	refresh()
 
 
@@ -255,6 +290,10 @@ func _goto(i: int) -> void:
 
 ## Shows hero `id` (dev tools / screenshots).
 func show_hero(id: String) -> void:
+	if _hall:
+		if _hall.has_method("show_hero"):
+			_hall.call("show_hero", id)
+		return
 	var i := HEROES.find(id)
 	if i >= 0:
 		_idx = i
@@ -263,6 +302,10 @@ func show_hero(id: String) -> void:
 
 ## Selects a sheet tab ("attr" | "ult" | "aspect") (dev tools / screenshots).
 func show_tab(t: String) -> void:
+	if _hall:
+		if _hall.has_method("show_sub"):
+			_hall.call("show_sub", t)
+		return
 	_tabs.select(t, true)
 
 
@@ -279,6 +322,10 @@ func _on_tab(t: String) -> void:
 
 
 func refresh() -> void:
+	if _hall:
+		if _hall.has_method("refresh"):
+			_hall.call("refresh")
+		return
 	if not is_node_ready():
 		return
 	var id := HEROES[_idx]
@@ -589,6 +636,8 @@ func _build_dock(id: String, unlocked: bool) -> void:
 
 ## The dock's upgrade press (dev tools / screenshots call it too).
 func press_upgrade() -> void:
+	if _hall:
+		return
 	if is_instance_valid(_lvl_btn) and not _lvl_btn.disabled:
 		_press_level(HEROES[_idx])
 
