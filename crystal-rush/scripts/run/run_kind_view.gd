@@ -86,8 +86,8 @@ func in_fight() -> bool:
 
 ## d = the blob CENTRE's run distance (the champion slots hang off it, as LevelSim.army_center_d),
 ## x = the blob centre x (the blob follows the hero's x); reserves = the Barracks soldiers due at the
-## siege; revive_pool = what the living Healer champions hold (ChampionKinds.feed); lost = the soldiers
-## lost this run from any cause (Run.lost_total: the ward and the army_loss policy read it).
+## siege; lost = the soldiers lost this run from any cause (Run.lost_total: the ward and the army_loss
+## policy read it). revive_pool stays 0 as in SimKindView (a Healer hero's pool is HeroKinds.Clock.pool).
 func army() -> Dictionary:
 	var r := run.blob_radius()
 	_army["n"] = float(run.army)
@@ -95,11 +95,6 @@ func army() -> Dictionary:
 	_army["d"] = run.d - Balance.HERO_GAP - r * Balance.BLOB_STRETCH
 	_army["radius"] = r
 	_army["reserves"] = float(run.army_view.reserves()) if run.army_view else 0.0
-	var pool := 0.0
-	for m: Dictionary in run.champions.members:
-		if bool(m["alive"]) and str(m["class"]) == "healer":
-			pool += float(m["pool"])
-	_army["revive_pool"] = pool
 	_army["lost"] = run.lost_total
 	return _army
 
