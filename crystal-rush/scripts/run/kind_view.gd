@@ -7,9 +7,11 @@ extends RefCounted
 ## Distances are run distances `d` (>= 0, ahead = larger; the scene's z is -d). Every default
 ## below is the "nothing there" answer, so a view only overrides what its rules use.
 ##
-## Phase H0 uses: distance, ult_power, clock / store_clock, area_hit, grant_armor, in_fight,
-## threat_ahead, hazard_near, army, fx. The §10.4 per-target queries and verbs (squads_in ...
-## absorb) and champions() are declared for H2 (new hero kinds and champions) and return empty.
+## HeroKinds (H0) uses: distance, ult_power, clock / store_clock, area_hit, grant_armor, in_fight,
+## threat_ahead, hazard_near, army, fx. ChampionKinds (H2) uses: army, in_fight, squads_in,
+## hazards_in, hit, status, add_soldiers, fx (the champ_* events listed at ChampionKinds.FX).
+## Target ids are ints the view owns (Run: RunKindView maps them to the run's item dictionaries,
+## LevelSim: the item index); hit / status accept exactly the ids squads_in / hazards_in returned.
 
 
 # ------------------------------------------------------------------ H0: starters' rules
@@ -61,7 +63,8 @@ func hazard_near(_ahead: float) -> bool:
 	return false
 
 
-## {n, x, d, radius, reserves, revive_pool}
+## {n, x, d, radius, reserves, revive_pool}: d = the blob CENTRE's run distance (champion slots
+## hang off it), x = the blob centre x.
 func army() -> Dictionary:
 	return {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0}
 
@@ -71,9 +74,10 @@ func fx(_event: StringName, _data := {}) -> void:
 	pass
 
 
-# ------------------------------------------------------------------ H2: declared, empty in H0
+# ------------------------------------------------------------------ H2: champions and new hero kinds
 
-## [{id, d, x, n, flying, armored, phantom, status}]
+## Living squads with d in [d0, d1] whose span overlaps [x0, x1]:
+## [{id, d, x, n, flying, armored, phantom, status}] (n = soldiers left).
 func squads_in(_d0: float, _d1: float, _x0: float, _x1: float) -> Array:
 	return []
 
@@ -83,17 +87,19 @@ func gates_in(_d0: float, _d1: float) -> Array:
 	return []
 
 
-## [{id, d, x, kind, hp}]
+## Living structures with d in [d0, d1]: [{id, d, x, kind, hp}], kind = barricade | blade | turret |
+## geode (blades cannot be hit; the rules skip them).
 func hazards_in(_d0: float, _d1: float) -> Array:
 	return []
 
 
-## [{id, slot, hp, alive, x, d}] (ChampionKinds / Champions; empty until phase H2).
+## The run's Champions.members (ChampionKinds.member rows; empty while champions are off).
 func champions() -> Array:
 	return []
 
 
-## Damages one target; returns the kills.
+## Damages one target ("src" = champion / hero id, "kind" = the action) and returns the kills (squad
+## soldiers removed; 0 for structures). The owner's normal hurt path: kill coins, ult charge, statuses.
 func hit(_target_id: int, _dmg: float, _tags := {}) -> int:
 	return 0
 
@@ -109,6 +115,11 @@ func lose(_n: int, _cause: StringName) -> void:
 
 func revive_champion(_id: StringName, _hp_frac: float) -> bool:
 	return false
+
+
+## Soldiers come back to the army (Healer Mend; Run: spawned at the blob front with a heal fx).
+func add_soldiers(_n: float, _cause: StringName) -> void:
+	pass
 
 
 func ground(_squad_id: int, _s: float) -> void:

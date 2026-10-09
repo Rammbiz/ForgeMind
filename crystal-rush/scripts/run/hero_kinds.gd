@@ -73,7 +73,7 @@ class Clock extends RefCounted:
 # ------------------------------------------------------------------ phase flag
 
 static func phase() -> int:
-	return EconData.HEROES_PHASE
+	return EconData.heroes_phase()
 
 
 static func champions_live() -> bool:
