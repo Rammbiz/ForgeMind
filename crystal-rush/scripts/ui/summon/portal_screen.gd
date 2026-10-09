@@ -198,6 +198,15 @@ func _summon_button(count: int, amber: bool, can: bool, cost: int, have: int, we
 		cta.topaz = count == PortalData.X10_SUMMONS or welcome
 		cta.on_dark = true
 		b = cta
+	elif UITokens.cta_style == "porcelain":
+		# Porcelain key button: the other summon is a ghost on the night (0.16 glass, one 1 dpx
+		# line, warm-white text, like the summary's «Готово»). The kit's 0.5 secondary glass turns
+		# a grey slab over the night with ink at ~3:1; the ghost keeps ~6:1 and leaves porcelain
+		# the one filled button. Disabled: the same ghost, the text at 0.55.
+		b = UIKit.ghost_button(label + "\n" + sub, Vector2(160, 104), 24, true)
+		b.add_theme_stylebox_override("disabled", UIKit.lux("ghost"))
+		var dc := UITokens.ON_SCENE
+		b.add_theme_color_override("font_disabled_color", Color(dc.r, dc.g, dc.b, 0.55))
 	else:
 		b = UIKit.button(label + "\n" + sub, false, 160)
 		b.add_theme_font_size_override("font_size", 24)

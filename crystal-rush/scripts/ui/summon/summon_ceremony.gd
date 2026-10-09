@@ -378,13 +378,19 @@ func _ready() -> void:
 	add_child(_dock)
 	var target := _hero_target()
 	if target != "":
-		_to_hero = UIKit.button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), false, 300)
-		_to_hero.custom_minimum_size = Vector2(300, 88)
-		_to_hero.add_theme_font_size_override("font_size", 24)
+		if UITokens.cta_style == "porcelain":
+			# Porcelain key button: on the night both summary actions are ghosts (the kit's 0.5
+			# secondary glass reads as a grey slab with ink at ~2.6:1 here).
+			_to_hero = UIKit.ghost_button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), Vector2(300, 88), 24, true)
+		else:
+			_to_hero = UIKit.button(HeroesText.t("SUMMON_TO_HERO", [HeroesText.name_of(target)]), false, 300)
+			_to_hero.custom_minimum_size = Vector2(300, 88)
+			_to_hero.add_theme_font_size_override("font_size", 24)
 		_to_hero.pressed.connect(func(): _open_hero(target))
 		_dock.add_child(_to_hero)
 	# «Готово» is a ghost on the night (0.16 glass, one 1 dpx line, warm-white text), «До героя»
-	# the one secondary glass: never two equal cream slabs under the art.
+	# the one secondary glass (a ghost too under the porcelain key style): never two equal cream
+	# slabs under the art.
 	_done = UIKit.ghost_button(HeroesText.t("SUMMON_DONE"), Vector2(300, 88), 24, true)
 	_done.pressed.connect(_close)
 	_dock.add_child(_done)
