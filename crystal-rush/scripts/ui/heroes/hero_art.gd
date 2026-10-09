@@ -37,6 +37,9 @@ const META := {
 	"pava": {"crop": Rect2(0.25, 0.14, 0.60, 0.41), "eye": Vector2(0.55, 0.30), "focus_x": 0.6, "veil": 0.6},
 	# Champions (card.png = the 3:4 card; splash.png = the full 9:16 art for cameos)
 	"otto": {"crop": Rect2(0.0, 0.17, 1.0, 0.744), "eye": Vector2(0.43, 0.335), "focus_x": 0.55},
+	"alba": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.51, 0.33), "focus_x": 0.52},
+	"mila": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.58, 0.30), "focus_x": 0.55},
+	"ivo": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.57, 0.32), "focus_x": 0.55},
 }
 
 static var _tex: Dictionary = {}          ## path -> Texture2D (or null when missing)
