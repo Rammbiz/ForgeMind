@@ -122,13 +122,33 @@ func add_soldiers(_n: float, _cause: StringName) -> void:
 	pass
 
 
+## Grounds Flying squad `squad_id` for `s` seconds: it counts as a ground squad (no Flying bonuses
+## or immunities, ground-only attacks reach it). No-op on a squad that is not Flying.
 func ground(_squad_id: int, _s: float) -> void:
 	pass
 
 
-func hold(_squad_id: int, _s: float) -> void:
+## Holds squad `squad_id` for `s` seconds at `strength` (1 = a full stop, Арін's anchor chain; 0.5 =
+## Тая's lull): its advance speed and the clash losses it deals are both x (1 - strength). A new hold
+## keeps the stronger strength and the longer time.
+func hold(_squad_id: int, _s: float, _strength := 1.0) -> void:
 	pass
 
 
+## Takes one hit of `kind` (turret | blade | contact = a blade or barricade contact) off the army if
+## a shield / ward is up (hero ult wards: Пава, Вартан); true = absorbed (consumes one charge).
 func absorb(_kind: StringName) -> bool:
 	return false
+
+
+## Tethers squads `a` and `b` for `s` seconds: `share` of every damage one takes (from any source)
+## also hits the other (Дара's harpoon, §6.21).
+func tether(_a: int, _b: int, _share: float, _s: float) -> void:
+	pass
+
+
+## Expected-value status model for LevelSim (the Run's Statuses do the real thing): the damage
+## multiplier a hit on `target_id` gets from its statuses now (MARK vulnerability, BRAND / SEAL ...),
+## 1.0 when none. The rules never need it; views use it inside hit().
+func status_mult(_target_id: int) -> float:
+	return 1.0

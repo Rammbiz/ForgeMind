@@ -129,7 +129,7 @@ const TWISTS := {
 	# template Block ~0.13 soldiers / s; 1 tick per 8 s is still x6.2, per 60 s x2.6 (bolt).
 	"otto": {"plant_ticks": 2, "plant_cd": 8.0, "plant_share": 0.5},
 	# §6.16 Тая — Пилок снів: squads hit are lulled 1.5 s (50% speed and clash damage; KindView.hold).
-	"taya": {"lull_s": 1.5},
+	"taya": {"lull_s": 1.5, "lull_strength": 0.5},
 	# §6.17 Брант — Розжарені клинки: BURN on the clash squad; the leap's status also burns <= 1.5 u.
 	"brant": {"fight_status": "burn", "fight_every": 1.0, "fight_s": 3.0, "fight_fx": &"blades", "splash_r": 1.5},
 	# §6.18 Тео — Зоряний зонд: homing; every 4th shot is a probe (MARK 3 s, reveals Phantom <= 14 u).
@@ -641,8 +641,8 @@ static func _mage(view: KindView, m: Dictionary, dt: float) -> void:
 			if st != &"":
 				view.status(sid, st, float(c["status_s"]))
 			if lull > 0.0:
-				# Тая's lull: 50% speed and clash damage (the view's hold verb).
-				view.hold(sid, lull)
+				# Тая's lull: 50% speed and clash damage (the view's hold verb at strength 0.5).
+				view.hold(sid, lull, float(tw.get("lull_strength", 0.5)))
 				lulled += 1
 	var smult := float(c["struct_iii"]) if tier >= 3 else 1.0
 	for h: Dictionary in view.hazards_in(cd0 - rad, cd0 + rad):

@@ -133,8 +133,8 @@ class TwistView extends KindView:
 	func status(target_id: int, st: StringName, sec: float) -> void:
 		statuses.append([target_id, st, sec])
 
-	func hold(squad_id: int, sec: float) -> void:
-		holds.append([squad_id, sec])
+	func hold(squad_id: int, sec: float, strength := 1.0) -> void:
+		holds.append([squad_id, sec, strength])
 
 	func ground(squad_id: int, sec: float) -> void:
 		grounds.append([squad_id, sec])
