@@ -41,6 +41,7 @@ const META := {
 	"mila": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.58, 0.30), "focus_x": 0.55},
 	"ivo": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.57, 0.32), "focus_x": 0.55},
 	"borko": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.47, 0.30), "focus_x": 0.55},
+	"taya": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.46, 0.39), "focus_x": 0.6},
 }
 
 static var _tex: Dictionary = {}          ## path -> Texture2D (or null when missing)
