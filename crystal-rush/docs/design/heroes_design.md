@@ -12,14 +12,14 @@ exported to `heroes/heroes_consts.json`. Display names are uk first, then en. Pa
 layouts (§9).
 
 Contents: 0 Owner summary · 1 Pillars and owner decisions · 2 Rarity and the native ceiling · 3 Hero progression ·
-4 Champions · 5 Classes, elements, factions, synergies · 6 Roster (10 heroes, 12 champions) · 7 Portal, Seals, Hero
+4 Champions · 5 Classes, elements, factions, synergies · 6 Roster (10 heroes, 13 champions) · 7 Portal, Seals, Hero
 Chests, Workshop, odds, pity · 8 Economy and sim results · 9 Screens and ceremonies · 10 Run integration and performance ·
 11 Onboarding and unlock pacing · 12 Save v3, data, Loc, telemetry, tests · 13 Implementation plan · 14 Art production
 plan · 15 Risks and open questions.
 
 ## 0. Owner summary (one page, plain language)
 
-**What you get.** 10 heroes (2 per gem, Кварц → Опал) who lead the run, and 12 champions (3 per gem, Кварц → Топаз)
+**What you get.** 10 heroes (2 per gem, Кварц → Опал) who lead the run, and 13 champions (3 per gem Кварц → Аметист, 4 of Топаз since Тарас joined)
 who walk inside the crowd as commanders and act on their own. A team is 1 hero + 2 champions from level 14, 3 from
 level 40. Руді, Горан and Мейра stay the starters (Мейра visits for one level at L5 and joins at the World 3 boss).
 
@@ -95,7 +95,7 @@ in place).
 | 13 | 2D splash + live 3D | layered splash (cutout + rig + fx masks) on the Showcase; «Деталі» = live 3D on a gem stage + cream sheet | 9.3 | ✓ |
 | 14 | Champions = squad commanders | own clip characters in the crowd, act on their own, aura on nearby soldiers, can fall | 4.2, 10 | ✓ (Mage aura now lifts soldiers too) |
 | 15 | Cinematic reveal for rare ones, skippable | Q 1.2 s · S 1.8 s · Amethyst / Topaz / Opal walkouts 0.6 + 2.6 / 3.6 / 5.0 s, skippable from 0.5 s | 9.4 | ✓ |
-| 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz | 6 | ✓ |
+| 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz; + C23 Тарас (owner request 2026-10-09, Topaz) | 6 | ✓ |
 | 17 | Humans, beasts, creatures | 7 · 7 · 8 | 6 | ✓ |
 | 18 | Name + title, readable in uk and en | 22 names; 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
 | 19 | Forge + trophies, little randomness | «Майстерня / Workshop» (your "Forge"): craft exactly what is shown, one material «Зоряна руда», 7 boss trophies (+3 ranks from each night boss), zero randomness | 3.4 | ✓ (name: §15 Q6) |
@@ -301,7 +301,7 @@ the cap at (g, 5) equals the cap at (g + 1, 0) for natives and rises by 1 for re
 6. `test_monotone`: no number decreases along a ladder path.
 7. `test_kit_budget`: every hero's KIT_INDEX profile within ±1.5% of P0 at every reference state; every item inside its
    band (table above).
-7c. `test_champion_budget`: all 12 champions' KIT_INDEX within ±3% of P0_c; each Action tier rule +4% ± 0.5 pp.
+7c. `test_champion_budget`: every champion's KIT_INDEX within ±3% of P0_c; each Action tier rule +4% ± 0.5 pp.
 8. `test_no_loss_migration`: a v2 hero's damage, HP and ult power after migration ≥ its v2 numbers (sim §1d: Titan Lv5
    ×1.20 → ×1.20, Lv25 ×1.60 → ×1.96).
 9. `test_rule3_equal_ranks`: ∀ n < g, ∀ f, ∀ r ≤ awaken_cap(n, g): index(recut, r) < index(native, r).
@@ -495,12 +495,12 @@ counting machine Feats only), so no paid or coin-bought progress can reach a ran
 
 | Aspect | Rule |
 |---|---|
-| Roster | 12 at launch: 3 natives each of Кварц, Сапфір, Аметист, Топаз. Opal is hero-only. Recut stops at Топаз (`CHAMPION_MAX_GEM = "L"`). |
+| Roster | 12 at launch: 3 natives each of Кварц, Сапфір, Аметист, Топаз; + C23 Тарас (Топаз, owner request 2026-10-09) = 13, so Топаз holds 4. Opal is hero-only. Recut stops at Топаз (`CHAMPION_MAX_GEM = "L"`). |
 | Sources | Hero Chests and Grand Hero Chests (copies); the two scripted first chests. Never the Portal, never Seals, never a SKU. |
 | Tracks | Facets & recut (fragments, same tables as heroes) · **Champion Level** (one shared coin track, Lv1–20, `cl(L) = 1 + 0.04 (L − 1)`, cost `round(40·L^1.5/10)·10`, 26 840 coins in total, cap `2 + 2 × world_reached`, 20 in Invasion) · **Relic** (Star Ore, +0…+12, +3% +1%/rank on HP, Action and Aura, three named modifiers). No Tomes, no gear slots. |
 | Skills | **Action** (class template + the champion's twist; tier I–IV = native gem + 1, fixed at birth, a recut keeps its tier) and **Aura** (class hook; value capped at `AURA_CAP 0.40`; effect = value × the slot's fixed share). |
 | Duplicates | `DUP_FRAGS[native]`; past Топаз f5 → Tomes 20 : 1. |
-| Chest Focus | when every champion of a gem is owned, the Focus champion gets exactly **60%** of that gem's champion cards (the other two 20% each). |
+| Chest Focus | when every champion of a gem is owned, the Focus champion gets exactly **60%** of that gem's champion cards; the others share 40% evenly (20% each of two, 13.33% each of three in Топаз). |
 | Synergy | counts fully, native-blind and gem-blind. |
 | Budget (critique M2) | power weight `W_C = 0.012` per champion-index point (a native champion at f0 Lv1 ≈ 4.8% of the Lv1 hero term); expected uptime 0.94 (champions can fall); invariant **champions + synergy ≤ 12% of power growth at L60** (measured 7.7–8.6%). Every kit's `ChampionData.KIT_INDEX` = P0_c ± 3% in LevelSim (§2.3). |
 
@@ -532,7 +532,7 @@ counting machine Feats only), so no paid or coin-bought progress can reach a ran
 Trims against part R (critique M2): Warrior Cleave 0.20 → 0.07 kills/tick and leap 4 → 3; Mage Spell 3 → 4 kills,
 cooldown 5 → 4 s; Guardian Block cooldown 6 → 5 s + 1 kill; Healer pulse 2 → 3 soldiers. Each class lands at value
 ≈ 1.0 / s at f0 Lv1 (Warrior ≈ 0.3 clash + 0.4 leap + aura; Ranger 0.83 + aura; Mage 1.0–1.2; Guardian ≈ 4 soldiers
-per 5 s + 0.2; Healer ≤ 1.0 pool-limited). Twists (§6.11–6.22) are tuned inside ±3%.
+per 5 s + 0.2; Healer ≤ 1.0 pool-limited). Twists (§6.11–6.22, §6.25) are tuned inside ±3%.
 
 ### 4.4 Champion numbers by gem (generated, `heroes_tables.py` §D)
 
@@ -553,6 +553,7 @@ slot share (value capped 0.40; right column with relic +12):
 | Німб `nimb` | Топаз · Guardian · front | 76 / 138 / — | Lightning Rod dmg ×3 targets 2.52 / 4.60 | clash −0.126 → 4.4% / 0.264 → 9.2% | IV |
 | Дара `dara` | Топаз · Ranger · rear | 33 / 60 / — | shot dmg (harpoon every 3rd) 1.26 / 2.30 | volleys +0.189 → 4.7% / 0.396 → 9.9% | IV |
 | Менгір `menhir` | Топаз · Mage · right | 33 / 60 / — | rune-strike kills per squad 5.04 / 9.19 | volley status proc 0.189 → 5.7% / 0.396 → 11.9% | IV |
+| Тарас `taras` | Топаз · Mage · rear | 33 / 60 / — | The Word kills per squad 5.04 / 9.19 | volley status proc 0.189 → 4.7% / 0.396 → 9.9% | IV |
 
 Max-investment ratio of a recut champion to the weakest native Topaz of any class (rule #3, cross-class): ≤ 0.983 with
 every kit at ±3% (§2.3). The Champion Showcase prints the ceiling: «Ярус IV — лише для корінних Топазів».
@@ -593,7 +594,7 @@ in the same release (Мейра's Rune affinity switches on inside the EXPECTED 
 | `celestial` | Небожителі / Celestials | star-born beings of the Rift | W7 | +3% · +6% · +10% machine damage (bucket 2) |
 
 Only the highest tier of each faction is active; a 2 + 2 team runs two tier-I factions. Each faction has 2–3 heroes and
-exactly 3 champions, so a mono-faction team of 4 is always possible. Faction identity lives in trophies, item looks and
+3–4 champions (Дикі Ікла 4 since C23 Тарас), so a mono-faction team of 4 is always possible. Faction identity lives in trophies, item looks and
 set bonuses; there is one material (Star Ore).
 
 ### 5.4 Rally hooks and their parity bases (each hero uses exactly one; S's per-hook value ≈ 3 Barracks levels)
@@ -630,12 +631,12 @@ set bonuses; there is one material (Star Ore).
 |---|---|---|---|
 | Воїн | Арін, Веста | Борко, Брант | 4 |
 | Стрілець | Руді, Іскар | Альба, Тео, Дара | 5 |
-| Маг | Мейра, Люмен | Тая, Менгір | 4 |
+| Маг | Мейра, Люмен | Тая, Менгір, Тарас | 5 |
 | Страж | Горан, Вартан | Іво, Отто, Німб | 5 |
 | Цілитель | Ейра, Пава | Міла, Олена | 4 |
-| Kinetic · Volt · Frost · Plasma · Tech · Rune | Горан, Арін · Руді, Іскар · Ейра · Веста, Люмен · Вартан · Мейра, Пава | Борко, Отто · Німб, Дара · Альба, Олена · Іво, Брант · Міла, Тео · Тая, Менгір | 4 · 4 · 3 · 4 · 3 · 4 |
+| Kinetic · Volt · Frost · Plasma · Tech · Rune | Горан, Арін · Руді, Іскар · Ейра · Веста, Люмен · Вартан · Мейра, Пава | Борко, Отто · Німб, Дара · Альба, Олена · Іво, Брант · Міла, Тео · Тая, Менгір, Тарас | 4 · 4 · 3 · 4 · 3 · 5 |
 | Орден Світанку | Арін, Ейра, Веста | Міла, Іво, Дара | 6 |
-| Дикі Ікла | Руді, Мейра, Пава | Борко, Альба, Олена | 6 |
+| Дикі Ікла | Руді, Мейра, Пава | Борко, Альба, Олена, Тарас | 7 |
 | Кам'яне Серце | Горан, Вартан | Отто, Брант, Менгір | 5 |
 | Небожителі | Іскар, Люмен | Тая, Тео, Німб | 5 |
 
@@ -643,7 +644,7 @@ Designed pairs (★): Горан + Отто (scripted first chest for Горан
 Альба (scripted for Руді: Wildfang I + Ranger pair + SUPERCONDUCT) · Арін + Борко (Warrior pair + double stagger) · Ейра
 + Олена (Healer pair + Frost ×2) · Мейра + Тая (Mage pair) · Іскар + Тео (Celestials + Ranger pair; MARK down the lane) ·
 Веста + Міла (Dawn + FLARE) · Вартан + Брант (Stoneheart + FLARE) · Люмен + Тая (Celestials + Mage pair) · Пава + Олена
-(Wildfang + Healer pair).
+(Wildfang + Healer pair) · Мейра + Тарас (Wildfang + Mage pair + Rune ×2).
 
 Reactions are arsenal §2.1 (unchanged): JOLT + CHILL = SUPERCONDUCT · BURN + CHILL = THERMAL SHOCK · MARK + BURN = FLARE.
 
@@ -653,16 +654,16 @@ Reactions are arsenal §2.1 (unchanged): JOLT + CHILL = SUPERCONDUCT · BURN + C
 | «Кам'яна стіна / Stonewall» | Горан + Отто + Іво (+ Брант / Менгір) | Горан L4, Отто = scripted chest #1, Іво = Кварц | walks through blades, breaks walls |
 | «Варта Світанку / Dawn Watch» | Арін + Міла + Іво (+ Дара) | Арін = commonest Portal hero, Міла = scripted chest #2 | wins by soldiers at the fortress |
 
-## 6. Roster: 10 heroes and 12 champions (full sheets)
+## 6. Roster: 10 heroes and 13 champions (full sheets)
 
 ### 6.0 At a glance
 
-Collector numbers: heroes 01–10, champions 11–22 (in gem order). Names read the same in uk and en; titles translate.
+Collector numbers: heroes 01–10, champions 11–23 (in gem order; C23 Тарас joined after launch). Names read the same in uk and en; titles translate.
 Five titles changed after the IP / meaning review (critique X21): Руді «Громовий лис / Thunder Fox» (was "the Bolt", a
 2008 film), Горан «Кам'яний велет / the Stone Titan» (was «Громило», uk "thug"), Альба «Сніжне Перо / Snowquill" (the
 white feather means cowardice in English), Німб «Щит бурі / Storm Aegis» (Stormshield is a known MMO city), Олена
 «Морозна знахарка / Frost Herbalist». Before the splash prompts are final the owner runs a store / trademark search on all
-22 names + titles (§15 Q8).
+23 names + titles (§15 Q8).
 
 | № | id | Name | Title uk / en | Gem | Class | Element | Faction | Species · gender | Niche | Ult kind | Source |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -691,9 +692,10 @@ white feather means cowardice in English), Німб «Щит бурі / Storm Ae
 | 20 | `nimb` | Німб / Nimb | Щит бурі / Storm Aegis | Відводить блискавку / Grounds the lightning | Топаз | Guardian | Volt | Celestials | creature (storm knight) · n |
 | 21 | `dara` | Дара / Dara | Небесна гарпунниця / Sky Harpooner | Зшиває загони / Stitches squads together | Топаз | Ranger | Volt | Dawn | human · f |
 | 22 | `menhir` | Менгір / Menhir | Старійшина рун / Rune Elder | Креслить рунні кола / Carves rune circles | Топаз | Mage | Rune | Stoneheart | creature (runestone) · n |
+| 23 | `taras` | Тарас / Taras | Кобзар / The Kobzar | Пробиває загони словом / Breaks squads with the Word | Топаз | Mage | Rune | Wildfang | human · m |
 
-Coverage: classes W 4 · R 5 · M 4 · G 5 · H 4; elements Kin 4 · Volt 4 · Plasma 4 · Rune 4 · Frost 3 · Tech 3;
-factions 6 · 6 · 5 · 5; species humans 7 · beasts 7 · creatures 8. The two heroes of a gem never share a class or a
+Coverage: classes W 4 · R 5 · M 5 · G 5 · H 4; elements Kin 4 · Volt 4 · Plasma 4 · Rune 5 · Frost 3 · Tech 3;
+factions 6 · 7 · 5 · 5; species humans 8 · beasts 7 · creatures 8. The two heroes of a gem never share a class or a
 splash pose. The enemy horde is «Жаророгі / the Emberhorn» (lore only).
 
 **How to read a sheet.** *Kit* = stored Quartz-normalised; *eff* = what the native sees (× NATIVE_MULT). Rank tables are
@@ -1088,6 +1090,8 @@ of a thousand eyes opens behind her; the eyes blink open in a wave.
 
 ### 6.11–6.22 Champions — common rules
 
+These rules cover C23 Тарас too (his sheet is §6.25, after the Loc appendix, so the § numbers above stay).
+
 - **Numbers** are the §4.4 generated rows (kit × ladder × `cl(L)` × relic): *native f0 Lv1 / native f5 Lv20 / recut to
   Топаз f5 Lv20*. Tier extras (II–IV) come on top of the main number and are counted in `KIT_INDEX` (P0_c ± 3%).
   Durations, radii, counts and ticks never scale.
@@ -1368,7 +1372,7 @@ inlaid with topaz, star-cut heart gem). **Special:** palm slam on the road (circ
 | `celestial` | Місячне жало / Moonsilver Sting | Зоряна мантія / Starglass Mantle | Підвіска-орбіта / Orbit Pendant |
 
 Boss trophies reuse these 12 names with a provenance line («Трофей: Кракен / Trophy: the Kraken»). Hero relic names
-and beats are on each hero sheet; champion relics are on §6.11–6.22.
+and beats are on each hero sheet; champion relics are on §6.11–6.22 and §6.25.
 
 ### 6.24 Loc appendix — uk lore (`HERO_<ID>_LORE`, `CHAMP_<ID>_LORE`; " / " = line break; en = the sheets)
 
@@ -1396,6 +1400,7 @@ and beats are on each hero sheet; champion relics are on §6.11–6.22.
 | nimb | Німб — гроза, що пройшла крізь Розлом і вирішила лишитися; Небожителі дали їй обладунок, щоб вона мала форму. / Він п'є блискавки: леза й розряди, націлені на воїнів, вигинаються до нього й зникають у хмарі. / Коли він задоволений, то гуркоче — і воїни навчилися вважати це добрим знаком. |
 | dara | Дара була капітанкою китобійного човника в Небесній гавані й полювала на грозових скатів між хмарами. / Тепер вона полює на планери Жаророгих: її гарпунний трос стягує летуна з неба й зшиває два загони докупи. / Вона виграє кожен двобій на руках на причалах — Аріна теж. |
 | menhir | Менгір тисячу зим стояв на перевалі Крижаних вершин, і Кам'яне Серце вирізало на ньому свою історію. / Коли Жаророгі спробували його звалити, руни прокинулися — і він пішов. / Він пам'ятає кожне ім'я, вирізане на ньому, і читає їх уголос перед кожним боєм. |
+| taras | Тарас прийшов у Рунічний ліс із торбою книжок і навчив звіролюдей записувати власні пісні. / Його слово не горить: коли Жаророгі підпалили ліс, сторінки його книжок знялися в повітря й розтяли полум'я, мов леза. / Він вірить, що вчасно сказане слово сильніше за будь-яку зброю, — і кожен бій починає з рядка. |
 
 Champion en lore (3 lines each, same order as uk; en for heroes is on the hero sheets):
 **mila** Mila was the youngest apprentice in the orbital temple's infirmary, and always the first one out to the field. /
@@ -1424,12 +1429,50 @@ soldiers take that as a good omen. **dara** Dara captained a whaling skiff in th
 her harpoon line pulls Emberhorn gliders out of the sky and stitches raiding parties together. / She wins every
 arm-wrestling match on the piers, Arin's included. **menhir** Menhir stood on the Frost Peaks pass for a thousand winters
 while the Stoneheart carved their history into it. / When the Emberhorn tried to pull it down, the runes woke and it
-walked. / It remembers every name carved into it and reads them aloud before each battle.
+walked. / It remembers every name carved into it and reads them aloud before each battle. **taras** Taras came to the Rune
+Forest with a satchel of books and taught the beast-kin to write their own songs down. / His word does not burn: when
+the Emberhorn set the forest alight, the pages of his books rose into the air and cut the flames like blades. / He
+believes a word spoken in time is stronger than any weapon, and he opens every battle with a line.
 
 **Skill-name keys:** heroes `ULT_<ID>` (starters keep `ULT_STORM`, `ULT_QUAKE`, `ULT_RIFT`), `ATK_<ID>`, `RALLY_<ID>`,
 `AWK_<ID>`, beats `ATK_<ID>_B3/B6/B9`, forms `ULT_<ID>_F2…F5` (names = the bold names on each sheet); champions
 `ACT_<ID>` (twist names above), `AURA_<CLASS>`, `CHAMP_<ID>_ROLE`; relics `RELIC_<ID>`; gear `GEAR_<FACTION>_<SLOT>`.
 `_DESC` lines (≤ 90 characters) are Loc templates filled from data (`%d`/`%s`), never literal numbers.
+
+
+### 6.25 C23 `taras` — Тарас — Кобзар / Taras — the Kobzar (committed look)
+Топаз · Mage · Rune · Wildfang · human · m · slot **rear** (→ right if a Ranger holds the rear) · joined after launch
+(owner request 2026-10-09); Hero Chests only, like every champion. The common rules of §6.11–6.22 apply.
+
+**Fantasy:** a kobzar, a poet and painter who carries the word of his people; his heavy books are bound in brass and
+topaz, strike like stones and burst into pages that cut like blades. A tribute to Taras Shevchenko (1814–1861), the
+Ukrainian national poet, drawn after his 1859 self-portrait. **Tone (binding):** he is revered; every line about him is
+respectful and dignified, never a joke at his expense, no political slogans, no quotations turned into catchphrases.
+**Personality:** calm, wise, warm with the young, stern with cruelty; speaks little, and every word lands. **Voice:**
+pick «Слово не згорить.» / "A word does not burn." · action «Слово!» / "The Word!"
+
+| Part | Rule | f0 Lv1 / f5 Lv20 |
+|---|---|---|
+| HP | — | 33 / 60 |
+| Action — Spell | every 4 s a heavy book thrown at the **nearest** squad ≤ 12 u ahead (not the densest): r 1.5, kills per squad + BRAND | 5.04 / 9.19 kills |
+| Twist — Слово / The Word | on impact the book bursts into pages that cut on through the squad: the next squad behind it ≤ 3 u in the throw line takes 50% of the kills and BRAND *(knob: the 50% page share)* | — |
+| Aura (r 1.2) | soldiers in the ring apply BRAND with their volleys at proc value × 0.25 (rear) | 0.189 → 4.7% / 0.396 → 9.9% |
+| Tier | IV (native only): II radius 2.0 · III structures ×1.5 · IV cd 3.5 s, the pages leave a 2 s field (1 kill / 0.5 s) | — |
+| Relic Перо поета / The Poet's Quill | +4 page line +1 u · +8 page share 50% → 60% · +12 page field +0.5 s | — |
+
+**Fall:** he sinks to one knee with the open book pressed to his chest; loose pages settle around him like snow.
+**Visual (the owner's card, `assets/heroes/taras/`):** a man in his forties (≈ 1.78 m, realistic proportions), grey
+lambskin hat, long drooping moustache, brown sheepskin coat with cream fleece trim, white vyshyvanka with red and black
+cross-stitch, a **Rune-indigo sash** `#2E2EB4` with Wildfang **coral beads**, dark trousers, tall boots; a **heavy
+brass-cornered book raised to throw** (signature), an open book held to the chest, a third book on a strap. **COLOR
+LOCK: topaz** (the star-cut golden topaz on the open book's clasp = heart gem; no other crystals). Card: the book raised
+to throw. **Special:** two-handed overhead throw; the pages burst in a fan.
+
+**Why these tags (coverage note):** Топаз · Mage · Rune repeats Менгір's gem, class and element (only the faction and
+the slot differ), and Mage / Rune become the largest tags (5 each) while Frost and Tech stay at 3; a Топаз Warrior or
+Healer of Frost or Tech would have filled thinner cells. The owner's concept (a book thrower whose word cuts through a
+squad) is a Mage Spell, so the tags stay; no §5 rule forbids them. Designed pair: Мейра + Тарас (Wildfang + Mage pair +
+Rune ×2).
 
 ## 7. Portal, Seals, Hero Chests, Workshop, odds and pity
 

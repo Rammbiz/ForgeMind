@@ -202,7 +202,7 @@ CHAMPS = {
     "nimb": dict(n=3, cls="guardian", el="volt", fac="celestial"),
     "dara": dict(n=3, cls="ranger", el="volt", fac="dawn"),
     "menhir": dict(n=3, cls="mage", el="rune", fac="stoneheart"),
-    "taras": dict(n=3, cls="mage", el="rune", fac="wildfang"),     # C23, added after launch (heroes_design.md §6.23a)
+    "taras": dict(n=3, cls="mage", el="rune", fac="wildfang"),     # C23, added after launch (heroes_design.md §6.25)
 }
 SCRIPTED_FIRST = {"bolt": "alba", "titan": "otto"}
 SCRIPTED_FIRST_DEFAULT = "otto"

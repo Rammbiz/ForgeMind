@@ -54,7 +54,8 @@
   "olena",
   "nimb",
   "dara",
-  "menhir"
+  "menhir",
+  "taras"
  ],
  "starters": [
   "titan",
@@ -616,6 +617,22 @@
     "radius": 1.2
    },
    "action_note": "rune-strike kills per squad (every 4 s)",
+   "aura_note": "volley status proc x"
+  },
+  "taras": {
+   "no": 23,
+   "native": "L",
+   "class": "mage",
+   "element": "rune",
+   "faction": "wildfang",
+   "slot": "rear",
+   "kit": {
+    "hp": 26,
+    "action": 4,
+    "aura": 0.15,
+    "radius": 1.2
+   },
+   "action_note": "The Word kills per squad (every 4 s; pages cut on)",
    "aura_note": "volley status proc x"
   }
  },

@@ -4,7 +4,7 @@
 Outputs (only the block between the GENERATED markers is written; hand-written rules outside it are kept):
   scripts/core/ladder.gd         Ladder        gem ladder, F-CAP caps, forms, Awakening, rank steps, budgets
   scripts/core/hero_data.gd      HeroData      roster of 10 heroes (kits, ult / rally numbers), PROGRESS, Feats, unlocks
-  scripts/core/champion_data.gd  ChampionData  roster of 12 champions, aura, Champion Level, champion budgets
+  scripts/core/champion_data.gd  ChampionData  roster of the champions, aura, Champion Level, champion budgets
   scripts/core/team_data.gd      TeamData      classes, elements, factions, tiers, pairs, Affinity, Rally hooks, TEAM_DEMAND
   scripts/core/portal_data.gd    PortalData    Portal odds / pity / Seals / welcome / Beacons, Hero Chests, scripted chests
   scripts/core/ceremony_data.gd  CeremonyData  every ceremony length of §9.4
@@ -122,8 +122,6 @@ def _parse_roster_tables(md: str) -> tuple[dict, dict]:
                            "niche": "" if cells[9] in ("—", "-") else cells[9].strip("`")}
         else:
             champs[cid] = {"no": no}
-    if len(heroes) != 10 or len(champs) != 12:
-        sys.exit("heroes_design.md §6.0 tables changed shape (%d heroes, %d champions)" % (len(heroes), len(champs)))
     return heroes, champs
 
 
@@ -156,6 +154,11 @@ def refresh(src_dir: str) -> None:
     import heroes_tables as T  # noqa: E402
     sys.argv = argv
     doc_h, doc_c = _parse_roster_tables(open(DESIGN_MD, encoding="utf-8").read())
+    # the §6.0 tables must list exactly the sim's roster (the counts follow the data, never a literal)
+    if set(doc_h) != set(H.HEROES) or set(doc_c) != set(H.CHAMPS):
+        sys.exit("heroes_design.md §6.0 tables (%d heroes, %d champions) differ from heroes_sim.py (%d, %d): %s" % (
+            len(doc_h), len(doc_c), len(H.HEROES), len(H.CHAMPS),
+            sorted(set(doc_h) ^ set(H.HEROES)) + sorted(set(doc_c) ^ set(H.CHAMPS))))
 
     heroes = {}
     for row in T.KITS:
@@ -416,7 +419,8 @@ CHAMPION_BUDGETS = ("CL_STEP", "ACTION_TIER_STEP", "C_RELIC", "W_C", "CHAMP_UPTI
 
 def block_champion(b: Block) -> None:
     b.head("roster (heroes_design.md §6.0, §4.4; kit = f0 Lv1 Quartz-normalised)")
-    b.roster("CHAMPION_ORDER", "champion_order", "Collector order 11-22.")
+    nos = [int(b.r["champions"][c]["no"]) for c in b.r["champion_order"]]
+    b.roster("CHAMPION_ORDER", "champion_order", "Collector order %02d-%02d." % (min(nos), max(nos)))
     b.doc("id -> {no, native, class, element, faction, slot (preferred), kit {hp, action, aura, radius}, action_note,\n"
           "aura_note}. Action tier = native gem index + 1, fixed at birth (§2.2).")
     b.rows("CHAMPIONS", "champions", b.r["champion_order"],
