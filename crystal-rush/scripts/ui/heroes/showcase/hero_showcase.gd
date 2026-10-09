@@ -379,7 +379,7 @@ func _skill_band() -> PanelContainer:
 	# v3.1: frosted glass over the splash (the hero's own colours glow through, blurred); no text
 	# bed: its labels are short and tint 0.8 keeps INK >= 5:1 on the darkest armour.
 	var p := PanelContainer.new()
-	if not HeroFrost.frost_panel(p, "panel", Vector2(18, 14), _frost, 0.8, false):
+	if not HeroFrost.frost_panel(p, "panel", Vector2(18, 14), _frost, 0.66, false):
 		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(18, 14)))
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
@@ -590,6 +590,7 @@ func _layout() -> void:
 		_splash.size = Vector2(sw, sh)
 		_splash.position = Vector2(ex, sy)
 		_splash.set_meta("y0", sy)
+		_splash.set_meta("x0", ex)
 		_splash.pivot_offset = Vector2(sw * 0.6, sh)
 		_bg.focus = Vector2((ex + eye.x * sw) / W, eye.y * 0.9)
 	if _stage:
@@ -643,7 +644,9 @@ func _queue_frost() -> void:
 		var vp := _vp()
 		var L: Array = [{"tex": _bg.baked_texture(), "rect": Rect2(Vector2.ZERO, vp)}]
 		if _splash and _splash.texture:
-			L.append({"tex": _splash.texture, "rect": Rect2(_splash.position, _splash.size), "mod": _splash.modulate})
+			# The splash's resting look (the entrance tween starts it at alpha 0).
+			var mod := Color.WHITE if bool(_h.get("owned", true)) else Color(0.55, 0.56, 0.62, 0.55)
+			L.append({"tex": _splash.texture, "rect": Rect2(Vector2(float(_splash.get_meta("x0", _splash.position.x)), float(_splash.get_meta("y0", _splash.position.y))), _splash.size), "mod": mod})
 		if _veil:
 			L.append({"tex": _veil.texture, "rect": Rect2(_veil.position, _veil.size)})
 		_frost.set_layers(L)).call_deferred()

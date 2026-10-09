@@ -24,8 +24,8 @@ static var _stack: Array[HeroFrost] = []
 
 var layers: Array = []
 ## Frost look: the kit's sheet / modal frost, a little more of the screen kept (it is art).
-var contrast := 0.6
-var desat := 0.3
+var contrast := 0.7
+var desat := 0.2
 var lift := 0.16
 var ready_once := false
 var _snap: SubViewport
@@ -154,6 +154,13 @@ func refresh() -> void:
 	if not is_instance_valid(self):
 		return
 	_busy = false
+	if OS.has_environment("HERO_FROST_DEBUG"):
+		var im := texture().get_image()
+		for ch in _snap.get_children():
+			print("  L ", ch.get_class(), " ", (ch as Control).position, " ", (ch as Control).size, " q=", ch.is_queued_for_deletion())
+		print("HERO_FROST ", get_parent().name, " ", _snap.size, " layers=", layers.size(), " px=", im.get_pixel(im.get_width() / 2, im.get_height() * 3 / 4) if im else null)
+		if im:
+			im.save_png("/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d101a978/scratchpad/uiv3/p3/frost_%s.png" % get_parent().name)
 	if not ready_once:
 		ready_once = true
 		for m: ShaderMaterial in _mats.values():
@@ -191,7 +198,7 @@ func _rebuild() -> void:
 			t.position = rr.position
 			t.size = rr.size
 			t.modulate = L.get("mod", Color.WHITE)
-			t.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			t.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 			_snap.add_child(t)
 		elif L.has("mat"):
 			var mr := ColorRect.new()
