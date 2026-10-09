@@ -443,7 +443,7 @@ the ≤ 35% / 35% rule.
 | Temper r → r+1 (item, hero relic) | 8 + 4r | 0.35 s; tier change (+3 / +6 / +9) 1.2 s; beats (+4 / +8 / +12) 1.2 s |
 | Temper r → r+1 (champion relic) | ⌈(8 + 4r) / 2⌉ | same |
 
-To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (12 items + 22 relics) 11 520 Star Ore.
+To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (12 items + 23 relics, C23 included) 11 730 Star Ore.
 
 **Star Ore income** (earned only; one pool, so ≈ 0.45× the v1 per-faction amounts):
 
@@ -1709,7 +1709,7 @@ chests 1.52 · bosses 0.53 · weekly 0.27 · Expedition 0.20 · Hero Chests 0. S
 | full team (hero + 3 champions) | 11 / 12 / 14 | 6 / 6 / 6 | 3 / 3 / 3 |
 | Workshop (L32) · first item at +12 | 10 · 57 | 5 · 33 | 2 · 20 |
 | first skill rank 7 · rank 9 | 40 · 77 | 21 · 56 | 14 · 56 |
-| all 12 champions | 14 / 18 / 24 | 7 / 9 / 11 | 3 / 4 / 5 |
+| all 13 champions (C23 run, 2026-10-09; was all 12: 14 / 18 / 24 · 7 / 9 / 11 · 3 / 4 / 5) | 17 / 21 / 30 | 7 / 11 / 15 | 3 / 5 / 6 |
 | all 10 heroes | 21 / 56 / 98 | 10 / 30 / 77 | 12 / 63 / 84 |
 | first hero recut to Opal · first hero at Opal f5 | 49 · 63 | 28 · 49 | 28 · 54 |
 | first skill rank 11 (Opal max) | 20% of seeds by day 180 | 13% | 6% |
@@ -1724,7 +1724,7 @@ first Topaz on day 10); regular on day 2 and day 3.
 | frontier level | 8 | 23 | 53 | 104 | 113 | 113 | 113 | 113 |
 | heroes owned · team hero gem (0 = Кварц … 4 = Опал) | 2 · 1 | 6 · 3 | 8 · 3 | 9 · 3 | 10 · 4 | 10 · 4 | 10 · 4 | 10 · 4 |
 | team hero Ult + Attack + Rally ranks · Awakening | 3 · 0 | 3 · 1 | 12 · 3 | 17 · 3 | 19 · 3 | 23 · 3 | 26 · 3 | 30 · 3 |
-| champions owned · Champion Level | 0 · 1 | 7 · 3 | 11 · 6 | 12 · 14 | 12 · 18 | 12 · 20 | 12 · 20 | 12 · 20 |
+| champions owned · Champion Level | 0 · 1 | 7 · 3 | 11 · 6 | 13 · 14 | 13 · 18 | 13 · 20 | 13 · 20 | 13 · 20 |
 | recuts done · summons done | 0 · 0 | 0 · 10 | 2 · 30 | 9 · 70 | 15 · 100 | 23 · 160 | 28 · 220 | 38 · 410 |
 | Seals banked · Tomes banked | 0 · 0 | 10 · 0 | 30 · 2 | 70 · 6 | 55 · 4 | 65 · 13 | 20 · 12 | 30 · 47 |
 | average machine level | 3.6 | 4.7 | 6.5 | 8.2 | 11.2 | 13.3 | 14.0 | 14.5 |
@@ -1775,6 +1775,7 @@ earned; Seals banked ≤ 120.
 | Facet step `a` | 0.0074 → 0.0073 | frozen ceiling check (E15) |
 | Invasion demand | ×1.00 → ×0.98 | casual loss-streak p90 (this run) |
 | Chest hero-fragment card | 0.2 → 0.15 × DUP | collection pace and Tome overflow |
+| C23 Тарас joins (2026-10-09) | 12 → 13 champions, Топаз pool 3 → 4 | full re-run (repo `tools/heroes_sim.py`, 80 seeds, `PYTHONHASHSEED=0`): all 69 invariants PASS before and after. Real shift: completing the champion roster takes longer (p50 casual day 18 → 21, regular 9 → 11, hardcore 4 → 5); Workshop all relics 11 520 → 11 730 Star Ore. Everything else moves only by the RNG stream (win rates ±1 pp, champions + synergy at L60 8–9%, `TEAM_DEMAND` recalibration ≤ 0.003 per world, not re-baked: the EXPECTED profile holds no Тарас); the EXPECTED Champion Level table (`SaveV3Data`) re-derived, §12.3 anchors hold |
 
 ## 9. Screens and ceremonies
 
