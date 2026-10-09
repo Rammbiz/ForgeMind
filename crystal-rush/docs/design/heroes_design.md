@@ -80,7 +80,7 @@ in place).
 
 | # | Owner decision (decisions.md) | Implemented as | § | Status |
 |---|---|---|---|---|
-| 1 | Heroes + Champions from packs | 10 heroes (Portal) + 12 champions (Hero Chests) | 4, 6, 7 | ✓ |
+| 1 | Heroes + Champions from packs | 10 heroes (Portal) + 13 champions (Hero Chests; the roster in §6.0) | 4, 6, 7 | ✓ |
 | 2 | 1 hero + 2–3 champions per run | «Команда / Team»: 2 slots from L14, 3rd at the World 5 boss (L40) | 4.1, 11 | ✓ (unlock L18 → L14, critic M7) |
 | 3 | 5 tiers; ascended never reaches natives | four brakes + real-kit parity tests; F-CAP and F-AWK2 change two FROZEN formulas | 2 | ✓ **owner sign-off needed** for F-CAP / F-AWK2 (§15 Q1–Q2) |
 | 4 | Gem names, big cut-gem emblem | Кварц · Сапфір · Аметист · Топаз · Опал, Living Gem emblem, 5 colour-blind channels | 2.1 | ✓ |
@@ -96,8 +96,8 @@ in place).
 | 14 | Champions = squad commanders | own clip characters in the crowd, act on their own, aura on nearby soldiers, can fall | 4.2, 10 | ✓ (Mage aura now lifts soldiers too) |
 | 15 | Cinematic reveal for rare ones, skippable | Q 1.2 s · S 1.8 s · Amethyst / Topaz / Opal walkouts 0.6 + 2.6 / 3.6 / 5.0 s, skippable from 0.5 s | 9.4 | ✓ |
 | 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz; + C23 Тарас (owner request 2026-10-09, Topaz) | 6 | ✓ |
-| 17 | Humans, beasts, creatures | 7 · 7 · 8 | 6 | ✓ |
-| 18 | Name + title, readable in uk and en | 22 names; 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
+| 17 | Humans, beasts, creatures | 8 · 7 · 8 (§6.0 coverage) | 6 | ✓ |
+| 18 | Name + title, readable in uk and en | every name (23 with Тарас); 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
 | 19 | Forge + trophies, little randomness | «Майстерня / Workshop» (your "Forge"): craft exactly what is shown, one material «Зоряна руда», 7 boss trophies (+3 ranks from each night boss), zero randomness | 3.4 | ✓ (name: §15 Q6) |
 | 20 | Design now, code after APK 2.1 + prompts now | this doc; prompts in `heroes/heroes_prompts.md` (next workflow step) | 13, 14 | ✓ |
 | A1 | Second reference: top tier visibly has more | 4 skills on native Amethyst / Topaz / Opal at pull, gem-washed full screens, more particles per gem | 2, 9 | ✓ |
@@ -409,7 +409,7 @@ Roster at native max: 1 960 Tomes; all 10 at Opal f5 (recut caps 10): 3 930 Tome
 
 **Slots:** hero = Зброя / Weapon (`dmg_add`) · Обладунок / Armour (`hp_add`) · Оберіг / Charm (`ult_add` + `charge_add`) ·
 Реліквія / Relic. Champion = Relic only. **12 faction items** (4 factions × 3 slots, crafted once per account, wearable by
-any hero, re-equip free) + **22 relics** (one per character, auto-equipped). Stats never depend on the wearer.
+any hero, re-equip free) + **one relic per character** (23 with Тарас, auto-equipped). Stats never depend on the wearer.
 
 | Slot | Stat | base | per rank | beats +4 / +8 / +12 | +0 | +3 | +6 | +9 | +12 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -460,7 +460,7 @@ To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (1
 **Trophies** (`GearData.TROPHIES`, ready at +3; the night boss of the same world adds +3 ranks; past +12 the ranks
 return as Star Ore): L8 `dawn_weapon` · L16 `wildfang_charm` · L24 `wildfang_weapon` · L32 `stoneheart_armour` · L40
 `stoneheart_charm` · L48 `dawn_armour` · L56 `celestial_weapon` (Invasion L64…L112 temper the same items). Five items
-and all 22 relics are craft-only.
+and every relic is craft-only.
 
 ### 3.5 «Хроніка героя / Hero Chronicle» — the Tome sink with no power (critique M6 / X13)
 
@@ -2127,7 +2127,8 @@ _orphans   {heroes {}, champions {}}          # unknown ids from a newer APK, ne
 ```
 
 Rules: `native` is never saved (data only); `fresh_account()` creates an entry for every starter (Руді owned at start)
-and all new sections; `sanitize()` gains `_sanitize_heroes()` / `_sanitize_champions()` (unknown ids → `_orphans`,
+and all new sections; `sanitize()` gains `_sanitize_heroes()` / `_sanitize_champions()` (unknown ids → `_orphans`;
+orphans whose id the build knows again → back to the roster,
 nested keys filled, `gem` clamped to `[native, max_gem]`, facets 0..5, ranks clamped to caps, `skills_peak ≥ skills`).
 `Save.write_atomic()` writes to a temp file and renames; a grant that fails to save rolls back the in-memory account.
 `via: "shop"` does not exist at launch (no hero SKUs).
@@ -2243,7 +2244,7 @@ Road lane Gems → coins (B), `ST_SEAL` rename and gem rarity labels (Loc), Seer
 | **H3 Meta UI** | every screen of §9 in the fusion direction, `CeremonyData`, Codex, Chronicle, Rewrite, Shop «Герої», fallbacks | 13; ceremony share from bot telemetry ≤ 15%; owner UI review on device |
 | **H4 Workshop** (WS-F) | Workshop, gear, sets, relics, trophies, retro grant | Workshop tests + sim green with gear; **ships in release 1 if green by the release cut, otherwise release 2** (the retro grant makes a late unlock lossless) |
 | **H5 Art integration** (waves, §14) | per character: splash / card → 3D → clips → `HeroArt.state = complete` | per character: palette test, size report, fallback test; only `complete` characters enter the Portal pool, chests and the Seal shop |
-| **Release** | all 22 `complete`, `heroes_sim.py` exit 0 on the shipped data, 18 green | owner sign-off on Q1–Q2 |
+| **Release** | every character `complete`, `heroes_sim.py` exit 0 on the shipped data, 18 green | owner sign-off on Q1–Q2 |
 
 ### 13.3 Parallelism
 
@@ -2267,6 +2268,9 @@ finish; C works with class placeholders until E delivers. E runs continuously fr
 | Clips | ≈ 190 (heroes 9 each, champions 8 each, plus specials) |
 | SFX | ≈ 70 from **one** stated library with licences recorded in `assets/audio/LICENSES.md` |
 | **Total final images** | ≈ 220; owner time ≈ 75–105 h |
+
+The counts above are the launch bill (12 champions). C23 Тарас adds one champion card and splash (already supplied by
+the owner), one Action icon, one relic icon and his champion clips.
 
 ### 14.2 Rules for every prompt (the prompt writer applies them in `heroes/heroes_prompts.md`)
 
@@ -2310,8 +2314,8 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | 60 fps on mid Android is unmeasured | H0 phone baseline; absolute gates + fallback ladder (§10.6) before art lock |
-| R2 | Art is the long pole (≈ 220 images, 19 Meshy characters, Meshy credits already short) | waves + `HeroArt.state`; release waits for all 22 `complete` |
-| R3 | Scope (4 hub systems, 22 characters, save v3) | phased gates H0–H5; Workshop may slip to release 2 losslessly |
+| R2 | Art is the long pole (≈ 220 images, 19 Meshy characters, Meshy credits already short) | waves + `HeroArt.state`; release waits for every character `complete` |
+| R3 | Scope (4 hub systems, 23 characters, save v3) | phased gates H0–H5; Workshop may slip to release 2 losslessly |
 | R4 | The Meta-1 integration is adding Мейра at L5 right now | Q7; the guest level keeps her at L5 either way |
 | R5 | `TEAM_DEMAND` is a model (sim) value | LevelSim re-bake on the EXPECTED profile in H2 with real kits; re-bake again when Meta-2 Frost / Rune machines switch Affinity on |
 | R6 | Casual win rate 84% sits near the 85% ceiling; EXPECTED-only Invasion floor is 57% (no invariant; Meta-1's own was 53%) | watch telemetry; the Invasion margin `INV_DEMAND_MU` is one knob |
@@ -2328,7 +2332,7 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 | Q5 | Machine rarity labels adopt the gem names in the same release | yes |
 | Q6 | Names: «Грані» (your UI answer said «Зірки») and «Майстерня» (you said «Кузня») | Грані · Майстерня |
 | Q7 | Мейра: L5 guest level + joins at L24, or joins at L5 as today | guest L5, join L24 |
-| Q8 | Store / trademark search on all 22 names + titles before splash prompts are final | owner runs it |
+| Q8 | Store / trademark search on every name + title (23 with Тарас) before splash prompts are final | owner runs it |
 | Q9 | Люмен's pronoun «воно» / "it" | воно |
 | Q10 | Workshop in release 1 or release 2 | release 1 if green |
 | Q11 | Пава as a peacock-kin · Німб's tier IV turret catch · Веста's cape crimson-orange vs crimson-rose | keep · keep · crimson-rose in the regenerated splash |
