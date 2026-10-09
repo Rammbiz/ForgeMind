@@ -348,7 +348,7 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 		# §5: a title is Bold (ExtraBold is kept for the big numbers). v3.1: deep amber CTA ink on
 		# the honey band (>= 4:1 on the band's darkest stop; warm white measured 2:1), over a soft
 		# light-cream glow (a feathered halo, never a text outline or emboss).
-		title = UIKit.number(text, fs, false, UIKit.CTA_TEXT)
+		title = UIKit.number(text, fs, false, UIKit.CTA_TEXT if not UITokens.calm_cta() else UITokens.KEY_LABEL_DARK)
 		title.add_theme_font_override("font", UIKit.font_w("bold"))
 		title.add_theme_constant_override("outline_size", 0)
 		title.add_theme_constant_override("shadow_outline_size", 0)
@@ -400,7 +400,7 @@ static func ribbon(text: String, won: bool, w: float) -> Control:
 ## (win) or ink on the cool cream band (loss); soft shadow, no stroke.
 static func ribbon_title(text: String, won: bool, size := 56) -> Label:
 	# v3.1: Bold, flat (no emboss / offset shadow, §3.2).
-	var l := UIKit.number(text, size, false, UIKit.CTA_TEXT if won else UIKit.INK)
+	var l := UIKit.number(text, size, false, (UIKit.CTA_TEXT if not UITokens.calm_cta() else UITokens.KEY_LABEL_DARK) if won else UIKit.INK)
 	l.add_theme_font_override("font", UIKit.font_w("bold"))
 	return l
 
@@ -1322,6 +1322,9 @@ class _VictoryBand extends Control:
 		# knee) and the soft top light folded into the top row's colour (its own quad had hard
 		# vertical edges at the knees).
 		var cs := [Color("#FAD07F"), Color("#F4B65F"), Color("#F1AA4F")]
+		if UITokens.calm_cta():
+			# CTA study (calm): a porcelain band (ink title, gold rules) instead of honey.
+			cs = [Color("#FFFDF8"), Color("#F7F0E2"), Color("#F1E8D6")]
 		var a := 0.95
 		var ys := [10.0, h * 0.36, h * 0.5, h - 10.0]
 		var k1 := (h * 0.36 - 10.0) / maxf(h * 0.5 - 10.0, 1.0)
@@ -1349,7 +1352,7 @@ class _VictoryBand extends Control:
 		# The rules: one device px (1.25 at 540-class), light gold, fading with the band ends;
 		# a gap at the centre holds the diamond.
 		var lw := -1.0 if UIKit.ui_scale() >= 0.9 else UIKit.line_px(1.0)
-		var gl := Color("#FFEFC6")
+		var gl := Color("#FFEFC6") if not UITokens.calm_cta() else Color("#A8833F")
 		var cx := w * 0.5
 		for yy: float in [5.0, h - 5.0]:
 			var y := GemDraw.pixel_y(self, yy)

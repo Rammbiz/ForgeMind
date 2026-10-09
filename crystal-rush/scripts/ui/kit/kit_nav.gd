@@ -174,7 +174,7 @@ static func _fade(col: Color, x: float, x0: float, x1: float, w: float) -> Color
 static func draw_play_ring(ci: CanvasItem, c: Vector2, rad: float, on = 0.0, alpha := 1.0) -> void:
 	var k := clampf(float(on), 0.0, 1.0)
 	var deep := UITokens.LINE_GOLD_DEEP
-	var warm := Color("#D29A45")
+	var warm := Color("#D29A45") if not UITokens.calm_cta() else Color("#A8833F")
 	var ring := Color(deep.r, deep.g, deep.b, 0.70).lerp(Color(warm.r, warm.g, warm.b, 1.0), k)
 	ring.a *= alpha
 	var w := lerpf(UIKit.line_px(1.0), UIKit.line_px(UITokens.SELECT_PX), k)
@@ -215,13 +215,16 @@ static func draw_wash(ci: CanvasItem, c: Vector2, k := 1.0) -> void:
 static func draw_line_gem(ci: CanvasItem, c: Vector2, k := 1.0, slope := 0.0) -> void:
 	if k <= 0.01:
 		return
-	var a := UITokens.CTA_LO
+	var a := UITokens.key_line()
 	var g1 := Color(a.r, a.g, a.b, 0.95 * k)
 	var g0 := Color(a.r, a.g, a.b, 0.0)
 	var d := Vector2(1.0, slope).normalized() * 26.0
 	ci.draw_polyline_colors(PackedVector2Array([c - d, c - d * 0.35, c, c + d * 0.35, c + d]),
 			PackedColorArray([g0, g1, g1, g1, g0]), UIKit.line_px(UITokens.SELECT_PX), true)
-	GemDraw.draw_diamond(ci, c, 12.0, UITokens.TOPAZ, Color("#A8662A"), k)
+	if UITokens.calm_cta():
+		GemDraw.draw_diamond(ci, c, 12.0, UITokens.KEY_INK, UITokens.KEY_GOLD, k)
+	else:
+		GemDraw.draw_diamond(ci, c, 12.0, UITokens.TOPAZ, Color("#A8662A"), k)
 
 
 ## The active-tab underline centred on `c` (its y is the line), `w` wide, `k` 0..1 strength
@@ -233,7 +236,8 @@ static func draw_indicator(ci: CanvasItem, c: Vector2, w: float, k := 1.0, glyph
 		return
 	if glyph_c != Vector2.INF:
 		draw_wash(ci, glyph_c, k)
-	var amber := Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, k)
+	var kl := UITokens.key_line()
+	var amber := Color(kl.r, kl.g, kl.b, k)
 	var y := GemDraw.pixel_y(ci, c.y)
 	var x0 := c.x - w * 0.5 + 6.0
 	var x1 := c.x + w * 0.5 - 6.0

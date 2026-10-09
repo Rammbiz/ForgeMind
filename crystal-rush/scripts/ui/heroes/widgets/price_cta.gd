@@ -33,6 +33,11 @@ func _draw() -> void:
 	var fs := label_size
 	var area_x0 := _gem_zone() + (6.0 if topaz else 18.0)
 	var area_x1 := size.x - (22.0 if topaz else 18.0)
+	if KitCTA.refined():
+		# Refined CTA study styles: the label area KitCTA itself uses (centred when no gem).
+		var la := _label_area()
+		area_x0 = la.x
+		area_x1 = la.y
 	var avail := area_x1 - area_x0
 	while fs > 18 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > avail:
 		fs -= 1

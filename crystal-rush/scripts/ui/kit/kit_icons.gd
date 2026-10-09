@@ -915,25 +915,30 @@ static func topaz_crystal(ci: CanvasItem, c: Vector2, h: float, alpha := 1.0, gl
 	var lr := c + Vector2(w * 0.5, h * 0.24)
 	var tm := c + Vector2(0, -h * 0.12)
 	var bm := c + Vector2(0, h * 0.16)
-	if glow > 0.0:
+	var calm := UITokens.calm_cta()
+	if glow > 0.0 and not calm:
 		ci.draw_texture_rect(UIKit.glow_texture(), Rect2(c - Vector2(h, h) * 0.9, Vector2(h, h) * 1.8), false, Color(1.0, 0.82, 0.45, 0.45 * glow * alpha))
 	# Quiet = the same topaz pulled toward its deep amber (never grey, never "disabled").
 	var quiet := clampf((1.0 - value) * 2.0, 0.0, 1.0)
 	var fp := PackedVector2Array([t, tm, ul, t, ur, tm, ul, tm, bm, ul, bm, ll, tm, ur, lr, tm, lr, bm, ll, bm, b, bm, lr, b])
 	var fcs := PackedColorArray()
-	for fcol: Color in [Color("#FFF1C9"), Color("#FFD27A"), Color("#FFC560"), Color("#FFC560"), Color("#F0A23C"), Color("#F0A23C"), Color("#E89434"), Color("#C9772A")]:
+	var facets := [Color("#FFF1C9"), Color("#FFD27A"), Color("#FFC560"), Color("#FFC560"), Color("#F0A23C"), Color("#F0A23C"), Color("#E89434"), Color("#C9772A")]
+	if calm:
+		# CTA study (calm): the Play key is an ink crystal set in gold, like the key button.
+		facets = [Color("#6A7099"), Color("#4A5080"), Color("#3C4270"), Color("#3C4270"), Color("#2C3158"), Color("#2C3158"), Color("#252A4D"), Color("#1D2140")]
+	for fcol: Color in facets:
 		# (v3.1 fix: toward a muted honey, so the quiet stone is not the most saturated thing in
 		# the strip; MF-2.)
-		var cc := _ca(fcol.lerp(Color("#C99A5E"), quiet), alpha)
+		var cc := _ca(fcol.lerp(Color("#C99A5E") if not calm else Color("#4A4F72"), quiet), alpha)
 		fcs.append_array([cc, cc, cc])
 	var fi := PackedInt32Array()
 	for i in fp.size():
 		fi.append(i)
 	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), fi, fp, fcs)
-	var edge := _ca(Color(0.62, 0.36, 0.1, 0.9), alpha)
+	var edge := _ca(Color(0.62, 0.36, 0.1, 0.9) if not calm else Color(UITokens.KEY_GOLD, 1.0), alpha)
 	var lw := UIKit.px(1.0)
 	ci.draw_polyline(PackedVector2Array([t, ur, lr, b, ll, ul, t]), edge, lw, true)
-	var facet := _ca(Color(1, 0.97, 0.88, 0.75), alpha)
+	var facet := _ca(Color(1, 0.97, 0.88, 0.75 if not calm else 0.35), alpha)
 	ci.draw_polyline(PackedVector2Array([ul, tm, ur]), facet, lw, true)
 	ci.draw_polyline(PackedVector2Array([tm, bm]), facet, lw, true)
 	ci.draw_polyline(PackedVector2Array([ll, bm, lr]), Color(edge.r, edge.g, edge.b, edge.a * 0.5), lw, true)

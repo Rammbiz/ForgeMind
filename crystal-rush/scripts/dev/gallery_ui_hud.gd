@@ -1,7 +1,7 @@
 extends Node3D
 ## Dev preview of the run HUD (role UI) over the real level road, driven by a mock that emits
 ## Run's signals (spec §2) into HudView the same way RunHud wires them.
-##   godot --path . --rendering-driver opengl3 --resolution 720x1280 res://scenes/dev/gallery_ui_hud.tscn [-- --out=DIR --lang=en]
+##   godot --path . --rendering-driver opengl3 --resolution 720x1280 res://scenes/dev/gallery_ui_hud.tscn [-- --out=DIR --lang=en --cta=ink]
 ## Saves ui_hud_play.png, ui_weapon_card.png, ui_ult_ready.png, ui_power.png, ui_pause.png,
 ## ui_result_win.png, ui_result_lose.png, ui_ult_states.png and ui_icons.png.
 
@@ -36,6 +36,8 @@ func _ready() -> void:
 			out_dir = a.trim_prefix("--out=")
 		elif a.begins_with("--lang="):
 			lang = a.trim_prefix("--lang=")
+		elif a.begins_with("--cta="):
+			KitCTA.style = a.trim_prefix("--cta=")
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	Save.readonly = true
 	Loc.set_language(lang, false)

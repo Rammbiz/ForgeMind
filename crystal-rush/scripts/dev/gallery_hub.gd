@@ -1,7 +1,7 @@
 extends Node
 ## Dev preview of the meta hub (WS4). Builds an account, opens the Hub on each tab and its
 ## sheets, and saves PNGs, then quits.
-##   xvfb-run -a -s "-screen 0 1400x1400x24" godot --path . --rendering-driver opengl3 --resolution 720x1280 res://scenes/dev/gallery_hub.tscn [-- --out=DIR --lang=en --level=14 --profile=expected --shots=play,arsenal --tag=720 --hero=seer]
+##   xvfb-run -a -s "-screen 0 1400x1400x24" godot --path . --rendering-driver opengl3 --resolution 720x1280 res://scenes/dev/gallery_hub.tscn [-- --out=DIR --lang=en --level=14 --profile=expected --shots=play,arsenal --tag=720 --hero=seer --cta=ink]
 ## --hall[=mid]: the Heroes tab opens the Hall (HeroesUIModel.force_on) on that mock heroes state.
 ## Profiles: fresh1 (a brand-new account, tabs locked), fresh | expected | max (Meta.synthetic_account).
 ## Shots: play arsenal deck detail heroes barracks shop vault odds settings unlock upgrade reveal.
@@ -32,6 +32,7 @@ func _ready() -> void:
 			"hall":
 				HeroesUIModel.force_on = true
 				HeroesUIModel.set_state(v if v != "" else "mid")
+			"cta": KitCTA.style = v
 			"shots":
 				shots.clear()
 				for s in v.split(",", false):

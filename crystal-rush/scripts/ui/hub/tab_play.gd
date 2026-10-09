@@ -378,7 +378,9 @@ class LevelPath extends Control:
 		# v3 lines (§3.1): the walked part a 1.5 dpx amber rule, the road ahead a 1 dpx hairline,
 		# both on a whole pixel row (straight rules, no AA blur).
 		var y := GemDraw.pixel_y(self, a.y)
-		draw_line(Vector2(a.x, y), Vector2(cx, y), Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5))
+		var kl := UITokens.key_line()
+		var calm := UITokens.calm_cta()
+		draw_line(Vector2(a.x, y), Vector2(cx, y), Color(kl.r, kl.g, kl.b, 0.9), UIKit.line_px(1.5))
 		draw_line(Vector2(cx, y), Vector2(b.x, y), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.85), UIKit.line_px(1.0))
 		for i in n:
 			var l := first + i
@@ -391,14 +393,20 @@ class LevelPath extends Control:
 				Icons.line(self, "trophy", Rect2(p - Vector2(10, 10), Vector2(20, 20)), UITokens.GOLD_TEXT_GLASS if lit else UITokens.INK_DIM_GLASS)
 				if l == level:
 					# The boss is up: a static 1.5 dpx amber ring (nothing pulses).
-					draw_arc(p, 19.0, 0, TAU, 48, Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 0.9), UIKit.line_px(1.5), true)
+					draw_arc(p, 19.0, 0, TAU, 48, Color(kl.r, kl.g, kl.b, 0.9) if not calm else UITokens.KEY_INK, UIKit.line_px(1.5), true)
 				continue
 			if l < level:
 				# A lit facet only (the crowns live on the level's tap toast; no 4 px pips).
-				GemDraw.draw_pip(self, p, 18.0, true, UITokens.TOPAZ)
+				# CTA study (calm): walked levels are pale gold facets, no topaz.
+				GemDraw.draw_pip(self, p, 18.0, true, UITokens.TOPAZ if not calm else Color("#E2C68A"))
 			elif l == level:
-				draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.8, 0.45, 0.5))
-				GemDraw.draw_pip(self, p, 28.0, true, UITokens.TOPAZ)
+				if calm:
+					# The current level marked in ink set in gold (no glow).
+					GemDraw.draw_pip(self, p, 28.0, true, UITokens.KEY_INK)
+					GemDraw.outline(self, PackedVector2Array([p + Vector2(0, -14), p + Vector2(10.08, 0), p + Vector2(0, 14), p + Vector2(-10.08, 0)]), UITokens.KEY_GOLD, UIKit.line_px(1.0))
+				else:
+					draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(26, 26), Vector2(52, 52)), false, Color(1.0, 0.8, 0.45, 0.5))
+					GemDraw.draw_pip(self, p, 28.0, true, UITokens.TOPAZ)
 			else:
 				GemDraw.draw_pip(self, p, 16.0, false)
 			var nc := ArsenalData.new_crate_at(l)

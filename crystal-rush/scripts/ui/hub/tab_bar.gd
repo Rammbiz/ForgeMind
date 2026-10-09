@@ -330,7 +330,10 @@ func _draw() -> void:
 	if near_play < 0.98:
 		KitNav.draw_line_gem(self, line_p, 1.0, slope * (1.0 - near_play))
 	else:
-		GemDraw.draw_diamond(self, line_p, 12.0, UITokens.TOPAZ, Color("#A8662A"))
+		if UITokens.calm_cta():
+			GemDraw.draw_diamond(self, line_p, 12.0, UITokens.KEY_INK, UITokens.KEY_GOLD)
+		else:
+			GemDraw.draw_diamond(self, line_p, 12.0, UITokens.TOPAZ, Color("#A8662A"))
 
 
 ## Something waits on this tab: a 9 px amber diamond with a 1 px cream edge (no glow, no pulse).

@@ -913,7 +913,9 @@ func _mult_block(mult: float) -> Control:
 	holder.custom_minimum_size = Vector2(480, 150)
 	holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var calm := UITokens.calm_cta()
 	var glow := TextureRect.new()
+	glow.visible = not calm
 	glow.texture = UIKit.glow_texture()
 	glow.modulate = Color(1.0, 0.8, 0.4, 0.4)
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -926,7 +928,9 @@ func _mult_block(mult: float) -> Control:
 	cap.size = Vector2(480, 26)
 	cap.position = Vector2(0, 0)
 	holder.add_child(cap)
-	var big := UIKit.gradient_heading(Loc.t("STAIRS_MULT") % _fmt_mult(mult), 104, UIKit.CTA, UIKit.CTA_LO, UIKit.CTA_RIM)
+	# CTA study (calm): engraved gold numerals, no halo (instead of the glowing amber).
+	var big := UIKit.gradient_heading(Loc.t("STAIRS_MULT") % _fmt_mult(mult), 104, UIKit.CTA, UIKit.CTA_LO, UIKit.CTA_RIM) if not calm \
+			else UIKit.gradient_heading(Loc.t("STAIRS_MULT") % _fmt_mult(mult), 104, Color("#B8914F"), Color("#8A6630"), Color("#6E4F22"))
 	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	big.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	big.size = Vector2(480, 124)

@@ -287,6 +287,8 @@ static func line_px(n := 1.0) -> float:
 static func lux(kind: String, pad := Vector2(-1, -1)) -> StyleBox:
 	var sc := ui_scale()
 	var key := "%s_%d_%d_%.3f" % [kind, int(pad.x), int(pad.y), sc]
+	if kind.begins_with("button") or kind.begins_with("primary") or kind == "green" or kind.begins_with("green"):
+		key += "_" + UITokens.cta_style
 	if _styles.has(key):
 		return _styles[key]
 	var ov := _kit_style(kind, pad)
@@ -368,7 +370,27 @@ static func _glass(cham: float, top: Color, bot: Color, line_a: float, light: fl
 	return {"cham": cham, "blur": blur, "sh_a": sh_a, "sh_dy": sh_dy, "pad": pad, "layers": layers}
 
 
+## CTA study (refined ink / porcelain): the painted primary fallback matches KitCTA (near-flat
+## enamel, ONE gold hairline, a 2 dpx slate contact shadow; no glow, no table light).
+static func _calm_primary(kind: String) -> Dictionary:
+	var ink := UITokens.cta_style == "ink"
+	var pr := kind.ends_with("_pressed")
+	var t0 := (Color("#1F2342") if pr else UITokens.KEY_INK) if ink else (Color("#EFE5D2") if pr else Color("#FFFDF8"))
+	var t1 := (Color("#1C203D") if pr else UITokens.KEY_INK_LO) if ink else (Color("#E9DECA") if pr else Color("#F6EEDF"))
+	var rim := UITokens.KEY_GOLD if ink else Color("#9A7436")
+	var ps := {"cham": 12.0, "blur": 0.0, "sh_a": 0.0 if pr else (0.18 if ink else 0.14), "sh_dy": 2.0, "sh_col": Color(0.12, 0.13, 0.2),
+			"pad": Vector2(36, 10), "layers": [
+		{"top": t0, "bot": t1},
+		{"ring": 1.0, "top": rim, "bot": rim},
+	]}
+	if pr:
+		ps["shift"] = 1.0
+	return ps
+
+
 static func _spec(kind: String) -> Dictionary:
+	if UITokens.calm_cta() and kind in ["primary", "green", "primary_compact", "primary_pressed", "green_pressed"]:
+		return _calm_primary(kind)
 	var G0 := UITokens.GLASS_TOP
 	var G1 := UITokens.GLASS_BOT
 	var sa := UITokens.SHADOW_A
@@ -441,12 +463,22 @@ static func _spec(kind: String) -> Dictionary:
 		"ribbon":
 			return _glass(8.0, _a(PAPER_0, UITokens.GLASS_THIN_A + 0.1), _a(CREAM, UITokens.GLASS_THIN_A + 0.14), 0.75, 0.7, 8.0, sa * 0.7, 2.0, Vector2(30, 6))
 		"button":
+			if UITokens.cta_style == "porcelain":
+				# CTA study, porcelain: secondaries demote to ghost glass (a 1 dpx slate hairline, no
+				# gold, no shadow), so the porcelain CTA is the one filled enamel in an action row.
+				return _glass(8.0, _a(PAPER_0, 0.5), _a(PAPER_0, 0.42), 0.35, 0.0, 0.0, 0.0, 0.0, Vector2(28, 10), UITokens.INK)
 			return _glass(8.0, _a(PAPER_0, 0.86), _a(CREAM_2, 0.86), 0.72, 0.7, 8.0, sa * 0.8, 2.0, Vector2(28, 10))
 		"button_pressed":
+			if UITokens.cta_style == "porcelain":
+				var gq := _glass(8.0, _a(PAPER_0, 0.66), _a(PAPER_0, 0.6), 0.45, 0.0, 0.0, 0.0, 0.0, Vector2(28, 10), UITokens.INK)
+				gq["shift"] = 2.0
+				return gq
 			var bp := _glass(8.0, _a(CREAM_3, 0.9), _a(Color("#E8DECC"), 0.9), 0.8, 0.3, 4.0, sa * 0.5, 1.0, Vector2(28, 10))
 			bp["shift"] = 2.0
 			return bp
 		"button_disabled":
+			if UITokens.cta_style == "porcelain":
+				return _glass(8.0, _a(PAPER_0, 0.3), _a(PAPER_0, 0.26), 0.22, 0.0, 0.0, 0.0, 0.0, Vector2(28, 10), UITokens.INK)
 			return _glass(8.0, _a(CREAM_2, 0.5), _a(CREAM_3, 0.5), 0.4, 0.3, 0.0, 0.0, 0.0, Vector2(28, 10))
 		"ghost":
 			return _glass(8.0, _a(PAPER_0, 0.16), _a(PAPER_0, 0.08), 0.85, 0.35, 0.0, 0.0, 0.0, Vector2(24, 8))
@@ -744,7 +776,7 @@ static func theme() -> Theme:
 		t.set_font("font", v, font_w("bold"))
 		t.set_font_size("font_size", v, 30)
 		for k: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
-			t.set_color(k, v, CTA_TEXT)
+			t.set_color(k, v, CTA_TEXT if not UITokens.calm_cta() else (Color("#F7F1E6") if UITokens.cta_style == "ink" else UITokens.KEY_LABEL_DARK))
 		t.set_color("font_disabled_color", v, INK_DIM)
 		# v3: no outline or halo at all (no text outlines).
 		t.set_color("font_outline_color", v, Color(0, 0, 0, 0))
@@ -1832,9 +1864,10 @@ class Rays extends Control:
 ## vertical gradient, inner hairlines and marquise terminals. Default = amber (victory);
 ## set_palette(top, bottom, line) for other moods (e.g. a cool slate defeat).
 class Ribbon extends Control:
-	var top := Color("#FFE1A0")
-	var bottom := Color("#EFA448")
-	var fold := Color(1.0, 0.96, 0.84, 0.85)
+	# CTA study (calm): a porcelain plate with a gold hairline instead of the honey band.
+	var top := Color("#FFE1A0") if not UITokens.calm_cta() else Color("#FFFDF8")
+	var bottom := Color("#EFA448") if not UITokens.calm_cta() else Color("#F1E8D6")
+	var fold := Color(1.0, 0.96, 0.84, 0.85) if not UITokens.calm_cta() else Color(UITokens.HAIRLINE, 0.9)
 
 	func set_palette(t: Color, b: Color, f: Color) -> void:
 		# Old callers pass dark slates for a loss: lift them into the cool cream band.
