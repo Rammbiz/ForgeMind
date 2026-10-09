@@ -287,8 +287,13 @@ func _layout() -> void:
 		md.queue_redraw()
 
 
-## One medallion (drawn in _draw; a redraw only on a change or during the 0.32 s pulse).
+## One medallion. Its face (plate, ring, glyph, pip, crack: dozens of 2D batches) is drawn once per
+## change into a small SubViewport and shown as ONE textured quad (§10.6: champions add <= +10 draws;
+## drawn live, four medallions cost ~140 draw calls every frame). Only the 0.32 s action pulse is
+## drawn live, on top. Position, scale (nudge) and modulate (fade) stay on this node.
 class _Medallion extends Control:
+	## Room around the plate for its soft halo (the face is drawn with this margin inside the texture).
+	const MARGIN := 10.0
 	var id := ""
 	var cls := ""
 	var gem := "quartz"
@@ -302,10 +307,72 @@ class _Medallion extends Control:
 	var _pulse := 0.0
 	var _nudge_tw: Tween
 	var _fade_tw: Tween
+	var _vp: SubViewport
+	var _face: _Face
+	var _img: TextureRect
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		set_process(false)
+		_vp = SubViewport.new()
+		_vp.transparent_bg = true
+		_vp.disable_3d = true
+		_vp.gui_disable_input = true
+		_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		_face = _Face.new()
+		_face.md = self
+		_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_vp.add_child(_face)
+		add_child(_vp)
+		_img = TextureRect.new()
+		_img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_img.texture = _vp.get_texture()
+		_img.stretch_mode = TextureRect.STRETCH_SCALE
+		# The viewport holds premultiplied colour (2D mix over a clear target): blend it as such, or
+		# the glass edges go dark; the modulate (the fade) then has to scale the colour too.
+		_img.material = _premul_material()
+		_img.show_behind_parent = true
+		add_child(_img)
+
+	static var _mat: ShaderMaterial
+
+	## Premultiplied-alpha blend with the modulate applied to colour and alpha alike (one material for
+	## every medallion, so they still batch).
+	static func _premul_material() -> ShaderMaterial:
+		if _mat == null:
+			var sh := Shader.new()
+			sh.code = """shader_type canvas_item;
+render_mode blend_premul_alpha;
+varying vec4 tint;
+void vertex() { tint = COLOR; }
+void fragment() {
+	vec4 t = texture(TEXTURE, UV);
+	COLOR = vec4(t.rgb * tint.rgb * tint.a, t.a * tint.a);
+}
+"""
+			_mat = ShaderMaterial.new()
+			_mat.shader = sh
+		return _mat
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			_bake()
+
+	## Re-renders the face texture at the current size (once; the viewport sleeps until the next change).
+	func _bake() -> void:
+		if _vp == null:
+			return
+		var k := size.x / SIZE if size.x > 0.0 else 1.0
+		var m := ceilf(MARGIN * k)
+		var px := Vector2i(maxi(1, ceili(size.x + 2.0 * m)), maxi(1, ceili(size.y + 2.0 * m)))
+		if _vp.size != px:
+			_vp.size = px
+		_face.position = Vector2(m, m)
+		_face.size = size
+		_img.position = Vector2(-m, -m)
+		_img.size = Vector2(px)
+		_face.queue_redraw()
+		_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 	func set_ratio(r: float) -> void:
 		if r == ratio:
@@ -358,7 +425,7 @@ class _Medallion extends Control:
 
 	func _dirty() -> void:
 		redraws += 1
-		queue_redraw()
+		_bake()
 
 	func _process(delta: float) -> void:
 		_pulse = maxf(0.0, _pulse - delta / PULSE_TIME)
@@ -366,8 +433,33 @@ class _Medallion extends Control:
 		if _pulse <= 0.0:
 			set_process(false)
 
+	## Live only during the action pulse: the frame's line steps out 0 -> 6 px and fades (parallel
+	## chamfer, 1 dpx).
 	func _draw() -> void:
+		if _pulse <= 0.0:
+			return
 		var r := Rect2(Vector2.ZERO, size)
+		var k := size.x / SIZE
+		var ch := CHAMFER * k
+		var g := (1.0 - _pulse) * 6.0 * k
+		var lg := UITokens.LINE_GOLD_DEEP
+		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(g), ch + g * 0.586),
+				Color(lg.r, lg.g, lg.b, lg.a * _pulse), UIKit.line_px(1.0))
+
+
+## The medallion's face, drawn inside its SubViewport (see _Medallion): plate, HP ring, class glyph,
+## gem pip, the crack when fallen.
+class _Face extends Control:
+	var md: _Medallion
+
+	func _draw() -> void:
+		if md == null:
+			return
+		var r := Rect2(Vector2.ZERO, size)
+		var fallen := md.fallen
+		var ratio := md.ratio
+		var cls := md.cls
+		var gem := md.gem
 		var k := size.x / SIZE
 		var c := r.get_center()
 		var ch := CHAMFER * k
@@ -401,12 +493,6 @@ class _Medallion extends Control:
 			_draw_crack(r)
 		else:
 			GemDraw.draw_mark(self, gem, pc, PIP * k)
-		# Action pulse: the frame's line steps out 0 -> 6 px and fades (parallel chamfer, 1 dpx).
-		if _pulse > 0.0:
-			var g := (1.0 - _pulse) * 6.0 * k
-			var lg := UITokens.LINE_GOLD_DEEP
-			GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(g), ch + g * 0.586),
-					Color(lg.r, lg.g, lg.b, lg.a * _pulse), UIKit.line_px(1.0))
 
 	## A crack across the plate, top edge to bottom edge, with two short branches: an ink line and a
 	## 1 dpx light line beside it (light catching the broken edge; no dark outline round anything).

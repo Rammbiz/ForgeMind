@@ -431,7 +431,7 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 	if s.champs.active():
 		# §4.2: the champions follow their slots and act after the army moved, before the hazards and
 		# the clash / siege tick (the Run's order).
-		s.champs.step(SimKindView.new(lv, s), dt)
+		s.champs.step(_view(lv, s), dt)
 	_hazards(lv, s)
 	_turrets(lv, s, dt)
 	match s.mode:
@@ -657,6 +657,20 @@ static func _gain(s: State, n: float, points: float) -> void:
 static func _fed(s: State, n: float) -> void:
 	if n > 0.0 and s.champs.active():
 		ChampionKinds.feed(s.champs.members, n)
+
+
+static var _pool_view: SimKindView = null
+
+
+## The champion rules' view of (lv, s): one pooled SimKindView rebound per call (the planner steps
+## thousands of states; the rules never keep the view). Kept off State: a State -> view -> State
+## cycle would never be freed.
+static func _view(lv: Level, s: State) -> SimKindView:
+	if _pool_view == null:
+		_pool_view = SimKindView.new(lv, s)
+	_pool_view.lv = lv
+	_pool_view.s = s
+	return _pool_view
 
 
 static func _charge(s: State, points: float) -> void:
@@ -1226,11 +1240,11 @@ static func _volleys(lv: Level, s: State, dt: float) -> void:
 		if not ok or absf(lv.x[i] - s.hx) > r + lv.hw[i] + 1.0:
 			continue
 		s.volley_cd = float(tier["period"])
-		var dmg := maxf(1.0, s.army * float(tier["volley"]))
+		# Ranger aura (§4.3) inside the floor, as in the Run (Weapons volley x Run.volley_mult()).
+		var vm := ChampionKinds.volley_mult(s.champs.members) if s.champs.active() else 1.0
+		var dmg := maxf(1.0, s.army * float(tier["volley"]) * vm)
 		if k != K.SQUAD:
 			dmg = maxf(1.0, dmg * float(tier.get("struct_share", 1.0)))
-		if s.champs.active():
-			dmg *= ChampionKinds.volley_mult(s.champs.members)     # Ranger aura (§4.3)
 		_hurt(lv, s, i, dmg)
 		return
 	s.volley_cd = 0.0
@@ -1361,22 +1375,13 @@ static func _hazards(lv: Level, s: State) -> void:
 
 ## A hazard band's loss with champions (heroes design §4.3): the Healer aura trims it, then a ready
 ## Guardian Blocks the first contact (ChampionKinds.absorb_hazard; a Block on a barricade also hits
-## it). A barricade wears down only by the soldiers it really kills (as with Scrape Guard), so the
-## band's wear is undone and redone with the final loss. Feeds Mend; returns the soldiers lost.
+## it). As in the Run, a barricade keeps the band's wear (every soldier touching it wears it, the
+## saved ones too); only the army's loss is cut. Feeds Mend; returns the soldiers lost.
 static func _champ_hazard(lv: Level, s: State, i: int, lost: float) -> float:
 	var m := s.champs.members
 	var bar := lv.kind[i] == K.BARRICADE
-	if bar:
-		s.hp[i] += lost
-		s.alive[i] = 1
-	var left := ChampionKinds.absorb_hazard(SimKindView.new(lv, s), m, i, &"barricade" if bar else &"blade",
+	var left := ChampionKinds.absorb_hazard(_view(lv, s), m, i, &"barricade" if bar else &"blade",
 			lost * ChampionKinds.hazard_loss_mult(m), s.army, Balance.blob_radius(s.army))
-	if bar:
-		# The Block's hit may have broken it: then the rest of the band walks through.
-		left = minf(left, s.hp[i]) if s.alive[i] == 1 else 0.0
-		s.hp[i] -= left
-		if s.hp[i] <= 0.001:
-			s.alive[i] = 0
 	_fed(s, left)
 	return left
 
@@ -1543,7 +1548,9 @@ static func _champ_tick(lv: Level, s: State, f: int, hit: float, slow: float, dr
 	s.army -= lost
 	s.clash_deaths += lost
 	_hurt(lv, s, f, hit * drill_k * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m))
-	ChampionKinds.clash_hit(SimKindView.new(lv, s), m, hit, s.champs.guardian_hero)
+	# The tick that breaks the foe costs the front nothing (the Run's result is final at that hit).
+	if s.alive[f] == 1:
+		ChampionKinds.clash_hit(_view(lv, s), m, hit, s.champs.guardian_hero)
 	_fed(s, lost)
 
 
@@ -1559,7 +1566,7 @@ static func _champ_absorb(lv: Level, s: State, f: int) -> bool:
 	if who.is_empty():
 		return false
 	var hit2 := minf(_burst(minf(float(who["hp"]), s.hp[f])), s.hp[f])
-	if not ChampionKinds.absorb_tick(SimKindView.new(lv, s), m, hit2):
+	if not ChampionKinds.absorb_tick(_view(lv, s), m, hit2):
 		return false
 	_hurt(lv, s, f, hit2)
 	return true

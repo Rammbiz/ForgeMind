@@ -2403,15 +2403,19 @@ func _champion_clash_tick(foes: float) -> void:
 	if not ChampionKinds.tick_free(m):
 		_clash_acc += float(hit) * hazard_slow() * ChampionKinds.clash_loss_mult(m)
 		lost = mini(int(floor(_clash_acc + 0.0001)), army)
-		_clash_acc -= float(lost)
+		# The whole soldiers due go, even past an army cap (no debt carried into later recruits).
+		_clash_acc -= floorf(_clash_acc + 0.0001)
 	var before := army
 	_feed_hold = true
 	_change_army(-lost, Vector3.INF, Vector3.ZERO, "front")
 	_feed_hold = false
 	stats["clash_losses"] = int(stats["clash_losses"]) + lost
-	var drill := float(_foe.get("drill_k", 1.0))
-	hurt(_foe, float(hit) * drill * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), "clash")
-	ChampionKinds.clash_hit(kind_view, m, float(hit), champions.guardian_hero)
+	var foe := _foe
+	var drill := float(foe.get("drill_k", 1.0))
+	hurt(foe, float(hit) * drill * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), "clash")
+	# The tick that breaks the squad costs the front nothing (LevelSim._champ_tick).
+	if foe["alive"]:
+		ChampionKinds.clash_hit(kind_view, m, float(hit), champions.guardian_hero)
 	ChampionKinds.feed(m, float(before - army))
 	_clash_fx()
 
@@ -2445,13 +2449,16 @@ func _champion_siege_tick(f: Dictionary, hit: int) -> void:
 	if not ChampionKinds.tick_free(m):
 		_clash_acc += float(hit) * ChampionKinds.clash_loss_mult(m)
 		lost = mini(int(floor(_clash_acc + 0.0001)), army)
-		_clash_acc -= float(lost)
+		# The whole soldiers due go, even past an army cap (no debt carried into later recruits).
+		_clash_acc -= floorf(_clash_acc + 0.0001)
 	var before := army
 	_feed_hold = true
 	_change_army(-lost, Vector3.INF, Vector3.ZERO, "front")
 	_feed_hold = false
 	hurt(f, float(hit) * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), "siege")
-	ChampionKinds.clash_hit(kind_view, m, float(hit), champions.guardian_hero)
+	# The tick that breaks the gate is the win: the result is final, the front takes nothing.
+	if f["alive"]:
+		ChampionKinds.clash_hit(kind_view, m, float(hit), champions.guardian_hero)
 	ChampionKinds.feed(m, float(before - army))
 
 
@@ -2465,7 +2472,7 @@ func _champion_hazard(it: Dictionary, lost: int) -> int:
 	lf = ChampionKinds.absorb_hazard(kind_view, m, int(it["kid"]), kind, lf, float(army), blob_radius())
 	_haz_acc += lf
 	var keep := mini(int(floor(_haz_acc + 0.0001)), army)
-	_haz_acc -= float(keep)
+	_haz_acc -= floorf(_haz_acc + 0.0001)
 	hazard_deaths -= float(lost - keep)
 	return keep
 

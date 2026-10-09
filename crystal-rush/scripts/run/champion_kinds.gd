@@ -171,14 +171,18 @@ static func in_slot(members: Array, slot: StringName) -> Dictionary:
 static func step(view: KindView, members: Array, dt: float) -> void:
 	if members.is_empty():
 		return
+	# One snapshot of the army for the whole step (a Mend inside the loop changes it; a view may
+	# refresh one shared dictionary in place).
 	var a := view.army()
 	var r := float(a["radius"])
+	var ax := float(a["x"])
+	var ad := float(a["d"])
 	for m: Dictionary in members:
 		if not bool(m["alive"]):
 			continue
 		var off := slot_offset(m["slot"], r)
-		m["x"] = float(a["x"]) + off.x
-		m["d"] = float(a["d"]) - off.y
+		m["x"] = ax + off.x
+		m["d"] = ad - off.y
 		m["shield"] = maxf(float(m["shield"]) - dt, 0.0)
 		match str(m["class"]):
 			"warrior":

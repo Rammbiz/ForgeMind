@@ -128,10 +128,14 @@ func hit(target_id: int, dmg: float, _tags := {}) -> int:
 	if kind == "blade" or kind == "gate" or kind == "crate":
 		return 0
 	var t0 := Time.get_ticks_usec()
-	var dealt := run.hurt(it, dmg, SOURCE)
+	# Soldiers removed = the change of the squad's shown count ceil(hp), as SimKindView counts them.
+	var before := ceili(maxf(float(it["hp"]) - 0.001, 0.0))
+	run.hurt(it, dmg, SOURCE)
 	if run.champ_stepping:
 		run.champ_perf["hit_us"] = int(run.champ_perf["hit_us"]) + Time.get_ticks_usec() - t0
-	return roundi(dealt) if kind == "squad" else 0
+	if kind != "squad":
+		return 0
+	return before - (ceili(maxf(float(it["hp"]) - 0.001, 0.0)) if it["alive"] else 0)
 
 
 ## One stack of status `st` (ChampionKinds.ELEMENT_STATUS names) on squad `target_id`, kept at

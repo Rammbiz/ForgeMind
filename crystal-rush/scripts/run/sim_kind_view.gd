@@ -6,6 +6,10 @@ extends KindView
 ## Target ids are LevelSim item indices. fx is a counter (per event in State.champ_fx while the
 ## state has champions).
 
+## The shared empty answers (read-only constants: the rules never change what they get).
+const _NONE: Array = []
+const _NO_STATUS: Dictionary = {}
+
 var lv: LevelSim.Level
 var s: LevelSim.State
 ## fx events seen by this view (budget checks; LevelSim draws nothing).
@@ -76,7 +80,9 @@ func hazard_near(ahead: float) -> bool:
 
 
 func army() -> Dictionary:
-	return {"n": s.army, "x": s.ax, "d": LevelSim.army_center_d(s), "radius": Balance.blob_radius(s.army),
+	# x = the hero's x, the Run's blob centre (Run._army_center); the lagged s.ax stays the hazards'
+	# model of the trailing soldiers. HeroKinds reads only n.
+	return {"n": s.army, "x": s.hx, "d": LevelSim.army_center_d(s), "radius": Balance.blob_radius(s.army),
 			"reserves": s.reserves, "revive_pool": 0.0}
 
 
@@ -89,9 +95,10 @@ func fx(event: StringName, _data := {}) -> void:
 # ------------------------------------------------------------------ H2: champions (§4.2, §10.4)
 
 ## Living squads with d in [d0, d1] whose span (x +- half width) overlaps [x0, x1]; n = soldiers
-## left (hp). flying / armored / phantom come from the item when it has them.
+## left (hp). flying / armored / phantom come from the item's `props` array, as in the Run; status is
+## an empty Dictionary (statuses are not simulated). An empty answer is a shared empty array.
 func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
-	var out: Array = []
+	var out: Array = _NONE
 	var lo := LevelSim._first_at(lv.d, lv.block, d0)
 	for j in range(lo, lv.block.size()):
 		var i := lv.block[j]
@@ -102,16 +109,19 @@ func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 		if lv.x[i] + lv.hw[i] < x0 or lv.x[i] - lv.hw[i] > x1:
 			continue
 		var it := lv.items[i]
+		var props: Array = it["props"] if it.get("props") is Array else _NONE
+		if is_same(out, _NONE):
+			out = []
 		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "n": float(s.hp[i]),
-				"flying": bool(it.get("flying", false)), "armored": bool(it.get("armored", false)),
-				"phantom": bool(it.get("phantom", false)), "status": ""})
+				"flying": props.has("flying"), "armored": props.has("armored"),
+				"phantom": props.has("phantom"), "status": _NO_STATUS})
 	return out
 
 
 ## Living barricades, turrets and geodes with d in [d0, d1], then the blades (kind "blade": the
 ## rules never hit them): [{id, d, x, kind, hp}].
 func hazards_in(d0: float, d1: float) -> Array:
-	var out: Array = []
+	var out: Array = _NONE
 	var lo := LevelSim._first_at(lv.d, lv.targ, d0)
 	for j in range(lo, lv.targ.size()):
 		var i := lv.targ[j]
@@ -129,6 +139,8 @@ func hazards_in(d0: float, d1: float) -> Array:
 				kind = &"geode"
 			_:
 				continue
+		if is_same(out, _NONE):
+			out = []
 		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": kind, "hp": float(s.hp[i])})
 	var lo_h := LevelSim._first_at(lv.d, lv.haz, d0)
 	for j in range(lo_h, lv.haz.size()):
@@ -136,6 +148,8 @@ func hazards_in(d0: float, d1: float) -> Array:
 		if lv.d[i] > d1:
 			break
 		if lv.kind[i] == LevelSim.K.BLADE:
+			if is_same(out, _NONE):
+				out = []
 			out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "kind": &"blade", "hp": 0.0})
 	return out
 
