@@ -97,11 +97,11 @@ All paths below are from the repo root.
 
 ## State of play (update this section when it changes)
 - Done and pushed: Taras, Snaryad, Dovbush (champions), Sirko, Olha (heroes), prompts page, art tools.
-- **UI v3 "porcelain glass" + key button** live on the branch `ui-v3` (hub, Heroes, Portal restyle; the owner picked the
-  «Порцеляна» key button, `UITokens.CTA_STYLE = "porcelain"`). `ui-v3` and `cta-study` exist ONLY in the cloud container (never
-  pushed), so a local session cannot see them. NOT in this branch yet: the amber button here is the old one, do not restyle it.
-  Remaining: the CLOUD session finishes `ui-v3` (it already has this branch merged in, fdb811d), merges it here, runs all checks,
-  builds APK 2.4. A local session must never recreate or re-implement this work; until the merge lands, ask before editing `scripts/ui/`.
+- **UI v3 "porcelain glass" + the «Порцеляна» key button are IN this branch** (merge c65e6a2: hub, Heroes, Portal restyle;
+  `UITokens.CTA_STYLE = "porcelain"`, `--cta=ink|amber` only for dev comparisons). Spec: `crystal-rush/docs/design/ui_v3_spec.md`.
+  The cloud session is still removing the last amber accents (Ult button and its toast, avatar arc, nav label, Portal pity bar,
+  notify badges) on its `ui-v3` branch and will merge them here, then build APK 2.4. Until that merge lands, ask before editing
+  `crystal-rush/scripts/ui/` so the two sessions do not collide; `git pull --ff-only` first, every time.
 - Next in the queue: H2 champions in the run, H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop,
   Meta-1 review, Meta-2, perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка,
   Мамай, Одарка, Сковорода ...).
