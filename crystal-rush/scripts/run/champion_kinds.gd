@@ -211,6 +211,18 @@ static func member(st: Dictionary, slot: StringName) -> Dictionary:
 	return m
 
 
+## Forgets every target a member holds by id (a Block in progress, the clash foe, a rimed squad, a
+## tether, a cut, a turret catch). For a copy whose ids mean other items (the bot's planner snapshot
+## re-indexes the Run's items): timers and pools stay.
+static func drop_refs(m: Dictionary) -> void:
+	for k: String in m:
+		if k.ends_with("_id") or k in ["teth_a", "teth_b"]:
+			m[k] = -1
+		elif k == "block_left" or k in ["rime_left", "teth_left", "cut_left", "catch_left"]:
+			m[k] = 0.0
+	m["fight"] = false
+
+
 ## Places `members` ([{id, class}] in team order) on the slots: each takes its first free
 ## preferred slot, else the first free slot in SLOT_ORDER. Returns id -> slot. Empty while the
 ## champions phase is off or `count` is 0.
@@ -390,10 +402,12 @@ static func _warrior(view: KindView, m: Dictionary, dt: float) -> void:
 	var x := float(m["x"])
 	var lane := float(c["lane"])
 	var sq := view.squads_in(d, d + reach, x - lane, x + lane)
-	if bool(tw.get("no_flying", false)):
-		sq = sq.filter(func(s: Dictionary) -> bool: return not bool(s.get("flying", false)))
 	if sq.is_empty():
 		return
+	if bool(tw.get("no_flying", false)):
+		sq = sq.filter(func(s: Dictionary) -> bool: return not bool(s.get("flying", false)))
+		if sq.is_empty():
+			return
 	if bool(tw.get("armored_first", false)):
 		# "Robin Hood": the most armoured squad in range first, then by distance.
 		sq.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:

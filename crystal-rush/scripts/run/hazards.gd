@@ -280,7 +280,8 @@ func step_turrets(dt: float, army: Army) -> void:
 		Audio.play("turret_shot", -11.0, 0.1)
 		node.set_meta("kick", 1.0)
 		var item := it
-		if run.champions.active() and _caught(it, muzzle):
+		# Under the quake's armour the shot is free anyway: Німб keeps his catch (LevelSim._turrets).
+		if run.champions.active() and run._armor <= 0.0 and _caught(it, muzzle):
 			continue
 		var dist := muzzle.distance_to(target)
 		run.effects.projectile(muzzle, target, "turret", dist / TURRET_SHOT_SPEED, func() -> void: run.turret_hit(item, target))

@@ -173,14 +173,13 @@ func snapshot(run: Object, fog := true) -> Array:
 	# The live army / machines replace what the profile would start with.
 	s.army = float(int(run.get("army")))
 	s.weapons.clear()
-	# The live champions (HP, cooldowns, pools, the fallen) replace the profile's fresh ones. A Block
-	# in progress names a Run item, not a snapshot index: it is dropped.
+	# The live champions (HP, cooldowns, pools, the fallen) replace the profile's fresh ones. Targets
+	# held by id name Run items, not snapshot indices: they are dropped (ChampionKinds.drop_refs).
 	var champs: Variant = run.get("champions")
 	if champs is Champions and (champs as Champions).active():
 		s.champs = (champs as Champions).copy()
 		for m: Dictionary in s.champs.members:
-			m["block_id"] = -1
-			m["block_left"] = 0.0
+			ChampionKinds.drop_refs(m)
 	s.d = d
 	s.t = t
 	var hz: Variant = run.get("hz_t")
