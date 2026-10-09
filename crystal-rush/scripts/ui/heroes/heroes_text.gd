@@ -86,6 +86,8 @@ const FALLBACK := {
 	"CHAMP_TARAS_ROLE": ["Пробиває загони словом", "Breaks squads with the Word"],
 	"CHAMP_SNARYAD": ["Снаряд", "Snaryad"], "CHAMP_SNARYAD_TITLE": ["Пес-сапер", "The Sapper Hound"],
 	"CHAMP_SNARYAD_ROLE": ["Знешкоджує пастки", "Defuses the traps"],
+	"CHAMP_DOVBUSH": ["Довбуш", "Dovbush"], "CHAMP_DOVBUSH_TITLE": ["Опришок", "The Carpathian Rebel"],
+	"CHAMP_DOVBUSH_ROLE": ["Кидає бартку крізь загони", "Hurls the bartka through squads"],
 	# ---------------------------------------------------------------- gems (§2.1; case forms part U §6.1)
 	"GEM": ["Самоцвіт", "Gem"], "RARITY": ["Рідкість", "Rarity"],
 	"GEM_C": ["Кварц", "Quartz"], "GEM_R": ["Сапфір", "Sapphire"], "GEM_E": ["Аметист", "Amethyst"],

@@ -273,6 +273,7 @@ func _test_roster() -> void:
 	_ok(nos.size() == HeroData.HERO_ORDER.size() + n_champ, "collector numbers are unique")
 	_test_taras()
 	_test_snaryad()
+	_test_dovbush()
 	_ok(ChampionData.action_tier("mila") == 1 and ChampionData.action_tier("menhir") == 4, "Action tier = native + 1")
 	for s: String in HeroData.STARTERS:
 		_ok(HeroData.HEROES.has(s) and HeroData.STARTER_AT.has(s), "starter %s" % s)
@@ -897,7 +898,8 @@ func _test_champions() -> void:
 			"brant": [56, 102, 106, 3.50, 6.38, 6.62, 0.117, 0.041, 0.245], "teo": [30, 55, 57, 1.17, 2.13, 2.21, 0.175, 0.044, 0.367],
 			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [76, 138, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
 			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396],
-			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [70, 128, 132, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245]}
+			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [70, 128, 132, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245],
+			"dovbush": [60, 110, -1, 1.89, 3.45, -1, 0.126, 0.044, 0.264]}
 	for cid: String in rows:
 		var w: Array = rows[cid]
 		var nat := Roster.native(cid)
@@ -969,6 +971,13 @@ func _test_taras() -> void:
 func _test_snaryad() -> void:
 	_test_joined_champion("snaryad", "Снаряд", 24, {"native": "E", "class": "guardian", "element": "tech", "faction": "dawn", "slot": "front"},
 			"ivo", {"hp": 60, "action": 2, "aura": 0.1, "radius": 1.0}, "Пес-сапер")
+
+
+## C25 Довбуш (heroes_design.md §6.27): a native Topaz Warrior of Kinetic and Stoneheart on the Warrior template (the
+## leap becomes the bartka throw through two squads, kit action 1.5 per squad), Loc rows, rule #3 against him.
+func _test_dovbush() -> void:
+	_test_joined_champion("dovbush", "Довбуш", 25, {"native": "L", "class": "warrior", "element": "kinetic", "faction": "stoneheart", "slot": "front"},
+			"brant", {"hp": 48, "action": 1.5, "aura": 0.1, "radius": 1.1}, "Опришок")
 
 
 ## A champion that joined after launch: collector number fixed at birth, tags, Action tier, its class template kit (hp,
@@ -1505,6 +1514,15 @@ func _test_chests() -> void:
 			rest_ok = rest_ok and is_equal_approx(float(wl[cl]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1))
 	_ok(pool_l.has("taras") and is_equal_approx(float(wl["taras"]), PortalData.CHEST_FOCUS_TOTAL) and rest_ok,
 			"chest Focus Тарас: 60%% and the other %d Topaz champions %.2f%% each" % [pool_l.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1)])
+	# Топаз holds 5 since C25 Довбуш: a Focus on him keeps exactly 60%, the other four share 40% evenly.
+	HeroChest.set_focus(acc6, "L", "dovbush")
+	var wd := HeroChest.champion_weights(acc6, "L")
+	var rest_d := true
+	for cd: String in pool_l:
+		if cd != "dovbush":
+			rest_d = rest_d and is_equal_approx(float(wd[cd]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1))
+	_ok(pool_l.has("dovbush") and is_equal_approx(float(wd["dovbush"]), PortalData.CHEST_FOCUS_TOTAL) and rest_d,
+			"chest Focus Довбуш: 60%% and the other %d Topaz champions %.2f%% each" % [pool_l.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1)])
 	# Аметист holds 4 since C24 Снаряд: the same rule inside the Amethyst pool.
 	var pool_e := HeroChest.pool("E")
 	HeroChest.set_focus(acc6, "E", "snaryad")

@@ -56,7 +56,8 @@
   "dara",
   "menhir",
   "taras",
-  "snaryad"
+  "snaryad",
+  "dovbush"
  ],
  "starters": [
   "titan",
@@ -651,6 +652,22 @@
    },
    "action_note": "Sapper's Nose charge kills (per Block, every 6 s; + MARK)",
    "aura_note": "clash losses -"
+  },
+  "dovbush": {
+   "no": 25,
+   "native": "L",
+   "class": "warrior",
+   "element": "kinetic",
+   "faction": "stoneheart",
+   "slot": "front",
+   "kit": {
+    "hp": 48,
+    "action": 1.5,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "bartka kills per squad x2 squads (every 5 s; + STAGGER)",
+   "aura_note": "squad clash loss +"
   }
  },
  "index_terms": {

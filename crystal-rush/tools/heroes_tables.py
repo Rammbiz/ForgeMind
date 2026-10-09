@@ -85,6 +85,7 @@ CHAMPS = [
     ("menhir", "Менгір", 3, "Mage", "Rune", "Stoneheart", 26, 4, "rune-strike kills per squad (every 4 s)", 0.15, "volley status proc x", 1.2, "right"),
     ("taras", "Тарас", 3, "Mage", "Rune", "Wildfang", 26, 4, "The Word kills per squad (every 4 s; pages cut on)", 0.15, "volley status proc x", 1.2, "rear"),
     ("snaryad", "Снаряд", 2, "Guardian", "Tech", "Dawn", 60, 2, "Sapper's Nose charge kills (per Block, every 6 s; + MARK)", 0.10, "clash losses -", 1.0, "front"),
+    ("dovbush", "Довбуш", 3, "Warrior", "Kinetic", "Stoneheart", 48, 1.5, "bartka kills per squad x2 squads (every 5 s; + STAGGER)", 0.10, "squad clash loss +", 1.1, "front"),
 ]
 AURA_SHARE = {"front": 0.35, "left": 0.30, "right": 0.30, "rear": 0.25}
 AURA_CAP = 0.40

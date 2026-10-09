@@ -26,7 +26,7 @@ const DISCLOSED_CHAMP := {
 	"C": {"pool": 3, "each": 20.67, "focus": 37.20, "other": 12.40},
 	"R": {"pool": 3, "each": 9.00, "focus": 16.20, "other": 5.40},
 	"E": {"pool": 4, "each": 2.25, "focus": 5.40, "other": 1.20},
-	"L": {"pool": 4, "each": 0.50, "focus": 1.20, "other": 0.27},
+	"L": {"pool": 5, "each": 0.40, "focus": 1.20, "other": 0.20},
 }
 ## Champions per chest gem at the launch of the Heroes system: a gem whose pool differs from this baseline must have an
 ## ODDS_CHANGELOG row recording the current pool (`pool_after`).
@@ -39,6 +39,8 @@ const ODDS_CHANGELOG := [
 	{"version": "2.4.0", "pool": "chest L", "pool_after": 4, "why": "C23 Тарас joins the Topaz champions (3 -> 4)", "row": "other", "was": 0.40, "now": 0.27},
 	{"version": "2.4.0", "pool": "chest E", "pool_after": 4, "why": "C24 Снаряд joins the Amethyst champions (3 -> 4)", "row": "each", "was": 3.00, "now": 2.25},
 	{"version": "2.4.0", "pool": "chest E", "pool_after": 4, "why": "C24 Снаряд joins the Amethyst champions (3 -> 4)", "row": "other", "was": 1.80, "now": 1.20},
+	{"version": "2.4.0", "pool": "chest L", "pool_after": 5, "why": "C25 Довбуш joins the Topaz champions (4 -> 5)", "row": "each", "was": 0.50, "now": 0.40},
+	{"version": "2.4.0", "pool": "chest L", "pool_after": 5, "why": "C25 Довбуш joins the Topaz champions (4 -> 5)", "row": "other", "was": 0.27, "now": 0.20},
 ]
 const STAGES := {
 	"A": {"own": ["bolt", "titan"], "focus": {}, "level": 21},

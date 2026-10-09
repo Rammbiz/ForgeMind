@@ -76,6 +76,8 @@ func _test_states() -> void:
 	HeroesUIModel.set_state("late")
 	# C24 Снаряд (§6.26): owned and NEW in 'late', listed but not owned in every other state.
 	_test_joined_state("snaryad", "Снаряд", "E", 3, "guardian", "dawn")
+	# C25 Довбуш (§6.27): the same.
+	_test_joined_state("dovbush", "Довбуш", "L", 4, "warrior", "stoneheart")
 	HeroesUIModel.set_state("fresh")
 	_check(not bool(HeroesUIModel.unlocks()["portal"]) and not bool(HeroesUIModel.hero("arin")["listed"]), "fresh: Portal heroes hidden")
 	_check(bool(HeroesUIModel.hero("seer")["listed"]) and not bool(HeroesUIModel.hero("seer")["owned"]), "fresh: Мейра listed, not owned")
@@ -232,6 +234,7 @@ func _test_art() -> void:
 	_check(no_art == "" or HeroArt.state(no_art) == "placeholder", "%s falls back to the class emblem" % (no_art if no_art != "" else "(every champion has art)"))
 	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
 	_check(HeroArt.state("snaryad") == "splash" and HeroArt.card_texture("snaryad") != null, "Снаряд has the owner's card art")
+	_check(HeroArt.state("dovbush") == "splash" and HeroArt.card_texture("dovbush") != null, "Довбуш has the owner's card art")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 
