@@ -167,17 +167,15 @@ func _draw() -> void:
 func _text_block(txt: String, y: float, fs0: int, col: Color, weight: String, max_lines := 3) -> float:
 	var f := UIKit.font_w(weight)
 	var w := size.x
-	# Shrink (down to 18 px) until the longest single word fits the plate width.
+	# Never below the 22 px type floor: words wrap, and one word wider than the plate breaks once
+	# at a syllable edge with a hyphen (HeroV3.hyphen_split) instead of shrinking.
 	var fs := fs0
-	var longest := ""
+	var words := PackedStringArray()
 	for word in txt.split(" "):
-		if word.length() > longest.length():
-			longest = word
-	while fs > 18 and f.get_string_size(longest, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
-		fs -= 1
+		words.append_array(HeroV3.hyphen_split(word, f, fs, w))
 	var lines := PackedStringArray()
 	var cur := ""
-	for word in txt.split(" "):
+	for word in words:
 		var t2 := word if cur == "" else cur + " " + word
 		if f.get_string_size(t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w and cur != "":
 			lines.append(cur)

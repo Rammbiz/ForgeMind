@@ -31,6 +31,7 @@ var _seg_host: MarginContainer
 var _seg: PanelContainer
 var _seg_key := ""
 var _chips_sc: ScrollContainer
+var _chips_fade: HeroHScrollFade
 var _chips: HBoxContainer
 var _sc: ScrollContainer
 var _pad: MarginContainer
@@ -86,9 +87,9 @@ func _ready() -> void:
 	_chips = HBoxContainer.new()
 	_chips.add_theme_constant_override("separation", 8)
 	_chips_sc.add_child(_chips)
-	# The chip row scrolls sideways: soft cream fades at both ends say "more", never a chip cut
-	# mid-glyph at the screen edge.
-	HeroHScrollFade.attach(_chips_sc, UITokens.PAPER_1, 72.0)
+	# The chip row scrolls sideways: the chips themselves dissolve at both ends (an alpha mask,
+	# no paint over the glass), which says "more", never a chip cut mid-glyph at the screen edge.
+	_chips_fade = HeroHScrollFade.attach(_chips_sc, UITokens.PAPER_1, 72.0)
 	_sc = ScrollContainer.new()
 	_sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -251,6 +252,7 @@ func _build_chips() -> void:
 			listed += 1
 	var on := _sub == "heroes" and listed >= 6
 	_chips_sc.visible = on
+	_chips_fade.visible = on
 	if not on:
 		_filter = "all"
 		return

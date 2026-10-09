@@ -19,6 +19,11 @@ const DIV := 10.0
 const SPREAD := 1.6
 const BLUR := preload("res://shaders/ui/snap_blur.gdshader")
 const FROST_SHADER := preload("res://shaders/ui/ui_frost.gdshader")
+## Night look (Portal): more lift and calm, a warm porcelain page tint (PAPER_0 ~35 % into white-warm).
+const NIGHT_CONTRAST := 0.5
+const NIGHT_DESAT := 0.5
+const NIGHT_LIFT := 0.57
+const NIGHT_TINT := Color(1.0, 0.962, 0.9)
 
 static var _stack: Array[HeroFrost] = []
 
@@ -28,6 +33,14 @@ var contrast := 0.7
 var desat := 0.2
 var lift := 0.16
 var ready_once := false
+## The baked backdrop is the Portal NIGHT: the frost is lifted and warmed toward porcelain (spec §4.6
+## page_tint, PAPER_0 leaned in), so a rim over the dark sky reads cream (luma >= 228, R > B), not
+## greige, while the stars still glint faintly through it.
+var night := false:
+	set(v):
+		night = v
+		for m: ShaderMaterial in _mats.values():
+			_look(m, ready_once)
 var _snap: SubViewport
 var _blur: SubViewport
 var _blur_rect: ColorRect
@@ -224,7 +237,6 @@ func material(tint := UITokens.FROST_MODAL_TINT) -> ShaderMaterial:
 	m.shader = FROST_SHADER
 	m.set_shader_parameter("snap_tex", texture())
 	m.set_shader_parameter("tint", tint)
-	m.set_shader_parameter("page_tint", Color.WHITE)
 	_look(m, ready_once)
 	_mats[key] = m
 	return m
@@ -232,10 +244,11 @@ func material(tint := UITokens.FROST_MODAL_TINT) -> ShaderMaterial:
 
 func _look(m: ShaderMaterial, on: bool) -> void:
 	# Until the first still is rendered the glass is flat cream (the empty texture never shows).
-	m.set_shader_parameter("frost_contrast", contrast if on else 0.0)
+	m.set_shader_parameter("frost_contrast", (NIGHT_CONTRAST if night else contrast) if on else 0.0)
 	m.set_shader_parameter("frost_mid", 0.8 if on else 0.93)
-	m.set_shader_parameter("frost_desat", desat)
-	m.set_shader_parameter("frost_lift", lift)
+	m.set_shader_parameter("frost_desat", NIGHT_DESAT if night else desat)
+	m.set_shader_parameter("frost_lift", NIGHT_LIFT if night else lift)
+	m.set_shader_parameter("page_tint", NIGHT_TINT if night else Color.WHITE)
 
 
 class _Grad extends Control:

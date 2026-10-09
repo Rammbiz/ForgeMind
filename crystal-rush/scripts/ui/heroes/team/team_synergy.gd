@@ -12,7 +12,7 @@ extends VBoxContainer
 var team: Dictionary = {}
 var width := 672.0
 
-const COL_GAP := 12.0
+const COL_GAP := 16.0
 
 
 static func make(p_team: Dictionary, p_width := 672.0) -> HeroesTeamSynergy:
@@ -117,13 +117,13 @@ func _column(title: String, kind: String, counts: Dictionary, cw: float) -> Cont
 	var keys: Array = counts.keys()
 	keys.sort_custom(func(a, b): return _rank(kind, str(a), int(counts[a])) > _rank(kind, str(b), int(counts[b])) \
 			or (_rank(kind, str(a), int(counts[a])) == _rank(kind, str(b), int(counts[b])) and str(a) < str(b)))
+	# The «+N more» count sits right after ITS OWN header («КЛАС +1»), never at the column's right
+	# end where it read as the next header's prefix («+1 СТИХІЯ»).
 	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
 	head.add_child(UIKit.caps(title, 20, UITokens.INK_DIM_GLASS))
 	if keys.size() > 1:
-		var sp := Control.new()
-		sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		head.add_child(sp)
-		head.add_child(UIKit.caps("+%d" % (keys.size() - 1), 20, UITokens.INK_DIM_GLASS))
+		head.add_child(UIKit.caps("+%d" % (keys.size() - 1), 20, UITokens.GOLD_TEXT_GLASS))
 	col.add_child(head)
 	if not keys.is_empty():
 		col.add_child(_TagChip.make(kind, str(keys[0]), int(counts[keys[0]]), cw))

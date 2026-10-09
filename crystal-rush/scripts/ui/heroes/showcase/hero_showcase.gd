@@ -46,7 +46,7 @@ var _splash: TextureRect
 var _stage: HeroShowcaseStage
 var _relief: _ReliefArt
 var _veil: TextureRect
-var _colbed: Panel
+var _colbed: _ColBed
 var _ui: Control
 var _info: VBoxContainer
 var _skills: PanelContainer
@@ -182,10 +182,11 @@ func _build_hero(entrance: bool) -> void:
 	# v3.1 text bed of the info column (§4.3 over art): a feathered 94 % cream bed sized to the
 	# column, its strength from META "veil" (art that reaches under the column gets more), so the
 	# lines stay >= 4.5:1 over a golem's shoulder or a bow arm. It ends left of the face (eye_x).
-	_colbed = Panel.new()
+	# Fixer pass: never a box. One gradient mesh (vertex alphas): full to 55 % of the column,
+	# smoothstep to 0 by 115 %, a ~110 px feather at the top and bottom (no edge anywhere).
+	_colbed = _ColBed.new()
 	_colbed.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_colbed.add_theme_stylebox_override("panel", UIKit.lux("text_bed"))
-	_colbed.self_modulate.a = clampf(0.2 + (va - 0.5) * 2.6, 0.2, 0.84) if st == "splash" else 0.0
+	_colbed.strength = clampf(0.2 + (va - 0.5) * 2.6, 0.2, 0.84) if st == "splash" else 0.0
 	add_child(_colbed)
 	_ui = Control.new()
 	_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -390,6 +391,11 @@ func _skill_band() -> PanelContainer:
 	var p := PanelContainer.new()
 	if not HeroFrost.frost_panel(p, "panel", Vector2(18, 14), _frost, 0.66, false):
 		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(18, 14)))
+	else:
+		# This band sits on the busiest art: its frame alone is LINE_GOLD_DEEP @ 0.85.
+		var tb := UIKit.text_bed_of(p)
+		if tb:
+			tb.frame_kind = "panel_lines_deep"
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	p.add_child(v)
@@ -446,16 +452,16 @@ func _skill_block(s: String, ranks_open: bool, bw := 152.0) -> Control:
 	plate.pressed.connect(func(): _on_skill(s))
 	col.add_child(plate)
 	var sn := HeroesText.skill_name(hero_id, s)
-	var fs := UIKit.fit_size(sn, bw - 2.0, 22, 20)
-	var nm := UIKit.label(sn, fs, UITokens.INK, true)
+	# Fixer pass: the name never shrinks below the 22 px floor. A long name wraps to two 22 px
+	# lines; one long word breaks once at a syllable edge with a hyphen (Сонце- / сходження).
+	var f := UIKit.font(true)
+	var txt := sn
+	if not " " in sn.strip_edges():
+		txt = "\n".join(HeroV3.hyphen_split(sn, f, 22, bw - 2.0))
+	var nm := UIKit.label(txt, 22, UITokens.INK, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.custom_minimum_size = Vector2(bw, 0)
-	if not " " in sn.strip_edges():
-		# One long word (e.g. «Сонцесходження») never breaks mid-word: it fits on one line instead.
-		nm.add_theme_font_size_override("font_size", UIKit.fit_size(sn, bw + 8.0, 22, 18))
-	elif UIKit.font(true).get_string_size(sn, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > bw - 2.0:
-		# A long name takes two 22 px lines rather than shrinking below the type floor.
-		nm.add_theme_font_size_override("font_size", 22)
+	if " " in sn.strip_edges() and f.get_string_size(sn, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x > bw - 2.0:
 		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		nm.max_lines_visible = 2
 	col.add_child(nm)
@@ -576,8 +582,9 @@ func _layout() -> void:
 			_info.size = Vector2(COL_W, 0)
 	_codex.position = Vector2(W - UITokens.GUTTER - 76.0, y0)
 	var ih := _info.get_combined_minimum_size().y
-	_colbed.position = Vector2(-28.0, y0 + 96.0)
-	_colbed.size = Vector2(UITokens.GUTTER + COL_W + 40.0, maxf(0.0, ih - 76.0))
+	_colbed.position = Vector2.ZERO
+	_colbed.size = Vector2(W, H)
+	_colbed.set_band(UITokens.GUTTER, COL_W, y0 + 40.0, y0 + 150.0, y0 + ih - 10.0, y0 + ih + 100.0)
 	_veil.position = Vector2.ZERO
 	_veil.size = Vector2(W * 0.72, H)
 	_bg.focus = Vector2(0.64, 0.34)
@@ -782,16 +789,57 @@ func _open_manage(tab: String) -> void:
 	# Through HeroesNav: over this screen the sheet lands on the router's modal layer (above the
 	# screen layer) with the sheet's own warm scrim; the 3D stage keeps rendering above it.
 	_sheet = HeroesNav.open(hub, "manage/%s/%s" % [hero_id, tab], self)
-	if _sheet:
-		_sheet.tree_exited.connect(func(): _sheet = null)
+	_watch_sheet()
 
 
 func _open_codex() -> void:
 	if _sheet and is_instance_valid(_sheet):
 		return
 	_sheet = HeroesNav.open(hub, "codex", self)
-	if _sheet:
-		_sheet.tree_exited.connect(func(): _sheet = null)
+	_watch_sheet()
+
+
+## While a sheet is up, info rows its top edge would cut (a «Грані 3/5 · 18/30» line peeking half
+## out above the sheet) fade out; they come back when it closes.
+func _watch_sheet() -> void:
+	if _sheet == null:
+		return
+	_sheet.tree_exited.connect(func():
+		_sheet = null
+		_fade_rows_under(INF))
+	var ks := (_sheet as HeroesBottomSheet).sheet if _sheet is HeroesBottomSheet else null
+	if ks:
+		var upd := func():
+			if is_instance_valid(ks) and ks.is_inside_tree():
+				_fade_rows_under(ks.get_global_rect().position.y)
+		ks.item_rect_changed.connect(upd)
+		upd.call_deferred()
+
+
+func _fade_rows_under(top_y: float) -> void:
+	if _info == null:
+		return
+	for c in _info.get_children():
+		if not (c is Control):
+			continue
+		var r := (c as Control).get_global_rect()
+		var want := 1.0 if r.end.y <= top_y - 6.0 else 0.0
+		var had := float((c as Control).get_meta("sheet_a", 1.0))
+		if had == want:
+			continue
+		(c as Control).set_meta("sheet_a", want)
+		# self_modulate down the row's subtree: never fights the entrance (soft_in owns modulate).
+		if UITokens.reduce_motion():
+			_row_alpha(c, want)
+		else:
+			(c as Control).create_tween().tween_method(func(v: float): _row_alpha(c, v), had, want, 0.16)
+
+
+static func _row_alpha(n: Node, a: float) -> void:
+	if n is CanvasItem:
+		(n as CanvasItem).self_modulate.a = a
+	for k in n.get_children():
+		_row_alpha(k, a)
 
 
 func _exit_tree() -> void:
@@ -895,3 +943,66 @@ class _GemMark extends Control:
 
 	func _draw() -> void:
 		GemDraw.draw_mark(self, UITokens.gem_of(gem), size * 0.5, minf(size.x, size.y) * 0.78)
+
+
+## The info column's text bed (§4.3 over art) as ONE gradient mesh: PAPER_0 at the text alpha x
+## `strength`, full strength to 55 % of the column, smoothstep to 0 by 115 % of it, smoothstep
+## feathers top and bottom. No rectangle, no straight edge over the painted splash.
+class _ColBed extends Control:
+	const XS := [0.0, 0.55, 0.65, 0.75, 0.85, 0.95, 1.05, 1.15]
+	const YN := 6
+	var strength := 0.5:
+		set(v):
+			strength = v
+			queue_redraw()
+	var _x0 := 24.0
+	var _cw := 340.0
+	var _y := [0.0, 0.0, 0.0, 0.0]
+
+	func set_band(x0: float, col_w: float, top_out: float, top_in: float, bot_in: float, bot_out: float) -> void:
+		_x0 = x0
+		_cw = col_w
+		_y = [top_out, top_in, maxf(top_in, bot_in), maxf(top_in, bot_out)]
+		queue_redraw()
+
+	static func _ss(t: float) -> float:
+		t = clampf(t, 0.0, 1.0)
+		return t * t * (3.0 - 2.0 * t)
+
+	func _draw() -> void:
+		if strength <= 0.001 or _y[3] <= _y[0]:
+			return
+		var xs := PackedFloat32Array()
+		var ax := PackedFloat32Array()
+		xs.append(0.0)
+		ax.append(1.0)
+		for f: float in XS:
+			if f <= 0.0:
+				continue
+			xs.append(_x0 + _cw * f)
+			ax.append(1.0 - _ss((f - 0.55) / 0.6))
+		var ys := PackedFloat32Array()
+		var ay := PackedFloat32Array()
+		for i in YN + 1:
+			var t := float(i) / YN
+			ys.append(lerpf(_y[0], _y[1], t))
+			ay.append(_ss(t))
+		for i in YN + 1:
+			var t := float(i) / YN
+			ys.append(lerpf(_y[2], _y[3], t))
+			ay.append(1.0 - _ss(t))
+		var c := UITokens.PAPER_0
+		var base := UITokens.GLASS_TEXT_A * strength
+		var pts := PackedVector2Array()
+		var cols := PackedColorArray()
+		for j in ys.size():
+			for i in xs.size():
+				pts.append(Vector2(xs[i], ys[j]))
+				cols.append(Color(c.r, c.g, c.b, base * ax[i] * ay[j]))
+		var idx := PackedInt32Array()
+		var nx := xs.size()
+		for j in ys.size() - 1:
+			for i in nx - 1:
+				var a0 := j * nx + i
+				idx.append_array([a0, a0 + 1, a0 + nx + 1, a0, a0 + nx + 1, a0 + nx])
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), idx, pts, cols)

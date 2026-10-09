@@ -378,8 +378,9 @@ func _ready() -> void:
 		_to_hero.add_theme_font_size_override("font_size", 24)
 		_to_hero.pressed.connect(func(): _open_hero(target))
 		_dock.add_child(_to_hero)
-	_done = UIKit.button(HeroesText.t("SUMMON_DONE"), false, 300)
-	_done.custom_minimum_size = Vector2(300, 88)
+	# «Готово» is a ghost on the night (0.16 glass, one 1 dpx line, warm-white text), «До героя»
+	# the one secondary glass: never two equal cream slabs under the art.
+	_done = UIKit.ghost_button(HeroesText.t("SUMMON_DONE"), Vector2(300, 88), 24, true)
 	_done.pressed.connect(_close)
 	_dock.add_child(_done)
 	resized.connect(_layout)
@@ -415,7 +416,17 @@ func _build_card() -> void:
 	var h := HeroesUIModel.hero(str(r["id"]))
 	# The duplicate's fragments on one cream-glass slip (never white text over the bright dais).
 	# v3.1: text sits on it, so the slip is glass at the text alpha with its 1 dpx line.
-	var pnl := UIKit.panel("banner", Vector2(20, 10))
+	# Fixer: the slip is painted at 0.97 (the kit banner let the night and the dais rim through and
+	# read greige under the label): one 1 dpx gold line, the inner light, one quiet halo.
+	var pnl := PanelContainer.new()
+	var psb := StyleBoxEmpty.new()
+	psb.content_margin_left = 20
+	psb.content_margin_right = 20
+	psb.content_margin_top = 10
+	psb.content_margin_bottom = 12
+	pnl.add_theme_stylebox_override("panel", psb)
+	pnl.draw.connect(func():
+		HeroV3.glass(pnl, Rect2(Vector2.ZERO, pnl.size), 10.0, 0.97, HeroV3.GOLD, 0.85, 0.7, 0.12))
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 6)
 	pnl.add_child(pv)
@@ -424,7 +435,8 @@ func _build_card() -> void:
 	pv.add_child(fl)
 	_card_dup_bar = HeroEngravedBar.make(str(h["gem"]), float(h["frags"]), float(maxi(1, int(h["frags_need"]))), 300)
 	_card_dup_bar.label = HeroesText.t("CUR_FRAGS")
-	_card_dup_bar.value_text = "%d / %d" % [int(h["frags"]), int(h["frags_need"])]
+	_card_dup_bar.label_color = UITokens.INK
+	_card_dup_bar.value_text = _frags_value(int(h["frags"]), int(h["frags_need"]))
 	pv.add_child(_card_dup_bar)
 	_card_dup.add_child(pnl)
 	add_child(_card_dup)
@@ -544,12 +556,22 @@ func _show_result(i: int) -> void:
 		_rdup_bar.gem = str(h.get("gem", g))
 		_rdup_bar.max_value = float(maxi(1, int(h.get("frags_need", 1))))
 		_rdup_bar.value = float(h.get("frags", 0))
-		_rdup_bar.value_text = "%d / %d" % [int(h.get("frags", 0)), int(h.get("frags_need", 0))]
+		_rdup_bar.value_text = _frags_value(int(h.get("frags", 0)), int(h.get("frags_need", 0)))
 	_emblem.gem = str(h.get("gem", g))
 	_emblem.native = str(h.get("native", g)) if bool(h.get("is_recut", false)) else ""
 	_name.add_theme_font_size_override("font_size", UIKit.fit_size(_name.text, _W - 2.0 * UITokens.GUTTER - 120.0, 72, 48))
 	_ribbon.reset_size()
 	_layout_ribbon()
+
+
+## The fragment bar's value: «18 / 30» while filling; once the next facet is paid for, «Грань
+## готова» (never «68 / 30», which reads like a bug; the bar itself is full with its diamond).
+static func _frags_value(frags: int, need: int) -> String:
+	if need > 0 and frags < need:
+		return "%d / %d" % [frags, need]
+	if need > 0:
+		return HeroesText.t("FRAGS_FACET_READY")
+	return str(frags)
 
 
 func _hero_target() -> String:
@@ -594,7 +616,7 @@ func _layout() -> void:
 	_tap.position = Vector2(0, _H - _ins.w - 96.0)
 	var dm := _dock.get_combined_minimum_size()
 	_dock.size = Vector2(_W - 2.0 * UITokens.GUTTER, dm.y)
-	_dock.position = Vector2(UITokens.GUTTER, _H - _ins.w - 28.0 - dm.y)
+	_dock.position = Vector2(UITokens.GUTTER, _H - _ins.w - 52.0 - dm.y)
 	if _card:
 		_card.size = HeroCard.SIZES["L"]
 		_card.pivot_offset = _card.size * 0.5
@@ -1028,16 +1050,17 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 			(c as Control).modulate.a = SummonFx.seg(u, float(bt["name"]) + 0.2 + 0.06 * ci, 0.16) if not stat else 1.0
 			ci += 1
 		_rdup.modulate.a = SummonFx.seg(u, float(bt["hold"]), 0.2) if not stat else 1.0
-	# NEW wax seal: stamps at the hold beat (drop from 1.5, squash 0.9, settle).
+	# NEW tag: presses in at the hold beat (from 1.15, a soft 0.94 squash, settle), scaled about its
+	# LEFT edge, so it never grows back over the name's last letter.
 	var r := results[_cur]
 	var sk := SummonFx.seg(u, float(bt["hold"]), 0.36) if not stat else 1.0
 	_rseal.visible = bool(r.get("is_new", false)) and sk > 0.0 and _ribbon.visible
 	if _rseal.visible:
-		_rseal.pivot_offset = _rseal.size * 0.5
 		var tw := _rseal.drawn_size().x
+		_rseal.pivot_offset = Vector2((_rseal.size.x - tw) * 0.5, _rseal.size.y * 0.5)
 		var nx := minf(_ribbon.position.x + _name_w() + 22.0 + (tw - _rseal.size.x) * 0.5, _W - 12.0 - (_rseal.size.x + tw) * 0.5)
 		_rseal.position = Vector2(nx, _ribbon.position.y + _name.size.y * 0.5 - _rseal.size.y * 0.5)
-		var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
+		var sq := 1.15 - 0.21 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.94, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
 		_rseal.scale = Vector2.ONE * sq
 		_rseal.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
 	out["motes"] = SummonFx.seg(u, float(bt["hold"]) - 0.3, 0.6) if not stat else 0.0
@@ -1083,7 +1106,7 @@ func _render_card(u: float, L: float, st: Dictionary) -> void:
 		var vd := Rect2(dest + cs * 0.5 - vs * 0.5, vs)
 		# The «НОВИЙ» tag rides the card's top edge, inside its right corner.
 		_card_seal.position = vd.position + Vector2(vs.x - 6.0 - _card_seal.drawn_size().x * 0.5 - _card_seal.size.x * 0.5, -_card_seal.size.y * 0.5)
-		var sq := 1.5 - 0.6 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.9, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
+		var sq := 1.15 - 0.21 * SummonFx.in2(sk / 0.4) if sk < 0.4 else lerpf(0.94, 1.0, SummonFx.out3((sk - 0.4) / 0.6))
 		_card_seal.scale = Vector2.ONE * sq
 		_card_seal.modulate.a = clampf(sk * 5.0, 0.0, 1.0)
 	_card_dup.visible = not bool(r["is_new"]) and ck >= 1.0

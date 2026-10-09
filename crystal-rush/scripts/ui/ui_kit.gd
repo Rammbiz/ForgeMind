@@ -389,6 +389,10 @@ static func _spec(kind: String) -> Dictionary:
 			# No lines here: the frame is drawn by the TextBed overlay ("<kind>_lines"), outside the
 			# material, so the gold stays pure gold instead of 38 % world.
 			return _glass(12.0, _a(G0, 1.0), _a(G1, 1.0), 0.0, 0.0, 30.0, sa * 1.4, 10.0, Vector2(36, 32) if kind == "modal_frost" else Vector2(36, 30))
+		"panel_lines_deep":
+			# A frosted panel over the busiest painted art (the Showcase skills band): its one frame
+			# line in pure LINE_GOLD_DEEP @ 0.85, so it holds on warm splashes too.
+			return _glass(12.0, Color(1, 1, 1, 0), Color(1, 1, 1, 0), 0.85, 0.75, 0.0, 0.0, 0.0, Vector2(36, 30), UITokens.LINE_GOLD_DEEP)
 		"modal_lines", "panel_lines":
 			var fl := _glass(12.0, Color(1, 1, 1, 0), Color(1, 1, 1, 0), 0.85, 0.75, 0.0, 0.0, 0.0, Vector2(36, 32) if kind == "modal_lines" else Vector2(36, 30), UITokens.LINE_GOLD_DEEP.lerp(HAIRLINE, 0.5))
 			if kind == "modal_lines":

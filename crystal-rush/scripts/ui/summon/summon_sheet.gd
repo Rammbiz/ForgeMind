@@ -68,7 +68,10 @@ func _ready() -> void:
 	body.add_theme_constant_override("separation", 10)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(body)
-	UIKit.scroll_fade(_scroll, UITokens.PAPER_1)
+	# The list melts into the bed at its edges: the bed colour reaches FULL strength before the
+	# edge (never a flat crop through the Opal cards). Painted: the cards clip themselves, and
+	# nested clip groups do not compose in gl_compatibility.
+	HeroHScrollFade.paint_v(_scroll, UITokens.PAPER_0, 88.0, 22.0)
 	_fill(body)
 	resized.connect(_layout)
 	_panel.modulate.a = 0.0

@@ -273,6 +273,7 @@ const FALLBACK := {
 	"SUMMON_SKIP": ["Пропустити", "Skip"], "SUMMON_NEW": ["НОВИЙ", "NEW"],
 	"SUMMON_TO_HERO": ["До героя: %s", "To hero: %s"],
 	"SUMMON_FRAGS": ["+%d фрагм.", "+%d frag."],
+	"FRAGS_FACET_READY": ["Грань готова", "Facet ready"],
 	"SUMMON_SEALS_ADD": ["+%d печаток · %d / %d", "+%d Seals · %d / %d"],
 	"SUMMON_SUMMARY": ["Призов ×10", "Summon ×10"],
 	"SUMMON_DONE": ["Готово", "Done"],

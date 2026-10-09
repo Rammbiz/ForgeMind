@@ -57,6 +57,7 @@ func _ready() -> void:
 	add_child(_sky)
 	# UI v3.1: the Portal's glass frosts the Portal night (its sky + the ring's light), not the hub.
 	_frost = HeroFrost.attach(self)
+	_frost.night = true
 	_ring = PortalRing.new()
 	add_child(_ring)
 	_root = Control.new()
@@ -141,6 +142,9 @@ func _build() -> void:
 	sv.add_child(_seals)
 	_seal_btn = UIKit.button(HeroesText.t("PORTAL_SEALS_PICK"), false, 150)
 	_seal_btn.custom_minimum_size = Vector2(150, 88)
+	# Disabled, the label still carries information (the pick opens at the price): only the body
+	# dims, the label keeps INK_DIM_GLASS at full strength (>= 4.5:1).
+	_seal_btn.add_theme_color_override("font_disabled_color", UITokens.INK_DIM_GLASS)
 	_seal_btn.pressed.connect(func(): open_sheet("seals"))
 	srow.add_child(_seal_btn)
 	# Out of Beacons: one quiet line on where they come from (never a shop link).

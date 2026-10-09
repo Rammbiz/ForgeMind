@@ -108,3 +108,29 @@ static func text_in(ci: CanvasItem, r: Rect2, txt: String, fs: int, col: Color, 
 	for ch in txt:
 		ci.draw_string(f, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, s, col)
 		x += f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, s).x + tracking
+
+
+## A single word wider than `w` at `fs` px (bold font `f`), broken once with a hyphen at a syllable
+## edge (after a vowel, before a consonant; the left part >= 4 letters) so it keeps the 22 px type
+## floor instead of shrinking: «Сонцесходження» -> «Сонце-» / «сходження». Returns [word] when it
+## fits (a 6 px tolerance) or no break fits; else [left + "-", right].
+static func hyphen_split(word: String, f: Font, fs: int, w: float) -> PackedStringArray:
+	if f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= w + 6.0:
+		return PackedStringArray([word])
+	const V := "аеєиіїоуюяАЕЄИІЇОУЮЯaeiouy"
+	var best := PackedStringArray([word])
+	var best_w := INF
+	for i in range(4, word.length() - 3):
+		if not (V.contains(word[i - 1]) and not V.contains(word[i]) and word[i].to_lower() != word[i].to_upper()):
+			continue
+		var a := word.substr(0, i) + "-"
+		var b := word.substr(i)
+		var wa := f.get_string_size(a, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var wb := f.get_string_size(b, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		if wa <= w + 6.0 and wb <= w + 6.0:
+			# The first (leftmost) break that fits: compounds split at their seam (Сонце-сходження).
+			return PackedStringArray([a, b])
+		if maxf(wa, wb) < best_w:
+			best_w = maxf(wa, wb)
+			best = PackedStringArray([a, b])
+	return best

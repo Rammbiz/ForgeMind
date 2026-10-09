@@ -36,10 +36,11 @@ vec3 spectrum(float h) {
 	return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
 }
 
+// Fixer pass: a quiet brass toward LINE_GOLD_DEEP (#A8833F), not a glossy saturated gold hoop.
 vec3 gold(float k) {
-	vec3 lo = vec3(0.30, 0.18, 0.06);
-	vec3 mid = vec3(0.79, 0.60, 0.27);
-	vec3 hi = vec3(1.0, 0.92, 0.66);
+	vec3 lo = vec3(0.24, 0.19, 0.12);
+	vec3 mid = vec3(0.66, 0.54, 0.32);
+	vec3 hi = vec3(0.94, 0.88, 0.74);
 	return k < 0.6 ? mix(lo, mid, k / 0.6) : mix(mid, hi, (k - 0.6) / 0.4);
 }
 
@@ -123,7 +124,7 @@ void fragment() {
 		float rope = abs(sin(a * 46.0 + n * 2.2));
 		float groove = smoothstep(0.1, 0.0, rope) * 0.16 * z;
 		k -= groove;
-		vec3 c = gold(clamp(k, 0.0, 1.0)) + vec3(1.0, 0.95, 0.8) * spec * 0.85;
+		vec3 c = gold(clamp(k, 0.0, 1.0)) + vec3(1.0, 0.96, 0.86) * spec * 0.58;
 		// The pulse gleam running round the tube.
 		if (pulse >= 0.0) {
 			float pa = fract(a / (2.0 * PI) + 0.25 - pulse);

@@ -200,9 +200,22 @@ func _unlocks(inner: float) -> Control:
 	for u: String in _p["unlocks"]:
 		var c := PanelContainer.new()
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# v3.1: the lead gain is the selected-segment glass (cream 0.92 + one 1 dpx gold line, deep-gold
-		# ink), the rest frameless wells (§3.2: no borders on chips inside a card; amber only on verbs).
-		c.add_theme_stylebox_override("panel", UIKit.lux("seg_sel" if first else "well", Vector2(12, 3)))
+		# Frameless glass tiles like the Team synergy chips (§3.2: never borders on chips inside a
+		# card): the lead gain lifted to white glass with its 1 dpx light line (deep-gold ink), the
+		# rest quiet wells. No gold line, no amber (amber is for the verbs).
+		var sb := StyleBoxEmpty.new()
+		sb.content_margin_left = 12
+		sb.content_margin_right = 12
+		sb.content_margin_top = 6
+		sb.content_margin_bottom = 6
+		c.add_theme_stylebox_override("panel", sb)
+		var lead := first
+		c.draw.connect(func():
+			var r := Rect2(Vector2.ZERO, c.size)
+			if lead:
+				HeroV3.glass(c, r, UITokens.CHAMFER_XS, 0.82, HeroV3.GOLD, 0.0, 0.8, 0.0, Color.WHITE)
+			else:
+				c.draw_colored_polygon(GemDraw.chamfer_rect(r, UITokens.CHAMFER_XS), HeroV3.a(UITokens.PAPER_3, 0.42)))
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 8)
 		var ic := Icons.make("arrow_up", 22.0, UITokens.GOLD_TEXT_GLASS)

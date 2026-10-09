@@ -35,6 +35,7 @@ var value_text := "":
 		value_text = v
 		_resize()
 var label_size := 22
+var label_color := UITokens.INK_DIM_GLASS   ## INK on glass over the night (the label carries data)
 var _shown := -1.0
 
 
@@ -81,7 +82,7 @@ func _process(delta: float) -> void:
 ## Fill colour of a gem bar (the UI hex, §2.1).
 static func fill_color(g: String) -> Color:
 	match HeroesText.gem_letter(g):
-		"C": return Color("#A9B7C6")
+		"C": return Color("#8196AD")   # fixer: a slate-silver table, so a full quartz bar reads on the track (>= 1.6:1)
 		"R": return Color("#3FA9FF")
 		"E": return Color("#9B5BEA")
 		"L": return Color("#FFB52E")
@@ -96,7 +97,7 @@ func _draw() -> void:
 		var fb := UIKit.font_w("bold")
 		var base := label_size * 1.05
 		if label != "":
-			draw_string(fm, Vector2(0, base), label, HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.72, label_size, UITokens.INK_DIM_GLASS)
+			draw_string(fm, Vector2(0, base), label, HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.72, label_size, label_color)
 		if value_text != "":
 			var vw := fb.get_string_size(value_text, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size).x
 			draw_string(fb, Vector2(size.x - vw, base), value_text, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, UITokens.INK)
@@ -106,11 +107,12 @@ func _draw() -> void:
 	# 1 dpx facet notches; a full bar lights one 9 px diamond at its end.
 	var top := y + 7.0
 	var r := Rect2(Vector2(2, top), Vector2(size.x - 4, channel_h))
-	var ch := minf(channel_h * 0.5, 4.0)
+	# 45-degree ends never melt into a pill at small heights: the frame chamfer stays >= 3 px.
+	var ch := clampf(channel_h * 0.5, 3.0, 4.0)
 	var pts := GemDraw.chamfer_rect(r, ch)
 	draw_colored_polygon(pts, HeroV3.a(UITokens.PAPER_0, 0.5))
 	var tr := r.grow(-2.0)
-	var tch := minf(ch - 1.0, tr.size.y * 0.5)
+	var tch := clampf(ch - 1.0, minf(2.0, tr.size.y * 0.5), tr.size.y * 0.5)
 	draw_colored_polygon(GemDraw.chamfer_rect(tr, tch), HeroV3.a(UITokens.PAPER_3, 0.5))
 	var frac := clampf(_shown if _shown >= 0.0 else _frac(), 0.0, 1.0)
 	if frac > 0.002:
@@ -125,7 +127,8 @@ func _draw() -> void:
 			if gl == "M":
 				var tx := clampf((p.x - fr.position.x) / maxf(tr.size.x, 1.0), 0.0, 1.0) * (fl.size() - 1)
 				var i0 := int(floor(tx))
-				base = (fl[i0] as Color).lerp(fl[mini(i0 + 1, fl.size() - 1)], tx - i0)
+				# The pastel spectrum, a step deeper so it reads on the cream track.
+				base = (fl[i0] as Color).lerp(fl[mini(i0 + 1, fl.size() - 1)], tx - i0).darkened(0.16)
 			cols.append(base.lightened(0.18).lerp(base.darkened(0.04), ty))
 		draw_polygon(fp, cols)
 		if fr.size.y >= 5.0:
@@ -149,5 +152,9 @@ func _draw() -> void:
 	if frac >= 0.999:
 		GemDraw.draw_diamond(self, Vector2(r.end.x, cy), 9.0, fill_color(gem), fill_color(gem).darkened(0.35))
 	if marker >= 0.0:
-		var mx := r.position.x + r.size.x * clampf(marker / max_value, 0.0, 1.0)
-		GemDraw.draw_diamond(self, Vector2(mx, r.position.y - 4.0), 9.0, UITokens.PAPER_0, HeroV3.DEEP)
+		# The keystone is SEATED on the bar: a 1 dpx deep-gold notch through the channel and a 7 px
+		# diamond centred on the frame's top line (never floating above it as a stray glyph).
+		var mx := roundf(r.position.x + r.size.x * clampf(marker / max_value, 0.0, 1.0)) + lw * 0.5
+		mx = clampf(mx, r.position.x + ch + 3.0, r.end.x - ch - 3.0)
+		draw_line(Vector2(mx, r.position.y), Vector2(mx, r.end.y), HeroV3.a(HeroV3.DEEP, 0.9), lw)
+		GemDraw.draw_diamond(self, Vector2(mx, r.position.y), 7.0, UITokens.PAPER_0, HeroV3.DEEP)

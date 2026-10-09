@@ -13,6 +13,7 @@ const SHADER := preload("res://shaders/heroes/portal_ring.gdshader")
 const SOCKETS: Array[String] = ["M", "L", "E", "R", "C"]
 const RING_R := 0.78
 const TUBE_W := 0.046   ## UI v3.1: a slimmer jewel band (was 0.07)
+const TUBE_W_SMALL := 0.04   ## 540-class screens: the band stays a fine line, not a hoop
 
 var driven := false
 var t := 0.0:
@@ -76,6 +77,14 @@ func _init() -> void:
 
 func _ready() -> void:
 	set_process(not driven)
+	resized.connect(_fit_tube)
+	_fit_tube()
+
+
+func _fit_tube() -> void:
+	var vw := get_viewport_rect().size.x if is_inside_tree() else 720.0
+	var win := float(get_window().size.x) if is_inside_tree() and get_window() else vw
+	_mat.set_shader_parameter("tube_w", TUBE_W_SMALL if win < 640.0 else TUBE_W)
 
 
 func _process(delta: float) -> void:
@@ -139,13 +148,8 @@ func _draw() -> void:
 	draw_texture_rect(light, Rect2(dc - Vector2(rx * 0.8, ry * 1.6), Vector2(rx * 1.6, ry * 3.2)), false, Color(1.0, 0.9, 0.7, 0.32 + 0.3 * charge))
 	var rim := PackedVector2Array(pts)
 	rim.append(pts[0])
-	draw_polyline(rim, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.85), UIKit.line_px(1.0), true)
-	# Inner engraved ring on the dais.
-	var inner := PackedVector2Array()
-	for i in 49:
-		var a := TAU * float(i) / 48.0
-		inner.append(dc + Vector2(cos(a) * rx * 0.72, sin(a) * ry * 0.72))
-	draw_polyline(inner, Color(1.0, 0.92, 0.7, 0.35), UIKit.px(1.0), true)
+	# One 1 dpx rim, nothing more (no inner engraved ring).
+	draw_polyline(rim, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.8), UIKit.line_px(1.0), true)
 
 
 ## Sockets, glints and the pre-sting crawl, drawn over the shader quad.
