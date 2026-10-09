@@ -81,8 +81,9 @@ func _draw() -> void:
 		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.9 if down else 0.84, HeroV3.GOLD, 0.8, 0.62, 0.08,
 				UITokens.PAPER_3 if down else UITokens.PAPER_0)
 	else:
-		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.72 if down else 0.5, HeroV3.GOLD, 0.0, 0.55,
-				0.0, UITokens.PAPER_3 if down else UITokens.PAPER_0)
+		# A quiet frameless well: reads as a tappable tile on the frosted page AND on a text bed.
+		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.62 if down else 0.42, HeroV3.GOLD, 0.0, 0.55,
+				0.0, UITokens.PAPER_3)
 	var f := UIKit.font_w("medium")
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size).x if label != "" else 0.0
 	var iw := _icon_w()
