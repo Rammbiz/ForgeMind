@@ -871,7 +871,7 @@ const STRINGS := {
 	"AWK_SIRKO_DESC": ["Біля фортеці її перші залпи по армії минають ціль", "At the siege the fortress’s first volleys at the army miss"],
 	"RELIC_SIRKO": ["Перо писаря", "The Scribe’s Quill"],
 	"RELIC_SIRKO_DESC": ["Довший лист, довше Відкидання, довше пише вся Січ", "A longer letter, a longer Stagger, a longer Whole Sich Writes"],
-	"ULT_OLHA": ["Летіть додому!", "Fly Home!"],
+	"ULT_OLHA": ["Летіть додому", "Fly Home"],
 	"ULT_OLHA_DESC": ["Зграя вогняних голубів летить над загонами до барикад, турелей і воріт", "A flock of ember doves flies over the squads to the barricades, turrets and gates"],
 	"ULT_OLHA_VALUE": ["%s руйнувань кожній споруді й воротам", "%s breaks to every structure and gate"],
 	"ULT_OLHA_F2_DESC": ["Летуни на шляху зграї падають на землю й отримують більше", "Fliers on the flock’s path are grounded and take more"],

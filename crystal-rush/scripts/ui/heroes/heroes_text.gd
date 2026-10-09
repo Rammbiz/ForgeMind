@@ -132,7 +132,7 @@ const FALLBACK := {
 	"ULT_ISKAR": ["Падіння комети", "Comet Fall"], "ULT_VESTA": ["Сонцесходження", "Sunrise"],
 	"ULT_VARTAN": ["Кована стіна", "Forgewall"], "ULT_LUMEN": ["Спектральний вінець", "Spectral Crown"],
 	"ULT_PAVA": ["Тисяча очей", "Thousand Eyes"], "ULT_SIRKO": ["Лист султанові", "The Letter to the Sultan"],
-	"ULT_OLHA": ["Летіть додому!", "Fly Home!"],
+	"ULT_OLHA": ["Летіть додому", "Fly Home"],
 	"ATK_TITAN": ["Брилобій", "Boulderfist"], "ATK_ARIN": ["Якірний удар", "Anchor Strike"],
 	"ATK_BOLT": ["Розгалужений лис", "Forked Fox"], "ATK_EIRA": ["Промінь інею", "Rime Ray"],
 	"ATK_SEER": ["Передбачення", "Foresight"], "ATK_ISKAR": ["Зоряна голка", "Starneedle"],

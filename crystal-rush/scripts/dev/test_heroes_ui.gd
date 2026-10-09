@@ -80,6 +80,8 @@ func _test_states() -> void:
 	_test_joined_state("dovbush", "Довбуш", "L", 4, "warrior", "stoneheart")
 	# H26 Сірко (§6.28), the 11th hero: owned, NEW, native Опал and born awakened in 'late'; listed, not owned elsewhere.
 	_test_joined_hero_state("sirko", "Сірко", "M", "warrior", "dawn")
+	# H27 Ольга (§6.29), the 12th hero: the same.
+	_test_joined_hero_state("olha", "Ольга", "M", "ranger", "wildfang")
 	HeroesUIModel.set_state("fresh")
 	_check(not bool(HeroesUIModel.unlocks()["portal"]) and not bool(HeroesUIModel.hero("arin")["listed"]), "fresh: Portal heroes hidden")
 	_check(bool(HeroesUIModel.hero("seer")["listed"]) and not bool(HeroesUIModel.hero("seer")["owned"]), "fresh: Мейра listed, not owned")
@@ -262,6 +264,7 @@ func _test_art() -> void:
 	_check(HeroArt.state("snaryad") == "splash" and HeroArt.card_texture("snaryad") != null, "Снаряд has the owner's card art")
 	_check(HeroArt.state("dovbush") == "splash" and HeroArt.card_texture("dovbush") != null, "Довбуш has the owner's card art")
 	_check(HeroArt.state("sirko") == "splash" and HeroArt.card_texture("sirko") != null, "Сірко has the owner's splash and a card crop")
+	_check(HeroArt.state("olha") == "splash" and HeroArt.card_texture("olha") != null, "Ольга has the owner's splash and a card crop")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 

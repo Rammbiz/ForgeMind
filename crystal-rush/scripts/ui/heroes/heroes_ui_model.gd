@@ -890,6 +890,9 @@ static func _build_state(name: String) -> Dictionary:
 			# H26 Сірко (Характерник), the 11th hero, native Опал, just summoned (§6.28): born awakened, synced level;
 			# every other state lists him not owned.
 			H["sirko"] = _hero_st(true, "M", 0, 0, 21, 1, 1, 1, 1, true)
+			# H27 Ольга (Княгиня Помсти), the 12th hero, native Опал, the latest summon (§6.29): born awakened, synced
+			# level; every other state lists her not owned.
+			H["olha"] = _hero_st(true, "M", 0, 0, 21, 1, 1, 1, 1, true)
 			for c: String in ChampionData.CHAMPION_ORDER:
 				if c != "menhir" and c != "nimb":
 					C[c] = _champ_st(true, str(ChampionData.CHAMPIONS[c]["native"]), 2, 6)
@@ -933,7 +936,7 @@ static func _build_state(name: String) -> Dictionary:
 			["titan", false, 10], ["eira", true, 0], ["arin", true, 0], ["vesta", true, 0], ["titan", false, 10]], 37)
 	elif name == "late":
 		acc["portal"]["history"] = _mock_history([
-			["sirko", true, 0], ["lumen", true, 0], ["arin", false, 10], ["eira", false, 15], ["seer", false, 25], ["titan", false, 10],
+			["olha", true, 0], ["sirko", true, 0], ["lumen", true, 0], ["arin", false, 10], ["eira", false, 15], ["seer", false, 25], ["titan", false, 10],
 			["vartan", true, 0], ["bolt", false, 15], ["arin", false, 10]], 164)
 	return acc
 

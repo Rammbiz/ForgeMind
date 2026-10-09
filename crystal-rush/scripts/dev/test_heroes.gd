@@ -286,6 +286,7 @@ func _test_roster() -> void:
 	_test_snaryad()
 	_test_dovbush()
 	_test_sirko()
+	_test_olha()
 	_ok(ChampionData.action_tier("mila") == 1 and ChampionData.action_tier("menhir") == 4, "Action tier = native + 1")
 	for s: String in HeroData.STARTERS:
 		_ok(HeroData.HEROES.has(s) and HeroData.STARTER_AT.has(s), "starter %s" % s)
@@ -1098,7 +1099,7 @@ func _test_sirko() -> void:
 	# Portal: he joins the Opal pool (every Opal hero of the data), splits the Opal share, Seals 200.
 	var all := _acc(25, HeroData.HERO_ORDER)
 	var opal := _heroes_of("M")
-	_ok(Summon.pool(all, "M") == opal and opal.has("sirko") and opal.size() == 3, "Portal Опал pool = %s" % str(opal))
+	_ok(Summon.pool(all, "M") == opal and opal.has("sirko") and opal.size() >= 3, "Portal Опал pool = %s" % str(opal))
 	var ho := Summon.hero_odds(_acc(21, ["bolt", "titan"]))
 	_ok(is_equal_approx(float(ho["sirko"]), float(Summon.consolidated()["M"]) / opal.size()), "Portal opens: Сірко %.2f%% = Опал / %d"
 			% [100.0 * float(ho["sirko"]), opal.size()])
@@ -1107,6 +1108,143 @@ func _test_sirko() -> void:
 	var sp := Summon.seal_pick(sa, "sirko")
 	_ok(bool(sp["ok"]) and bool(sp["new"]) and int(sp["price"]) == PortalData.seal_price("M") and int(sp["price"]) == 200
 			and Roster.owned(sa, "sirko") and int(Roster.entry(sa, "sirko")["skills"]["awakened"]) == 1, "Сірко by Seals: 200, born awakened")
+
+
+## H27 Ольга (heroes_design.md §6.29), the 12th hero: a native Opal Ranger of Plasma and Wildfang (form V adds Kinetic),
+## niche structures, her kit inside the Ranger band, ult `doves` with its numbers, the `ult_charge` hook (the last free
+## one), born awakened with the Opal caps, the Loc rows, rule #3 against her for every hero recut into Opal, her kit
+## profile (the owner wants her "the best": the top rarity and the biggest siege moment, but Opal-parity numbers) and the
+## Portal pool of Opal.
+func _test_olha() -> void:
+	var h: Dictionary = HeroData.HEROES.get("olha", {})
+	_ok(not h.is_empty() and HeroData.HERO_ORDER.has("olha"), "Ольга is in the hero order")
+	_ok(int(h.get("no", 0)) == 27 and _joined_after_launch("olha"), "Ольга is H%d (fixed at birth, after H26)" % int(h.get("no", 0)))
+	_ok(str(h.get("native", "")) == "M" and str(h.get("class", "")) == "ranger" and str(h.get("element", "")) == "plasma"
+			and str(h.get("element2", "")) == "kinetic" and str(h.get("faction", "")) == "wildfang" and str(h.get("ult", "")) == "doves"
+			and str(h.get("niche", "")) == "structures", "Ольга: native Опал, Ranger, Plasma (+Kinetic in V), Wildfang, niche structures, ult doves")
+	# §5.1 Ranger hero band (hp 12-16 · rate 3.0-4.0 · dmg 1 · splash 0 · range 15-17 · targets 1).
+	var k: Dictionary = h.get("kit", {})
+	_ok(float(k.get("hp", 0)) >= 12 and float(k.get("hp", 0)) <= 16 and float(k.get("rate", 0)) >= 3.0 and float(k.get("rate", 0)) <= 4.0
+			and float(k.get("dmg", 0)) == 1.0 and float(k.get("splash", -1)) == 0.0 and float(k.get("range", 0)) >= 15
+			and float(k.get("range", 0)) <= 17 and int(k.get("targets", 0)) == 1, "Ольга: kit inside the Ranger band %s" % str(k))
+	# "The best" is a niche, never a number: no Opal hero has less HP (her siege edge is paid for), the ult charge is
+	# inside the Opal heroes' range.
+	var opal_min_hp := INF
+	for oid: String in _heroes_of("M"):
+		if oid != "olha":
+			opal_min_hp = minf(opal_min_hp, float(HeroData.HEROES[oid]["kit"]["hp"]))
+	_ok(float(k.get("hp", 0)) < opal_min_hp, "Ольга: the lowest HP of the Opal heroes (%s < %s)" % [k.get("hp", 0), opal_min_hp])
+	_ok(float(h["ult_main"]["value"]) == 18.0 and float(h["ult2"]["value"]) == 8.0 and int(h["ult2"]["rank"]) == 5
+			and Ladder.ult_form("M", int(h["ult2"]["rank"])) == 3, "Ольга: the flock 18 breaks per structure, the Fourth Revenge 8 from form III")
+	var r: Dictionary = h.get("rally", {})
+	_ok(str(r.get("hook", "")) == "ult_charge" and is_equal_approx(float(r.get("base", 0)), 0.05)
+			and is_equal_approx(float(TeamData.RALLY_HOOKS["ult_charge"]["base"]), 0.05)
+			and str(TeamData.RALLY_HOOKS["ult_charge"]["op"]) == "mul", "Ольга: Rally ult_charge, x1.05 at rank 1 (§5.4)")
+	var rally_users := 0
+	var hooks_used := {}
+	for hid: String in HeroData.HERO_ORDER:
+		rally_users += 1 if str(HeroData.HEROES[hid]["rally"]["hook"]) == "ult_charge" else 0
+		hooks_used[str(HeroData.HEROES[hid]["rally"]["hook"])] = true
+	_ok(rally_users == 1, "ult_charge is used by one hero (was free)")
+	_ok(hooks_used.size() == TeamData.RALLY_HOOKS.size(), "every Rally hook has a hero now (%d / %d)" % [hooks_used.size(), TeamData.RALLY_HOOKS.size()])
+	_ok(SaveV3Data.HERO_NATIVE.get("olha", "") == "M", "SaveV3Data knows Ольга")
+	var st := EconData.new_hero_state("olha")
+	_ok(int(st["skills"]["awakened"]) == 1 and str(st["gem"]) == "M", "Ольга is born awakened at Опал")
+	# Loc (uk, en): every hero key family of §12.4 and the sheet's names.
+	var keys: Array[String] = ["HERO_OLHA", "HERO_OLHA_TITLE", "HERO_OLHA_LORE", "ULT_OLHA", "ULT_OLHA_DESC", "ULT_OLHA_VALUE",
+			"ULT_OLHA_F3", "ULT_OLHA_F4", "ULT_OLHA_F5", "ATK_OLHA", "ATK_OLHA_DESC", "RALLY_OLHA", "RALLY_OLHA_DESC",
+			"RALLY_OLHA_VALUE", "AWK_OLHA", "AWK_OLHA_DESC", "RELIC_OLHA", "RELIC_OLHA_DESC"]
+	for f in range(2, 6):
+		keys.append("ULT_OLHA_F%d_DESC" % f)
+	for b: int in Ladder.ATK_BEATS:
+		keys.append("ATK_OLHA_B%d" % b)
+		keys.append("ATK_OLHA_B%d_DESC" % b)
+	for key: String in keys:
+		var row: Array = Loc.STRINGS.get(key, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % key)
+	_ok(str(Loc.STRINGS.get("HERO_OLHA", ["", ""])[0]) == "Ольга" and str(Loc.STRINGS.get("HERO_OLHA_TITLE", ["", ""])[0]) == "Княгиня Помсти"
+			and str(Loc.STRINGS.get("ULT_OLHA", ["", ""])[0]) == "Летіть додому" and str(Loc.STRINGS.get("ULT_OLHA_F5", ["", ""])[0]) == "Іскоростень",
+			"Ольга — Княгиня Помсти, «Летіть додому», form V «Іскоростень»")
+	var lore: Array = Loc.STRINGS.get("HERO_OLHA_LORE", ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Ольга lore: 3 lines uk and en")
+	# Tone (§6.29, binding): the lore names the chronicle legend, never a halo, a church or a house set on fire.
+	var lore_all := (str(lore[0]) + " " + str(lore[1])).to_lower()
+	_ok(lore_all.contains("літописн") and lore_all.contains("chronicle"), "Ольга lore: «the chronicle legend»")
+	var tone_ok := true
+	for w: String in ["німб", "церкв", "хрест", "хат", "halo", "church", "cross", "house"]:
+		tone_ok = tone_ok and not lore_all.contains(w)
+	_ok(tone_ok, "Ольга lore: no halo, church, cross or houses")
+	_test_native_opal_hero("olha", "Ольга")
+
+
+## A native Opal hero `hid` against the data: rank cap 10 / 11, forms to V, Awakening cap 4; rule #3 (§2.3, §2.5 tests
+## 3-5): every real hero recut into Opal, equal and max investment, Lv 1/10/20/30, f 0-5, no gear and full gear, with the
+## adversarial kit tolerance (the recut at +1.5%, `hid` at -1.5%), stays below it, and its forms, Awakening cap and rank
+## cap stay below; the kit budget (data half): its profile equals the P0 profile of a native Опал (Люмен's) at every
+## reference state; the Portal: it is in the Opal pool (every Opal hero of the data), splits the Opal share, Seals 200.
+func _test_native_opal_hero(hid: String, uk: String) -> void:
+	_ok(Ladder.skill_cap("M", "M", 0) == 10 and Ladder.skill_cap("M", "M", 5) == 11 and Ladder.ult_form("M", 9) == 5
+			and Ladder.awaken_cap("M", "M") == 4, "%s: rank cap 10 / 11, forms to V, Awakening cap 4" % uk)
+	var mg := _max_gear()
+	var zero := HeroesMeta.NO_GEAR
+	var hi := [1.0 + Ladder.KIT_TOL, Ladder.AWK_STEP, Ladder.FORM_STEP, Ladder.ATK_BEAT, Ladder.RELIC_BEAT]
+	var lo := [1.0 - Ladder.KIT_TOL, Ladder.AWK_STEP, Ladder.FORM_STEP, Ladder.ATK_BEAT, Ladder.RELIC_BEAT]
+	var m := Ladder.gem_index("M")
+	var worst := 0.0
+	var recuts := 0
+	var caps_ok := true
+	for rid: String in HeroData.HERO_ORDER:
+		var n := Ladder.gem_index(HeroData.native(rid))
+		if n >= m:
+			continue
+		recuts += 1
+		caps_ok = caps_ok and Ladder.ult_form(HeroData.native(rid), 11) < Ladder.ult_form("M", 11) \
+				and Ladder.awaken_cap(HeroData.native(rid), "M") < Ladder.awaken_cap("M", "M") \
+				and Ladder.skill_cap(HeroData.native(rid), "M", 5) < Ladder.skill_cap("M", "M", 5)
+		for lv in [1, 10, 20, 30]:
+			for f2 in Ladder.FACETS_PER_GEM + 1:
+				var rc := _max_ranks(n, m, f2)
+				var nc := _max_ranks(m, m, f2)
+				var eq := [mini(rc[0], nc[0]), mini(rc[1], nc[1]), mini(rc[2], nc[2]), mini(rc[3], nc[3])]
+				for gs: Array in [[zero, 0, false], [mg, 3, true]]:
+					worst = maxf(worst, _index_t(n, m, f2, lv, eq, gs[0], gs[1], gs[2], hi[0], hi[1], hi[2], hi[3], hi[4])
+							/ _index_t(m, m, f2, lv, eq, gs[0], gs[1], gs[2], lo[0], lo[1], lo[2], lo[3], lo[4]))
+			worst = maxf(worst, _index_t(n, m, 5, lv, _max_ranks(n, m, 5), mg, 3, true, hi[0], hi[1], hi[2], hi[3], hi[4])
+					/ _index_t(m, m, 5, lv, _max_ranks(m, m, 5), mg, 3, true, lo[0], lo[1], lo[2], lo[3], lo[4]))
+	print("  %s rule #3: %d heroes recut into Опал, worst adversarial recut / %s %.4f" % [uk, recuts, uk, worst])
+	_ok(recuts > 0 and worst < 1.0 and caps_ok, "rule #3: every hero recut into Опал < native %s (worst %.4f), forms / Awakening / ranks below" % [uk, worst])
+	var acc := _acc(31, [hid, "lumen"])
+	var states: Array = [[1, 1, 1, 1, 0]]
+	for b2: int in Ladder.ATK_BEATS:
+		states.append([1, b2, 1, 1, 0])
+	for fr: int in Ladder.FORM_AT_RANK:
+		states.append([fr, 1, 1, 1, 0])
+	for aw in range(1, Ladder.awaken_cap("M", "M") + 1):
+		states.append([1, 1, 1, aw, 0])
+	for rb in range(1, 4):
+		states.append([1, 1, 1, 1, rb])
+	var prof_ok := true
+	for sv: Array in states:
+		for id2: String in [hid, "lumen"]:
+			var sk: Dictionary = Roster.entry(acc, id2)["skills"]
+			sk["ult"] = sv[0]
+			sk["attack"] = sv[1]
+			sk["awakened"] = sv[3]
+		var p0 := HeroesMeta.index(m, m, 0, HeroesMeta.eff_level(acc, hid), [sv[0], sv[1], 1, sv[3]], zero, sv[4])
+		var ps := HeroesMeta.power(acc, hid, zero, sv[4])
+		prof_ok = prof_ok and absf(ps / p0 - 1.0) <= Ladder.KIT_TOL and is_equal_approx(ps, HeroesMeta.power(acc, "lumen", zero, sv[4]))
+	_ok(prof_ok, "test_kit_budget (data): %s's profile = P0 of a native Опал at %d reference states" % [uk, states.size()])
+	var all := _acc(25, HeroData.HERO_ORDER)
+	var opal := _heroes_of("M")
+	_ok(Summon.pool(all, "M") == opal and opal.has(hid), "Portal Опал pool = %s" % str(opal))
+	var ho := Summon.hero_odds(_acc(21, ["bolt", "titan"]))
+	_ok(is_equal_approx(float(ho[hid]), float(Summon.consolidated()["M"]) / opal.size()), "Portal opens: %s %.2f%% = Опал / %d"
+			% [uk, 100.0 * float(ho[hid]), opal.size()])
+	var sa := _acc(25, ["bolt", "titan"])
+	(sa["summon"] as Dictionary)["seals"] = 200
+	var sp := Summon.seal_pick(sa, hid)
+	_ok(bool(sp["ok"]) and bool(sp["new"]) and int(sp["price"]) == PortalData.seal_price("M") and int(sp["price"]) == 200
+			and Roster.owned(sa, hid) and int(Roster.entry(sa, hid)["skills"]["awakened"]) == 1, "%s by Seals: 200, born awakened" % uk)
 
 
 ## The heroes of native `gem` in collector order (the data).
@@ -1338,13 +1476,13 @@ func _stages() -> Array:
 		Summon.set_focus(d, kv[0], kv[1])
 	return [
 		["A", a, {"titan": 0.0, "arin": 52.09, "bolt": 0.0, "eira": 26.52, "seer": 0.0, "iskar": 14.35, "vesta": 2.81,
-				"vartan": 2.81, "lumen": 0.47, "pava": 0.47, "sirko": 0.47}],
+				"vartan": 2.81, "lumen": 0.35, "pava": 0.35, "sirko": 0.35, "olha": 0.35}],
 		["B", b, {"titan": 26.05, "arin": 26.05, "bolt": 13.26, "eira": 13.26, "seer": 7.18, "iskar": 7.18, "vesta": 0.0,
-				"vartan": 5.63, "lumen": 0.0, "pava": 0.70, "sirko": 0.70}],
+				"vartan": 5.63, "lumen": 0.0, "pava": 0.47, "sirko": 0.47, "olha": 0.47}],
 		["C", c, {"titan": 26.05, "arin": 26.05, "bolt": 13.26, "eira": 13.26, "seer": 7.18, "iskar": 7.18, "vesta": 2.81,
-				"vartan": 2.81, "lumen": 0.47, "pava": 0.47, "sirko": 0.47}],
+				"vartan": 2.81, "lumen": 0.35, "pava": 0.35, "sirko": 0.35, "olha": 0.35}],
 		["D", d, {"titan": 31.26, "arin": 20.84, "bolt": 15.91, "eira": 10.61, "seer": 8.61, "iskar": 5.74, "vesta": 3.38,
-				"vartan": 2.25, "lumen": 0.84, "pava": 0.28, "sirko": 0.28}],
+				"vartan": 2.25, "lumen": 0.84, "pava": 0.19, "sirko": 0.19, "olha": 0.19}],
 	]
 
 
