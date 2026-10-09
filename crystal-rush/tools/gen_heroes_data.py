@@ -13,8 +13,10 @@ Sources (all in the repo, so the build is reproducible):
   1. tools/data/heroes_consts.json   exported by heroes_sim.py v2 (export_consts); the numbers.
   2. tools/data/heroes_roster.json   what heroes_consts.json does not carry: the roster rows (ids, native gem, class,
      element, faction, kit numbers) from heroes_sim.py HEROES / CHAMPS + heroes_tables.py KITS / ULT / RALLY / CHAMPS,
-     ult kinds + collector numbers from heroes_design.md §6.0, and oracle tables computed by the sim's own rule
-     functions (ladder, skill_cap, ult_form, can_awaken, awaken_cap) that scripts/dev/test_heroes.gd checks Ladder with.
+     the §6 ult and attack rules + §10.4 bot policies (heroes_tables.py ULTS / ATTACKS and their closed vocabularies,
+     "ults" / "attacks" / "kind_vocab"), ult kinds + collector numbers from heroes_design.md §6.0, and oracle tables
+     computed by the sim's own rule functions (ladder, skill_cap, ult_form, can_awaken, awaken_cap) that
+     scripts/dev/test_heroes.gd checks Ladder with.
      Refreshed with --refresh <dir holding heroes_sim.py + heroes_tables.py + heroes_consts.json>.
   3. DOC below: a few numbers only the design text carries (each with its § reference).
 
@@ -100,6 +102,12 @@ DOC = {
                           "skill": 0.2, "form": 0.5, "awaken": 0.6, "craft": 0.35, "temper_tier": 0.35,
                           "temper_beat": 0.35}, "§9.4"),
     "TEAM_READY": (0.4, "§9.4"),
+    # §5.1 hero class traits in the run (the attack rows of HeroData.ATTACKS leave them out): Warrior Cleave x1.5 on
+    # a squad in a clash, Ranger Long sight +2 u (chain / pierce arrive at Attack rank 3, the beat-3 rows), Mage attack
+    # status proc 0.5, Guardian Bulwark x1.5 HP absorbing clash ticks at army 0 (the champions' clash share x0.5 is
+    # ChampionData.CLASH_SHARE_GUARDIAN_HERO), Healer Mend: 20% of soldiers lost feed the revive pool.
+    "HERO_CLASS_RUN": ({"warrior": {"cleave": 1.5}, "ranger": {"sight": 2.0}, "mage": {"proc": 0.5},
+                        "guardian": {"bulwark_hp": 1.5}, "healer": {"mend_share": 0.2}}, "§5.1"),
     # §3.4 / §4.1: relic beats (named modifiers, +RELIC_BEAT each) at these tempering ranks (= heroes_sim champ_index).
     "RELIC_BEAT_AT": ([4, 8, 12], "§3.4"),
     "SKIP_FROM": (0.5, "§9.4 / §7.1"),
@@ -135,6 +143,114 @@ def _gem_dict(d: dict) -> dict:
 def _low(s: str) -> str:
     s = s.lower()
     return "celestial" if s == "celestials" else s
+
+
+def _vocab_errors(d, at: str, ult: bool, vocab: dict, out: list) -> None:
+    """Paths in the ult (`ult`) or attack dict `d` that leave the closed vocabulary: field and part names, the keys of
+    status_at (ULT_TIMING) and procs (ATTACK_PROCS), the `at` / `target` / `on` words and the absorb kinds."""
+    if not isinstance(d, dict):
+        out.append(at + " (not a dict)")
+        return
+    fields = vocab["ult_fields"] if ult else vocab["attack_fields"]
+    parts = vocab["ult_parts"] if ult else {"procs": ""}
+    for k, v in d.items():
+        p = "%s.%s" % (at, k)
+        if k in ("status_at", "procs"):
+            keys = vocab["ult_timing"] if k == "status_at" else vocab["attack_procs"]
+            for t, sub in (v.items() if isinstance(v, dict) else [("?", None)]):
+                if t not in keys:
+                    out.append("%s.%s" % (p, t))
+                _vocab_errors(sub, "%s.%s" % (p, t), ult, vocab, out)
+        elif k in parts:
+            _vocab_errors(v, p, ult, vocab, out)
+        elif k not in fields:
+            out.append(p)
+        elif (k == "at" and v not in vocab["ult_timing"]) or (ult and k == "target" and v not in vocab["ult_targets"]) \
+                or (k == "on" and v not in vocab["attack_triggers"]) \
+                or (k in ("absorb", "kinds") and any(x not in vocab["absorb_kinds"] for x in v)):
+            out.append("%s = %s" % (p, v))
+
+
+def _knob_errors(d: dict, knobs: list, at: str, out: list) -> None:
+    """The *(knob)* paths of `knobs` that do not resolve inside `d`."""
+    for path in knobs:
+        v = d
+        for part in path.split("."):
+            v = v.get(part) if isinstance(v, dict) else None
+        if v is None:
+            out.append("%s knob %s" % (at, path))
+
+
+def _kinds(T, heroes: dict, starters: list, atk_beats: list) -> tuple[dict, dict, dict]:
+    """The §6 ult and attack tables (heroes_tables ULTS / ATTACKS, §10.4 policies) in hero order, with what the roster
+    already carries filled in (the charge and kit numbers, the Loc keys, form II's class rule, form V's second element)
+    and the closed vocabularies checked: an unknown word or a form that disagrees with the native gem stops --refresh."""
+    vocab = {
+        "ult_shapes": dict(T.ULT_SHAPES), "ult_fields": dict(T.ULT_FIELDS), "ult_parts": dict(T.ULT_PARTS),
+        "ult_timing": dict(T.ULT_TIMING), "ult_targets": dict(T.ULT_TARGETS),
+        "policy_when": {w: {"params": list(p), "doc": d} for w, (p, d) in T.POLICY_WHEN.items()},
+        "absorb_kinds": dict(T.ABSORB_KINDS),
+        "attack_patterns": dict(T.ATTACK_PATTERNS), "attack_fields": dict(T.ATTACK_FIELDS),
+        "attack_procs": dict(T.ATTACK_PROCS), "attack_triggers": dict(T.ATTACK_TRIGGERS),
+    }
+    bad: list = []
+    by_hero = {u["hero"]: k for k, u in T.ULTS.items()}
+    if set(by_hero) != set(heroes) or len(by_hero) != len(T.ULTS) or set(T.ATTACKS) != set(heroes):
+        sys.exit("heroes_tables.ULTS / ATTACKS must hold exactly one row per hero of the roster")
+    ults, attacks = {}, {}
+    for hid, h in heroes.items():
+        kind, up, n = h["ult"], hid.upper(), GEMS.index(h["native"])
+        if by_hero[hid] != kind:
+            sys.exit("heroes_tables.ULTS gives %s the ult %s, §6.0 says %s" % (hid, by_hero[hid], kind))
+        u = T.ULTS[kind]
+        if u["shape"] not in vocab["ult_shapes"] or len(u["forms"]) != 4:
+            sys.exit("ult %s: shape %s / %d forms (want a ULT_SHAPES shape and 4 deltas II-V)" % (
+                kind, u["shape"], len(u["forms"])))
+        forms = []
+        for i, f in enumerate(u["forms"]):
+            fno = i + 2
+            if (f is None) != (fno > n + 1):
+                sys.exit("ult %s form %d: None exactly where native %s caps the ult" % (kind, fno, h["native"]))
+            if f is None:
+                forms.append(None)
+                continue
+            _vocab_errors(f["set"], "%s.forms[%d]" % (kind, i), True, vocab, bad)
+            _knob_errors(f["set"], f.get("knobs", []), "%s.forms[%d]" % (kind, i), bad)
+            forms.append({"name": "ULT_%s_F%d" % (up, fno) if f.get("name") else None, "desc": "ULT_%s_F%d_DESC" % (up, fno),
+                          "rule": h["class"] if fno == 2 else "", "element2": h["element2"] if fno == 5 else "",
+                          "set": f["set"], "knobs": list(f.get("knobs", []))})
+        _vocab_errors(u["base"], kind + ".base", True, vocab, bad)
+        _knob_errors(u["base"], u.get("knobs", []), kind + ".base", bad)
+        if u["base"].get(u["main"]) != h["ult_main"]["value"]:
+            bad.append("%s.base.%s != ult_main %s" % (kind, u["main"], h["ult_main"]["value"]))
+        for c in u["policy"]["any"]:
+            params = vocab["policy_when"].get(c["when"], {}).get("params")
+            if params is None or any(k != "when" and k not in params for k in c):
+                bad.append("%s.policy %s" % (kind, c))
+        ults[kind] = {"hero": hid, "ref": u["ref"],
+                      "loc": {"name": "ULT_" + (kind if hid in starters else hid).upper(), "desc": "ULT_%s_DESC" % up,
+                              "value": "ULT_%s_VALUE" % up},
+                      "charge": h["kit"]["ult_charge"], "shape": u["shape"], "main": u["main"], "base": u["base"],
+                      "knobs": list(u.get("knobs", [])), "forms": forms, "policy": u["policy"]}
+        a, k = T.ATTACKS[hid], h["kit"]
+        if a["pattern"] not in vocab["attack_patterns"]:
+            bad.append("%s attack pattern %s" % (hid, a["pattern"]))
+        base = {"rate": k["rate"], "dmg": k["dmg"], "range": k["range"], "splash": k["splash"], "targets": k["targets"]}
+        base.update(a["base"])
+        _vocab_errors(base, hid + ".attack", False, vocab, bad)
+        if list(a["beats"]) != [str(r) for r in atk_beats]:
+            bad.append("%s attack beats %s (want the ATK_BEATS ranks %s)" % (hid, list(a["beats"]), atk_beats))
+        beats = {}
+        for bk, beat in a["beats"].items():
+            _vocab_errors(beat["set"], "%s.beats.%s" % (hid, bk), False, vocab, bad)
+            _knob_errors(beat["set"], beat.get("knobs", []), "%s.beats.%s" % (hid, bk), bad)
+            beats[bk] = {"name": "ATK_%s_B%s" % (up, bk), "desc": "ATK_%s_B%s_DESC" % (up, bk), "set": beat["set"],
+                         "knobs": list(beat.get("knobs", []))}
+        attacks[hid] = {"ref": a["ref"], "loc": {"name": "ATK_" + up, "desc": "ATK_%s_DESC" % up},
+                        "pattern": a["pattern"], "base": base, "beats": beats, "clips": dict(a["clips"])}
+    if bad:
+        sys.exit("heroes_tables ULTS / ATTACKS leave the closed vocabulary:\n  " + "\n  ".join(bad))
+    return ults, attacks, vocab
 
 
 def refresh(src_dir: str) -> None:
@@ -182,6 +298,7 @@ def refresh(src_dir: str) -> None:
         }
     if list(heroes) != list(H.HEROES):
         sys.exit("hero order differs between heroes_tables.KITS and heroes_sim.HEROES")
+    ults, attacks, kind_vocab = _kinds(T, heroes, list(H.STARTERS), list(H.ATK_BEATS))
     champs = {}
     for row in T.CHAMPS:
         cid, _uk, n, cls, el, fac, hp, action, a_note, aura, au_note, radius, slot = row
@@ -238,8 +355,9 @@ def refresh(src_dir: str) -> None:
         "factions": list(H.FACTIONS), "faction_home": home,
         "aura_share": dict(T.AURA_SHARE), "aura_cap": T.AURA_CAP,
         "heroes": heroes, "champions": champs, "index_terms": index_terms, "oracle": oracle,
+        "ults": ults, "attacks": attacks, "kind_vocab": kind_vocab,
     }
-    with open(ROSTER_JSON, "w", encoding="utf-8") as fh:
+    with open(ROSTER_JSON, "w", encoding="utf-8", newline="\n") as fh:   # LF on every OS (the stamp hashes raw bytes)
         json.dump(data, fh, indent=1, ensure_ascii=False)
         fh.write("\n")
     print("refreshed %s and %s" % (os.path.relpath(CONSTS_JSON, ROOT), os.path.relpath(ROSTER_JSON, ROOT)))
@@ -343,14 +461,23 @@ class Block:
         v, ref = DOC[name]
         self.emit(name, v, "doc:" + ref, comment + (" " if comment else "") + "(heroes_design.md %s)" % ref)
 
-    def rows(self, name: str, path: str, order: list, comment_of) -> None:
-        """A roster dictionary written one row per line with a trailing comment."""
+    def rows(self, name: str, path: str, order: list, comment_of=None, comment: str = "") -> None:
+        """A roster dictionary written one row per line with a trailing comment (none without `comment_of`; a
+        dictionary of strings is typed Dictionary[String, String])."""
+        if comment:
+            self.doc(comment)
         rows = self._at(self.r, path)
-        self.lines.append("const %s: Dictionary = {" % name)
+        typed = "Dictionary[String, String]" if _scalar_kind(rows.values()) == "String" else "Dictionary"
+        self.lines.append("const %s: %s = {" % (name, typed))
         for k in order:
-            self.lines.append("\t%s: %s,  # %s" % (_gd(k), _gd(rows[k]), comment_of(k, rows[k])))
+            tail = ("  # " + comment_of(k, rows[k])) if comment_of else ""
+            self.lines.append("\t%s: %s,%s" % (_gd(k), _gd(rows[k]), tail))
         self.lines.append("}")
         self.src[name] = "roster:" + path
+
+    def table(self, name: str, path: str, comment: str = "") -> None:
+        """A roster dictionary one key per line, in the json's order."""
+        self.rows(name, path, list(self._at(self.r, path)), None, comment)
 
     def text(self, stamp: str) -> str:
         out = [BEGIN, "## " + stamp] + self.lines
@@ -415,6 +542,44 @@ def block_hero(b: Block) -> None:
                                       "RECUT_FRAGS": "RECUT_FRAGS[g] = fragments for the recut g -> g + 1."}.get(k, ""))
     b.head("hero Feats (§3.6; pay Tomes, never Beacons)")
     b.consts("FEATS", "feats")
+    block_kinds(b)
+
+
+def block_kinds(b: Block) -> None:
+    """HeroData.ULTS / ATTACKS: the §6 ult and attack rules and the §10.4 bot policies as data, with their closed
+    vocabularies (heroes_tables.py via --refresh)."""
+    b.head("ults and attacks as data (§6.1-6.10, §6.28, §6.29; bot policies §10.4; heroes_tables.py ULTS / ATTACKS)")
+    b.doc("Form I = rank 1, Quartz-normalised. kills / breaks / heal / return / wall_hp (and an extra's kills / breaks)\n"
+          "are x ult power (ladder x Ult Rank x lv_ult); lengths, radii, rates and counts never scale. forms = the deltas\n"
+          "of forms II-V, null where the native gem caps the ult; ult_numbers(kind, form) merges them onto `base` (a\n"
+          "Dictionary merges key by key, anything else is replaced). Attack beats merge the same way (attack_numbers).\n"
+          "`knobs` = the sheet's *(knob)* numbers (test_kit_budget handles), as paths into the dict beside them.")
+    b.table("ULT_SHAPES", "kind_vocab.ult_shapes", "Ult shape -> how it hits (the closed set every ULTS row uses).")
+    b.table("ULT_FIELDS", "kind_vocab.ult_fields", "Every key an ult base, form delta or part may carry -> its meaning.")
+    b.table("ULT_PARTS", "kind_vocab.ult_parts",
+            "Keys whose value is itself a dict of ULT_FIELDS (status_at: ULT_TIMING -> such a dict).")
+    b.table("ULT_TIMING", "kind_vocab.ult_timing", "Values of `at` and the keys of `status_at`.")
+    b.table("ULT_TARGETS", "kind_vocab.ult_targets", "Values of a part's `target`.")
+    b.table("ABSORB_KINDS", "kind_vocab.absorb_kinds", "What a wall, drone or feather takes for the army (KindView.absorb).")
+    b.table("POLICY_WHEN", "kind_vocab.policy_when",
+            "Bot policy condition -> {params, doc}; a policy {ref, any: [{when, <params>}]} fires when any holds\n"
+            "(HeroKinds.ult_worth, §10.4).")
+    order = [b.r["heroes"][h]["ult"] for h in b.r["hero_order"]]
+    b.rows("ULTS", "ults", order, lambda k, v: "%s %s, forms I-%s" % (
+        v["hero"], v["shape"], ["I", "II", "III", "IV", "V"][sum(1 for f in v["forms"] if f is not None)]),
+        comment="Ult kind -> {hero, ref, loc {name, desc, value}, charge, shape, main (the base key that carries\n"
+                "HEROES[hero].ult_main), base, knobs, forms [II, III, IV, V: null | {name, desc, rule (class rule), element2,\n"
+                "set, knobs}], policy {ref, any}}.")
+    b.table("ATTACK_PATTERNS", "kind_vocab.attack_patterns", "Attack pattern -> delivery (the closed set).")
+    b.table("ATTACK_FIELDS", "kind_vocab.attack_fields", "Every key an attack base, beat or proc may carry -> its meaning.")
+    b.table("ATTACK_PROCS", "kind_vocab.attack_procs", "Proc id -> what it does (keys of an attack's `procs`).")
+    b.table("ATTACK_TRIGGERS", "kind_vocab.attack_triggers", "Values of a proc's `on` (every hero hit when absent).")
+    b.rows("ATTACKS", "attacks", b.r["hero_order"], lambda k, v: "%s, procs %s" % (
+        v["pattern"], ", ".join(v["base"].get("procs", {})) or "-"),
+        comment="Hero id -> {ref, loc {name, desc}, pattern, base (kit rate / dmg / range / splash / targets + the sheet's\n"
+                "run rules), beats {\"3\" / \"6\" / \"9\": {name, desc, set, knobs}}, clips {attack_a, attack_b, b_on (the proc\n"
+                "that plays attack_b)}}. Class traits are HERO_CLASS_RUN.")
+    b.docv("HERO_CLASS_RUN", "Class -> hero class trait numbers in the run.")
 
 
 CHAMPION_BUDGETS = ("CL_STEP", "ACTION_TIER_STEP", "C_RELIC", "W_C", "CHAMP_UPTIME", "CHAMP_KIT_TOL")
@@ -604,7 +769,7 @@ def main() -> None:
         return
     for p, (cur, new) in files.items():
         if cur != new:
-            with open(p, "w", encoding="utf-8") as fh:
+            with open(p, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(new)
             print("wrote %s" % os.path.relpath(p, ROOT))
     if not stale:

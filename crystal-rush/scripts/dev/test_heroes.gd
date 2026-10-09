@@ -43,6 +43,7 @@ func _ready() -> void:
 	_test_coverage()
 	_test_derived()
 	_test_roster()
+	_test_kind_data()
 	_test_ladder_oracle()
 	_test_rule3()
 	_test_portal()
@@ -308,6 +309,256 @@ func _test_roster() -> void:
 	var fam: Array[String] = ArsenalData.FAMILY_ORDER.duplicate()
 	fam.erase("rift")
 	_ok(TeamData.ELEMENTS == fam, "elements = ArsenalData families without rift")
+
+
+# ------------------------------------------------------------------ ults and attacks as data (§6, §10.4)
+
+## HeroData.ULTS / ATTACKS (heroes_tables.py ULTS / ATTACKS through the generator; heroes_design.md §6.1-6.10, §6.28,
+## §6.29, §10.4): every hero has an attack row and its ult kind an ult row; only the closed vocabularies are used
+## (shapes, fields, parts, timing, targets, statuses, absorb kinds, policy conditions, patterns, procs, triggers); forms
+## = 4 deltas (II-V), null exactly where the native gem caps the ult, form II the class rule, form V the second
+## element; the main and second ult numbers equal the roster's; the starters' Form I equals Balance.HEROES / HeroKinds
+## today; every Loc key exists; ult_numbers / attack_numbers merge forms and beats in order.
+func _test_kind_data() -> void:
+	print("== ults and attacks as data (§6, §10.4)")
+	var n := HeroData.HERO_ORDER.size()
+	_ok(HeroData.ULTS.size() == n and HeroData.ATTACKS.size() == n,
+			"one ult kind and one attack row per hero (%d / %d / %d)" % [HeroData.ULTS.size(), HeroData.ATTACKS.size(), n])
+	_ok(_diff(HeroData.HERO_CLASS_RUN.keys(), TeamData.CLASSES) == "", "HERO_CLASS_RUN covers the classes (§5.1)")
+	for hid: String in HeroData.HERO_ORDER:
+		var kind := HeroData.ult_kind(hid)
+		_ok(HeroData.ULTS.has(kind), "%s: its ult kind `%s` has a ULTS row" % [hid, kind])
+		_ok(HeroData.ATTACKS.has(hid), "%s has an ATTACKS row" % hid)
+		if HeroData.ULTS.has(kind):
+			_test_ult_row(hid, kind)
+		if HeroData.ATTACKS.has(hid):
+			_test_attack_row(hid)
+	_test_starter_kinds()
+	_test_kind_merge()
+
+
+func _test_ult_row(hid: String, kind: String) -> void:
+	var h: Dictionary = HeroData.HEROES[hid]
+	var u: Dictionary = HeroData.ULTS[kind]
+	var native := str(h["native"])
+	_ok(str(u["hero"]) == hid and HeroData.ULT_SHAPES.has(str(u["shape"])), "%s: hero %s, shape %s in ULT_SHAPES"
+			% [kind, hid, u["shape"]])
+	_ok(int(u["charge"]) == int(h["kit"]["ult_charge"]), "%s: charge %s = kit ult_charge" % [kind, u["charge"]])
+	var base: Dictionary = u["base"]
+	var main := str(u["main"])
+	_ok(base.has(main) and float(base[main]) == float(h["ult_main"]["value"]),
+			"%s: base.%s = ult_main %s (the §6 rank table)" % [kind, main, h["ult_main"]["value"]])
+	var bad: Array[String] = []
+	_ult_vocab(base, kind + ".base", bad)
+	_knob_paths(base, u["knobs"], kind + ".base", bad)
+	var forms: Array = u["forms"]
+	_ok(forms.size() == 4, "%s: 4 form deltas (II-V)" % kind)
+	var extra_form := 0
+	for i in forms.size():
+		var fno := i + 2
+		_ok((forms[i] == null) == (fno > Ladder.gem_index(native) + 1), "%s form %d: null exactly where native %s caps it"
+				% [kind, fno, native])
+		if forms[i] == null:
+			continue
+		var f: Dictionary = forms[i]
+		var delta: Dictionary = f["set"]
+		_ok(str(f["rule"]) == (str(h["class"]) if fno == 2 else "")
+				and str(f["element2"]) == (str(h["element2"]) if fno == 5 else "") and not delta.is_empty(),
+				"%s form %d: adds rules (class rule on II, second element on V)" % [kind, fno])
+		_ult_vocab(delta, "%s.forms[%d]" % [kind, i], bad)
+		_knob_paths(delta, f["knobs"], "%s.forms[%d]" % [kind, i], bad)
+		if delta.has("extra"):
+			extra_form = fno
+		for key: Variant in [f["name"], f["desc"]]:
+			if key != null:
+				_ok(_loc_has(str(key)), "Loc %s (uk, en)" % key)
+	_ok(HeroData.ult_top_form(kind) == Ladder.ult_form(native, 11), "%s: top form %d = native %s's" % [kind,
+			HeroData.ult_top_form(kind), native])
+	_ok(bad.is_empty(), "%s: closed vocabulary (%s)" % [kind, ", ".join(bad)])
+	var u2: Dictionary = h["ult2"]
+	if u2.is_empty():
+		_ok(extra_form == 0, "%s: no second ult number, no extra hit" % kind)
+	else:
+		var ex: Dictionary = HeroData.ult_numbers(kind, 5).get("extra", {})
+		_ok(extra_form == Ladder.ult_form(native, int(u2["rank"])) and float(ex.get("kills", -1.0)) == float(u2["value"]),
+				"%s: the extra hit (%s kills) arrives at form %d = ult2 %s from rank %d" % [kind, ex.get("kills"), extra_form,
+				u2["value"], u2["rank"]])
+	var pol: Dictionary = u["policy"]
+	var conds: Array = pol.get("any", [])
+	var pol_ok := str(pol.get("ref", "")) != "" and not conds.is_empty()
+	for c: Dictionary in conds:
+		var w := str(c.get("when", ""))
+		pol_ok = pol_ok and HeroData.POLICY_WHEN.has(w)
+		var params: Array = (HeroData.POLICY_WHEN.get(w, {}) as Dictionary).get("params", [])
+		for k: String in c:
+			pol_ok = pol_ok and (k == "when" or k in params)
+	_ok(pol_ok, "%s: bot policy (%s) uses POLICY_WHEN only %s" % [kind, pol.get("ref", ""), str(conds)])
+	for key: String in (u["loc"] as Dictionary).values():
+		_ok(_loc_has(key), "Loc %s (uk, en)" % key)
+
+
+func _test_attack_row(hid: String) -> void:
+	var h: Dictionary = HeroData.HEROES[hid]
+	var a: Dictionary = HeroData.ATTACKS[hid]
+	var base: Dictionary = a["base"]
+	var kit_ok := HeroData.ATTACK_PATTERNS.has(str(a["pattern"]))
+	for k: String in ["rate", "dmg", "range", "splash", "targets"]:
+		kit_ok = kit_ok and base.has(k) and float(base[k]) == float(h["kit"][k])
+	_ok(kit_ok, "%s attack: pattern %s, rate / dmg / range / splash / targets = the kit" % [hid, a["pattern"]])
+	var bad: Array[String] = []
+	_attack_vocab(base, hid + ".attack", bad)
+	var beats: Dictionary = a["beats"]
+	var want: Array = []
+	for b: int in Ladder.ATK_BEATS:
+		want.append(str(b))
+	_ok(_diff(beats.keys(), want) == "", "%s attack: beats at ranks %s" % [hid, want])
+	for bk: String in beats:
+		var beat: Dictionary = beats[bk]
+		_attack_vocab(beat["set"], "%s.beats.%s" % [hid, bk], bad)
+		_knob_paths(beat["set"], beat["knobs"], "%s.beats.%s" % [hid, bk], bad)
+		_ok(_loc_has(str(beat["name"])) and _loc_has(str(beat["desc"])), "Loc %s / %s (uk, en)" % [beat["name"], beat["desc"]])
+	_ok(bad.is_empty(), "%s attack: closed vocabulary (%s)" % [hid, ", ".join(bad)])
+	for key: String in (a["loc"] as Dictionary).values():
+		_ok(_loc_has(key), "Loc %s (uk, en)" % key)
+	var top := HeroData.attack_numbers(hid, Ladder.ATK_BEATS[-1])
+	var b_on: Variant = (a["clips"] as Dictionary).get("b_on")
+	_ok(b_on == null or (top.get("procs", {}) as Dictionary).has(str(b_on)), "%s: attack_b plays on a proc it has (%s)"
+			% [hid, b_on])
+	if str(h["class"]) == "mage":
+		var st := str(ChampionKinds.ELEMENT_STATUS.get(str(h["element"]), ""))
+		_ok(_diff(base.get("statuses", {}), {st: HeroData.HERO_CLASS_RUN["mage"]["proc"]}) == "",
+				"%s: a Mage's attack applies its element status %s at proc 0.5 (§5.1)" % [hid, st])
+
+
+## The starters' Form I and attack rows against today's run tables (Balance.HEROES, HeroKinds). Where a sheet and the
+## Meta-1 rules differ beyond these numbers, a note is printed (the lead decides; Balance is never changed here).
+func _test_starter_kinds() -> void:
+	for hid: String in HeroData.STARTERS:
+		var kind := HeroData.ult_kind(hid)
+		var u1 := HeroData.ult_numbers(kind, 1)
+		var bu: Dictionary = Balance.HEROES[hid]["ult"]
+		var diffs: Array[String] = []
+		for k: String in bu:
+			if k in ["name", "icon"]:
+				continue
+			var want: Variant = HeroData.ULTS[kind]["charge"] if k == "charge" else u1.get(k)
+			if want == null or _diff(bu[k], want) != "":
+				diffs.append("%s: Balance %s, sheet %s" % [k, bu[k], want])
+		_ok(diffs.is_empty(), "%s: Form I = Balance.HEROES.%s.ult %s" % [kind, hid, diffs])
+		var hk: Dictionary = HeroKinds.ult_row(StringName(kind))
+		_ok(str(HeroKinds.ult_kind(hid)) == kind and str(hk["shape"]) == str(HeroData.ULTS[kind]["shape"])
+				and bool(hk["slows"]) == u1.has("slow") and bool(hk.get("armor", false)) == u1.has("armor_time"),
+				"%s: HeroKinds kind, shape, slows and armour = the sheet's" % kind)
+		var bh: Dictionary = Balance.HEROES[hid]
+		var a := HeroData.attack_numbers(hid, 1)
+		_ok(str(HeroKinds.attack_kind(hid)) == str(HeroData.ATTACKS[hid]["pattern"]) and float(bh["rate"]) == float(a["rate"])
+				and float(bh["damage"]) == float(a["dmg"]) and float(bh["splash"]) == float(a["splash"])
+				and float(bh["range"]) == float(a["range"]) and int(bh.get("targets", 1)) == int(a["targets"])
+				and float(bh.get("charge_mult", 1.0)) == float(a.get("charge_mult", 1.0))
+				and bool(bh.get("reveal_row", false)) == (int(a.get("reveal_rows", 0)) > 0),
+				"%s attack: pattern, rate, damage, splash, range, targets, charge gates, row reveal = Balance + HeroKinds" % hid)
+		if HeroKinds.is_timed(StringName(kind)) and not u1.has("gate_hits"):
+			print("  note: %s Form I has no gate hits on the sheet; Meta-1's timed ult hits gates every tick" % kind)
+		print("  note: %s bot policy Meta-1 %s, sheet %s %s" % [kind, hk["policy"], HeroData.ULTS[kind]["policy"]["ref"],
+				HeroData.ULTS[kind]["policy"]["any"]])
+		if str(HeroData.HEROES[hid]["class"]) == "ranger":
+			print("  note: %s range %s in Balance and the kit; the sheet's run line adds Long sight +%s (HERO_CLASS_RUN)"
+					% [hid, bh["range"], HeroData.HERO_CLASS_RUN["ranger"]["sight"]])
+
+
+func _test_kind_merge() -> void:
+	var l1 := HeroData.ult_numbers("letter", 1)
+	var l2 := HeroData.ult_numbers("letter", 2)
+	var l5 := HeroData.ult_numbers("letter", 5)
+	_ok(float(l1["to"]) == 15.0 and float(l2["to"]) == 19.0 and float(l5["to"]) == 19.0 and not l2.has("extra")
+			and l5.has("extra") and l5.has("buff") and float(l5["strip_s"]) == 5.0,
+			"ult_numbers: Сірко's forms merge in order (to 15 -> 19, extra from III, buff on V)")
+	var e5 := HeroData.ult_numbers("eyes", 5)
+	var cast: Dictionary = (e5["status_at"] as Dictionary)["cast"]
+	var st: Dictionary = cast["statuses"]
+	_ok(int(e5["revive"]) == -1 and float(e5["revive_hp"]) == 0.5 and int(e5["record"]) == 2 and st.has("seal")
+			and st.has("chill") and float(cast["reach"]) == 16.0,
+			"ult_numbers: Пава's form V keeps the BRAND, adds the CHILL, revives all at 50%")
+	var const_st: Dictionary = HeroData.ULTS["eyes"]["base"]["status_at"]["cast"]["statuses"]
+	_ok(const_st.size() == 1, "ult_numbers leaves ULTS untouched")
+	_ok(_diff(HeroData.ult_numbers("quake", 5), HeroData.ULTS["quake"]["base"]) == ""
+			and _diff(HeroData.ult_numbers("storm", 5), HeroData.ult_numbers("storm", 2)) == "",
+			"a form past the native cap = the top form")
+	var b1: Dictionary = HeroData.attack_numbers("bolt", 1)["procs"]
+	var b3: Dictionary = HeroData.attack_numbers("bolt", 3)["procs"]
+	var b9: Dictionary = HeroData.attack_numbers("bolt", 9)["procs"]
+	_ok(float(b1["fork"]["r"]) == 4.0 and float(b3["fork"]["r"]) == 5.0 and int(b3["fork"]["chains"]) == 2
+			and not b3.has("lance") and b9.has("lance") and (b9["fork"]["statuses"] as Dictionary).has("jolt")
+			and int(b9["fork"]["every"]) == 3, "attack_numbers: Руді's beats 3 / 6 / 9 merge onto the fork, add the Railshot")
+	var t6: Dictionary = HeroData.attack_numbers("arin", 6)["procs"]["throw"]
+	_ok(int(t6["every"]) == 3 and float(t6["weaken"]) == 0.15 and float(t6["mult"]) == 2.0,
+			"attack_numbers: Арін's throw every 3rd from beat 3, Undertow on 6")
+	_ok(HeroData.ult_numbers("none", 1).is_empty() and HeroData.attack_numbers("none", 1).is_empty()
+			and HeroData.ult_kind("none") == "" and HeroData.ult_top_form("none") == 0, "unknown ids give empty rows")
+
+
+## Paths of `d` (an ult base, form delta or part) outside the closed vocabulary.
+func _ult_vocab(d: Dictionary, at: String, out: Array[String]) -> void:
+	for k: String in d:
+		var v: Variant = d[k]
+		var p := "%s.%s" % [at, k]
+		if k == "status_at":
+			for t: String in v:
+				if not HeroData.ULT_TIMING.has(t) or not (v[t] is Dictionary):
+					out.append("%s.%s" % [p, t])
+				else:
+					_ult_vocab(v[t], "%s.%s" % [p, t], out)
+		elif HeroData.ULT_PARTS.has(k):
+			if v is Dictionary:
+				_ult_vocab(v, p, out)
+			else:
+				out.append(p)
+		elif not HeroData.ULT_FIELDS.has(k):
+			out.append(p)
+		elif k == "statuses" or k == "absorb":
+			for s: String in v:
+				if not (ArsenalData.STATUSES.has(s) if k == "statuses" else HeroData.ABSORB_KINDS.has(s)):
+					out.append("%s.%s" % [p, s])
+		elif (k == "at" and not HeroData.ULT_TIMING.has(str(v))) \
+				or (k == "target" and not HeroData.ULT_TARGETS.has(str(v))):
+			out.append("%s = %s" % [p, v])
+
+
+## Paths of `d` (an attack base, beat or proc) outside the closed vocabulary.
+func _attack_vocab(d: Dictionary, at: String, out: Array[String]) -> void:
+	for k: String in d:
+		var v: Variant = d[k]
+		var p := "%s.%s" % [at, k]
+		if k == "procs":
+			for pid: String in v:
+				if not HeroData.ATTACK_PROCS.has(pid) or not (v[pid] is Dictionary):
+					out.append("%s.%s" % [p, pid])
+				else:
+					_attack_vocab(v[pid], "%s.%s" % [p, pid], out)
+		elif not HeroData.ATTACK_FIELDS.has(k):
+			out.append(p)
+		elif k == "statuses" or k == "kinds":
+			for s: String in v:
+				if not (ArsenalData.STATUSES.has(s) if k == "statuses" else HeroData.ABSORB_KINDS.has(s)):
+					out.append("%s.%s" % [p, s])
+		elif (k == "on" and not HeroData.ATTACK_TRIGGERS.has(str(v))) \
+				or (k == "needs" and not ArsenalData.STATUSES.has(str(v))):
+			out.append("%s = %s" % [p, v])
+
+
+## Every *(knob)* path in `knobs` resolves inside `d`.
+func _knob_paths(d: Dictionary, knobs: Array, at: String, out: Array[String]) -> void:
+	for path: String in knobs:
+		var v: Variant = d
+		for part in path.split("."):
+			v = (v as Dictionary).get(part) if v is Dictionary else null
+		if v == null:
+			out.append("%s knob %s" % [at, path])
+
+
+func _loc_has(key: String) -> bool:
+	var row: Array = Loc.STRINGS.get(key, [])
+	return row.size() >= 2 and str(row[0]) != "" and str(row[1]) != ""
 
 
 # ------------------------------------------------------------------ Ladder == the sim's rules
