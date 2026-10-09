@@ -8,18 +8,23 @@ extends Node
 ## - phase 0 with a team block / phase 2 without one = the old LevelSim result, bit for bit;
 ## - the budget table (§4.1, §4.3: every kit at KIT_INDEX = P0_c +- 3%): each champion's kit value in
 ##   LevelSim against its bare class template of the same gem, tier and slot. Per level of a fixed
-##   spread: the EXPECTED synthetic account (Meta.synthetic_account), the planner's path without a team
-##   (LevelSim.best_path, shared by every variant), then the same path with a one-champion team at the
-##   account's Champion Level, native gem f0, no relic: (a) the bare template (`twist: {}`, the class
-##   template Action x mult), (b) the champion without its twist (its own Action), (c) the champion.
-##   Value = (army at the end + enemies killed) - the no-team run's: soldiers saved, healed and kills in
-##   one currency. ratio = sum (c) / sum (a), the target 1 +- CHAMP_KIT_TOL. Statuses, holds, groundings
-##   and reveals are not simulated (LevelSim is an expected-value model): a twist made only of those
-##   measures as its template.
+##   spread (gates frozen: no sway, no blink): the EXPECTED synthetic account (Meta.synthetic_account),
+##   the planner's path without a team (LevelSim.best_path, shared by every variant), then the same path
+##   with a one-champion team at the account's Champion Level, native gem f0, no relic: (a) the bare
+##   template (`twist: {}`, the class template Action x mult), (b) the champion without its twist (its
+##   own Action), (c) the champion. Value = the member's kills + heals + soldiers saved (Blocks, plants,
+##   rime, catches, the circle cut) + structure damage, per second of play (the aura is the same in every
+##   variant and left out; whole-run outcomes are dominated by timing: a shorter clash moves the ult and
+##   the blade phases, see --probe). ratio = sum (c) / sum (a), the target 1 +- CHAMP_KIT_TOL. Statuses,
+##   holds, groundings and reveals are not simulated (LevelSim is an expected-value model): a twist made
+##   only of those measures as its template.
 ##
 ## godot --headless --path . res://scenes/dev/test_champion_twists.tscn -- --autotest [--verbose]
 ##     [--budget=0] [--from=15] [--to=112] [--step=4] [--hero=bolt] [--only=ivo,otto]
 ##     [--sweep=otto:plant_cd=8,12,16]   (prints the ratio per value of one twist field; no verdict)
+##     [--set=field=v;field=v]   (with --sweep: fixed overrides of the same twist row)
+##     [--paths=FILE]   (caches the planner's no-team paths as JSON between runs)
+##     [--probe=L,L]   (per level: the no-team run and each champion's template / twist runs, in detail)
 ## Exit code = failures (a budget miss counts as one).
 
 ## §4.3 template Action per class at f0 Lv1 (Quartz-normalised; x mult): leap kills, shot damage,
@@ -41,7 +46,7 @@ func _ready() -> void:
 	var old := EconData.phase_override
 	EconData.phase_override = HeroKinds.CHAMPIONS_PHASE
 	_ok(HeroKinds.champions_live(), "champions are live under the override")
-	if not _args.has("sweep"):
+	if not _args.has("sweep") and not _args.has("probe"):
 		_test_rows()
 		_test_healers()
 		_test_guardians()
@@ -228,14 +233,16 @@ func _test_healers() -> void:
 	_run_for(vo, [olena], 3.05)
 	_ok(vo.added == 4.0 and vo.status_of(1, &"chill").size() == 1 and vo.status_of(2, &"chill").size() == 1
 			and vo.status_of(3, &"chill").is_empty(), "Олена: the pulse CHILLs the squads <= 2 u of the army front")
-	_ok(vo.twists(&"balm").size() == 1 and is_equal_approx(float(olena["rimed"]), 3.0),
-			"Олена: 4 returned, rimed capped at 3 (%.1f)" % float(olena["rimed"]))
-	var left := ChampionKinds.absorb_hazard(vo, [olena], 40, &"blade", 10.0, 100.0, 2.0)
-	var left2 := ChampionKinds.absorb_hazard(vo, [olena], 40, &"blade", 2.0, 100.0, 2.0)
+	var cap := float(ChampionKinds.twist("olena")["rime_cap"])
+	_ok(vo.twists(&"balm").size() == 1 and is_equal_approx(float(olena["rimed"]), cap),
+			"Олена: 4 returned, rimed capped at %.0f (%.1f)" % [cap, float(olena["rimed"])])
+	var left := ChampionKinds.absorb_hazard(vo, [olena], 40, &"blade", 0.5, 100.0, 2.0)
+	var left2 := ChampionKinds.absorb_hazard(vo, [olena], 40, &"blade", 10.0, 100.0, 2.0)
 	var left3 := ChampionKinds.absorb_hazard(vo, [olena], 41, &"blade", 5.0, 100.0, 2.0)
-	_ok(is_equal_approx(left, 7.0) and is_equal_approx(left2, 2.0) and is_equal_approx(left3, 5.0)
-			and vo.twists(&"rime").size() == 1, "Олена: the rime spares 3 at the next hazard, then is spent (%.1f %.1f %.1f)" % [
-			left, left2, left3])
+	_ok(is_zero_approx(left) and is_equal_approx(left2, 10.5 - cap) and is_equal_approx(left3, 5.0)
+			and vo.twists(&"rime").size() == 1,
+			"Олена: the rime spares %.0f over the next hazard's contacts, then is spent (%.1f %.1f %.1f)" % [cap, left,
+			left2, left3])
 	_ok(is_equal_approx(ChampionKinds.absorb_hazard(vo, [olena], 42, &"turret", 5.0, 100.0, 2.0), 5.0),
 			"Олена: turrets never use the rime")
 
@@ -319,6 +326,13 @@ func _test_guardians() -> void:
 	_ok(vs.status_of(1, &"mark").size() == 1 and float(sn["cd"]) == 6.0
 			and blk.size() == 1 and (blk[0][1] as Dictionary)["stamp"] == &"clear",
 			"Снаряд: MARK 3 s, Block cd 6 s, the stamp reads ЧИСТО")
+	var vs2 := TwistView.new()
+	var sn2 := _mem("snaryad", 3, 2.0, 70.0)
+	ChampionKinds.step(vs2, [sn2], 0.05)
+	ChampionKinds.absorb_hazard(vs2, [sn2], 21, &"barricade", 6.0, 100.0, 2.0)
+	var ch2 := vs2.hits_of(&"charge")
+	_ok(ch2.size() == 1 and int(ch2[0][0]) == 21 and is_equal_approx(float(ch2[0][1]), 2.0 * 0.5)
+			and vs2.twists(&"charge").is_empty(), "Снаряд: no squad near: half the charge into the blocked barricade (%s)" % str(ch2))
 	# Німб (tier IV): every Block chains 3 hostiles <= 5 u (his Action each, JOLT on squads).
 	var vn := TwistView.new()
 	vn.squads = [{"id": 1, "d": 3.0, "x": 0.0, "n": 30.0}, {"id": 2, "d": 5.0, "x": 1.0, "n": 30.0},
@@ -372,18 +386,26 @@ func _test_warriors() -> void:
 	_run_for(vc, [_mem("brant", 3, 3.5, 56.0)], 2.1)
 	_ok(vc.status_of(4, &"burn").size() == 3 and vc.twists(&"blades").size() == 3,
 			"Брант: BURN on the clash squad at the start and every 1 s (%d)" % vc.status_of(4, &"burn").size())
-	# Довбуш (tier IV): the bartka through 2 squads <= 7 u, the armoured first, 1.5 + 0.5 each, cd 4 s.
+	# Довбуш (tier IV): the bartka through 2 squads <= 7 u, the armoured first, 1.5 + add_ii each, cd 4 s.
+	var per := 1.5 + float(ChampionKinds.twist("dovbush")["add_ii"])
 	var vd := TwistView.new()
 	vd.squads = [{"id": 1, "d": 3.0, "x": 0.0, "n": 50.0}, {"id": 2, "d": 5.0, "x": 0.0, "n": 50.0, "armored": true},
 			{"id": 3, "d": 6.0, "x": 0.0, "n": 50.0}, {"id": 4, "d": 4.0, "x": 1.8, "n": 50.0}]
 	var db := _mem("dovbush", 4, 1.5, 60.0)
 	ChampionKinds.step(vd, [db], 0.05)
 	var hd := vd.hits_of(&"leap")
-	_ok(hd.size() == 2 and int(hd[0][0]) == 2 and int(hd[1][0]) == 1 and is_equal_approx(float(hd[0][1]), 2.0)
-			and is_equal_approx(float(db["cd"]), 4.0), "Довбуш: the armoured squad first, then the nearest; 2.0 each; cd 4 s (%s)" % str(hd))
+	_ok(hd.size() == 2 and int(hd[0][0]) == 2 and int(hd[1][0]) == 1 and is_equal_approx(float(hd[0][1]), per)
+			and is_equal_approx(float(db["cd"]), 4.0), "Довбуш: the armoured squad first, then the nearest; %.1f each; cd 4 s (%s)" % [
+			per, str(hd)])
 	_ok(vd.status_of(1, &"stagger").size() == 1 and vd.status_of(2, &"stagger").size() == 1
 			and vd.status_of(4, &"stagger").size() == 1 and vd.status_of(3, &"stagger").is_empty()
 			and vd.twists(&"bartka").size() == 1, "Довбуш: STAGGER on both, tier III also <= 1 u of the path")
+	var v1 := TwistView.new()
+	v1.squads = [{"id": 7, "d": 5.0, "x": 0.0, "n": 50.0}]
+	ChampionKinds.step(v1, [_mem("dovbush", 4, 1.5, 60.0)], 0.05)
+	var h1 := v1.hits_of(&"leap")
+	_ok(h1.size() == 2 and int(h1[0][0]) == 7 and int(h1[1][0]) == 7,
+			"Довбуш: one squad in range: the bartka strikes it again on its way back (%s)" % str(h1))
 
 
 # ------------------------------------------------------------------ rangers
@@ -615,32 +637,58 @@ func _budget() -> void:
 	# Per level: the shared no-team path and baseline, then each variant on that path.
 	var cases: Array = []
 	var army := Balance.start_army(0)
+	# --paths=FILE keeps the planner's no-team paths between runs (they do not depend on the twists).
+	var cache_file := str(_args.get("paths", ""))
+	var cache := {}
+	if cache_file != "" and FileAccess.file_exists(cache_file):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(cache_file))
+		cache = parsed if parsed is Dictionary else {}
+	var fresh := 0
 	for level in range(from, to + 1, step):
-		var lv := LevelSim.make_level(LevelGen.build(level, Balance.START_ARMY), level)
+		var lv := LevelSim.make_level(_frozen(LevelGen.build(level, Balance.START_ARMY)), level)
 		var acc := Meta.synthetic_account(level, "expected")
 		var prof := LevelSim.profile_from_account(acc, level, "expected")
-		var bp: Dictionary = LevelSim.best_path(lv, hero, army, {"profile": prof})
-		var path: PackedFloat32Array = bp["path"]
+		var key := "%s:%d:frozen" % [hero, level]
+		var path := PackedFloat32Array(cache.get(key, []))
+		if path.is_empty():
+			var bp: Dictionary = LevelSim.best_path(lv, hero, army, {"profile": prof})
+			path = bp["path"]
+			cache[key] = Array(path)
+			fresh += 1
 		var s0 := LevelSim.simulate(lv, hero, army, path, {"profile": prof})
-		cases.append({"level": level, "lv": lv, "prof": prof, "path": path, "cl": ChampionsMeta.level(acc),
-				"army": _army_end(s0), "kills": s0.kills, "t": s0.t})
+		cases.append({"level": level, "lv": lv, "prof": prof, "path": path, "cl": ChampionsMeta.level(acc), "t": s0.t})
+	if cache_file != "" and fresh > 0:
+		var f := FileAccess.open(cache_file, FileAccess.WRITE)
+		if f:
+			f.store_string(JSON.stringify(cache))
+			f.close()
 	var t_total := 0.0
 	for cs: Dictionary in cases:
 		t_total += float(cs["t"])
-	print("  %d levels, planner paths in %.1f s, %.0f s of play" % [cases.size(), float(Time.get_ticks_msec() - t0) / 1000.0,
-			t_total])
+	print("  %d levels, %d planner paths in %.1f s, %.0f s of play" % [cases.size(), fresh,
+			float(Time.get_ticks_msec() - t0) / 1000.0, t_total])
+	if _args.has("probe"):
+		_probe_levels(cases, ids, hero, army, str(_args["probe"]).split(",", false))
+		return
 	if not sweep_vals.is_empty():
-		var tw0: Dictionary = ChampionKinds.twist(sweep_id)
+		# --set=field=v;field=v: fixed overrides of the same twist row under the sweep.
+		var tw0: Dictionary = ChampionKinds.twist(sweep_id).duplicate()
+		for pair in str(_args.get("set", "")).split(";", false):
+			var fv := pair.split("=", true, 1)
+			if fv.size() == 2:
+				tw0[fv[0]] = str_to_var(fv[1])
 		for v: Variant in sweep_vals:
 			var tw := tw0.duplicate()
 			tw[sweep_key] = v
 			var r := _measure(sweep_id, cases, hero, army, tw)
-			print("  SWEEP %s %s=%s  ratio %.4f  (template %.3f/s, twist %.3f/s)" % [sweep_id, sweep_key, str(v),
-					float(r["ratio"]), float(r["tpl"]) / t_total, float(r["twist"]) / t_total])
+			print("  SWEEP %s %s=%s %s ratio %.4f (template %.4f/s, twist %.4f/s)" % [sweep_id, sweep_key, str(v),
+					str(_args.get("set", "")), float(r["ratio"]), float(r["tpl"]) / t_total, float(r["twist"]) / t_total])
 		return
-	print("  value / s = (army at the end + kills) over the no-team run, per second of play; ratio = twist / template")
-	print("  %-8s %-8s %-4s %-5s | %8s %8s %8s | %7s | %s" % ["id", "class", "tier", "slot", "template", "no twist",
-			"twist", "ratio", "attributed / s (kills + heals + saved): template / twist"])
+	print("  value / s = the champion's kills + heals + soldiers saved + structure damage, per second of play")
+	print("  (the aura is the same in every column and left out); ratio = twist / template, target 1 +- %.2f" %
+			ChampionData.CHAMP_KIT_TOL)
+	print("  %-8s %-8s %-4s %-5s | %8s %8s %8s | %7s" % ["id", "class", "tier", "slot", "template", "no twist",
+			"twist", "ratio"])
 	var tol := ChampionData.CHAMP_KIT_TOL
 	var misses: PackedStringArray = PackedStringArray()
 	for id in ids:
@@ -650,20 +698,19 @@ func _budget() -> void:
 		var ok := absf(ratio - 1.0) <= tol + 1e-9
 		if not ok:
 			misses.append("%s %.3f" % [id, ratio])
-		print("  %-8s %-8s %-4d %-5s | %8.4f %8.4f %8.4f | %7.4f | %.4f / %.4f %s" % [id, str(row["class"]),
-				ChampionData.action_tier(id), str(row["slot"]), float(r["tpl"]) / t_total, float(r["plain"]) / t_total,
-				float(r["twist"]) / t_total, ratio, float(r["att_tpl"]) / t_total, float(r["att_twist"]) / t_total,
-				"" if ok else "MISS"])
+		print("  %-8s %-8s %-4d %-5s | %8.4f %8.4f %8.4f | %7.4f %s" % [id, str(row["class"]),
+				ChampionData.action_tier(id), str(row["slot"]), float(r["tpl"]) / t_total,
+				float(r["plain"]) / t_total, float(r["twist"]) / t_total, ratio, "" if ok else "MISS"])
 		_ok(ok, "budget %s: twist / template %.4f within 1 +- %.2f" % [id, ratio, tol])
 	print("BUDGET_TABLE %s: %d champions, %d levels, %d misses%s (%.1f s)" % ["PASS" if misses.is_empty() else "MISS",
 			ids.size(), cases.size(), misses.size(), "" if misses.is_empty() else " [" + ", ".join(misses) + "]",
 			float(Time.get_ticks_msec() - t0) / 1000.0])
 
 
-## Sums over `cases` of each variant's value over the no-team run: tpl (the bare class template), plain
-## (the champion's Action, no twist), twist (with `tw`); att_* = the member's kills + heals + saved.
+## Sums over `cases` of each variant's value (the member's kills + heals + saved + struct): tpl (the
+## bare class template), plain (the champion's own Action, no twist), twist (with `tw`).
 func _measure(id: String, cases: Array, hero: String, army: int, tw: Dictionary) -> Dictionary:
-	var out := {"tpl": 0.0, "plain": 0.0, "twist": 0.0, "att_tpl": 0.0, "att_twist": 0.0}
+	var out := {"tpl": 0.0, "plain": 0.0, "twist": 0.0}
 	var cls := str(ChampionData.CHAMPIONS[id]["class"])
 	for cs: Dictionary in cases:
 		var st := _stats(id, int(cs["cl"]))
@@ -679,15 +726,60 @@ func _measure(id: String, cases: Array, hero: String, army: int, tw: Dictionary)
 			var prof: Dictionary = (cs["prof"] as Dictionary).duplicate()
 			prof["team"] = {"hero": hero, "champions": [row], "synergy": {}, "synergy_ids": []}
 			var s := LevelSim.simulate(cs["lv"], hero, army, cs["path"], {"profile": prof})
-			out[key] = float(out[key]) + _army_end(s) - float(cs["army"]) + s.kills - float(cs["kills"])
-			if key != "plain" and s.champs.active():
-				var m: Dictionary = s.champs.members[0]
-				var att := float(m["kills"]) + float(m["heals"]) + float(m["saved"])
-				out["att_" + key] = float(out["att_" + key]) + att
+			var m: Dictionary = s.champs.members[0]
+			out[key] = float(out[key]) + float(m["kills"]) + float(m["heals"]) + float(m["saved"]) + float(m["struct"])
 	out["ratio"] = float(out["twist"]) / maxf(float(out["tpl"]), 0.001)
 	return out
 
 
-## The army a run ends with (0 when lost).
-static func _army_end(s: LevelSim.State) -> float:
-	return s.army if s.mode == LevelSim.Mode.WON else 0.0
+## A LevelGen level with its gates frozen (no sway, no blink): the variants share one path, and a
+## champion that shortens a clash must not meet a different gate on it (a different army downstream).
+static func _frozen(def: Dictionary) -> Dictionary:
+	var out := def.duplicate()
+	var items: Array = []
+	for it: Dictionary in def["items"]:
+		if str(it.get("kind", "")) == "gate" and (it.has("move") or it.has("blink")):
+			var g := it.duplicate()
+			g.erase("move")
+			g.erase("blink")
+			items.append(g)
+		else:
+			items.append(it)
+	out["items"] = items
+	return out
+
+
+## --probe=L,L: per level of the spread, the no-team run and each champion's template / twist run on
+## the shared path (mode, army, kills, losses, the member's books).
+func _probe_levels(cases: Array, ids: Array[String], hero: String, army: int, levels: PackedStringArray) -> void:
+	for cs: Dictionary in cases:
+		if not levels.has(str(cs["level"])):
+			continue
+		var base := LevelSim.simulate(cs["lv"], hero, army, cs["path"], {"profile": cs["prof"]})
+		print("  PROBE L%d cl %d" % [int(cs["level"]), int(cs["cl"])])
+		_probe_line("none", base)
+		for id in ids:
+			var cls := str(ChampionData.CHAMPIONS[id]["class"])
+			var st := _stats(id, int(cs["cl"]))
+			var tpl := st.duplicate()
+			tpl["twist"] = {}
+			tpl["action"] = float(TEMPLATE_ACTION[cls]) * float(st["mult"])
+			var noaura := tpl.duplicate()
+			noaura["aura"] = 0.0
+			noaura["aura_effect"] = 0.0
+			for tag: String in ["template", "tpl-noaura", "twist"]:
+				var row: Dictionary = {"template": tpl, "tpl-noaura": noaura, "twist": st}[tag]
+				var prof: Dictionary = (cs["prof"] as Dictionary).duplicate()
+				prof["team"] = {"hero": hero, "champions": [row], "synergy": {}, "synergy_ids": []}
+				_probe_line("%s %s" % [id, tag], LevelSim.simulate(cs["lv"], hero, army, cs["path"], {"profile": prof}))
+
+
+static func _probe_line(tag: String, s: LevelSim.State) -> void:
+	var extra := ""
+	if s.champs.active():
+		var m: Dictionary = s.champs.members[0]
+		extra = "| k %.1f h %.1f sv %.1f st %.1f hp %.0f %s" % [float(m["kills"]), float(m["heals"]), float(m["saved"]),
+				float(m["struct"]), float(m["hp"]), "A" if bool(m["alive"]) else "X"]
+	print("    %-20s mode %d army %.1f fort %.1f kills %.1f peak %.1f haz %.1f clash %.1f t %.1f casts %d %s" % [tag,
+			s.mode, s.army, s.army_at_fortress, s.kills, s.peak, s.hazard_deaths, s.clash_deaths, s.t, s.casts, extra])
+
