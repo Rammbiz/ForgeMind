@@ -36,6 +36,7 @@ const META := {
 	"vartan": {"crop": Rect2(0.36, 0.16, 0.60, 0.41), "eye": Vector2(0.65, 0.31), "focus_x": 0.66, "eye_x": 0.70},
 	"pava": {"crop": Rect2(0.25, 0.14, 0.60, 0.41), "eye": Vector2(0.55, 0.30), "focus_x": 0.6, "veil": 0.6},
 	"sirko": {"crop": Rect2(0.33, 0.15, 0.62, 0.54), "eye": Vector2(0.635, 0.28), "focus_x": 0.62},
+	"olha": {"crop": Rect2(0.30, 0.14, 0.62, 0.43), "eye": Vector2(0.52, 0.293), "focus_x": 0.5},
 	# Champions (card.png = the 3:4 card; splash.png = the full 9:16 art for cameos)
 	"otto": {"crop": Rect2(0.0, 0.17, 1.0, 0.744), "eye": Vector2(0.43, 0.335), "focus_x": 0.55},
 	"alba": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.51, 0.33), "focus_x": 0.52},
