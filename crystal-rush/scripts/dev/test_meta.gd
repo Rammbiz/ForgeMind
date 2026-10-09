@@ -1427,8 +1427,13 @@ func _test_meta_api_heroes() -> void:
 	_ok(Roster.owned(acc, "pava") or not (Meta.hero_card("pava")["sources"] as Array).is_empty(), "unowned hero card lists its sources")
 	var cc := Meta.champion_card("alba")
 	_ok(cc.has_all(["action", "aura", "hp", "level", "slot", "class", "role"]) and int(cc["action"]["tier"]) == 2, "champion_card: Action tier II for a native Sapphire")
-	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == ["lumen", "pava"] and Array(Meta.champion_ids("class:guardian")) == ["ivo", "otto", "nimb"],
-			"hero_ids / champion_ids filters")
+	# The class filter follows the data (C24 Снаряд is a Guardian too): every Guardian in collector order.
+	var guardians: Array = []
+	for gid: String in ChampionData.CHAMPION_ORDER:
+		if str(ChampionData.CHAMPIONS[gid]["class"]) == "guardian":
+			guardians.append(gid)
+	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == ["lumen", "pava"] and Array(Meta.champion_ids("class:guardian")) == guardians
+			and guardians.slice(0, 3) == ["ivo", "otto", "nimb"], "hero_ids / champion_ids filters (%d Guardians)" % guardians.size())
 	# Facets and recut through the API (fragments only, never coins).
 	var coins0 := MetaAcc.amount(acc, "coins")
 	Roster.ensure(acc, "bolt")["frags"] = 200

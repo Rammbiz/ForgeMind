@@ -232,7 +232,7 @@ func _test_derived() -> void:
 func _test_roster() -> void:
 	print("== roster")
 	_ok(HeroData.HERO_ORDER.size() == 10 and HeroData.HEROES.size() == 10, "10 heroes")
-	# Counts follow the data (12 at launch + C23 Тарас): the order, the rows and SaveV3Data list the same roster.
+	# Counts follow the data (12 at launch + the champions who joined after): the order, the rows and SaveV3Data list the same roster.
 	var n_champ := ChampionData.CHAMPIONS.size()
 	_ok(ChampionData.CHAMPION_ORDER.size() == n_champ and n_champ >= 12 and SaveV3Data.CHAMPION_NATIVE.size() == n_champ,
 			"%d champions (order, rows and SaveV3Data agree)" % n_champ)
@@ -272,6 +272,7 @@ func _test_roster() -> void:
 		_ok(nos.has(i), "collector number %02d" % i)
 	_ok(nos.size() == HeroData.HERO_ORDER.size() + n_champ, "collector numbers are unique")
 	_test_taras()
+	_test_snaryad()
 	_ok(ChampionData.action_tier("mila") == 1 and ChampionData.action_tier("menhir") == 4, "Action tier = native + 1")
 	for s: String in HeroData.STARTERS:
 		_ok(HeroData.HEROES.has(s) and HeroData.STARTER_AT.has(s), "starter %s" % s)
@@ -896,7 +897,7 @@ func _test_champions() -> void:
 			"brant": [56, 102, 106, 3.50, 6.38, 6.62, 0.117, 0.041, 0.245], "teo": [30, 55, 57, 1.17, 2.13, 2.21, 0.175, 0.044, 0.367],
 			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [76, 138, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
 			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396],
-			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396]}
+			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [70, 128, 132, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245]}
 	for cid: String in rows:
 		var w: Array = rows[cid]
 		var nat := Roster.native(cid)
@@ -961,6 +962,71 @@ func _test_taras() -> void:
 	print("  Тарас rule #3: worst recut / native mult %.4f, %d recut Mage(s) checked on HP / Action / aura" % [worst, mages])
 	_ok(bad.is_empty() and worst < 1.0, "rule #3: a recut Topaz champion < native Тарас on mult (worst %.4f), %d recut Mage(s) on HP / Action / aura %s"
 			% [worst, mages, str(bad.slice(0, 4))])
+
+
+## C24 Снаряд (heroes_design.md §6.26): a native Amethyst Guardian of Tech and Dawn on the Guardian template (the Block's
+## +1 kill becomes the carried charge, kit action 2), Loc rows in uk and en, rule #3 against him.
+func _test_snaryad() -> void:
+	_test_joined_champion("snaryad", "Снаряд", 24, {"native": "E", "class": "guardian", "element": "tech", "faction": "dawn", "slot": "front"},
+			"ivo", {"hp": 60, "action": 2, "aura": 0.1, "radius": 1.0}, "Пес-сапер")
+
+
+## A champion that joined after launch: collector number fixed at birth, tags, Action tier, its class template kit (hp,
+## aura, radius equal to `template_cid`; the action number is the sheet's), SaveV3Data, the Loc rows (uk, en; 3-line
+## lore), and rule #3 on the real stats: every champion recut to its native gem (f 0-5, Champion Level 1-20, relic
+## none..+12) stays below it on the power multiplier, and a recut champion of its class also below its HP and aura.
+func _test_joined_champion(cid: String, uk: String, no: int, tags: Dictionary, template_cid: String, kit: Dictionary, title_uk: String) -> void:
+	var t: Dictionary = ChampionData.CHAMPIONS.get(cid, {})
+	_ok(not t.is_empty() and ChampionData.CHAMPION_ORDER.has(cid), "%s is in the collector order" % uk)
+	_ok(int(t.get("no", 0)) == no and int(t.get("no", 0)) == HeroData.HERO_ORDER.size() + ChampionData.CHAMPION_ORDER.find(cid) + 1,
+			"%s is C%d (fixed at birth)" % [uk, int(t.get("no", 0))])
+	var tag_ok := true
+	for k: String in tags:
+		tag_ok = tag_ok and str(t.get(k, "")) == str(tags[k])
+	_ok(tag_ok, "%s: %s" % [uk, str(tags)])
+	var native := str(tags["native"])
+	_ok(ChampionData.action_tier(cid) == Ladder.gem_index(native) + 1, "%s: Action tier %d (native %s)" % [uk, ChampionData.action_tier(cid), native])
+	_ok(_diff(t.get("kit", {}), kit) == "", "%s: kit %s %s" % [uk, str(kit), _diff(t.get("kit", {}), kit)])
+	var tk: Dictionary = ChampionData.CHAMPIONS[template_cid]["kit"]
+	_ok(str(ChampionData.CHAMPIONS[template_cid]["class"]) == str(tags["class"]) and float(tk["hp"]) == float(kit["hp"])
+			and float(tk["aura"]) == float(kit["aura"]) and float(tk["radius"]) == float(kit["radius"]),
+			"%s: the %s template of %s (hp, aura, radius)" % [uk, tags["class"], template_cid])
+	_ok(SaveV3Data.CHAMPION_NATIVE.get(cid, "") == native, "SaveV3Data knows %s" % uk)
+	var idu := cid.to_upper()
+	for k: String in ["CHAMP_%s" % idu, "CHAMP_%s_TITLE" % idu, "CHAMP_%s_ROLE" % idu, "CHAMP_%s_LORE" % idu, "ACT_%s" % idu,
+			"ACT_%s_DESC" % idu, "ACT_%s_VALUE" % idu, "RELIC_%s" % idu, "RELIC_%s_DESC" % idu]:
+		var row: Array = Loc.STRINGS.get(k, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % k)
+	_ok(str(Loc.STRINGS.get("CHAMP_%s" % idu, ["", ""])[0]) == uk and str(Loc.STRINGS.get("CHAMP_%s_TITLE" % idu, ["", ""])[0]) == title_uk,
+			"%s — %s" % [uk, title_uk])
+	var lore: Array = Loc.STRINGS.get("CHAMP_%s_LORE" % idu, ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "%s lore: 3 lines uk and en" % uk)
+	var worst := 0.0
+	var bad: Array = []
+	var same := 0
+	var recut := 0
+	for c2: String in ChampionData.CHAMPION_ORDER:
+		if Ladder.gem_index(Roster.native(c2)) >= Ladder.gem_index(native):
+			continue
+		recut += 1
+		var same_class := str(ChampionData.CHAMPIONS[c2]["class"]) == str(tags["class"])
+		same += 1 if same_class else 0
+		for f in range(0, Ladder.FACETS_PER_GEM + 1):
+			for cl in range(1, 21):
+				for r in range(-1, 13):
+					var rc := ChampionsMeta.stats_at(c2, native, f, cl, r)
+					var tc := ChampionsMeta.stats_at(cid, native, f, cl, r)
+					worst = maxf(worst, float(rc["mult"]) / float(tc["mult"]))
+					if not float(rc["mult"]) < float(tc["mult"]):
+						bad.append("%s f%d cl%d r%d mult" % [c2, f, cl, r])
+					if same_class:
+						for key: String in ["hp", "aura"]:
+							var capped := key == "aura" and float(tc[key]) >= ChampionData.AURA_CAP
+							if not (float(rc[key]) < float(tc[key]) or (capped and float(rc[key]) <= float(tc[key]))):
+								bad.append("%s f%d cl%d r%d %s" % [c2, f, cl, r, key])
+	print("  %s rule #3: %d champions recut to %s, worst recut / native mult %.4f, %d of its class checked on HP / aura" % [uk, recut, native, worst, same])
+	_ok(recut > 0 and bad.is_empty() and worst < 1.0, "rule #3: a champion recut to %s < native %s on mult (worst %.4f), %d of its class on HP / aura %s"
+			% [native, uk, worst, same, str(bad.slice(0, 4))])
 
 
 # ------------------------------------------------------------------ team and synergy
@@ -1439,6 +1505,16 @@ func _test_chests() -> void:
 			rest_ok = rest_ok and is_equal_approx(float(wl[cl]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1))
 	_ok(pool_l.has("taras") and is_equal_approx(float(wl["taras"]), PortalData.CHEST_FOCUS_TOTAL) and rest_ok,
 			"chest Focus Тарас: 60%% and the other %d Topaz champions %.2f%% each" % [pool_l.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1)])
+	# Аметист holds 4 since C24 Снаряд: the same rule inside the Amethyst pool.
+	var pool_e := HeroChest.pool("E")
+	HeroChest.set_focus(acc6, "E", "snaryad")
+	var we := HeroChest.champion_weights(acc6, "E")
+	var rest_e := true
+	for ce: String in pool_e:
+		if ce != "snaryad":
+			rest_e = rest_e and is_equal_approx(float(we[ce]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_e.size() - 1))
+	_ok(pool_e.has("snaryad") and is_equal_approx(float(we["snaryad"]), PortalData.CHEST_FOCUS_TOTAL) and rest_e,
+			"chest Focus Снаряд: 60%% and the other %d Amethyst champions %.2f%% each" % [pool_e.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_e.size() - 1)])
 	var acc7 := _acc(15, ["bolt"], ["mila"])
 	var w7 := HeroChest.champion_weights(acc7, "C")
 	_ok(float(w7["mila"]) == 0.0 and is_equal_approx(float(w7["ivo"]), 0.5), "unowned champions first")

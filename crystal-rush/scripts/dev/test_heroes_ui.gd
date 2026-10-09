@@ -74,9 +74,27 @@ func _test_states() -> void:
 		HeroesUIModel.set_state(st2)
 		_check(not bool(HeroesUIModel.champion("taras")["owned"]), "%s: Тарас listed as not owned" % st2)
 	HeroesUIModel.set_state("late")
+	# C24 Снаряд (§6.26): owned and NEW in 'late', listed but not owned in every other state.
+	_test_joined_state("snaryad", "Снаряд", "E", 3, "guardian", "dawn")
 	HeroesUIModel.set_state("fresh")
 	_check(not bool(HeroesUIModel.unlocks()["portal"]) and not bool(HeroesUIModel.hero("arin")["listed"]), "fresh: Portal heroes hidden")
 	_check(bool(HeroesUIModel.hero("seer")["listed"]) and not bool(HeroesUIModel.hero("seer")["owned"]), "fresh: Мейра listed, not owned")
+
+
+## A champion that joined after launch in the mock states: owned, NEW and native in 'late' (name and title from Loc,
+## its tier, class and faction), listed but not owned in every other state; leaves the model in 'late'.
+func _test_joined_state(cid: String, uk: String, gem: String, tier: int, cls: String, fac: String) -> void:
+	HeroesUIModel.set_state("late")
+	var c := HeroesUIModel.champion(cid)
+	_check(bool(c["owned"]) and bool(c["is_new"]) and str(c["gem"]) == gem and not bool(c["is_recut"]), "late: %s owned, NEW, native %s" % [uk, gem])
+	_check(str(c["name"]) != "CHAMP_%s" % cid.to_upper() and str(c["title"]) != "CHAMP_%s_TITLE" % cid.to_upper(), "late: %s name and title from Loc" % uk)
+	_check(int(c["action_tier"]) == tier and str(c["class"]) == cls and str(c["faction"]) == fac, "late: %s %s of %s, tier %d" % [uk, cls, fac, tier])
+	for st: String in HeroesUIModel.STATES:
+		if st == "late":
+			continue
+		HeroesUIModel.set_state(st)
+		_check(HeroesUIModel.champion(cid).has("id") and not bool(HeroesUIModel.champion(cid)["owned"]), "%s: %s listed as not owned" % [st, uk])
+	HeroesUIModel.set_state("late")
 
 
 func _test_rule3_rows() -> void:
@@ -213,6 +231,7 @@ func _test_art() -> void:
 			break
 	_check(no_art == "" or HeroArt.state(no_art) == "placeholder", "%s falls back to the class emblem" % (no_art if no_art != "" else "(every champion has art)"))
 	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
+	_check(HeroArt.state("snaryad") == "splash" and HeroArt.card_texture("snaryad") != null, "Снаряд has the owner's card art")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 
