@@ -893,6 +893,8 @@ static func _build_state(name: String) -> Dictionary:
 			C["mila"] = _champ_st(true, "R", 3, 8)
 			C["alba"] = _champ_st(true, "R", 5, 30)
 			C["dara"] = _champ_st(true, "L", 1, 4, true)
+			# C23 Тарас (Кобзар), native Топаз, just joined from a Hero Chest (§6.25); other states list him not owned.
+			C["taras"] = _champ_st(true, "L", 0, 0, true)
 			acc["champion_level"] = 9
 			acc["team"] = {"hero": "vesta", "champions": ["mila", "ivo", "dara"]}
 			acc["portal"] = {"welcome": false, "since_e": 2, "since_l": 23, "focus": {"C": "arin"}, "history": [], "total": 164}

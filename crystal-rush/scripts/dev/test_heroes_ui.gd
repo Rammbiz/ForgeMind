@@ -59,6 +59,21 @@ func _test_states() -> void:
 	_check(HeroesUIModel.team()["slots"] == 3, "late: three champion slots")
 	_check(bool(HeroesUIModel.unlocks()["workshop"]), "late: Workshop open")
 	_check(HeroesUIModel.hero("lumen")["skills"]["awakened"]["rank"] >= 1, "late: Люмен awakened")
+	# C23 Тарас (§6.25): owned and NEW in 'late', listed but not owned in every other state; his art is the owner's card.
+	var tr := HeroesUIModel.champion("taras")
+	_check(bool(tr["owned"]) and bool(tr["is_new"]) and str(tr["gem"]) == "L" and not bool(tr["is_recut"]), "late: Тарас owned, NEW, native Топаз")
+	_check(str(tr["name"]) != "CHAMP_TARAS" and str(tr["title"]) != "CHAMP_TARAS_TITLE", "late: Тарас name and title from Loc")
+	_check(int(tr["action_tier"]) == 4 and str(tr["class"]) == "mage" and str(tr["faction"]) == "wildfang", "late: Тарас Mage of Wildfang, tier IV")
+	var owned_c := 0
+	for c in HeroesUIModel.champions():
+		owned_c += 1 if bool(c["owned"]) else 0
+	_check(owned_c < HeroesUIModel.champions().size(), "late: the Hall count follows the data (%d / %d)" % [owned_c, HeroesUIModel.champions().size()])
+	for st2: String in HeroesUIModel.STATES:
+		if st2 == "late":
+			continue
+		HeroesUIModel.set_state(st2)
+		_check(not bool(HeroesUIModel.champion("taras")["owned"]), "%s: Тарас listed as not owned" % st2)
+	HeroesUIModel.set_state("late")
 	HeroesUIModel.set_state("fresh")
 	_check(not bool(HeroesUIModel.unlocks()["portal"]) and not bool(HeroesUIModel.hero("arin")["listed"]), "fresh: Portal heroes hidden")
 	_check(bool(HeroesUIModel.hero("seer")["listed"]) and not bool(HeroesUIModel.hero("seer")["owned"]), "fresh: Мейра listed, not owned")
@@ -189,6 +204,7 @@ func _test_art() -> void:
 	_check(HeroArt.splash_variant("seer", "eyes_closed") != null, "Мейра has the eyes-closed walkout splash")
 	_check(HeroArt.splash_variant("vesta", "eyes_closed") == null, "no variant means null, not a crash")
 	_check(HeroArt.state("pava") == "placeholder", "Пава falls back to the class emblem")
+	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 

@@ -232,7 +232,10 @@ func _test_derived() -> void:
 func _test_roster() -> void:
 	print("== roster")
 	_ok(HeroData.HERO_ORDER.size() == 10 and HeroData.HEROES.size() == 10, "10 heroes")
-	_ok(ChampionData.CHAMPION_ORDER.size() == 12 and ChampionData.CHAMPIONS.size() == 12, "12 champions")
+	# Counts follow the data (12 at launch + C23 Тарас): the order, the rows and SaveV3Data list the same roster.
+	var n_champ := ChampionData.CHAMPIONS.size()
+	_ok(ChampionData.CHAMPION_ORDER.size() == n_champ and n_champ >= 12 and SaveV3Data.CHAMPION_NATIVE.size() == n_champ,
+			"%d champions (order, rows and SaveV3Data agree)" % n_champ)
 	var per_gem_h := {}
 	var per_gem_c := {}
 	var per_fac_c := {}
@@ -261,11 +264,14 @@ func _test_roster() -> void:
 		_ok(float(c["kit"]["aura"]) <= ChampionData.AURA_CAP, "%s aura <= AURA_CAP" % cid)
 		_ok(Ladder.gem_index(c["native"]) <= Ladder.gem_index(Ladder.CHAMPION_MAX_GEM), "%s native <= Topaz" % cid)
 	for g: String in ["C", "R", "E", "L"]:
-		_ok(int(per_gem_c.get(g, 0)) == 3, "3 champions of gem %s" % g)
+		_ok(int(per_gem_c.get(g, 0)) >= 3, "%d champions of gem %s (at least 3, §4.1)" % [int(per_gem_c.get(g, 0)), g])
+	_ok(int(per_gem_c.get("M", 0)) == 0, "no Opal champion (Opal is hero-only)")
 	for f: String in TeamData.FACTIONS:
-		_ok(int(per_fac_c.get(f, 0)) == 3, "faction %s has exactly 3 champions (§5.3)" % f)
-	for i in range(1, 23):
+		_ok(int(per_fac_c.get(f, 0)) in [3, 4], "faction %s has %d champions (3-4, §5.3)" % [f, int(per_fac_c.get(f, 0))])
+	for i in range(1, HeroData.HERO_ORDER.size() + n_champ + 1):
 		_ok(nos.has(i), "collector number %02d" % i)
+	_ok(nos.size() == HeroData.HERO_ORDER.size() + n_champ, "collector numbers are unique")
+	_test_taras()
 	_ok(ChampionData.action_tier("mila") == 1 and ChampionData.action_tier("menhir") == 4, "Action tier = native + 1")
 	for s: String in HeroData.STARTERS:
 		_ok(HeroData.HEROES.has(s) and HeroData.STARTER_AT.has(s), "starter %s" % s)
@@ -889,7 +895,8 @@ func _test_champions() -> void:
 			"otto": [65, 118, 127, 1.08, 1.97, 2.12, 0.108, 0.038, 0.227], "taya": [28, 51, 55, 4.32, 7.88, 8.47, 0.162, 0.040, 0.340],
 			"brant": [56, 102, 106, 3.50, 6.38, 6.62, 0.117, 0.041, 0.245], "teo": [30, 55, 57, 1.17, 2.13, 2.21, 0.175, 0.044, 0.367],
 			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [76, 138, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
-			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396]}
+			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396],
+			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396]}
 	for cid: String in rows:
 		var w: Array = rows[cid]
 		var nat := Roster.native(cid)
@@ -907,6 +914,36 @@ func _test_champions() -> void:
 		_ok(line, "§4.4 row %s (HP %d / %d, aura %.3f)" % [cid, roundi(float(s0["hp"])), roundi(float(s5["hp"])), float(s0["aura"])])
 	_ok(float(ChampionsMeta.stats_at("menhir", "L", 5, 20, 12)["aura"]) <= ChampionData.AURA_CAP, "aura capped at AURA_CAP")
 
+
+
+## C23 Тарас (heroes_design.md §6.25): a native Topaz Mage of Rune and Wildfang with the Mage template kit,
+## Loc rows in uk and en, and rule #3 (a recut champion never matches a native Topaz) against him too.
+func _test_taras() -> void:
+	_ok(ChampionData.CHAMPIONS.has("taras") and ChampionData.CHAMPION_ORDER.back() == "taras", "Тарас is the last collector entry")
+	var t: Dictionary = ChampionData.CHAMPIONS.get("taras", {})
+	_ok(int(t.get("no", 0)) == HeroData.HERO_ORDER.size() + ChampionData.CHAMPION_ORDER.size(), "Тарас is C%d" % int(t.get("no", 0)))
+	_ok(str(t.get("native", "")) == "L" and str(t.get("class", "")) == "mage" and str(t.get("element", "")) == "rune"
+			and str(t.get("faction", "")) == "wildfang" and str(t.get("slot", "")) == "rear", "Тарас: native Топаз, Mage, Rune, Wildfang, rear")
+	_ok(ChampionData.action_tier("taras") == 4, "Тарас: Action tier IV (native Topaz only)")
+	_ok(_diff(t.get("kit", {}), ChampionData.CHAMPIONS["menhir"]["kit"]) == "", "Тарас: the Mage template kit of Менгір (hp, action, aura, radius)")
+	_ok(SaveV3Data.CHAMPION_NATIVE.get("taras", "") == "L", "SaveV3Data knows Тарас")
+	for k: String in ["CHAMP_TARAS", "CHAMP_TARAS_TITLE", "CHAMP_TARAS_ROLE", "CHAMP_TARAS_LORE", "ACT_TARAS", "ACT_TARAS_DESC",
+			"ACT_TARAS_VALUE", "RELIC_TARAS", "RELIC_TARAS_DESC"]:
+		var row: Array = Loc.STRINGS.get(k, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % k)
+	_ok(str(Loc.STRINGS.get("CHAMP_TARAS_TITLE", ["", ""])[0]) == "Кобзар", "Тарас — Кобзар")
+	var lore: Array = Loc.STRINGS.get("CHAMP_TARAS_LORE", ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Тарас lore: 3 lines uk and en")
+	# Rule #3 against Тарас: every champion recut to Topaz (any f, Champion Level, relic) stays below him.
+	var worst := 0.0
+	for cid: String in ChampionData.CHAMPION_ORDER:
+		var n := Ladder.gem_index(Roster.native(cid))
+		if n >= 3:
+			continue
+		for f in range(0, Ladder.FACETS_PER_GEM + 1):
+			for cl in [1, 10, 20]:
+				worst = maxf(worst, ChampionsMeta.index(n, 3, f, cl, 12) / ChampionsMeta.index(3, 3, f, cl, 12))
+	_ok(worst < 1.0, "rule #3: a recut Topaz champion < native Тарас (worst %.4f)" % worst)
 
 # ------------------------------------------------------------------ team and synergy
 
@@ -1374,6 +1411,16 @@ func _test_chests() -> void:
 		if HeroChest.pick_champion(acc6, "C", rng) == "ivo":
 			fo += 1
 	_ok(_z(fo, fn, 0.6) <= 4.0, "chest Focus share %.3f ~ 0.6" % [float(fo) / fn])
+	# Топаз holds 4 since C23 Тарас: the Focus keeps exactly 60%, the other three share 40% evenly.
+	var pool_l := HeroChest.pool("L")
+	HeroChest.set_focus(acc6, "L", "taras")
+	var wl := HeroChest.champion_weights(acc6, "L")
+	var rest_ok := true
+	for cl: String in pool_l:
+		if cl != "taras":
+			rest_ok = rest_ok and is_equal_approx(float(wl[cl]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1))
+	_ok(pool_l.has("taras") and is_equal_approx(float(wl["taras"]), PortalData.CHEST_FOCUS_TOTAL) and rest_ok,
+			"chest Focus Тарас: 60%% and the other %d Topaz champions %.2f%% each" % [pool_l.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1)])
 	var acc7 := _acc(15, ["bolt"], ["mila"])
 	var w7 := HeroChest.champion_weights(acc7, "C")
 	_ok(float(w7["mila"]) == 0.0 and is_equal_approx(float(w7["ivo"]), 0.5), "unowned champions first")

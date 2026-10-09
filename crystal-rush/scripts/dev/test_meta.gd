@@ -851,7 +851,8 @@ func _test_save_v3() -> void:
 		print("  (python3 not found: generator check skipped)")
 	else:
 		_ok(code == 0, "save_v3_data.gd in sync with heroes_consts.json: %s" % str(out).strip_edges())
-	_ok(SaveV3Data.HERO_NATIVE.size() == 10 and SaveV3Data.CHAMPION_NATIVE.size() == 12 and SaveV3Data.EXPECTED_CHAMPION_LEVEL.size() == 113, "roster 10 + 12, Champion Level table 0..112")
+	_ok(SaveV3Data.HERO_NATIVE.size() == HeroData.HEROES.size() and SaveV3Data.CHAMPION_NATIVE.size() == ChampionData.CHAMPIONS.size() and SaveV3Data.EXPECTED_CHAMPION_LEVEL.size() == 113,
+			"roster %d + %d (follows the data), Champion Level table 0..112" % [SaveV3Data.HERO_NATIVE.size(), SaveV3Data.CHAMPION_NATIVE.size()])
 	# Sanitize.
 	var bad := ConfigFile.new()
 	bad.set_value("meta", "version", 3)
