@@ -78,8 +78,9 @@ DOC = {
                             "army_reserves": ["Army.reserves", "add"], "army_volleys": ["Army.volley_mult", "mul"],
                             "champions_aura": ["champion.aura", "mul"], "army_recruits": ["Army.recruits", "add"],
                             "ult_charge": ["ult.charge_rate", "mul"]}, "§5.4"),
-    # §5.4: the hook no hero uses yet (free for future heroes) and its base (army_recruits went to H26 Сірко).
-    "RALLY_FREE_BASES": ({"ult_charge": 0.05}, "§5.4"),
+    # §5.4: hooks no hero uses yet (free for future heroes) and their bases; none since army_recruits went to H26
+    # Сірко and ult_charge to H27 Ольга (a new hook gets its target and base here first).
+    "RALLY_FREE_BASES": ({}, "§5.4"),
     "ULT_START_CAP": (0.40, "§5.4"),
     # §7.1 / §7.4 Portal costs.
     "BEACONS_PER_SUMMON": (1, "§7.1"),

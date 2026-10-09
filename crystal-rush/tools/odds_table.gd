@@ -29,7 +29,7 @@ const DISCLOSED_HERO := {
 	"R": {"pool": 2, "each": 13.26, "focus": 15.91, "other": 10.61},
 	"E": {"pool": 2, "each": 7.18, "focus": 8.61, "other": 5.74},
 	"L": {"pool": 2, "each": 2.81, "focus": 3.38, "other": 2.25},
-	"M": {"pool": 3, "each": 0.47, "focus": 0.84, "other": 0.28},
+	"M": {"pool": 4, "each": 0.35, "focus": 0.84, "other": 0.19},
 }
 ## Heroes per Portal gem at the launch of the Heroes system (two per gem); a gem whose pool differs needs an
 ## ODDS_CHANGELOG row (pool "portal <gem>") recording the current pool.
@@ -57,6 +57,8 @@ const ODDS_CHANGELOG := [
 	{"version": "2.4.0", "pool": "chest L", "pool_after": 5, "why": "C25 Довбуш joins the Topaz champions (4 -> 5)", "row": "other", "was": 0.27, "now": 0.20},
 	{"version": "2.4.0", "pool": "portal M", "pool_after": 3, "why": "H26 Сірко joins the Opal heroes (2 -> 3)", "row": "each", "was": 0.70, "now": 0.47},
 	{"version": "2.4.0", "pool": "portal M", "pool_after": 3, "why": "H26 Сірко joins the Opal heroes (2 -> 3)", "row": "other", "was": 0.56, "now": 0.28},
+	{"version": "2.4.0", "pool": "portal M", "pool_after": 4, "why": "H27 Ольга joins the Opal heroes (3 -> 4)", "row": "each", "was": 0.47, "now": 0.35},
+	{"version": "2.4.0", "pool": "portal M", "pool_after": 4, "why": "H27 Ольга joins the Opal heroes (3 -> 4)", "row": "other", "was": 0.28, "now": 0.19},
 ]
 const STAGES := {
 	"A": {"own": ["bolt", "titan"], "focus": {}, "level": 21},

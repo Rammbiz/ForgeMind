@@ -41,7 +41,8 @@
   "vartan",
   "lumen",
   "pava",
-  "sirko"
+  "sirko",
+  "olha"
  ],
  "champion_order": [
   "mila",
@@ -460,6 +461,40 @@
     "param": "",
     "base": 1.0,
     "note": "soldiers added to every recruit group"
+   }
+  },
+  "olha": {
+   "no": 27,
+   "native": "M",
+   "class": "ranger",
+   "element": "plasma",
+   "element2": "kinetic",
+   "faction": "wildfang",
+   "niche": "structures",
+   "ult": "doves",
+   "kit": {
+    "hp": 15,
+    "rate": 3.4,
+    "dmg": 1,
+    "splash": 0,
+    "range": 16,
+    "targets": 1,
+    "ult_charge": 40
+   },
+   "ult_main": {
+    "value": 18,
+    "note": "breaks per structure / gate the flock reaches (squads under the flight path lose a third + BURN)"
+   },
+   "ult2": {
+    "value": 8,
+    "note": "Fourth Revenge kills on the biggest squad (form III)",
+    "rank": 5
+   },
+   "rally": {
+    "hook": "ult_charge",
+    "param": "",
+    "base": 0.05,
+    "note": "ult charge rate x(1+v)"
    }
   }
  },

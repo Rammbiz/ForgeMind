@@ -187,6 +187,7 @@ HEROES = {
     "lumen": dict(n=4, cls="mage", el="plasma", fac="celestial"),
     "pava": dict(n=4, cls="healer", el="rune", fac="wildfang"),
     "sirko": dict(n=4, cls="warrior", el="rune", fac="dawn"),     # the 11th hero, added after launch (heroes_design.md §6.28)
+    "olha": dict(n=4, cls="ranger", el="plasma", fac="wildfang"),  # the 12th hero, added after launch (heroes_design.md §6.29)
 }
 STARTERS = ("titan", "bolt", "seer")
 PAID_HERO_SKUS = ()            # v2: NO hero SKUs and no Hero Editions at launch (critique B1 / X2; two-track rule)
