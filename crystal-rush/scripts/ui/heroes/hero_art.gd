@@ -29,6 +29,7 @@ const META := {
 	"titan": {"crop": Rect2(0.30, 0.10, 0.60, 0.54), "eye": Vector2(0.61, 0.30), "focus_x": 0.56, "scale": 0.8, "veil": 0.74},
 	"bolt": {"crop": Rect2(0.10, 0.08, 0.60, 0.51), "eye": Vector2(0.40, 0.30), "focus_x": 0.55},
 	"seer": {"crop": Rect2(0.29, 0.14, 0.60, 0.44), "eye": Vector2(0.59, 0.30), "focus_x": 0.6, "eye_x": 0.72, "max_left": 120.0, "veil": 0.7},
+	"lumen": {"crop": Rect2(0.36, 0.08, 0.60, 0.41), "eye": Vector2(0.67, 0.29), "focus_x": 0.62, "eye_x": 0.74, "max_left": 120.0, "veil": 0.7},
 }
 
 static var _tex: Dictionary = {}          ## path -> Texture2D (or null when missing)
@@ -57,6 +58,12 @@ static func has_live3d(id: String) -> bool:
 ## The full splash (null when missing).
 static func splash(id: String) -> Texture2D:
 	return _load(DIR + id + "/splash.png")
+
+
+## An optional alternate splash for a signature walkout beat (Мейра: "eyes_closed" -> the eyes
+## open last), pixel-aligned with splash.png; null when the hero has none.
+static func splash_variant(id: String, variant: String) -> Texture2D:
+	return _load(DIR + id + "/splash_" + variant + ".png")
 
 
 ## The card art: card.png, else a crop of the splash (META crop), else null.

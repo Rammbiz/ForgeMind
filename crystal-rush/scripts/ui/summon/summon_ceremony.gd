@@ -82,6 +82,7 @@ var _pillar: ColorRect
 var _pillar_mat: ShaderMaterial
 var _art: Control
 var _splash: TextureRect
+var _splash_open: TextureRect   ## signature beat: the eyes-open splash fading in over the eyes-closed one
 var _wipe: ShaderMaterial
 var _sigil: _Sigil
 var _fx: _Fx
@@ -310,6 +311,14 @@ func _ready() -> void:
 	_wipe.shader = preload("res://shaders/heroes/facet_wipe.gdshader")
 	_splash.material = _wipe
 	_art.add_child(_splash)
+	_splash_open = TextureRect.new()
+	_splash_open.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_splash_open.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_splash_open.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_splash_open.use_parent_material = true
+	_splash_open.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_splash_open.visible = false
+	_splash.add_child(_splash_open)
 	_fx = _Fx.new()
 	_fx.owner_c = self
 	_fx.layer = "mid"
@@ -483,10 +492,16 @@ func _show_result(i: int) -> void:
 	var h := HeroesUIModel.hero(id) if str(r.get("kind", "hero")) == "hero" else HeroesUIModel.champion(id)
 	var st := HeroArt.state(id)
 	_splash.texture = null
+	_splash_open.texture = null
+	_splash_open.visible = false
 	_sigil.visible = false
 	match st:
 		"splash":
-			_splash.texture = HeroArt.splash(id)
+			# Signature beat (Мейра): she steps out with her eyes closed; they open last.
+			var closed := HeroArt.splash_variant(id, "eyes_closed")
+			_splash.texture = closed if closed else HeroArt.splash(id)
+			if closed:
+				_splash_open.texture = HeroArt.splash(id)
 		"card":
 			_splash.texture = HeroArt.card_texture(id)
 		"live3d":
@@ -965,6 +980,11 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 		_wipe.set_shader_parameter("progress", wk if not stat else 1.0)
 		_wipe.set_shader_parameter("rim", (1.0 - 0.65 * SummonFx.seg(u, step + 0.4, 0.8)) if not stat else 0.35)
 		_splash.modulate.a = 1.0 if not stat else wk
+		if _splash_open.texture:
+			# The eyes open just after the name lands (Reduce Motion: open from the start).
+			var eo := SummonFx.seg(u, float(bt["name"]) + 0.25, 0.35) if not stat else 1.0
+			_splash_open.visible = eo > 0.0
+			_splash_open.modulate.a = eo
 	if _sigil.visible:
 		_sigil.pivot_offset = _sigil.size * 0.5
 		_sigil.scale = Vector2(sc, sc)

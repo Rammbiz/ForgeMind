@@ -12,6 +12,7 @@ var out_dir := "/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d
 var tag := ""
 var state := "mid"
 var hero := "vesta"
+var walk_hero := ""
 var t_into := 0.0
 var hold := false
 var shots: Array[String] = ["widgets", "widgets_cards", "hall"]
@@ -31,6 +32,7 @@ func _ready() -> void:
 			"tag": tag = v
 			"state": state = v
 			"hero": hero = v
+			"walk_hero": walk_hero = v
 			"lang": lang = v
 			"t": t_into = float(v)
 			"hold": hold = true
@@ -90,7 +92,9 @@ func _shot_step(name: String) -> void:
 	if e.has("force"):
 		var f: Array = []
 		for fx: Dictionary in e["force"]:
-			f.append({"id": str(fx["id"]).replace("{gem_hero}", str(HeroesGalleryShots.WALKOUT_HERO.get(gem, "vesta"))),
+			# --walk_hero=<id> overrides the per-gem walkout hero (e.g. Мейра's eyes-closed beat).
+			var wh := walk_hero if walk_hero != "" else str(HeroesGalleryShots.WALKOUT_HERO.get(gem, "vesta"))
+			f.append({"id": str(fx["id"]).replace("{gem_hero}", wh),
 					"gem": str(fx["gem"]).replace("{gem}", gem)})
 		HeroesUIModel.force_next = f
 	var uri := str(e["uri"]).replace("{arg}", arg).replace("{gem}", gem)
