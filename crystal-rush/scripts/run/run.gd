@@ -2012,17 +2012,18 @@ func _hero_attack(dt: float) -> void:
 		if kind != "gate" and kind != "crate":
 			painted = it
 			_paint_t = ArsenalData.PAINT_S
-		var n := dmg
+		# A fielded Prism amps every hero shot, gate hits and close targets too (bucket 2), on the
+		# shot's damage before the splash: LevelSim.hero_damage, which LevelGen built the levels with
+		# (owner decision 10.10, docs/design/sim_drift_report.md). The flash shows where it crosses.
+		var n := dmg * (1.0 + arsenal.prism_amp()) if arsenal else dmg
+		if arsenal and k == 0 and kind != "gate" and arsenal.prism_crosses(it):
+			effects.prism_flash(arsenal.prism_pos(), WeaponModels.glow_color("prism"), (at - arsenal.prism_pos()).normalized(), 1)
 		# The Seer fills charge gates faster (HEROES.charge_mult).
 		if kind == "gate" and str(_gate_face(it)[0]) == "charge":
 			n *= float(def.get("charge_mult", 1.0))
 		if kind == "squad":
 			n += float(def["splash"])
-		# Hero shots always cross the Prism (+amp, bucket 2) and land Mark's vs (bucket 3).
-		if arsenal and kind != "gate" and arsenal.prism_crosses(it):
-			n *= 1.0 + arsenal.prism_amp()
-			if k == 0:
-				effects.prism_flash(arsenal.prism_pos(), WeaponModels.glow_color("prism"), (at - arsenal.prism_pos()).normalized(), 1)
+		# ... and land Mark's vs (bucket 3).
 		if kind == "squad" and arsenal:
 			n *= arsenal.statuses.vs(it)
 		hurt(it, n, "hero")
@@ -2246,7 +2247,9 @@ func _ult_hit(a: float, b: float, gates: bool, kills: float, breaks: float) -> v
 				hurt(it, kills, "ult")
 			"gate":
 				if gates and float(it["d"]) >= d:
-					_hit_gate(it, float(_hero_damage()))
+					# A hero hit, Prism amp included (LevelSim._ult_hit: hero_damage).
+					var amp := 1.0 + arsenal.prism_amp() if arsenal else 1.0
+					_hit_gate(it, float(_hero_damage()) * amp)
 			_:
 				hurt(it, breaks, "ult")
 
