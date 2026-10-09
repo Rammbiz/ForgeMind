@@ -84,6 +84,8 @@ const FALLBACK := {
 	"CHAMP_MENHIR_ROLE": ["Креслить рунні кола", "Carves rune circles"],
 	"CHAMP_TARAS": ["Тарас", "Taras"], "CHAMP_TARAS_TITLE": ["Кобзар", "The Kobzar"],
 	"CHAMP_TARAS_ROLE": ["Пробиває загони словом", "Breaks squads with the Word"],
+	"CHAMP_SNARYAD": ["Снаряд", "Snaryad"], "CHAMP_SNARYAD_TITLE": ["Пес-сапер", "The Sapper Hound"],
+	"CHAMP_SNARYAD_ROLE": ["Знешкоджує пастки", "Defuses the traps"],
 	# ---------------------------------------------------------------- gems (§2.1; case forms part U §6.1)
 	"GEM": ["Самоцвіт", "Gem"], "RARITY": ["Рідкість", "Rarity"],
 	"GEM_C": ["Кварц", "Quartz"], "GEM_R": ["Сапфір", "Sapphire"], "GEM_E": ["Аметист", "Amethyst"],

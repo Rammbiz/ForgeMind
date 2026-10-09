@@ -94,7 +94,7 @@ const T := {
 	"CHAMP_UI_RUN_SOON": ["Живе демо — разом із моделлю чемпіона", "The live demo arrives with the champion’s model"],
 	"CHAMP_UI_TO_TEAM": ["До команди", "To the team"],
 	"CHAMP_UI_TWIST": ["Особливість", "Twist"],
-	# Twist names (ACT_<ID>, §6.11-§6.22, §6.25) and their one-line rule (no numbers; the sheets hold them).
+	# Twist names (ACT_<ID>, §6.11-§6.22, §6.25-§6.26) and their one-line rule (no numbers; the sheets hold them).
 	"ACT_MILA": ["Тонік", "Tonic"],
 	"ACT_MILA_DESC": ["Імпульс, що повернув солдата, кидає флакон: МІТКА на найближчий загін, видно Фантомів", "A pulse that returns a soldier throws a flare vial: MARK on the nearest squad, Phantoms revealed"],
 	"ACT_IVO": ["Жар", "Brazier Heat"],
@@ -121,6 +121,8 @@ const T := {
 	"ACT_MENHIR_DESC": ["Удар креслить коло: загони в ньому мічені й слабші в сутичці", "The strike carves a circle: squads inside are Branded and weaker in clashes"],
 	"ACT_TARAS": ["Слово", "The Word"],
 	"ACT_TARAS_DESC": ["Книга летить у найближчий загін, а сторінки розтинають і загін за ним", "A book strikes the nearest squad, and its pages cut on into the squad behind"],
+	"ACT_SNARYAD": ["Нюх сапера", "Sapper’s Nose"],
+	"ACT_SNARYAD_DESC": ["Знешкоджує пастку попереду армії й кидає її заряд на найближчий загін: Мітка", "Defuses the trap ahead of the army and drops its charge on the nearest squad: Mark"],
 	# The Action's main number (kit x ladder x Champion Level), one template per champion.
 	"CHAMP_MILA_ACTVAL": ["Повертає до %s солдатів за імпульс", "Returns up to %s soldiers per pulse"],
 	"CHAMP_IVO_ACTVAL": ["Блок: %s шкоди загороді", "Block: %s damage to the barricade"],
@@ -135,7 +137,8 @@ const T := {
 	"CHAMP_DARA_ACTVAL": ["Постріл: %s шкоди", "Shot: %s damage"],
 	"CHAMP_MENHIR_ACTVAL": ["Рунний удар: %s вбивств на загін", "Rune strike: %s kills per squad"],
 	"CHAMP_TARAS_ACTVAL": ["Слово: %s вбивств на загін", "The Word: %s kills per squad"],
-	# Champion relics (§6.11-§6.22, §6.25; RELIC_<ID>).
+	"CHAMP_SNARYAD_ACTVAL": ["Нюх сапера: %s вбивств за заряд", "Sapper’s Nose: %s kills per charge"],
+	# Champion relics (§6.11-§6.22, §6.25-§6.26; RELIC_<ID>).
 	"RELIC_MILA": ["Ліхтар наставниці", "Mentor’s Lantern"],
 	"RELIC_IVO": ["Решітка жаровні", "Brazier Grate"],
 	"RELIC_BORKO": ["Дідова лопата", "Grandsire’s Spade"],
@@ -149,4 +152,5 @@ const T := {
 	"RELIC_DARA": ["Лебідка гарпуна", "Harpoon Winch"],
 	"RELIC_MENHIR": ["Найдавніша руна", "Eldest Rune"],
 	"RELIC_TARAS": ["Перо поета", "The Poet’s Quill"],
+	"RELIC_SNARYAD": ["Перше кільце", "The First Ring"],
 }
