@@ -389,7 +389,8 @@ func _gate_hold() -> bool:
 		var lo := Vector2(INF, INF)
 		var hi := Vector2(-INF, -INF)
 		var seen := true
-		for c: Vector3 in [Vector3(-hw, 0.0, 0.0), Vector3(hw, 0.0, 0.0), Vector3(-hw, top, 0.0), Vector3(hw, top, 0.0)]:
+		for c: Vector3 in [Vector3(-hw, 0.0, 0.0), Vector3(hw, 0.0, 0.0), Vector3(-hw, top, 0.0),
+				Vector3(hw, top, 0.0)]:
 			var p := g.global_transform * c
 			if cam.is_position_behind(p):
 				seen = false

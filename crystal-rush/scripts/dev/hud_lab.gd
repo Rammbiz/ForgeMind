@@ -1061,8 +1061,9 @@ func _compare_matrix(cases: Array[String], kinds: Array[String]) -> void:
 		for c: String in cases:
 			var a: Dictionary = res["%s|%s|false" % [c, k]]
 			var b: Dictionary = res["%s|%s|true" % [c, k]]
-			line += " | %5.2f -> %5.2f%s" % [float(a["ratio"]), float(b["ratio"]), "!" if float(b["ratio"]) < MIN_RATIO else " "]
-			if float(b["ratio"]) < MIN_RATIO:
+			var low2 := float(b["ratio"]) < MIN_RATIO
+			line += " | %5.2f -> %5.2f%s" % [float(a["ratio"]), float(b["ratio"]), "!" if low2 else " "]
+			if low2:
 				_fails += 1
 				low.append("%s %s: %s" % [c, k, _cell_note(b)])
 		print(line)
@@ -1121,9 +1122,9 @@ func _cell(name: String, kind: String, v2: bool) -> Dictionary:
 	var ratio := float(worst["ratio"]) if measured > 0 else 1.0
 	var vname := "v2" if v2 else "v1"
 	_csv.append("%s,%s,%s,%.2f,%s,%.2f,%.3f,%.3f,%d,%d,%s,%s,%d,%d" % [name, kind, vname, ratio,
-			str(worst.get("label", "-")).replace(",", " "), worst_t, float(worst.get("text", 0.0)), float(worst.get("bg", 0.0)),
-			int(worst.get("px", 0)), int(worst.get("n", 0)), str(worst.get("covered", true)), str(worst.get("mask", "-")),
-			measured, moved])
+			str(worst.get("label", "-")).replace(",", " "), worst_t, float(worst.get("text", 0.0)),
+			float(worst.get("bg", 0.0)), int(worst.get("px", 0)), int(worst.get("n", 0)), str(worst.get("covered", true)),
+			str(worst.get("mask", "-")), measured, moved])
 	if worst_img and out_dir != "":
 		var img: Image = worst_img.duplicate()
 		_outline(img, worst_rects)
