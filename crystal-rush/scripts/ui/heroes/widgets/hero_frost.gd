@@ -154,13 +154,6 @@ func refresh() -> void:
 	if not is_instance_valid(self):
 		return
 	_busy = false
-	if OS.has_environment("HERO_FROST_DEBUG"):
-		var im := texture().get_image()
-		for ch in _snap.get_children():
-			print("  L ", ch.get_class(), " ", (ch as Control).position, " ", (ch as Control).size, " q=", ch.is_queued_for_deletion())
-		print("HERO_FROST ", get_parent().name, " ", _snap.size, " layers=", layers.size(), " px=", im.get_pixel(im.get_width() / 2, im.get_height() * 3 / 4) if im else null)
-		if im:
-			im.save_png("/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d101a978/scratchpad/uiv3/p3/frost_%s.png" % get_parent().name)
 	if not ready_once:
 		ready_once = true
 		for m: ShaderMaterial in _mats.values():

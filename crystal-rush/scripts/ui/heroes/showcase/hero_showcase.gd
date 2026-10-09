@@ -46,6 +46,7 @@ var _splash: TextureRect
 var _stage: HeroShowcaseStage
 var _relief: _ReliefArt
 var _veil: TextureRect
+var _colbed: Panel
 var _ui: Control
 var _info: VBoxContainer
 var _skills: PanelContainer
@@ -178,6 +179,14 @@ func _build_hero(entrance: bool) -> void:
 	_veil.stretch_mode = TextureRect.STRETCH_SCALE
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_veil)
+	# v3.1 text bed of the info column (§4.3 over art): a feathered 94 % cream bed sized to the
+	# column, its strength from META "veil" (art that reaches under the column gets more), so the
+	# lines stay >= 4.5:1 over a golem's shoulder or a bow arm. It ends left of the face (eye_x).
+	_colbed = Panel.new()
+	_colbed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_colbed.add_theme_stylebox_override("panel", UIKit.lux("text_bed"))
+	_colbed.self_modulate.a = clampf(0.2 + (va - 0.5) * 2.0, 0.2, 0.7) if st == "splash" else 0.0
+	add_child(_colbed)
 	_ui = Control.new()
 	_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -566,6 +575,9 @@ func _layout() -> void:
 			em.custom_minimum_size = Vector2(want, want)
 			_info.size = Vector2(COL_W, 0)
 	_codex.position = Vector2(W - UITokens.GUTTER - 76.0, y0)
+	var ih := _info.get_combined_minimum_size().y
+	_colbed.position = Vector2(-28.0, y0 + 96.0)
+	_colbed.size = Vector2(UITokens.GUTTER + COL_W + 40.0, maxf(0.0, ih - 76.0))
 	_veil.position = Vector2.ZERO
 	_veil.size = Vector2(W * 0.72, H)
 	_bg.focus = Vector2(0.64, 0.34)
@@ -702,7 +714,7 @@ func _set_3d(on: bool, animate: bool) -> void:
 		tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	var a := 0.0 if on else 1.0
 	_skills.visible = true
-	for c: CanvasItem in [_info, _skills, _veil]:
+	for c: CanvasItem in [_info, _skills, _veil, _colbed]:
 		if dur > 0.0:
 			tw.tween_property(c, "modulate:a", a, dur)
 		else:
