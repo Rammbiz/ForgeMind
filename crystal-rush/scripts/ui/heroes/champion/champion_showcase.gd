@@ -212,8 +212,9 @@ func _build() -> void:
 ## A frosted glass panel over this screen (text on the 94 % bed), or the flat text glass.
 func _glass_panel() -> PanelContainer:
 	var p := PanelContainer.new()
-	if not HeroFrost.frost_panel(p, "panel", Vector2(20, 16), _frost):
-		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(20, 16)))
+	# The kit card's pad (16, 14): the plates size their text columns to it (w - 36).
+	if not HeroFrost.frost_panel(p, "panel", Vector2(16, 14), _frost):
+		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(16, 14)))
 	return p
 
 
@@ -346,7 +347,9 @@ func _relic_row(inner: float) -> Control:
 	v.add_child(UIKit.caps(HeroesText.t("SKL_RELIC"), 20, UITokens.INK_DIM_GLASS))
 	v.add_child(UIKit.label(HeroesText.t("RELIC_" + champ_id.to_upper()), 26, UITokens.INK, true))
 	var line := HeroesText.t("CHAMP_UI_RELIC_RANK", [0]) if open else HeroesText.t("CHAMP_UI_RELIC_LOCKED", [int(HeroData.UNLOCK_AT["workshop"])])
-	v.add_child(_wrap(line, 22, UITokens.INK_DIM_GLASS, false, inner - 140.0))
+	# The line's width leaves room for the pad (2 x 16), the socket (72 + 16) and, when locked, the
+	# lock (16 + 30): it was inner - 140 and pushed the locked row 26 px past the screen.
+	v.add_child(_wrap(line, 22, UITokens.INK_DIM_GLASS, false, inner - 124.0 - (0.0 if open else 46.0)))
 	h.add_child(v)
 	if not open:
 		var lk := Icons.make("lock", 30.0, UITokens.INK_DIM_GLASS)

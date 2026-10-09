@@ -165,8 +165,9 @@ func _build() -> void:
 ## A frosted glass panel over this screen (text on the 94 % bed), or the flat text glass.
 func _glass_panel() -> PanelContainer:
 	var p := PanelContainer.new()
-	if not HeroFrost.frost_panel(p, "panel", Vector2(24, 18), _frost):
-		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(24, 18)))
+	# The kit card's pad (16, 14): the rows size themselves to it (inner - 48).
+	if not HeroFrost.frost_panel(p, "panel", Vector2(16, 14), _frost):
+		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(16, 14)))
 	return p
 
 
