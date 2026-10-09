@@ -4,22 +4,36 @@ extends SceneTree
 ## never disagree.
 ##
 ##   godot --headless --path . --script res://tools/odds_table.gd [-- --portal] [--chest] [--check] [--diff] [--n=1000000]
-##   --portal  consolidated gem odds, pity, best of a ×10, per-hero odds at the §7.2 stages A-D
+##   --portal  consolidated gem odds, pity, best of a ×10, per-hero odds at the §7.2 stages A-D, per-hero odds of a
+##             complete gem (without and with a Focus)
 ##   --chest   card odds, best-card tables, per-champion odds (complete gems, a chest Focus)
 ##   --check   Monte Carlo per character through Summon.roll_gem / pick_hero and HeroChest.roll_gems /
 ##             pick_champion (--n rolls per pool state, default 1 000 000): exit 1 when any |z| > 4,
 ##             a pity gap exceeds its guarantee (Amethyst+ 10, Topaz+ 30, chest Topaz 15) or the
 ##             Focus share drifts from exactly 60%
 ##   --diff    exact tables vs the disclosed §7.2 / §7.5 rows (exit 1 on a difference > 0.005 pp), including
-##             every champion's card odds; prints the odds changelog rows (ODDS_CHANGELOG, §9.3 «Змінено у»)
-##             and fails when a chest gem's champion pool differs from LAUNCH_POOLS without a changelog row
-##             whose `pool_after` equals the current pool, or when such a current row's `now` is not exact
+##             every hero's Portal odds and every champion's card odds of a complete gem; prints the odds changelog
+##             rows (ODDS_CHANGELOG, §9.3 «Змінено у») and fails when a Portal gem's hero pool or a chest gem's
+##             champion pool differs from its launch pool (LAUNCH_HERO_POOLS / LAUNCH_POOLS) without a changelog
+##             row whose `pool_after` equals the current pool, or when such a current row's `now` is not exact
 ## No flag = --portal --chest.
 
 const DISCLOSED_GEMS := {"C": 52.09, "R": 26.52, "E": 14.35, "L": 5.63, "M": 1.41}
 const DISCLOSED_X10 := {"welcome": {"L": 78.46, "M": 21.54}, "fresh": {"E": 59.87, "L": 30.56, "M": 9.56},
 		"typical": {"E": 43.56, "L": 42.99, "M": 13.45}}
 const DISCLOSED_CHEST := {"hero": {"C": 38.44, "R": 40.77, "E": 16.83, "L": 3.96}, "grand": {"E": 78.58, "L": 21.42}}
+## §7.2 per-hero odds of one summon, every hero of the gem owned: heroes per gem, each hero's % without a Focus, and with
+## a Focus on that gem (the Focus hero / each other one).
+const DISCLOSED_HERO := {
+	"C": {"pool": 2, "each": 26.05, "focus": 31.26, "other": 20.84},
+	"R": {"pool": 2, "each": 13.26, "focus": 15.91, "other": 10.61},
+	"E": {"pool": 2, "each": 7.18, "focus": 8.61, "other": 5.74},
+	"L": {"pool": 2, "each": 2.81, "focus": 3.38, "other": 2.25},
+	"M": {"pool": 3, "each": 0.47, "focus": 0.84, "other": 0.28},
+}
+## Heroes per Portal gem at the launch of the Heroes system (two per gem); a gem whose pool differs needs an
+## ODDS_CHANGELOG row (pool "portal <gem>") recording the current pool.
+const LAUNCH_HERO_POOLS := {"C": 2, "R": 2, "E": 2, "L": 2, "M": 2}
 ## §7.5 per-champion odds of one free chest card, every gem complete: champions per gem, each champion's % without a
 ## Focus, and with a chest Focus on that gem (the Focus champion / each other one).
 const DISCLOSED_CHAMP := {
@@ -41,13 +55,14 @@ const ODDS_CHANGELOG := [
 	{"version": "2.4.0", "pool": "chest E", "pool_after": 4, "why": "C24 Снаряд joins the Amethyst champions (3 -> 4)", "row": "other", "was": 1.80, "now": 1.20},
 	{"version": "2.4.0", "pool": "chest L", "pool_after": 5, "why": "C25 Довбуш joins the Topaz champions (4 -> 5)", "row": "each", "was": 0.50, "now": 0.40},
 	{"version": "2.4.0", "pool": "chest L", "pool_after": 5, "why": "C25 Довбуш joins the Topaz champions (4 -> 5)", "row": "other", "was": 0.27, "now": 0.20},
+	{"version": "2.4.0", "pool": "portal M", "pool_after": 3, "why": "H26 Сірко joins the Opal heroes (2 -> 3)", "row": "each", "was": 0.70, "now": 0.47},
+	{"version": "2.4.0", "pool": "portal M", "pool_after": 3, "why": "H26 Сірко joins the Opal heroes (2 -> 3)", "row": "other", "was": 0.56, "now": 0.28},
 ]
 const STAGES := {
 	"A": {"own": ["bolt", "titan"], "focus": {}, "level": 21},
 	"B": {"own": ["titan", "arin", "bolt", "eira", "seer", "iskar", "vesta", "lumen"], "focus": {}, "level": 25},
-	"C": {"own": ["titan", "arin", "bolt", "eira", "seer", "iskar", "vesta", "vartan", "lumen", "pava"], "focus": {}, "level": 25},
-	"D": {"own": ["titan", "arin", "bolt", "eira", "seer", "iskar", "vesta", "vartan", "lumen", "pava"],
-			"focus": {"C": "titan", "R": "bolt", "E": "seer", "L": "vesta", "M": "lumen"}, "level": 25},
+	"C": {"own": ["*"], "focus": {}, "level": 25},
+	"D": {"own": ["*"], "focus": {"C": "titan", "R": "bolt", "E": "seer", "L": "vesta", "M": "lumen"}, "level": 25},
 }
 
 var _fails := 0
@@ -83,7 +98,9 @@ func _stage(name: String) -> Dictionary:
 	var s: Dictionary = STAGES[name]
 	var acc := EconData.fresh_account()
 	(acc["progress"] as Dictionary)["level"] = int(s["level"])
-	for id: String in s["own"]:
+	# "*" = every hero of the roster (stages C and D: the counts follow the data)
+	var own: Array = HeroData.HERO_ORDER if s["own"] == ["*"] else s["own"]
+	for id: String in own:
 		if not Roster.owned(acc, id):
 			Roster.grant(acc, id, "start", 1)
 	for g: String in s["focus"]:
@@ -121,6 +138,31 @@ func _portal() -> void:
 		for id in HeroData.HERO_ORDER:
 			cells2.append(_pct(float(ho[id])))
 		print("| %s | %s |" % [st, " | ".join(cells2)])
+	print("\n## Per-hero odds of one summon (every hero of the gem owned; §7.2)")
+	print("| Gem | Heroes | Each, no Focus | Focus | Each other |")
+	print("|---|---|---|---|---|")
+	for g3 in Ladder.GEMS:
+		var r := _hero_row(g3)
+		if not r.is_empty():
+			print("| %s | %d | %.2f%% | %.2f%% | %.2f%% |" % [g3, int(r["pool"]), float(r["each"]), float(r["focus"]), float(r["other"])])
+
+
+## The exact per-hero Portal odds of `gem` with every hero owned: {pool, each, focus, other} in %.
+static func _hero_row(gem: String) -> Dictionary:
+	var acc := EconData.fresh_account()
+	(acc["progress"] as Dictionary)["level"] = 25
+	for id in HeroData.HERO_ORDER:
+		if not Roster.owned(acc, id):
+			Roster.grant(acc, id, "start", 1)
+	var pool := Summon.pool(acc, gem)
+	if pool.is_empty():
+		return {}
+	var p := 100.0 * float(Summon.consolidated()[gem])
+	var even := Summon.hero_weights(acc, gem)
+	Summon.set_focus(acc, gem, pool[pool.size() - 1])
+	var fw := Summon.hero_weights(acc, gem)
+	return {"pool": pool.size(), "each": p * float(even[pool[0]]), "focus": p * float(fw[pool[pool.size() - 1]]),
+			"other": p * float(fw[pool[0]]) if pool.size() > 1 else 0.0}
 
 
 func _x10(kind: String) -> Dictionary:
@@ -200,6 +242,16 @@ func _diff() -> void:
 		var b := HeroChest.exact_best(k2)
 		for g3: String in DISCLOSED_CHEST[k2]:
 			_ok(absf(100.0 * float(b.get(g3, 0.0)) - float(DISCLOSED_CHEST[k2][g3])) <= 0.005, "chest %s %s" % [k2, g3])
+	# Per-hero Portal rows: the pool size and each disclosed % (rounded to 0.01 pp as printed).
+	for gh: String in Ladder.GEMS:
+		var rh := _hero_row(gh)
+		var dh: Dictionary = DISCLOSED_HERO.get(gh, {})
+		if rh.is_empty() or dh.is_empty():
+			_ok(rh.is_empty() and dh.is_empty(), "portal hero row %s disclosed" % gh)
+			continue
+		_ok(int(rh["pool"]) == int(dh["pool"]), "portal %s pool %d heroes, disclosed %d (update DISCLOSED_HERO and add an ODDS_CHANGELOG row)" % [gh, int(rh["pool"]), int(dh["pool"])])
+		for kh: String in ["each", "focus", "other"]:
+			_ok(absf(snappedf(float(rh[kh]), 0.01) - float(dh[kh])) <= 0.005, "portal %s %s %.4f%% vs disclosed %.2f%%" % [gh, kh, float(rh[kh]), float(dh[kh])])
 	# Per-champion rows: the pool size and each disclosed % (rounded to 0.01 pp as printed).
 	for g4: String in PortalData.CHEST_ODDS:
 		var r := _champ_row(g4)
@@ -211,23 +263,37 @@ func _diff() -> void:
 		for k3: String in ["each", "focus", "other"]:
 			_ok(absf(snappedf(float(r[k3]), 0.01) - float(d[k3])) <= 0.005, "chest %s %s %.4f%% vs disclosed %.2f%%" % [g4, k3, float(r[k3]), float(d[k3])])
 	print("\n## Odds changelog rows (§9.3 «Змінено у»)")
-	for g6: String in PortalData.CHEST_ODDS:
-		var pool_now := HeroChest.pool(g6).size()
-		if pool_now == int(LAUNCH_POOLS.get(g6, 0)):
-			continue
-		var logged := false
-		for row0: Dictionary in ODDS_CHANGELOG:
-			logged = logged or (str(row0["pool"]) == "chest " + g6 and int(row0.get("pool_after", -1)) == pool_now)
-		_ok(logged, "chest %s pool %d champions (launch %d) has no ODDS_CHANGELOG row with pool_after %d"
-				% [g6, pool_now, int(LAUNCH_POOLS.get(g6, 0)), pool_now])
+	for kind: String in ["portal", "chest"]:
+		var launch: Dictionary = LAUNCH_HERO_POOLS if kind == "portal" else LAUNCH_POOLS
+		var gems: Array = Array(Ladder.GEMS) if kind == "portal" else PortalData.CHEST_ODDS.keys()
+		for g6: String in gems:
+			var pool_now := _pool_size(kind + " " + g6)
+			if pool_now == int(launch.get(g6, 0)):
+				continue
+			var logged := false
+			for row0: Dictionary in ODDS_CHANGELOG:
+				logged = logged or (str(row0["pool"]) == kind + " " + g6 and int(row0.get("pool_after", -1)) == pool_now)
+			_ok(logged, "%s %s pool %d (launch %d) has no ODDS_CHANGELOG row with pool_after %d"
+					% [kind, g6, pool_now, int(launch.get(g6, 0)), pool_now])
 	for row: Dictionary in ODDS_CHANGELOG:
-		var g5 := str(row["pool"]).trim_prefix("chest ")
-		var current := int(row.get("pool_after", -1)) == HeroChest.pool(g5).size()
+		var pk := str(row["pool"])
+		var g5 := pk.get_slice(" ", 1)
+		var current := int(row.get("pool_after", -1)) == _pool_size(pk)
 		if current:
-			var now := snappedf(float(_champ_row(g5).get(str(row["row"]), -1.0)), 0.01)
-			_ok(absf(now - float(row["now"])) <= 0.005, "changelog %s %s: now %.2f%% vs exact %.2f%%" % [row["version"], row["row"], float(row["now"]), now])
-		print("- %s · %s (%d champions) · %s: %.2f%% -> %.2f%% (%s)%s" % [row["version"], row["pool"], int(row.get("pool_after", -1)),
-				row["row"], float(row["was"]), float(row["now"]), row["why"], "" if current else " [history]"])
+			var exact := _hero_row(g5) if pk.begins_with("portal ") else _champ_row(g5)
+			var now := snappedf(float(exact.get(str(row["row"]), -1.0)), 0.01)
+			_ok(absf(now - float(row["now"])) <= 0.005, "changelog %s %s %s: now %.2f%% vs exact %.2f%%" % [row["version"], pk, row["row"], float(row["now"]), now])
+		print("- %s · %s (%d %s) · %s: %.2f%% -> %.2f%% (%s)%s" % [row["version"], pk, int(row.get("pool_after", -1)),
+				"heroes" if pk.begins_with("portal ") else "champions", row["row"], float(row["was"]), float(row["now"]), row["why"],
+				"" if current else " [history]"])
+
+
+## Current pool size of a changelog pool key: "portal <gem>" (heroes, every hero owned) or "chest <gem>" (champions).
+static func _pool_size(pool_key: String) -> int:
+	var g := pool_key.get_slice(" ", 1)
+	if pool_key.begins_with("portal "):
+		return int(_hero_row(g).get("pool", 0))
+	return HeroChest.pool(g).size()
 
 
 static func _z(k: int, n: int, p: float) -> float:

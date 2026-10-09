@@ -3,7 +3,7 @@
 
 Outputs (only the block between the GENERATED markers is written; hand-written rules outside it are kept):
   scripts/core/ladder.gd         Ladder        gem ladder, F-CAP caps, forms, Awakening, rank steps, budgets
-  scripts/core/hero_data.gd      HeroData      roster of 10 heroes (kits, ult / rally numbers), PROGRESS, Feats, unlocks
+  scripts/core/hero_data.gd      HeroData      the hero roster (kits, ult / rally numbers), PROGRESS, Feats, unlocks
   scripts/core/champion_data.gd  ChampionData  roster of the champions, aura, Champion Level, champion budgets
   scripts/core/team_data.gd      TeamData      classes, elements, factions, tiers, pairs, Affinity, Rally hooks, TEAM_DEMAND
   scripts/core/portal_data.gd    PortalData    Portal odds / pity / Seals / welcome / Beacons, Hero Chests, scripted chests
@@ -78,8 +78,8 @@ DOC = {
                             "army_reserves": ["Army.reserves", "add"], "army_volleys": ["Army.volley_mult", "mul"],
                             "champions_aura": ["champion.aura", "mul"], "army_recruits": ["Army.recruits", "add"],
                             "ult_charge": ["ult.charge_rate", "mul"]}, "§5.4"),
-    # §5.4: the two hooks no hero uses yet (free for future heroes) and their bases.
-    "RALLY_FREE_BASES": ({"army_recruits": 1.0, "ult_charge": 0.05}, "§5.4"),
+    # §5.4: the hook no hero uses yet (free for future heroes) and its base (army_recruits went to H26 Сірко).
+    "RALLY_FREE_BASES": ({"ult_charge": 0.05}, "§5.4"),
     "ULT_START_CAP": (0.40, "§5.4"),
     # §7.1 / §7.4 Portal costs.
     "BEACONS_PER_SUMMON": (1, "§7.1"),
@@ -393,7 +393,9 @@ def block_ladder(b: Block) -> None:
 
 def block_hero(b: Block) -> None:
     b.head("roster (heroes_design.md §6.0; kit = Lv1 rank-1 Quartz-normalised, eff = kit x Ladder.NATIVE_MULT[native])")
-    b.roster("HERO_ORDER", "hero_order", "Collector order 01-10.")
+    nos = [int(b.r["heroes"][h]["no"]) for h in b.r["hero_order"]]
+    b.roster("HERO_ORDER", "hero_order", "Collector numbers %s (heroes and champions share one number line)." %
+             ", ".join("%02d" % n for n in nos))
     b.doc("id -> {no, native, class, element, element2 (ult form V), faction, niche, ult (kind id), kit {hp, rate, dmg,\n"
           "splash, range, targets, ult_charge}, ult_main {value, note}, ult2 {value, note, rank}, rally {hook, param, base,\n"
           "note}}. Notes are designer notes for tools, never UI copy (names and texts are Loc HERO_<ID>*).")

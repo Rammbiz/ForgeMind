@@ -480,13 +480,17 @@ def doc_names(doc: str) -> dict[str, tuple[str, str]]:
     lines = doc.split("\n")
     # §6.0 hero table
     for ln in lines:
-        m = re.match(r"^\| (?:0\d|10) \| `(\w+)` \| (.+?) / (.+?) \| (.+?) / (.+?) \| (Кварц|Сапфір|Аметист|Топаз|Опал) \|", ln)
+        # hero rows have 12 cells (any collector number: H26 Сірко joined after the champions), champion rows 10
+        cells = ln.strip().strip("|").split("|")
+        m = re.match(r"^\| \d\d \| `(\w+)` \| (.+?) / (.+?) \| (.+?) / (.+?) \| (Кварц|Сапфір|Аметист|Топаз|Опал) \|", ln) \
+            if len(cells) == 12 else None
         if m:
             idu = m.group(1).upper()
             exp["HERO_" + idu] = (m.group(2), m.group(3))
             t_en = m.group(5)
             exp["HERO_" + idu + "_TITLE"] = (m.group(4), t_en[0].upper() + t_en[1:])
-        m = re.match(r"^\| (1\d|2\d) \| `(\w+)` \| (.+?) / (.+?) \| (.+?) / (.+?) \| (.+?) / (.+?) \| (Кварц|Сапфір|Аметист|Топаз) \|", ln)
+        m = re.match(r"^\| (\d\d) \| `(\w+)` \| (.+?) / (.+?) \| (.+?) / (.+?) \| (.+?) / (.+?) \| (Кварц|Сапфір|Аметист|Топаз) \|", ln) \
+            if len(cells) == 10 else None
         if m:
             idu = m.group(2).upper()
             exp["CHAMP_" + idu] = (m.group(3), m.group(4))

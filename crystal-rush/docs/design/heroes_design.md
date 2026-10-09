@@ -12,14 +12,14 @@ exported to `heroes/heroes_consts.json`. Display names are uk first, then en. Pa
 layouts (§9).
 
 Contents: 0 Owner summary · 1 Pillars and owner decisions · 2 Rarity and the native ceiling · 3 Hero progression ·
-4 Champions · 5 Classes, elements, factions, synergies · 6 Roster (10 heroes, 15 champions) · 7 Portal, Seals, Hero
+4 Champions · 5 Classes, elements, factions, synergies · 6 Roster (11 heroes, 15 champions) · 7 Portal, Seals, Hero
 Chests, Workshop, odds, pity · 8 Economy and sim results · 9 Screens and ceremonies · 10 Run integration and performance ·
 11 Onboarding and unlock pacing · 12 Save v3, data, Loc, telemetry, tests · 13 Implementation plan · 14 Art production
 plan · 15 Risks and open questions.
 
 ## 0. Owner summary (one page, plain language)
 
-**What you get.** 10 heroes (2 per gem, Кварц → Опал) who lead the run, and 15 champions (3 per gem Кварц and Сапфір, 4 of Аметист since Снаряд joined, 5 of Топаз since Тарас and Довбуш)
+**What you get.** 11 heroes (2 per gem Кварц → Топаз, 3 of Опал since Сірко joined) who lead the run, and 15 champions (3 per gem Кварц and Сапфір, 4 of Аметист since Снаряд joined, 5 of Топаз since Тарас and Довбуш)
 who walk inside the crowd as commanders and act on their own. A team is 1 hero + 2 champions from level 14, 3 from
 level 40. Руді, Горан and Мейра stay the starters (Мейра visits for one level at L5 and joins at the World 3 boss).
 
@@ -80,7 +80,7 @@ in place).
 
 | # | Owner decision (decisions.md) | Implemented as | § | Status |
 |---|---|---|---|---|
-| 1 | Heroes + Champions from packs | 10 heroes (Portal) + 15 champions (Hero Chests; the roster in §6.0) | 4, 6, 7 | ✓ |
+| 1 | Heroes + Champions from packs | 11 heroes (Portal) + 15 champions (Hero Chests; the roster in §6.0) | 4, 6, 7 | ✓ |
 | 2 | 1 hero + 2–3 champions per run | «Команда / Team»: 2 slots from L14, 3rd at the World 5 boss (L40) | 4.1, 11 | ✓ (unlock L18 → L14, critic M7) |
 | 3 | 5 tiers; ascended never reaches natives | four brakes + real-kit parity tests; F-CAP and F-AWK2 change two FROZEN formulas | 2 | ✓ **owner sign-off needed** for F-CAP / F-AWK2 (§15 Q1–Q2) |
 | 4 | Gem names, big cut-gem emblem | Кварц · Сапфір · Аметист · Топаз · Опал, Living Gem emblem, 5 colour-blind channels | 2.1 | ✓ |
@@ -95,9 +95,9 @@ in place).
 | 13 | 2D splash + live 3D | layered splash (cutout + rig + fx masks) on the Showcase; «Деталі» = live 3D on a gem stage + cream sheet | 9.3 | ✓ |
 | 14 | Champions = squad commanders | own clip characters in the crowd, act on their own, aura on nearby soldiers, can fall | 4.2, 10 | ✓ (Mage aura now lifts soldiers too) |
 | 15 | Cinematic reveal for rare ones, skippable | Q 1.2 s · S 1.8 s · Amethyst / Topaz / Opal walkouts 0.6 + 2.6 / 3.6 / 5.0 s, skippable from 0.5 s | 9.4 | ✓ |
-| 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz; + C23 Тарас (Topaz), C24 Снаряд (Amethyst), C25 Довбуш (Topaz), owner requests 2026-10-09 | 6 | ✓ |
-| 17 | Humans, beasts, creatures | 9 · 8 · 8 (§6.0 coverage) | 6 | ✓ |
-| 18 | Name + title, readable in uk and en | every name (25 with Тарас, Снаряд and Довбуш); 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
+| 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz; + C23 Тарас (Topaz), C24 Снаряд (Amethyst), C25 Довбуш (Topaz) and the 11th hero H26 Сірко (Opal), owner requests 2026-10-09 | 6 | ✓ |
+| 17 | Humans, beasts, creatures | 10 · 8 · 8 (§6.0 coverage) | 6 | ✓ |
+| 18 | Name + title, readable in uk and en | every name (26 with Тарас, Снаряд, Довбуш and Сірко); 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
 | 19 | Forge + trophies, little randomness | «Майстерня / Workshop» (your "Forge"): craft exactly what is shown, one material «Зоряна руда», 7 boss trophies (+3 ranks from each night boss), zero randomness | 3.4 | ✓ (name: §15 Q6) |
 | 20 | Design now, code after APK 2.1 + prompts now | this doc; prompts in `heroes/heroes_prompts.md` (next workflow step) | 13, 14 | ✓ |
 | A1 | Second reference: top tier visibly has more | 4 skills on native Amethyst / Topaz / Opal at pull, gem-washed full screens, more particles per gem | 2, 9 | ✓ |
@@ -409,7 +409,7 @@ Roster at native max: 1 960 Tomes; all 10 at Opal f5 (recut caps 10): 3 930 Tome
 
 **Slots:** hero = Зброя / Weapon (`dmg_add`) · Обладунок / Armour (`hp_add`) · Оберіг / Charm (`ult_add` + `charge_add`) ·
 Реліквія / Relic. Champion = Relic only. **12 faction items** (4 factions × 3 slots, crafted once per account, wearable by
-any hero, re-equip free) + **one relic per character** (25 with Тарас, Снаряд and Довбуш, auto-equipped). Stats never depend on the wearer.
+any hero, re-equip free) + **one relic per character** (26 with Тарас, Снаряд, Довбуш and Сірко, auto-equipped). Stats never depend on the wearer.
 
 | Slot | Stat | base | per rank | beats +4 / +8 / +12 | +0 | +3 | +6 | +9 | +12 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -443,7 +443,7 @@ the ≤ 35% / 35% rule.
 | Temper r → r+1 (item, hero relic) | 8 + 4r | 0.35 s; tier change (+3 / +6 / +9) 1.2 s; beats (+4 / +8 / +12) 1.2 s |
 | Temper r → r+1 (champion relic) | ⌈(8 + 4r) / 2⌉ | same |
 
-To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (12 items + 25 relics, C23–C25 included) 12 150 Star Ore.
+To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (12 items + 26 relics, C23–C25 and H26 included) 12 570 Star Ore.
 
 **Star Ore income** (earned only; one pool, so ≈ 0.45× the v1 per-faction amounts):
 
@@ -464,7 +464,7 @@ and every relic is craft-only.
 
 ### 3.5 «Хроніка героя / Hero Chronicle» — the Tome sink with no power (critique M6 / X13)
 
-Per owned hero, 5 pages bought with Tomes: **10 · 15 · 20 · 30 · 40** (115 per hero, 1 150 for 10, +115 per new hero):
+Per owned hero, 5 pages bought with Tomes: **10 · 15 · 20 · 30 · 40** (115 per hero, 1 265 for 11, +115 per new hero):
 ① a lore page (the 3 lore lines + 2 new), ② a voice-line text card, ③ a splash variant frame, ④ a Showcase backdrop tint,
 ⑤ a gilded card back. Pure cosmetics, earned only (no firewall issue), micro ceremony 0.35 s. Opens from the Showcase dock
 (a book icon next to «Деталі») and from the Hall header once the skills unlock (L30); not a fourth sub-tab (the Hall
@@ -595,7 +595,7 @@ in the same release (Мейра's Rune affinity switches on inside the EXPECTED 
 | `stoneheart` | Кам'яне Серце / Stoneheart | stone and crystal beings of the magma forge and the ice pass | W4 · W5 | −15% · −30% · −45% hazard losses |
 | `celestial` | Небожителі / Celestials | star-born beings of the Rift | W7 | +3% · +6% · +10% machine damage (bucket 2) |
 
-Only the highest tier of each faction is active; a 2 + 2 team runs two tier-I factions. Each faction has 2–3 heroes and
+Only the highest tier of each faction is active; a 2 + 2 team runs two tier-I factions. Each faction has 2–4 heroes (Орден Світанку 4 since H26 Сірко: Арін, Ейра, Веста, Сірко) and
 3–4 champions (Дикі Ікла 4 since C23 Тарас, Орден Світанку 4 since C24 Снаряд, Кам'яне Серце 4 since C25 Довбуш), so a mono-faction team of 4 is always possible. Faction identity lives in trophies, item looks and
 set bonuses; there is one material (Star Ore).
 
@@ -614,7 +614,8 @@ set bonuses; there is one material (Star Ore).
 | `army_reserves` | `Army.reserves()` | +6 soldiers at the siege | Веста |
 | `army_volleys` | `Army.volley_mult()` | ×(1 + 0.15) | Вартан |
 | `champions_aura` | champion aura value | ×(1 + 0.06) (critique M2: was 0.12; capped by AURA_CAP) | Пава |
-| `army_recruits` · `ult_charge` | recruits · charge rate | +1 per recruit group · ×1.05 | (free for future heroes) |
+| `army_recruits` | `Army.recruits()` | +1 soldier per recruit group | Сірко |
+| `ult_charge` | charge rate | ×1.05 | (free for future heroes) |
 
 ### 5.5 Display contract (progressive disclosure, §11.3)
 
@@ -631,13 +632,13 @@ set bonuses; there is one material (Star Ore).
 
 | Tag | Heroes | Champions | Total |
 |---|---|---|---|
-| Воїн | Арін, Веста | Борко, Брант, Довбуш | 5 |
+| Воїн | Арін, Веста, Сірко | Борко, Брант, Довбуш | 6 |
 | Стрілець | Руді, Іскар | Альба, Тео, Дара | 5 |
 | Маг | Мейра, Люмен | Тая, Менгір, Тарас | 5 |
 | Страж | Горан, Вартан | Іво, Отто, Німб, Снаряд | 6 |
 | Цілитель | Ейра, Пава | Міла, Олена | 4 |
-| Kinetic · Volt · Frost · Plasma · Tech · Rune | Горан, Арін · Руді, Іскар · Ейра · Веста, Люмен · Вартан · Мейра, Пава | Борко, Отто, Довбуш · Німб, Дара · Альба, Олена · Іво, Брант · Міла, Тео, Снаряд · Тая, Менгір, Тарас | 5 · 4 · 3 · 4 · 4 · 5 |
-| Орден Світанку | Арін, Ейра, Веста | Міла, Іво, Дара, Снаряд | 7 |
+| Kinetic · Volt · Frost · Plasma · Tech · Rune | Горан, Арін · Руді, Іскар · Ейра · Веста, Люмен · Вартан · Мейра, Пава, Сірко | Борко, Отто, Довбуш · Німб, Дара · Альба, Олена · Іво, Брант · Міла, Тео, Снаряд · Тая, Менгір, Тарас | 5 · 4 · 3 · 4 · 4 · 6 |
+| Орден Світанку | Арін, Ейра, Веста, Сірко | Міла, Іво, Дара, Снаряд | 8 |
 | Дикі Ікла | Руді, Мейра, Пава | Борко, Альба, Олена, Тарас | 7 |
 | Кам'яне Серце | Горан, Вартан | Отто, Брант, Менгір, Довбуш | 6 |
 | Небожителі | Іскар, Люмен | Тая, Тео, Німб | 5 |
@@ -647,7 +648,8 @@ Designed pairs (★): Горан + Отто (scripted first chest for Горан
 + Олена (Healer pair + Frost ×2) · Мейра + Тая (Mage pair) · Іскар + Тео (Celestials + Ranger pair; MARK down the lane) ·
 Веста + Міла (Dawn + FLARE) · Вартан + Брант (Stoneheart + FLARE) · Люмен + Тая (Celestials + Mage pair) · Пава + Олена
 (Wildfang + Healer pair) · Мейра + Тарас (Wildfang + Mage pair + Rune ×2) · Вартан + Снаряд (Guardian pair + Tech ×2) · Веста + Снаряд
-(Dawn + FLARE: his MARK, her BURN) · Горан + Довбуш (Stoneheart + Kinetic ×2) · Арін + Довбуш (Warrior pair + Kinetic ×2).
+(Dawn + FLARE: his MARK, her BURN) · Горан + Довбуш (Stoneheart + Kinetic ×2) · Арін + Довбуш (Warrior pair + Kinetic ×2) · Сірко +
+Довбуш (Warrior pair + STAGGER twice: the laughter and the bartka) · Сірко + Тарас (Rune ×2: the Letter and the Word).
 
 Reactions are arsenal §2.1 (unchanged): JOLT + CHILL = SUPERCONDUCT · BURN + CHILL = THERMAL SHOCK · MARK + BURN = FLARE.
 
@@ -657,17 +659,17 @@ Reactions are arsenal §2.1 (unchanged): JOLT + CHILL = SUPERCONDUCT · BURN + C
 | «Кам'яна стіна / Stonewall» | Горан + Отто + Іво (+ Брант / Менгір) | Горан L4, Отто = scripted chest #1, Іво = Кварц | walks through blades, breaks walls |
 | «Варта Світанку / Dawn Watch» | Арін + Міла + Іво (+ Дара) | Арін = commonest Portal hero, Міла = scripted chest #2 | wins by soldiers at the fortress |
 
-## 6. Roster: 10 heroes and 15 champions (full sheets)
+## 6. Roster: 11 heroes and 15 champions (full sheets)
 
 ### 6.0 At a glance
 
 Collector numbers: heroes 01–10, champions 11–25 (in gem order at launch; C23 Тарас, C24 Снаряд and C25 Довбуш joined after launch, numbered as they
-joined). Names read the same in uk and en; titles translate.
+joined), H26 Сірко (the 11th hero, joined after them; heroes and champions share one number line). Names read the same in uk and en; titles translate.
 Five titles changed after the IP / meaning review (critique X21): Руді «Громовий лис / Thunder Fox» (was "the Bolt", a
 2008 film), Горан «Кам'яний велет / the Stone Titan» (was «Громило», uk "thug"), Альба «Сніжне Перо / Snowquill" (the
 white feather means cowardice in English), Німб «Щит бурі / Storm Aegis» (Stormshield is a known MMO city), Олена
 «Морозна знахарка / Frost Herbalist». Before the splash prompts are final the owner runs a store / trademark search on all
-25 names + titles (§15 Q8).
+26 names + titles (§15 Q8).
 
 | № | id | Name | Title uk / en | Gem | Class | Element | Faction | Species · gender | Niche | Ult kind | Source |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -681,6 +683,7 @@ white feather means cowardice in English), Німб «Щит бурі / Storm Ae
 | 08 | `vartan` | Вартан / Vartan | Серце Горна / Forgeheart | Топаз | Guardian | Tech | Stoneheart | creature (automaton) · m | — | `forgewall` | Portal · Seals 100 |
 | 09 | `lumen` | Люмен / Lumen | Живий Опал / the Living Opal | Опал | Mage | Plasma (+Rune in V) | Celestials | creature (living opal) · n | — | `spectrum` | Portal · Seals 200 |
 | 10 | `pava` | Пава / Pava | Тисячоока / the Thousand-Eyed | Опал | Healer | Rune (+Frost in V) | Wildfang | beast (peacock-kin) · f | — | `eyes` | Portal · Seals 200 |
+| 26 | `sirko` | Сірко / Sirko | Характерник / the Charmed Otaman | Опал | Warrior | Rune (+Tech in V) | Dawn | human · m | — | `letter` | Portal · Seals 200 |
 
 | № | id | Name | Title uk / en | Role line (`CHAMP_<ID>_ROLE`) | Gem | Class | Element | Faction | Species · gender |
 |---|---|---|---|---|---|---|---|---|---|
@@ -700,9 +703,9 @@ white feather means cowardice in English), Німб «Щит бурі / Storm Ae
 | 24 | `snaryad` | Снаряд / Snaryad | Пес-сапер / The Sapper Hound | Знешкоджує пастки / Defuses the traps | Аметист | Guardian | Tech | Dawn | beast (Jack Russell terrier) · m |
 | 25 | `dovbush` | Довбуш / Dovbush | Опришок / The Carpathian Rebel | Кидає бартку крізь загони / Hurls the bartka through squads | Топаз | Warrior | Kinetic | Stoneheart | human · m |
 
-Coverage: classes W 5 · R 5 · M 5 · G 6 · H 4; elements Kin 5 · Volt 4 · Plasma 4 · Rune 5 · Frost 3 · Tech 4;
-factions 7 · 7 · 6 · 5; species humans 9 · beasts 8 · creatures 8. The two heroes of a gem never share a class or a
-splash pose. The enemy horde is «Жаророгі / the Emberhorn» (lore only).
+Coverage: classes W 6 · R 5 · M 5 · G 6 · H 4; elements Kin 5 · Volt 4 · Plasma 4 · Rune 6 · Frost 3 · Tech 4;
+factions 8 · 7 · 6 · 5; species humans 10 · beasts 8 · creatures 8. The heroes of a gem never share a class or a
+splash pose (Опал: Люмен Mage P3, Пава Healer P1, Сірко Warrior P2). The enemy horde is «Жаророгі / the Emberhorn» (lore only).
 
 **How to read a sheet.** *Kit* = stored Quartz-normalised; *eff* = what the native sees (× NATIVE_MULT). Rank tables are
 **generated** (`heroes_tables.py` from the sim constants; Lv1, no gear; every ult number is further × `lv_ult(L)`, Lv30
@@ -724,6 +727,7 @@ Shared kit table (eff at the native gem, f0, Lv1, rank 1):
 | Вартан | 33 → 41.6 | 1.1 | 4 → 5.04 | 3 | 12 | 1 | 42 |
 | Люмен | 17 → 23.1 | 2.2 | 1 → 1.36 | 1 | 15 | 2 rays | 42 |
 | Пава | 21 → 28.6 | 1.9 | 1 → 1.36 | 0 | 14 | 1 | 44 |
+| Сірко | 25 → 34.0 | 1.7 | 3 → 4.08 | 2 (1.5 u arc) | 11 | 1 | 42 |
 
 Starters never fall below their Meta-1 Lv1 numbers (Bolt hp 14 → 15.1, Seer 18 → 21.0).
 
@@ -1379,7 +1383,7 @@ inlaid with topaz, star-cut heart gem). **Special:** palm slam on the road (circ
 | `celestial` | Місячне жало / Moonsilver Sting | Зоряна мантія / Starglass Mantle | Підвіска-орбіта / Orbit Pendant |
 
 Boss trophies reuse these 12 names with a provenance line («Трофей: Кракен / Trophy: the Kraken»). Hero relic names
-and beats are on each hero sheet; champion relics are on §6.11–6.22 and §6.25–6.27.
+and beats are on each hero sheet (Сірко's on §6.28); champion relics are on §6.11–6.22 and §6.25–6.27.
 
 ### 6.24 Loc appendix — uk lore (`HERO_<ID>_LORE`, `CHAMP_<ID>_LORE`; " / " = line break; en = the sheets)
 
@@ -1395,6 +1399,7 @@ and beats are on each hero sheet; champion relics are on §6.11–6.22 and §6.2
 | vartan | Вартана збудували ковалі Кам'яного Серця в Магмових копальнях — із базальту й латуні довкола живого топазового ядра, — щоб він стеріг Великий горн. / Коли Жаророгі затопили копальні, він виніс останніх ковалів на своєму щиті, і вогонь у ньому відтоді не згасав. / Він пережив своїх творців і вважає своїм горном кожного, «хто стоїть за моєю спиною». |
 | lumen | Люмен — перше світло, що пройшло крізь Розлом: істота з живого опалу, яка пам'ятає колір кожної зорі. / Там, де воно ступає, біле світло розпадається на барви, а вогонь Жаророгих здається блідим. / Воно не воює за чийсь бік — воно воює, щоб жодна барва не згасла. |
 | pava | Пава береже Тисячоокий гай у Рунічному лісі, де кожне пір'я, що впало, стає оком, яке стереже звіролюдей. / Вона бачила кожного воїна, що йшов під стягом Диких Іклів, і жодного обличчя не забула. / Жаророгі звуть її віяло прокляттям гаю, бо те, що вони там зрубали, не лишається лежати. |
+| sirko | Сірко — отаман вільного війська Небесної гавані, і за все життя він не програв жодної битви. / Його звуть характерником: стріли Жаророгих його не беруть, а сірим вовком він обганяє їхніх розвідників. / Коли володар Жаророгих звелів йому скоритися, усе військо писало відповідь разом — і реготало так, що орда спинилася. |
 | mila | Міла була наймолодшою ученицею лазарету орбітального храму — і завжди першою вибігала в поле. / У її ліхтарі — прозорий кристал, що п'є біль воїнів і повертає його світлом. / Вона підписує кожну пляшечку дрібним почерком і ще не загубила жодної — як і жодного пораненого, якого можна було винести. |
 | ivo | Іво доглядав сонячні жаровні орбітального храму й мріяв про лицарство. / Коли лезо Жаророгого цілило Весті в бік, він закрив її кришкою жаровні — і Орден дозволив лишити її як щит. / Він полірує його щовечора, і той ніколи до кінця не холоне. |
 | borko | Борко прокопав тунелі під корінням Рунічного лісу, де звіролюди ховають малечу. / Коли Жаророгі пішли маршем по його даху, він виліз просто під ними. / У нього шрам на кожен обвал і жарт на кожен шрам. |
@@ -1574,6 +1579,75 @@ left arm pointing at the target. **Special:** a spinning bartka throw.
 mountains"; §5.3: 3–4 holds), Топаз from 4 to 5. Designed pairs: Горан + Довбуш (Stoneheart + Kinetic ×2: STAGGER twice) ·
 Арін + Довбуш (Warrior pair + Kinetic ×2).
 
+### 6.28 H26 `sirko` — Сірко — Характерник / Sirko — the Charmed Otaman (committed look)
+Опал · Warrior · Rune (+ Tech in form V) · Dawn Order · human · m · ult `letter` · Portal (the Opal share, now among 3) /
+Seals 200 · **born awakened** · the 11th hero, joined after launch (owner request 2026-10-09; collector № 26, numbers
+follow the joining order). Opal now holds three heroes of three classes (Люмен Mage, Пава Healer, Сірко Warrior). The
+Opal rules of §6.9–6.10 apply: born with all four skills, ult forms to V.
+
+**Fantasy:** the unbeaten, laughing otaman of the Sky Harbour's free host: a kharakternyk (a warrior-sorcerer charmed
+against harm) whose mocking letter stops the horde in its tracks. A tribute to Ivan Sirko (d. 1680), the legendary kosh
+otaman of the Zaporizhian Sich, said never to have lost a battle; legend calls him a kharakternyk charmed against
+bullets, and the mocking reply letter (painted by Repin) is famous. In the game the letter goes to the lord of the
+Emberhorn horde, and its text is never shown. **Tone (binding):** proud, witty, legendary; no insult to any real nation or
+religion, no politics, no firearms anywhere a player can see. **Lore (en):** the otaman of the Sky Harbour's free host,
+who has never lost a battle; Emberhorn arrows cannot touch the kharakternyk, and as a grey wolf he outruns their scouts;
+when the Emberhorn lord ordered him to surrender, the whole host wrote the answer together and laughed so hard the horde
+stopped. **Personality:** proud, sly, booming; laughs loudest when the odds are worst; a father to his host.
+**Voice:** pick «Сірко ще не програвав!» / "Sirko has never lost!" · ult «А ну, хлопці, пишемо відповідь!» / "Right,
+lads — let's write him an answer!"
+**Run:** sabre cuts (rate 1.7, range 11, splash 2 in a 1.5 u arc); every hit BRANDs (the element status on hit, as
+Арін's STAGGER and Веста's BURN). Warrior Cleave ×1.5 in clashes. **Tip:** «Пускай лист перед найщільнішим рядом загонів
+— регіт спинить їх до сутички.» / "Send the letter just before the densest row of squads — the laughter stops them before
+the clash."
+
+| Skill | uk / en | Rule |
+|---|---|---|
+| Ult `letter` (42) | Лист султанові / The Letter to the Sultan | **Form I:** he raises the letter and a huge parchment scroll unrolls over the lane from 3 u to 15 u ahead, the full bridge width, for 2.0 s; the whole army roars with laughter: every squad under it loses 16 *(knob)*, is Staggered 2.0 s and Branded; every structure under it takes 16 breaks; at the siege the scroll lands on the fortress and its walls take the breaks. The parchment shows only abstract lines and a wax seal (the text is never shown). **Form II — Warrior rule:** the scroll reaches 4 u further (to 19 u), and squads caught lose +20% *(knob)* in their next clash. **Form III Другий регіт / The Second Roar:** 1.0 s later a second laughter pulse under the scroll: 8 kills / 8 breaks *(knob)* per squad, the Stagger refreshed. **Form IV Без обладунків / Stripped of Armour:** squads caught lose their armour (Armored and Shielded fight as plain squads) for 5 s. **Form V Уся Січ пише / The Whole Sich Writes (Опал; + Tech):** for 5 s every army volley Brands and Marks its target (MARK + BURN = FLARE with a Plasma teammate) — no fire-rate buff, no Apex charge (critique B3). The scroll is drawn at α ≤ 0.5 over gate panels and the camera beat is ≤ 8% FOV push-in, ≤ 0.6 s, so the next gate row stays readable (§10.2). |
+| Attack | Козацька шабля / Cossack Sabre | sabre cuts, splash 2 in a 1.5 u arc, BRAND on every hit · **beat 3 Подвійна рубка / Double Cut:** every 4th hit strikes twice · **beat 6 Сміх отамана / The Otaman's Laugh:** when he wipes a Branded squad, the next squad in his lane flinches (STAGGER 1 s) · **beat 9 Вихор шаблі / Sabre Whirl:** every 10th hit a sabre whirl r 3: 6 per squad *(knob)* + BRAND |
+| Rally `army_recruits` | Січ на поміч / The Sich Comes to Help | +1 soldier joins every recruit group the army picks up × ladder × rank (the free hook of §5.4) |
+| Awakening (born; cap 4) | Заговорений / Charmed | the legend that bullets could not touch him: at the siege the fortress's first 1 / 2 / 3 / 4 volleys at the army miss (a missed volley costs 0 soldiers) |
+| Relic | Перо писаря / The Scribe's Quill | +4 the scroll +2 u longer · +8 Stagger under the scroll +0.5 s · +12 The Whole Sich Writes +1 s |
+
+| Rank (eff) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Laughter kills & breaks per squad / structure | 21.8 | 22.9 | 23.9 | 25.0 | 26.1 | 27.2 | 28.3 | 29.4 | 30.5 | 31.6 | 33.8 |
+| Second Roar (form III) | — | — | — | — | 13.1 | 13.6 | 14.1 | 14.7 | 15.2 | 15.8 | 16.9 |
+| Ult form | I | I | II | II | III | III | IV | IV | V | V | V |
+| Attack damage per hit | 4.08 | 4.12 | 4.16 | 4.20 | 4.24 | 4.29 | 4.33 | 4.37 | 4.41 | 4.45 | 4.65 |
+| The Sich Comes to Help (soldiers per recruit group) | 1.4 | 1.5 | 1.6 | 1.8 | 1.9 | 2.0 | 2.2 | 2.3 | 2.4 | 2.6 | 2.8 |
+
+Budget: forms II–IV are rules at +3% ult effectiveness each and form V +5% (§2.3); Attack beats +1% each; Awakening +4%
+per rank, measured by the army's siege losses; relic beats +3% each; the Rally base is the §5.4 parity base (+1 per recruit
+group ≈ 3 Barracks levels, `test_rally_parity` ±5% once LevelSim lands). The knobs marked *(knob)* keep his `KIT_INDEX`
+profile within ±1.5% of P0 at every reference state (`test_kit_budget`). Rule #3: a recut into Opal holds forms I–IV at
+most, Awakening cap 3 and rank cap 10 against his V, 4 and 11.
+
+**Interactions:** BRAND on every hit; form V MARKs for the machines (MARK + BURN = FLARE with Веста, Брант, Іво); Dawn
+Order (4 heroes now) = the siege team, and his Rally feeds the recruits; Warrior pair with Борко / Брант / Довбуш.
+**Counterplay:** ★ dense rows of squads, armoured hordes (form IV) and sieges; short range, no answer to fliers.
+**Visual (the owner's splash, `assets/heroes/sirko/`):** a powerful, weathered, laughing Cossack otaman of about fifty,
+realistic 7.5–8 heads, broad-shouldered; a shaved head with one long grey-streaked forelock (oseledets) curled back over
+the ear; a long drooping grey-streaked moustache; bushy brows, sharp grey eyes, head tilted back in a broad mocking laugh;
+a **silver-grey wolf-pelt mantle** with the wolf's head on his right shoulder (the kharakternyk who could become a wolf),
+fastened by a gold clasp; a deep crimson `#8E1B2B` **zhupan** with gold embroidery and frogging over a white linen shirt;
+a very wide rune-indigo `#2E2EB4` silk **sash** with gold stripes and long fringed ends; enormous deep-indigo
+**sharovary** (a heroic exaggeration); red leather boots; a curved **sabre** with a gold hilt and an opal in the pommel,
+held low in his right hand; a long **parchment letter** with a wax seal and a dangling cord raised in his left hand (no
+readable text, only abstract lines). **COLOR LOCK: opal** (the round black-opal heart gem in the gold clasp of the wolf
+pelt — a round cut, not the marquise of §2.1, as on the owner's splash; the opal in the sabre pommel). Splash P2 Advance.
+**Clips:** idle (twists his moustache, chuckles) · run (wide confident stride, the sharovary and sash ends flapping) ·
+attack_a diagonal sabre cut · attack_b turning double cut · ult_cast (unrolls the letter overhead and roars with
+laughter; the big scroll over the lane is code) · hit · victory (laughs with the letter held high) · flourish (sabre
+twirl, moustache twist) · summon_pose. Forelock, sash ends and slit sleeves: scripted bones + `SpringBoneSimulator3D`;
+the wolf head is rigid on the shoulder. **Signature beat:** he unrolls the letter toward the camera with a booming laugh;
+the wax seal flashes opal.
+
+**Why these tags (coverage note):** Opal had a Mage and a Healer; Сірко adds its first Warrior (the heroes of a gem never
+share a class). Rune goes from 5 to 6, Warrior from 5 to 6, and Орден Світанку from 3 to 4 heroes (§5.3 now 2–4 heroes,
+like the champions' 3–4). His Rally takes the free `army_recruits` hook (§5.4). Designed pairs: Сірко + Довбуш (Warrior
+pair + STAGGER twice) · Сірко + Тарас (Rune ×2: the Letter and the Word).
+
 ## 7. Portal, Seals, Hero Chests, Workshop, odds and pity
 
 Everything random in this section is **earned by play only** (P2). All odds below are printed by `heroes_sim.py` §3–§4
@@ -1585,7 +1659,7 @@ Everything random in this section is **earned by play only** (P2). All odds belo
 | Item | Rule |
 |---|---|
 | Cost | 1 Маяк / Beacon = 1 summon; ×10 = 10 Beacons. **No discount, no bonus summon** — every summon has the same odds, pity step and +1 Seal, so summoning daily is never worse than hoarding. |
-| Pool | one permanent Portal; all 10 heroes minus the starters the player owns; new heroes join the permanent pool (changelog lists the odds change); never a banner, date or timer |
+| Pool | one permanent Portal; every hero (11 since Сірко) minus the starters the player owns; new heroes join the permanent pool (changelog lists the odds change); never a banner, date or timer |
 | Welcome | one free ×10 at the unlock with the disclosed rule **«Серед десяти — щонайменше Топаз» / "At least one Topaz in these ten"**: if summons 1–9 hold no Topaz+, the 10th is Topaz+ (Opal 20% inside it). The free ×10 gives +10 Seals and moves pity like any ×10. |
 | Duplicate protection | an unowned eligible hero of the rolled gem first |
 | Focus | player-chosen per gem, any time, free: once every hero of that gem is owned, the Focus hero gets **exactly 60%** of that gem's results and the others share 40% evenly, for any roster size (`FOCUS_TOTAL 0.60`). Copy «Фокус: 60% результатів цього самоцвіту». |
@@ -1621,12 +1695,28 @@ p50 52, p90 158, longest 758 in 1 000 000 (why 200 Seals buy any Opal).
 
 **Per-hero odds** (the (i) sheet lists every eligible hero's current %, KR item-level disclosure; sim §3b):
 
-| Stage | Горан C | Арін C | Руді R | Ейра R | Мейра E | Іскар E | Веста L | Вартан L | Люмен M | Пава M |
-|---|---|---|---|---|---|---|---|---|---|---|
-| A. Portal opens (L20): own Руді, Горан | 0% | 52.09% | 0% | 26.52% | — (joins L24) | 14.35% | 2.81% | 2.81% | 0.70% | 0.70% |
-| B. Мейра joined; one hero of each gem owned (Веста, Люмен) | 26.05% | 26.05% | 13.26% | 13.26% | 7.18% | 7.18% | 0% | 5.63% | 0% | 1.41% |
-| C. all 10 owned, no Focus | 26.05% | 26.05% | 13.26% | 13.26% | 7.18% | 7.18% | 2.81% | 2.81% | 0.70% | 0.70% |
-| D. all 10 owned, Focus = Горан / Руді / Мейра / Веста / Люмен | 31.26% | 20.84% | 15.91% | 10.61% | 8.61% | 5.74% | 3.38% | 2.25% | 0.84% | 0.56% |
+| Stage | Горан C | Арін C | Руді R | Ейра R | Мейра E | Іскар E | Веста L | Вартан L | Люмен M | Пава M | Сірко M |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| A. Portal opens (L20): own Руді, Горан | 0% | 52.09% | 0% | 26.52% | — (joins L24) | 14.35% | 2.81% | 2.81% | 0.47% | 0.47% | 0.47% |
+| B. Мейра joined; one hero of each gem owned (Веста, Люмен) | 26.05% | 26.05% | 13.26% | 13.26% | 7.18% | 7.18% | 0% | 5.63% | 0% | 0.70% | 0.70% |
+| C. all 11 owned, no Focus | 26.05% | 26.05% | 13.26% | 13.26% | 7.18% | 7.18% | 2.81% | 2.81% | 0.47% | 0.47% | 0.47% |
+| D. all 11 owned, Focus = Горан / Руді / Мейра / Веста / Люмен | 31.26% | 20.84% | 15.91% | 10.61% | 8.61% | 5.74% | 3.38% | 2.25% | 0.84% | 0.28% | 0.28% |
+
+**Per-hero odds of one summon, every hero of the gem owned** (printed by `odds_table --portal`, checked by `--diff`
+against `DISCLOSED_HERO` and by `--check` per hero through `Summon.pick_hero` at stages A–D):
+
+| Gem | Heroes | Each, no Focus | Focus | Each other |
+|---|---|---|---|---|
+| Кварц | 2 | 26.05% | 31.26% | 20.84% |
+| Сапфір | 2 | 13.26% | 15.91% | 10.61% |
+| Аметист | 2 | 7.18% | 8.61% | 5.74% |
+| Топаз | 2 | 2.81% | 3.38% | 2.25% |
+| Опал | 3 | 0.47% | 0.84% | 0.28% |
+
+H26 Сірко joined the Opal pool (2 → 3 heroes): each Opal hero 0.70% → 0.47%, each non-Focus Opal hero 0.56% → 0.28%
+(the Focus keeps exactly 60% of the gem, 0.84%); these two rows are in the odds changelog (§7.5). The gem odds, the pity,
+the ×10 tables, the welcome rule, the Seal prices and the Opal share inside Topaz+ are unchanged: a new hero only splits
+its gem's share.
 
 Meta-1 machine Focus adopts the same "exactly" wording in this release (`FOCUS_TOTAL 0.40` for machines, the Deck ×1.5
 applied to the remainder only; copy «Фокус: 40% результатів цієї рідкості»), so both rollers disclose a fixed share.
@@ -1694,13 +1784,16 @@ against `DISCLOSED_CHAMP` and by `--check` per champion through `HeroChest.pick_
 | 2.4.0 | Hero Chest, Аметист card (4 champions) | each non-Focus champion | 1.80% → 1.20% | same; the Focus keeps exactly 60% of the gem (5.40%) |
 | 2.4.0 | Hero Chest, Топаз card (5 champions) | each champion, no Focus | 0.50% → 0.40% | C25 Довбуш joins the Topaz champions (4 → 5) |
 | 2.4.0 | Hero Chest, Топаз card (5 champions) | each non-Focus champion | 0.27% → 0.20% | same; the Focus keeps exactly 60% of the gem (1.20%) |
+| 2.4.0 | Portal, Опал (3 heroes) | each hero, no Focus | 0.70% → 0.47% | H26 Сірко joins the Opal heroes (2 → 3) |
+| 2.4.0 | Portal, Опал (3 heroes) | each non-Focus hero | 0.56% → 0.28% | same; the Focus keeps exactly 60% of the gem (0.84%) |
 
 `version` is the release the player sees in «Змінено у %s». `--diff` fails when a chest gem's pool differs from the
-launch pools (`LAUNCH_POOLS`, 3 per gem) without a row whose `pool_after` is the current pool; only those current rows
-are checked against the exact table, so older rows stay as history.
+launch pools (`LAUNCH_POOLS`, 3 per gem) or a Portal gem's hero pool from `LAUNCH_HERO_POOLS` (2 per gem) without a row
+whose `pool_after` is the current pool; only those current rows are checked against the exact table, so older rows stay
+as history.
 
-The gem odds of a card, the best-card tables, the chest pity and every Portal row are unchanged (Тарас, Снаряд and
-Довбуш are champions: never in the Portal).
+The gem odds of a card, the best-card tables and the chest pity are unchanged (Тарас, Снаряд and Довбуш are champions:
+never in the Portal); the Portal changed only inside the Opal share (Сірко, §7.2).
 
 **Scripted chests:** chest #1 at the unlock = Альба if Руді is the team hero, else Отто (+ one rolled card + fragments);
 chest #2 = Міла (+ one rolled card). **One inline reveal per result screen** (priority scripted > Grand > Hero Chest >
@@ -1739,10 +1832,10 @@ fragments, Workshop = Star Ore. **Coins** remain for machines, Barracks, Tactics
 
 | Coin sink of the hero system (upper bound) | Coins |
 |---|---|
-| Hero levels (10 heroes, no Hero Sync) | 421 400 |
+| Hero levels (11 heroes since Сірко, no Hero Sync) | 463 540 |
 | Champion Level 1 → 20 (one shared track) | 26 840 |
 | Skills · recut · Workshop | 0 · 0 · 0 |
-| **Total** (Meta-1 Arsenal for comparison: 578 270) | **448 240** |
+| **Total** (Meta-1 Arsenal for comparison: 578 270) | **490 380** |
 
 ### 8.2 `TEAM_DEMAND` — the one-time difficulty re-bake
 
@@ -1996,6 +2089,9 @@ per hero are on the sheets (§6).
 4. A walkout never ends on an offer; no shop link appears on summon, chest or recut screens.
 5. Skips never abort a grant; the grant is saved before the first frame.
 6. Rule #3 is visible: the doublet emblem, the native-ceiling ticks, the Ult bezel cap, «Ярус IV — лише для корінних».
+7. A new character joins the permanent pool and only splits its gem's share (H26 Сірко: Opal 2 → 3 heroes); the gem
+   odds, the pity and the Seal prices never move with the roster, and every changed per-character row carries an odds
+   changelog row and «Змінено у» for one version (`odds_table --diff` fails without it).
 
 ### 9.6 States, failure paths and fallbacks (critique X36)
 
@@ -2080,7 +2176,7 @@ Meta-1 hard-coded `titan` branch of `level_sim.gd` is removed):
 | Люмен `spectrum` | ≥ 3 squads inside the 60° fan, or the fortress siege |
 | Пава `eyes` | ≥ 25% of the army lost in the last 3 s, or a champion down |
 
-`test_kind_parity`: Run (headless) vs LevelSim kills within ±3% on 10 seeds × 10 heroes × 3 team setups.
+`test_kind_parity`: Run (headless) vs LevelSim kills within ±3% on 10 seeds × every hero × 3 team setups.
 
 ### 10.5 Champions in the run (summary of §4.2; U implements)
 
@@ -2307,7 +2403,7 @@ champion_blocks, champions_lost, wins_full_team, wins_with_hero {id}, synergy_wi
 | 6 | `test_odds` | `odds_table --check`: per-character 1 000 000-roll Monte Carlo per pool state, |z| ≤ 4; pity gaps (Amethyst+ ≤ 10, Topaz+ ≤ 30, chest Topaz ≤ 15); Focus exactly 60%; welcome rule; Loc odds strings match data |
 | 7 | `test_two_track_property` | same-seed 112-level runs with and without each SKU: Beacons, Seals, chest charge, Caches, pity and per-hero odds identical; no Beacon node keyed to rating or money |
 | 8 | `test_no_loss_migration` + fixtures | v1 → v3 and v2 → v3 chains; run numbers ≥ v2; lump grant values |
-| 9 | `test_kind_parity` | Run vs LevelSim kills ±3% (10 seeds × 10 heroes × 3 teams) |
+| 9 | `test_kind_parity` | Run vs LevelSim kills ±3% (10 seeds × every hero × 3 teams) |
 | 10 | `test_survival` | LevelSim EXPECTED: front champion survives ≥ 75% of campaign levels, 40–60% of boss levels; side / rear ≥ 90% |
 | 11 | `hud_lab --gate-legibility` | every kind × form ≥ 3 : 1 on the next gate row (§10.2) |
 | 12 | `test_run_palette` | ≥ 90% run-model pixels ΔE ≥ 10 from gate / pickup colours; no gem hex in run scenes |
@@ -2374,8 +2470,10 @@ finish; C works with class placeholders until E delivers. E runs continuously fr
 | SFX | ≈ 70 from **one** stated library with licences recorded in `assets/audio/LICENSES.md` |
 | **Total final images** | ≈ 220; owner time ≈ 75–105 h |
 
-The counts above are the launch bill (12 champions). C23 Тарас, C24 Снаряд and C25 Довбуш each add one champion card
-and splash (already supplied by the owner), one Action icon, one relic icon and their champion clips.
+The counts above are the launch bill (10 heroes, 12 champions). C23 Тарас, C24 Снаряд and C25 Довбуш each add one
+champion card and splash (already supplied by the owner), one Action icon, one relic icon and their champion clips; H26
+Сірко adds one hero splash (supplied by the owner), four model-sheet views, four skill icons, one relic icon, one Meshy
+character (+ the sabre and letter props) and the hero clips.
 
 ### 14.2 Rules for every prompt (the prompt writer applies them in `heroes/heroes_prompts.md`)
 
@@ -2432,12 +2530,12 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 |---|---|---|
 | Q1 | F-CAP: a recut is always one skill-rank cap below a native of the same gem (changes a FROZEN formula) | yes |
 | Q2 | F-AWK2: native Topaz / Opal heroes are born awakened (four skills at pull); **F-AWK3 (H1 gate): native Amethysts too** (Мейра, Іскар), else rule #3 breaks across facet counts — the alternative is to accept that case in writing | yes (Amethyst included) |
-| Q3 | Update cadence: a regular player owns all 10 heroes around day 25–100; this assumes ≥ 1 new hero a month | record the assumption |
+| Q3 | Update cadence: a regular player owns every hero (11 since Сірко) around day 25–100; this assumes ≥ 1 new hero a month | record the assumption |
 | Q4 | Launch shop = cosmetics only (no hero SKUs, no Editions), stricter than decision 5 allows | yes |
 | Q5 | Machine rarity labels adopt the gem names in the same release | yes |
 | Q6 | Names: «Грані» (your UI answer said «Зірки») and «Майстерня» (you said «Кузня») | Грані · Майстерня |
 | Q7 | Мейра: L5 guest level + joins at L24, or joins at L5 as today | guest L5, join L24 |
-| Q8 | Store / trademark search on every name + title (25 with Тарас, Снаряд and Довбуш) before splash prompts are final | owner runs it |
+| Q8 | Store / trademark search on every name + title (26 with Тарас, Снаряд, Довбуш and Сірко) before splash prompts are final | owner runs it |
 | Q9 | Люмен's pronoun «воно» / "it" | воно |
 | Q10 | Workshop in release 1 or release 2 | release 1 if green |
 | Q11 | Пава as a peacock-kin · Німб's tier IV turret catch · Веста's cape crimson-orange vs crimson-rose | keep · keep · crimson-rose in the regenerated splash |

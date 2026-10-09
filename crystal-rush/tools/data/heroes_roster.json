@@ -40,7 +40,8 @@
   "vesta",
   "vartan",
   "lumen",
-  "pava"
+  "pava",
+  "sirko"
  ],
  "champion_order": [
   "mila",
@@ -425,6 +426,40 @@
     "param": "",
     "base": 0.06,
     "note": "champion aura value x(1+v)"
+   }
+  },
+  "sirko": {
+   "no": 26,
+   "native": "M",
+   "class": "warrior",
+   "element": "rune",
+   "element2": "tech",
+   "faction": "dawn",
+   "niche": "",
+   "ult": "letter",
+   "kit": {
+    "hp": 25,
+    "rate": 1.7,
+    "dmg": 3,
+    "splash": 2,
+    "range": 11,
+    "targets": 1,
+    "ult_charge": 42
+   },
+   "ult_main": {
+    "value": 16,
+    "note": "laughter kills & breaks per squad / structure under the scroll"
+   },
+   "ult2": {
+    "value": 8,
+    "note": "Second Roar kills & breaks (form III)",
+    "rank": 5
+   },
+   "rally": {
+    "hook": "army_recruits",
+    "param": "",
+    "base": 1.0,
+    "note": "soldiers added to every recruit group"
    }
   }
  },
