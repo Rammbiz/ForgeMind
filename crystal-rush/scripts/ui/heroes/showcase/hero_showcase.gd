@@ -481,6 +481,7 @@ func _build_dock() -> HBoxContainer:
 			cta = UIKit.spacer()
 	elif bool((h["recut"] as Dictionary)["can"]):
 		var rc := UIKit.cta_button(HeroesText.t("RECUT_CTA"), HeroesText.t("RECUT_TO", [HeroesText.gem_name(str(h["recut"]["next_gem"]))]), Vector2(0, 88), 30)
+		rc.ctx_gem = str(h["recut"]["next_gem"])
 		rc.pressed.connect(func(): HeroesNav.open(hub, "recut/" + hero_id))
 		cta = rc
 	else:
@@ -493,6 +494,7 @@ func _build_dock() -> HBoxContainer:
 			# At the world cap the CTA still opens Manage (facets, skills); say why there is no price.
 			sub = HeroesText.t("MANAGE_LEVEL_AT_CAP", [int(HeroesUIModel.unlocks()["world"]) + 1])
 		var up := HeroPriceCTA.make(HeroesText.t("SHOW_CTA_UPGRADE"), sub, price, Vector2(0, 88), 30)
+		up.ctx_gem = str(h["gem"])
 		up.pressed.connect(func(): _open_manage("level"))
 		cta = up
 	cta.size_flags_horizontal = Control.SIZE_EXPAND_FILL

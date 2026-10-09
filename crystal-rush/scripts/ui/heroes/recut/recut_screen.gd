@@ -151,6 +151,7 @@ func _build() -> void:
 	if not bool(_p["at_max"]):
 		_cta = UIKit.cta_button(HeroesText.t("RECUT_CTA"), "", Vector2(0, 88), 32)
 		_cta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		(_cta as KitCTA).ctx_gem = str(_p["next"])
 		_cta.pressed.connect(_on_cta)
 		_dock.add_child(_cta)
 		_sync_cta()

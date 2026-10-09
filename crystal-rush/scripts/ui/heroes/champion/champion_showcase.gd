@@ -205,6 +205,7 @@ func _build() -> void:
 	if str(rp["state"]) == "ready":
 		var rc := UIKit.cta_button(HeroesText.t("RECUT_CTA"), HeroesText.t("RECUT_TO", [HeroesText.gem_name(str(rp["next"]))]), Vector2(0, 88), 30)
 		rc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rc.ctx_gem = str(rp["next"])
 		rc.pressed.connect(func(): HeroesNav.open(hub, "recut/" + champ_id))
 		_dock.add_child(rc)
 

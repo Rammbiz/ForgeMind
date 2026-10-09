@@ -5,7 +5,8 @@ extends Node
 ##     res://scenes/dev/heroes_gallery.tscn -- --out=DIR --tag=720 --state=mid --shots=hall,showcase_vesta
 ## Args: --out=DIR · --tag=720 (file suffix) · --state=fresh|mid|late|welcome · --shots=a,b,c (names in
 ## HeroesGalleryShots.SHOTS; "showcase" alone uses --hero) · --t=SECONDS (into a ceremony) ·
-## --hero=vesta · --lang=uk|en · --hold (keep the window open after the shots).
+## --hero=vesta · --lang=uk|en · --hold (keep the window open after the shots) ·
+## --cta=amber|porcelain|ink|sapphire|champagne (KitCTA study style).
 ## Files: <out>/<shot>[_<tag>].png. Headless runs build everything and save nothing.
 
 var out_dir := "/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d101a978/scratchpad/h3ui/shots"
@@ -36,6 +37,7 @@ func _ready() -> void:
 			"lang": lang = v
 			"t": t_into = float(v)
 			"hold": hold = true
+			"cta": KitCTA.style = v
 			"shots":
 				shots.clear()
 				for s in v.split(",", false):

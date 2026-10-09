@@ -135,6 +135,10 @@ const CTA := Color("#F5AE45")
 const CTA_LO := Color("#D9822E")
 const CTA_RIM := Color("#9C5A1F")
 const TOPAZ := Color("#FFB52E")
+## CTA study (owner: the amber reads as AI): the KitCTA body style. "amber" (shipped) |
+## "porcelain" | "ink" | "sapphire" | "champagne". Dev galleries override with --cta=<name>.
+const CTA_STYLE := "amber"
+const CTA_STYLES: Array[String] = ["amber", "porcelain", "ink", "sapphire", "champagne"]
 const TOPAZ_HI := Color("#FFC860")
 ## States.
 const PLUS := Color("#2F7322")     ## stat increase on cream (5:1)

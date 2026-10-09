@@ -230,6 +230,7 @@ func _level_page(page: Control) -> void:
 	else:
 		cta = UIKit.cta_button(HeroesText.t("SHOW_CTA_UPGRADE"), HeroesText.t("MANAGE_LEVEL_AT_CAP", [int(HeroesUIModel.unlocks()["world"]) + 1]), Vector2(0, 92), 32)
 		cta.disabled = true
+	cta.ctx_gem = str(h["gem"])
 	page.add_child(cta)
 	page.add_child(UIKit.hairline())
 	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT_GLASS))
@@ -291,6 +292,7 @@ func _facets_page(page: Control) -> void:
 		if bool(rc["can"]):
 			page.add_child(_small(HeroesText.t("MANAGE_RECUT_READY", [ng]), UITokens.INK))
 			var cta := UIKit.cta_button(HeroesText.t("RECUT_CTA"), HeroesText.t("RECUT_TO", [HeroesText.gem_name(str(rc["next_gem"]))]), Vector2(0, 92), 32)
+			cta.ctx_gem = str(rc["next_gem"])
 			cta.pressed.connect(func(): HeroesNav.open(hub, "recut/" + hero_id))
 			page.add_child(cta)
 		else:
