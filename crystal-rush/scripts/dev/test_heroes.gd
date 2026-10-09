@@ -1038,7 +1038,7 @@ func _test_sirko() -> void:
 		var row: Array = Loc.STRINGS.get(key, [])
 		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % key)
 	_ok(str(Loc.STRINGS.get("HERO_SIRKO", ["", ""])[0]) == "Сірко" and str(Loc.STRINGS.get("HERO_SIRKO_TITLE", ["", ""])[0]) == "Характерник"
-			and str(Loc.STRINGS.get("ULT_SIRKO", ["", ""])[0]) == "Лист султанові", "Сірко — Характерник, «Лист султанові»")
+			and str(Loc.STRINGS.get("ULT_SIRKO", ["", ""])[0]) == "Козацька відповідь", "Сірко — Характерник, «Козацька відповідь»")
 	var lore: Array = Loc.STRINGS.get("HERO_SIRKO_LORE", ["", ""])
 	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Сірко lore: 3 lines uk and en")
 	# Rule #3 (§2.3, §2.5 tests 3-5) against him: every real hero recut into Opal, equal and max investment, Lv 1/10/20/30,

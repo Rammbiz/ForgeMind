@@ -3353,7 +3353,7 @@ Powerful Cossack otaman of about fifty, shaved head with one long grey forelock,
 | `run` | Running / Run Forward | цикл 0.7–0.8 с | так | широкий упевнений крок, шаровари й кінці пояса лопочуть |
 | `attack_a` | Sword Slash | 0.6–0.8 с | ні | рубка шаблею навскіс (Cleave) |
 | `attack_b` | Sword Combo / Spin Slash | 0.9–1.1 с | ні | подвійна рубка з розворотом |
-| `ult_cast` | Power Up / Arms Raise | 1.2–1.6 с | ні | «Лист султанові»: розгортає лист над головою й регоче на все горло (сувій над смугою — кодом) |
+| `ult_cast` | Power Up / Arms Raise | 1.2–1.6 с | ні | «Козацька відповідь»: розгортає лист над головою й регоче на все горло (сувій над смугою — кодом) |
 | `rally` | Battle Cry / Cheering | 1.2 с | ні | «Січ на поміч»: шабля вгору, клич (опційно; якщо пресета немає — зроблю з `victory`) |
 | `hit` | Hit Reaction | 0.4 с | ні | короткий відсахнувся, без падіння |
 | `victory` | Victory / Laughing | 2.5 с | ні | регоче, тримаючи лист над головою |
@@ -3366,7 +3366,7 @@ Powerful Cossack otaman of about fifty, shaved head with one long grey forelock,
 
 Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + сплеш героя · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
 
-*Ульта — Лист султанові / The Letter to the Sultan* — `sirko_skill_ult.png`
+*Ульта — Козацька відповідь / The Cossack Reply* — `sirko_skill_ult.png`
 
 ```
 Create ONE square skill icon for a premium fantasy mobile game.
@@ -3381,7 +3381,7 @@ ART STYLE
 - Materials: carved ivory-white porcelain highlights and thin polished gold edges, with rune indigo (#2E2EB4) with ivory carved lines as the main colour.
 - Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
 
-MOTIF - The Letter to the Sultan (ultimate skill)
+MOTIF - The Cossack Reply (ultimate skill)
 - a long unrolled parchment scroll held wide open, its lines only abstract squiggles with no letters, a heavy wax seal and a dangling cord at the bottom
 
 COLOUR

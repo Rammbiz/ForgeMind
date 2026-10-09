@@ -89,7 +89,7 @@ const FALLBACK := {
 	"CHAMP_SNARYAD": ["Снаряд", "Snaryad"], "CHAMP_SNARYAD_TITLE": ["Пес-сапер", "The Sapper Hound"],
 	"CHAMP_SNARYAD_ROLE": ["Знешкоджує пастки", "Defuses the traps"],
 	"CHAMP_DOVBUSH": ["Довбуш", "Dovbush"], "CHAMP_DOVBUSH_TITLE": ["Опришок", "The Carpathian Rebel"],
-	"CHAMP_DOVBUSH_ROLE": ["Кидає бартку крізь загони", "Hurls the bartka through squads"],
+	"CHAMP_DOVBUSH_ROLE": ["Кидає бартку крізь загони", "Hurls the bartka"],
 	# ---------------------------------------------------------------- gems (§2.1; case forms part U §6.1)
 	"GEM": ["Самоцвіт", "Gem"], "RARITY": ["Рідкість", "Rarity"],
 	"GEM_C": ["Кварц", "Quartz"], "GEM_R": ["Сапфір", "Sapphire"], "GEM_E": ["Аметист", "Amethyst"],
@@ -131,7 +131,7 @@ const FALLBACK := {
 	"ULT_ARIN": ["Якір з неба", "Skyfall Anchor"], "ULT_EIRA": ["Зимова літанія", "Winter Litany"],
 	"ULT_ISKAR": ["Падіння комети", "Comet Fall"], "ULT_VESTA": ["Сонцесходження", "Sunrise"],
 	"ULT_VARTAN": ["Кована стіна", "Forgewall"], "ULT_LUMEN": ["Спектральний вінець", "Spectral Crown"],
-	"ULT_PAVA": ["Тисяча очей", "Thousand Eyes"], "ULT_SIRKO": ["Лист султанові", "The Letter to the Sultan"],
+	"ULT_PAVA": ["Тисяча очей", "Thousand Eyes"], "ULT_SIRKO": ["Козацька відповідь", "The Cossack Reply"],
 	"ULT_OLHA": ["Летіть додому", "Fly Home"],
 	"ATK_TITAN": ["Брилобій", "Boulderfist"], "ATK_ARIN": ["Якірний удар", "Anchor Strike"],
 	"ATK_BOLT": ["Розгалужений лис", "Forked Fox"], "ATK_EIRA": ["Промінь інею", "Rime Ray"],

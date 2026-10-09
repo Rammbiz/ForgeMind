@@ -708,7 +708,7 @@ white feather means cowardice in English), Німб «Щит бурі / Storm Ae
 | 22 | `menhir` | Менгір / Menhir | Старійшина рун / Rune Elder | Креслить рунні кола / Carves rune circles | Топаз | Mage | Rune | Stoneheart | creature (runestone) · n |
 | 23 | `taras` | Тарас / Taras | Кобзар / The Kobzar | Пробиває загони словом / Breaks squads with the Word | Топаз | Mage | Rune | Wildfang | human · m |
 | 24 | `snaryad` | Снаряд / Snaryad | Пес-сапер / The Sapper Hound | Знешкоджує пастки / Defuses the traps | Аметист | Guardian | Tech | Dawn | beast (Jack Russell terrier) · m |
-| 25 | `dovbush` | Довбуш / Dovbush | Опришок / The Carpathian Rebel | Кидає бартку крізь загони / Hurls the bartka through squads | Топаз | Warrior | Kinetic | Stoneheart | human · m |
+| 25 | `dovbush` | Довбуш / Dovbush | Опришок / The Carpathian Rebel | Кидає бартку крізь загони / Hurls the bartka | Топаз | Warrior | Kinetic | Stoneheart | human · m |
 
 Coverage: classes W 6 · R 6 · M 5 · G 6 · H 4; elements Kin 5 · Volt 4 · Plasma 5 · Rune 6 · Frost 3 · Tech 4;
 factions 8 · 8 · 6 · 5; species humans 11 · beasts 8 · creatures 8. The heroes of a gem never share a class or a
@@ -1589,9 +1589,9 @@ mountains"; §5.3: 3–4 holds), Топаз from 4 to 5. Designed pairs: Гор�
 Арін + Довбуш (Warrior pair + Kinetic ×2).
 
 ### 6.28 H26 `sirko` — Сірко — Характерник / Sirko — the Charmed Otaman (committed look)
-Опал · Warrior · Rune (+ Tech in form V) · Dawn Order · human · m · ult `letter` · Portal (the Opal share, now among 3) /
+Опал · Warrior · Rune (+ Tech in form V) · Dawn Order · human · m · ult `letter` · Portal (the Opal share; among 3 when he joined, 4 since H27 Ольга, §7.2) /
 Seals 200 · **born awakened** · the 11th hero, joined after launch (owner request 2026-10-09; collector № 26, numbers
-follow the joining order). Opal now holds three heroes of three classes (Люмен Mage, Пава Healer, Сірко Warrior). The
+follow the joining order). Opal holds four heroes of four classes (Люмен Mage, Пава Healer, Сірко Warrior, Ольга Ranger). The
 Opal rules of §6.9–6.10 apply: born with all four skills, ult forms to V.
 
 **Fantasy:** the unbeaten, laughing otaman of the Sky Harbour's free host: a kharakternyk (a warrior-sorcerer charmed
@@ -1612,7 +1612,7 @@ the clash."
 
 | Skill | uk / en | Rule |
 |---|---|---|
-| Ult `letter` (42) | Лист султанові / The Letter to the Sultan | **Form I:** he raises the letter and a huge parchment scroll unrolls over the lane from 3 u to 15 u ahead, the full bridge width, for 2.0 s; the whole army roars with laughter: every squad under it loses 16 *(knob)*, is Staggered 2.0 s and Branded; every structure under it takes 16 breaks; at the siege the scroll lands on the fortress and its walls take the breaks. The parchment shows only abstract lines and a wax seal (the text is never shown). **Form II — Warrior rule:** the scroll reaches 4 u further (to 19 u), and squads caught lose +20% *(knob)* in their next clash. **Form III Другий регіт / The Second Roar:** 1.0 s later a second laughter pulse under the scroll: 8 kills / 8 breaks *(knob)* per squad, the Stagger refreshed. **Form IV Без обладунків / Stripped of Armour:** squads caught lose their armour (Armored and Shielded fight as plain squads) for 5 s. **Form V Уся Січ пише / The Whole Sich Writes (Опал; + Tech):** for 5 s every army volley Brands and Marks its target (MARK + BURN = FLARE with a Plasma teammate) — no fire-rate buff, no Apex charge (critique B3). The scroll is drawn at α ≤ 0.5 over gate panels and the camera beat is ≤ 8% FOV push-in, ≤ 0.6 s, so the next gate row stays readable (§10.2). |
+| Ult `letter` (42) | Козацька відповідь / The Cossack Reply | **Form I:** he raises the letter and a huge parchment scroll unrolls over the lane from 3 u to 15 u ahead, the full bridge width, for 2.0 s; the whole army roars with laughter: every squad under it loses 16 *(knob)*, is Staggered 2.0 s and Branded; every structure under it takes 16 breaks; at the siege the scroll lands on the fortress and its walls take the breaks. The parchment shows only abstract lines and a wax seal (the text is never shown). **Form II — Warrior rule:** the scroll reaches 4 u further (to 19 u), and squads caught lose +20% *(knob)* in their next clash. **Form III Другий регіт / The Second Roar:** 1.0 s later a second laughter pulse under the scroll: 8 kills / 8 breaks *(knob)* per squad, the Stagger refreshed. **Form IV Без обладунків / Stripped of Armour:** squads caught lose their armour (Armored and Shielded fight as plain squads) for 5 s. **Form V Уся Січ пише / The Whole Sich Writes (Опал; + Tech):** for 5 s every army volley Brands and Marks its target (MARK + BURN = FLARE with a Plasma teammate) — no fire-rate buff, no Apex charge (critique B3). The scroll is drawn at α ≤ 0.5 over gate panels and the camera beat is ≤ 8% FOV push-in, ≤ 0.6 s, so the next gate row stays readable (§10.2). |
 | Attack | Козацька шабля / Cossack Sabre | sabre cuts, splash 2 in a 1.5 u arc, BRAND on every hit · **beat 3 Подвійна рубка / Double Cut:** every 4th hit strikes twice · **beat 6 Сміх отамана / The Otaman's Laugh:** when he wipes a Branded squad, the next squad in his lane flinches (STAGGER 1 s) · **beat 9 Вихор шаблі / Sabre Whirl:** every 10th hit a sabre whirl r 3: 6 per squad *(knob)* + BRAND |
 | Rally `army_recruits` | Січ на поміч / The Sich Comes to Help | +1 soldier joins every recruit group the army picks up × ladder × rank (the free hook of §5.4) |
 | Awakening (born; cap 4) | Заговорений / Charmed | the legend that bullets could not touch him: at the siege the fortress's first 1 / 2 / 3 / 4 volleys at the army miss (a missed volley costs 0 soldiers) |
