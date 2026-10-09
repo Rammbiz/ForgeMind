@@ -276,12 +276,27 @@ func step_turrets(dt: float, army: Army) -> void:
 			continue
 		it["cd"] = 1.0 / maxf(float(it.get("rate", 2.0)), 0.1)
 		var muzzle := (node.get_meta("muzzle") as Node3D).global_position
-		var dist := muzzle.distance_to(target)
 		run.effects.muzzle(muzzle, Color(1.0, 0.45, 0.15), (target - muzzle).normalized())
 		Audio.play("turret_shot", -11.0, 0.1)
 		node.set_meta("kick", 1.0)
 		var item := it
+		if run.champions.active() and _caught(it, muzzle):
+			continue
+		var dist := muzzle.distance_to(target)
 		run.effects.projectile(muzzle, target, "turret", dist / TURRET_SHOT_SPEED, func() -> void: run.turret_hit(item, target))
+
+
+## Німб's tier IV (heroes design §6.20, §10.5): a shot aimed at the soldiers near him is caught on his
+## aegis (ChampionKinds.absorb_turret, one shot = one soldier); it flies to him and costs nothing.
+func _caught(it: Dictionary, muzzle: Vector3) -> bool:
+	var m := run.champions.members
+	if ChampionKinds.absorb_turret(run.kind_view, m, int(it["kid"]), 1.0) > 0.5:
+		return false
+	var c := ChampionKinds.catcher(m, int(it["kid"]))
+	var at := Vector3(float(c.get("x", it["x"])), 0.7, -float(c.get("d", it["d"])))
+	run.effects.projectile(muzzle, at, "turret", muzzle.distance_to(at) / TURRET_SHOT_SPEED,
+			func() -> void: run.effects.hit_spark(at, Color(0.94, 0.71, 0.94)))
+	return true
 
 
 # ------------------------------------------------------------------ squads

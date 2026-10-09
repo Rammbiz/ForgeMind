@@ -70,7 +70,8 @@ class_name LevelSim
 ##   drill_k x clash_kill_mult + Cleave; the front takes its share (clash_hit). At army 0 in a clash
 ##   a living champion takes the tick before the hero (absorb_tick; the siege keeps its finale timer).
 ##   Hazard bands lose x hazard_loss_mult, then a ready Guardian Blocks (a barricade only wears down
-##   by the soldiers it really kills); turrets x hazard_loss_mult, never Blocked. Volleys deal
+##   by the soldiers it really kills); turrets: Німб's tier IV catch (absorb_turret), then
+##   x hazard_loss_mult, never Blocked. Volleys deal
 ##   x volley_mult (statuses are not simulated). Every soldier lost (clash, siege, hazard, turret,
 ##   gate) feeds Mend; Mend returns join the army. result() carries team_report.
 
@@ -1478,7 +1479,9 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 			continue
 		var lost := minf(float(it.get("rate", 2.0)) * dt * hazard_slow(s), s.army)
 		if s.champs.active():
-			# Healer aura; turrets never target champions and are never Blocked (§4.2).
+			# Turrets never target champions and are never Blocked (§4.2); Німб's tier IV catches a
+			# shot (before the aura, as the Run catches a whole shot); then the Healer aura.
+			lost = ChampionKinds.absorb_turret(_view(lv, s), s.champs.members, i, lost)
 			lost *= ChampionKinds.hazard_loss_mult(s.champs.members)
 			_fed(s, lost)
 		s.army -= lost
