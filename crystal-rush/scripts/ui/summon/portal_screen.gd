@@ -192,6 +192,7 @@ func _summon_button(count: int, amber: bool, can: bool, cost: int, have: int, we
 		var cta := UIKit.cta_button(label, sub, Vector2(160, 104), 30)
 		cta.sub_size = 22
 		cta.topaz = count == PortalData.X10_SUMMONS or welcome
+		cta.on_dark = true
 		b = cta
 	else:
 		b = UIKit.button(label + "\n" + sub, false, 160)

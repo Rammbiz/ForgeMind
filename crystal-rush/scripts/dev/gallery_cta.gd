@@ -71,10 +71,12 @@ func _page() -> Control:
 		var su := UIKit.cta_button("Призвати ×1", "1 маяк", Vector2(300, 104), 30)
 		su.sub_size = 22
 		su.topaz = false
+		su.on_dark = true
 		_place(root, su, Vector2(24, y), Vector2(300, 104), state)
 		var su10 := UIKit.cta_button("Призвати ×10", "10 маяків", Vector2(340, 104), 30)
 		su10.sub_size = 22
 		su10.ctx_gem = "amethyst"
+		su10.on_dark = true
 		_place(root, su10, Vector2(348, y), Vector2(340, 104), state)
 		y += 128.0
 	return root

@@ -19,11 +19,12 @@ static func draw_toggle(ci: CanvasItem, r: Rect2, k: float, alpha := 1.0) -> voi
 	var off_fill := Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.5 * alpha)
 	ci.draw_colored_polygon(track, off_fill)
 	if e > 0.01:
-		var c := UITokens.CTA
+		var c := UITokens.CTA if not UITokens.calm_cta() else UITokens.KEY_INK
 		var fr := tr.grow(-3.0)
 		ci.draw_colored_polygon(GemDraw.chamfer_rect(fr, 4.0), Color(c.r, c.g, c.b, 0.92 * e * alpha))
 	var hl := UITokens.HAIRLINE
-	var line := Color(hl.r, hl.g, hl.b, 0.7).lerp(Color(UITokens.CTA_LO.r, UITokens.CTA_LO.g, UITokens.CTA_LO.b, 1.0), e)
+	var on_line := UITokens.CTA_LO if not UITokens.calm_cta() else UITokens.KEY_INK
+	var line := Color(hl.r, hl.g, hl.b, 0.7).lerp(Color(on_line.r, on_line.g, on_line.b, 1.0), e)
 	line.a *= alpha
 	GemDraw.outline(ci, track, line, UIKit.line_px(1.0))
 	var kr := 11.0
