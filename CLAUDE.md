@@ -30,16 +30,19 @@ All paths below are from the repo root.
   `crystal-bastion/**/*.import` files are Godot churn: `git restore crystal-bastion` (ask if anything else changed there).
 - Windows line endings: run `git ls-files --eol crystal-rush/tools/data/heroes_consts.json`. If it shows `w/crlf`, the generator
   `--check` falsely says OUT OF DATE (it hashes raw JSON bytes). Do NOT regenerate or commit stamps; tell the owner and, with their OK
-  and no uncommitted work, `git config core.autocrlf false` in this clone and re-checkout `crystal-rush/`. Never commit CRLF files.
+  and no uncommitted work, `git config core.autocrlf false`, then `git rm -r -q --cached crystal-rush` and
+  `git checkout HEAD -- crystal-rush` (a plain `git checkout` leaves the CRLF files as they are). Never commit CRLF files.
 
 ## Where things are (crystal-rush/)
 - Design docs in `docs/design/`: `heroes_design.md` (the rules, §-numbered; source of truth for numbers), `heroes_prompts.md` (art
   prompts for every character; §1.7 Meshy, §2 order of work), `heroes_ua_icons.md` (shortlist of Ukrainian icons as future
   characters: 11 top picks, Сірко and Ольга done, plus "later" and "do not take" lists). `ui_v3_spec.md` arrives with the ui-v3 merge.
 - Game data is GENERATED, never hand-typed. Edit `tools/heroes_sim.py` / `tools/heroes_tables.py` / the design doc, then
-  `python3 crystal-rush/tools/gen_heroes_data.py --refresh` (rebuilds `tools/data/heroes_roster.json` + `heroes_consts.json` and the
-  generated blocks of `scripts/core/{ladder,hero_data,champion_data,team_data,portal_data,ceremony_data}.gd`).
-  `tools/gen_save_v3_data.py` writes `save_v3_data.gd`. `econ_data.gd` and `arsenal_data.gd` are hand-written.
+  `python3 crystal-rush/tools/gen_heroes_data.py --refresh` (rebuilds `tools/data/heroes_roster.json` and the generated blocks of
+  `scripts/core/{ladder,hero_data,champion_data,team_data,portal_data,ceremony_data}.gd`). Despite its "refreshed" message it does
+  NOT rebuild `tools/data/heroes_consts.json` (that is `heroes_sim.py --export`; change it only on purpose). A roster change also
+  needs `python3 crystal-rush/tools/gen_save_v3_data.py --sim crystal-rush/tools/heroes_sim.py --roster-only` (rewrites
+  `tools/data/heroes_migration.json` + `save_v3_data.gd`). `econ_data.gd` and `arsenal_data.gd` are hand-written.
 - Everything heroes/Portal is behind `EconData.HEROES_PHASE` (0); the gallery forces it on (`HeroesUIModel.force_on`).
 - Roster: 12 heroes (titan, arin, bolt, eira, seer, iskar, vesta, vartan, lumen, pava, sirko, olha) and 15 champions
   (mila, ivo, borko, alba, otto, taya, brant, teo, olena, nimb, dara, menhir, taras, snaryad, dovbush). Collector numbers are one
@@ -64,12 +67,13 @@ All paths below are from the repo root.
   ~15k heroes. Rig: champions <= 30 bones, no extra skinned bones; heroes humanoid + scripted bones (hair, tail, filaments). Clips:
   champions idle, run, action, special, hit, fall, victory, flourish; heroes idle, run, attack_a, attack_b, ult_cast, hit, victory,
   flourish, summon_pose + extras in the hero's table. We shrink and import the GLB they send: `crystal-rush/tools/prepare_model.mjs`
-  then `crystal-rush/tools/import_model.sh` (usage in their headers; bash, honours `$GODOT`).
+  (Node, npm packages in a scratch dir; pass the triangle target, default 17000) then `crystal-rush/tools/import_model.sh` (bash,
+  honours `$GODOT`); usage in their headers.
 
 ## Checks (run before pushing; commands from the repo root)
 - Windows: `godot` is usually not on PATH. Try `where.exe godot*`; else ask the owner ONCE for the full path of the Godot 4.7
   `..._console.exe` (console build, so output reaches the shell) and use it wherever this says `godot`. Python is `py` or `python`,
-  not `python3`. `xvfb-run` is Linux-only.
+  not `python3`. `xvfb-run` is Linux-only. The clone path has a space (`FiberForm CNC`): quote paths.
 - Import: `godot --headless --path crystal-rush --import` (~35 s).
 - Tests (exit code = failures): `godot --headless --path crystal-rush res://scenes/dev/<scene>.tscn -- --autotest` for test_meta,
   test_kinds, test_heroes, test_heroes_ui, test_loc, test_juice. `-- --autotest` is REQUIRED: it makes Save read-only so the owner's
@@ -93,11 +97,11 @@ All paths below are from the repo root.
 
 ## State of play (update this section when it changes)
 - Done and pushed: Taras, Snaryad, Dovbush (champions), Sirko, Olha (heroes), prompts page, art tools.
-- **UI v3 "porcelain glass" + key button** are finished on the branch `ui-v3` (hub, Heroes, Portal restyle; the owner picked the
+- **UI v3 "porcelain glass" + key button** live on the branch `ui-v3` (hub, Heroes, Portal restyle; the owner picked the
   «Порцеляна» key button, `UITokens.CTA_STYLE = "porcelain"`). `ui-v3` and `cta-study` exist ONLY in the cloud container (never
   pushed), so a local session cannot see them. NOT in this branch yet: the amber button here is the old one, do not restyle it.
-  Remaining: the CLOUD session merges `ui-v3` (one expected conflict, `scripts/dev/test_heroes_ui.gd`), runs all checks, builds APK
-  2.4. A local session must never recreate or re-implement this work; until the merge lands, ask before editing `scripts/ui/`.
+  Remaining: the CLOUD session finishes `ui-v3` (it already has this branch merged in, fdb811d), merges it here, runs all checks,
+  builds APK 2.4. A local session must never recreate or re-implement this work; until the merge lands, ask before editing `scripts/ui/`.
 - Next in the queue: H2 champions in the run, H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop,
   Meta-1 review, Meta-2, perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка,
   Мамай, Одарка, Сковорода ...).
