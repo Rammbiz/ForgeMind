@@ -4,6 +4,8 @@ extends Node3D
 ## feet, the small vault it makes over hazards (it is immune to them), and the hero's share of
 ## the account (Meta.run_profile "hero" block, §6.4): level multipliers, Ult Rank, Aspect and
 ## the Reinforcements damage bonus. Run reads them through mult(), ult_power(), cast_shots().
+## Its run row `def` is the Run's (HeroKinds.def_for: Balance.HEROES for the starters at phase 0); the
+## heroes without a 3D model yet stand in as grey-box figures (HeroModels.proxy).
 
 const VAULT_TIME := 0.42
 const VAULT_H := 0.75
@@ -33,14 +35,16 @@ var _casts := 0
 var _rig: Dictionary
 
 
-func setup(p_type: String, profile: Dictionary = {}) -> void:
+## Builds hero `p_type` for a run `profile` (the parent Run's when empty). `p_def` is the run row the Run
+## read (HeroKinds.def_for); alone (galleries) the hero looks it up from its own profile block the same way.
+func setup(p_type: String, profile: Dictionary = {}, p_def: Dictionary = {}) -> void:
 	type = p_type
-	def = Balance.HEROES[type]
 	if profile.is_empty():
 		var run := get_parent()
 		if run and run.get("profile") is Dictionary:
 			profile = run.get("profile")
 	use_profile(profile)
+	def = p_def if not p_def.is_empty() else HeroKinds.def_for(type, meta_hero)
 	_rig = HeroModels.rig(type)
 	model = HeroModels.hero(type)
 	model.rotation.y = PI   # the run heads to -Z

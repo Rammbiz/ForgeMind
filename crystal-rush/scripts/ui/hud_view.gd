@@ -70,7 +70,7 @@ func _init() -> void:
 	theme = UIKit.theme()
 
 
-## Builds the overlay. `ult_icon_kind` is the hero's ult icon (Balance.HEROES[..].ult.icon).
+## Builds the overlay. `ult_icon_kind` is the hero's ult icon (RunHud.ult_icon: the run row's or the kind's).
 func setup(p_level: int, ult_icon_kind: String, p_hero_color := Color(0.45, 0.75, 1.0)) -> void:
 	level = p_level
 	ult_icon = ult_icon_kind

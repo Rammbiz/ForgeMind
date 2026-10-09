@@ -19,12 +19,25 @@ extends KindView
 ## "hold_k", "ground_end"; Run's clash / siege ticks and Hazards.step_squads read hold_k); tethers and
 ## wards live here (Run.hurt passes a tether's share through tether_share); status_mult is the Run's
 ## Statuses.vs (MARK). Nothing is stamped or stored unless a champion or hero-kind rule calls a verb.
+##
+## H2 hero kinds (§6.2-6.10, §6.28, §6.29), as SimKindView answers them: squads_in / hazards_in rows carry
+## the half width `hw`; structures_in adds crates and the fortress; gates_in lists the gates of rows not
+## crossed yet (hit(gate id, n) = n hero hits); a hit tagged "kind" &"ult" lands without MARK's vs (an
+## ult's hit, as Run._ult_hit), &"attack" is a hero shot (source "hero"); siege(); army()["lost"] = the
+## soldiers lost this run (Run.lost_total); expose / strip / silence are stamped on the item as the run
+## time they end ("expose_end" + "expose_k": the Run's clash ticks x (1 + k); "strip_end": the squad's rows
+## say armored false; "silence_end": Run.turret_hit makes the shot a miss); reveal shows the hidden gates;
+## buff keeps the team buffs (Run.volley_mult reads &"volleys", Run.hurt's volleys &"volley_status";
+## &"machines" waits for Weapons to read buff_value); revive_champion stands a fallen champion up
+## (ChampionKinds.revive) with the hero's touch drawn by HeroFx; lose takes soldiers off the army; the
+## "clash" wards (Вартан's wall HP) are spent by the Run's clash ticks (spend_wards). `ult_shape` and
+## `hero_attack` fx go to the Run (the hero's pose, juice) and on to its HeroFx.
 
 ## Hurt source of every champion hit (Run.hurt / Statuses: not a machine, chains like a hero hit).
 const SOURCE := "champion"
 
 var run: Run
-var _army := {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0}
+var _army := {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0, "lost": 0.0}
 var _none: Array = []
 var _found: Array = []
 var _no_status := {}
@@ -32,8 +45,10 @@ var _hz_lists: Array = []
 ## [[item a, item b, share, end run time], ...] (tether).
 var _tethers: Array = []
 var _tethering := false
-## kind -> [charges, end run time] (grant_ward / absorb).
+## kind -> [charges, end run time] (grant_ward / absorb / spend_wards).
 var _wards := {}
+## kind -> [value, end run time, data] (buff).
+var _buffs := {}
 
 
 func _init(p_run: Run) -> void:
@@ -70,30 +85,64 @@ func in_fight() -> bool:
 
 
 ## d = the blob CENTRE's run distance (the champion slots hang off it, as LevelSim.army_center_d),
-## x = the blob centre x (the blob follows the hero's x). HeroKinds reads only n.
+## x = the blob centre x (the blob follows the hero's x); reserves = the Barracks soldiers due at the
+## siege; revive_pool = what the living Healer champions hold (ChampionKinds.feed); lost = the soldiers
+## lost this run from any cause (Run.lost_total: the ward and the army_loss policy read it).
 func army() -> Dictionary:
 	var r := run.blob_radius()
 	_army["n"] = float(run.army)
 	_army["x"] = run.hx
 	_army["d"] = run.d - Balance.HERO_GAP - r * Balance.BLOB_STRETCH
 	_army["radius"] = r
+	_army["reserves"] = float(run.army_view.reserves()) if run.army_view else 0.0
+	var pool := 0.0
+	for m: Dictionary in run.champions.members:
+		if bool(m["alive"]) and str(m["class"]) == "healer":
+			pool += float(m["pool"])
+	_army["revive_pool"] = pool
+	_army["lost"] = run.lost_total
 	return _army
+
+
+## True during the fortress siege (in_fight() is a clash or the siege).
+func siege() -> bool:
+	return run.state == Run.State.SIEGE
+
+
+## Hostile hp within `reach` u ahead the Meta-1 policy weighs (SimKindView.threat_ahead): squads over the
+## blob's lane (+0.5 u) count their hp, the fortress counts 99.
+func threat_ahead(reach: float) -> float:
+	var total := 0.0
+	var r := run.blob_radius()
+	for it: Dictionary in run._ult_targets(run.d - 0.5, run.d + reach):
+		var k := str(it["kind"])
+		if k == "squad" and absf(float(it["x"]) - run.hx) <= r + float(it.get("w", 2.4)) * 0.5 + 0.5:
+			total += float(it["hp"])
+		elif k == "fortress":
+			total += 99.0
+	return total
 
 
 func champions() -> Array:
 	return run.champions.members
 
 
+## champ_* events to the champions' view and HUD, the new hero kinds' `ult_shape` / `hero_attack` to the
+## Run's HeroFx (with the hero's pose), the starters' timed / waves events to the Run's ult VFX.
 func fx(event: StringName, data := {}) -> void:
 	if ChampionKinds.FX.has(event):
 		run._champ_fx(event, data)
+	elif event == &"ult_shape":
+		run._ult_shape_fx(data)
+	elif event == &"hero_attack":
+		run._hero_attack_fx(data)
 	else:
 		run._ult_fx(event, data)
 
 
 # ------------------------------------------------------------------ H2: champions
 
-## Living squads with d in [d0, d1] whose span (x +- w / 2) overlaps [x0, x1].
+## Living squads with d in [d0, d1] whose span (x +- w / 2) overlaps [x0, x1] (rows with `hw`).
 func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 	_found.clear()
 	var list := run.hazards.squads
@@ -114,6 +163,7 @@ func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 
 ## Living structures with d in [d0, d1]: spiked barricades ("barricade"), blades, turrets and
 ## geodes (never crates, gates or the fortress). Blades are listed (hp 0); the rules skip them.
+## Rows carry `hw` (Run.half_span).
 func hazards_in(d0: float, d1: float) -> Array:
 	_found.clear()
 	if _hz_lists.is_empty():
@@ -129,19 +179,62 @@ func hazards_in(d0: float, d1: float) -> Array:
 	return _answer()
 
 
+## What a hero ult or attack may break with d in [d0, d1]: the hazards_in structures (never blades) plus the
+## crates and the fortress (hw = the half bridge): [{id, d, x, kind, hp, hw}], by d.
+func structures_in(d0: float, d1: float) -> Array:
+	_found.clear()
+	var hz := run.hazards
+	for list: Array[Dictionary] in [hz.spikes, hz.turrets, hz.geodes, hz.crates]:
+		for i in range(_lower(list, d0), list.size()):
+			var it := list[i]
+			if float(it["d"]) > d1:
+				break
+			if it["alive"]:
+				_found.append(_hazard_row(it))
+	var f: Dictionary = run._fortress
+	if not f.is_empty() and f.get("alive", false) and float(f["d"]) >= d0 and float(f["d"]) <= d1:
+		_found.append(_hazard_row(f))
+	if _found.size() > 1:
+		_found.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["d"]) < float(q["d"]))
+	return _answer()
+
+
+## Gates of rows not crossed yet with d in [max(d0, hero), d1], nearest first (the hero kinds' gate hits and
+## gate-row policies): [{id, row, d, x, hw, kind (the op it shows now), value, hidden}]; ids hit() accepts.
+func gates_in(d0: float, d1: float) -> Array:
+	_found.clear()
+	var list := run._gates
+	for i in range(_lower(list, maxf(d0, run.d)), list.size()):
+		var it := list[i]
+		if float(it["d"]) > d1:
+			break
+		if it["alive"]:
+			_found.append(_gate_row(it))
+	return _answer()
+
+
 ## One hit of `dmg` (on a squad x status_mult: MARK) through Run.hurt; returns the squad soldiers
-## removed (0 for structures).
-func hit(target_id: int, dmg: float, _tags := {}) -> int:
+## removed (0 for structures). Tags (the hero kinds): "kind" &"ult" = an ult's hit (no MARK's vs, hurt
+## source "ult"), "src" "hero" = a hero shot (source "hero"); a crate or the fortress (structures_in ids)
+## takes `dmg` like any structure. A gate (a gates_in id) takes `dmg` hero hits at once (Run.ult_gate_hit:
+## the hero's damage with the Prism amp, as an area_hit's gate hits); returns 0.
+func hit(target_id: int, dmg: float, tags := {}) -> int:
 	var it := run.kind_item(target_id)
 	if it.is_empty() or not it.get("alive", false) or dmg <= 0.0:
 		return 0
 	var kind := str(it["kind"])
-	if kind == "blade" or kind == "gate" or kind == "crate":
+	if kind == "gate":
+		run.ult_gate_hit(it, dmg)
+		return 0
+	# Crates break only to the hero kinds (structures_in); the champions never hit them.
+	if kind == "blade" or (kind == "crate" and str(tags.get("src", "")) != "hero"):
 		return 0
 	var t0 := Time.get_ticks_usec()
+	var ult: bool = tags.get("kind", &"") == &"ult"
+	var src := "ult" if ult else ("hero" if str(tags.get("src", "")) == "hero" else SOURCE)
 	# Soldiers removed = the change of the squad's shown count ceil(hp), as SimKindView counts them.
 	var before := ceili(maxf(float(it["hp"]) - 0.001, 0.0))
-	run.hurt(it, dmg * (_vs(it) if kind == "squad" else 1.0), SOURCE)
+	run.hurt(it, dmg * (_vs(it) if kind == "squad" and not ult else 1.0), src)
 	if run.champ_stepping:
 		run.champ_perf["hit_us"] = int(run.champ_perf["hit_us"]) + Time.get_ticks_usec() - t0
 	if kind != "squad":
@@ -166,6 +259,21 @@ func status(target_id: int, st: StringName, s: float) -> void:
 ## Healer Mend: `n` soldiers back at the blob front.
 func add_soldiers(n: float, _cause: StringName) -> void:
 	run.champion_mend(int(floor(n + 0.0001)))
+
+
+## `n` soldiers lost to `cause` (the army's own losses path: the Healers are fed, the counter drops).
+func lose(n: int, _cause: StringName) -> void:
+	run.kind_lose(n)
+
+
+## A Healer hero's revive (Ейра form II, Пава forms II / V, §4.2): fallen champion `id` stands up at
+## `hp_frac` of its max HP (ChampionKinds.revive: champ_revive raises the model) and HeroFx draws the
+## hero's touch. False when `id` is alive or unknown.
+func revive_champion(id: StringName, hp_frac: float) -> bool:
+	if not ChampionKinds.revive(self, run.champions.members, String(id), hp_frac):
+		return false
+	run.hero_revived(String(id))
+	return true
 
 
 ## The Run's Statuses.vs on squad `target_id` (MARK 1.25 while it runs), 1.0 when none.
@@ -210,6 +318,81 @@ func ground(squad_id: int, sec: float) -> void:
 	if not (props is Array and (props as Array).has("flying")):
 		return
 	it["ground_end"] = maxf(float(it.get("ground_end", 0.0)), run.t + sec)
+
+
+## Squad `squad_id` loses x (1 + `add`) in its clashes for `sec` s (Веста / Сірко form II): stamped on the
+## item ("expose_end", "expose_k"; the larger add and the longer time win), Run's clash ticks read exposed().
+func expose(squad_id: int, add: float, sec: float) -> void:
+	var it := run.kind_item(squad_id)
+	if it.is_empty() or not it.get("alive", false) or str(it["kind"]) != "squad" or add <= 0.0 or sec <= 0.0:
+		return
+	var k := add
+	var end := float(it.get("expose_end", 0.0))
+	if end > run.t:
+		k = maxf(k, float(it.get("expose_k", 0.0)))
+	it["expose_k"] = k
+	it["expose_end"] = maxf(end, run.t + sec)
+
+
+## The clash loss multiplier of squad item `it` now: 1 + its exposure, 1.0 when none.
+func exposed(it: Dictionary) -> float:
+	if float(it.get("expose_end", 0.0)) <= run.t:
+		return 1.0
+	return 1.0 + float(it.get("expose_k", 0.0))
+
+
+## Squad `squad_id` fights as a plain squad for `sec` s (Сірко form IV): its rows say armored false
+## meanwhile ("strip_end"; the Statuses' Armored / Shielded rules do not read it yet).
+func strip(squad_id: int, sec: float) -> void:
+	var it := run.kind_item(squad_id)
+	if it.is_empty() or not it.get("alive", false) or str(it["kind"]) != "squad" or sec <= 0.0:
+		return
+	it["strip_end"] = maxf(float(it.get("strip_end", 0.0)), run.t + sec)
+
+
+## Turret `turret_id` misses every shot for `sec` s (Ольга form IV): Run.turret_hit reads silenced().
+func silence(turret_id: int, sec: float) -> void:
+	var it := run.kind_item(turret_id)
+	if it.is_empty() or str(it.get("kind", "")) != "turret" or sec <= 0.0:
+		return
+	it["silence_end"] = maxf(float(it.get("silence_end", 0.0)), run.t + sec)
+
+
+func silenced(it: Dictionary) -> bool:
+	return float(it.get("silence_end", 0.0)) > run.t
+
+
+## The hidden gates with d in [d0, d1] show their value (Run.reveal_gates; Phantoms are not modelled yet).
+func reveal(d0: float, d1: float) -> void:
+	run.reveal_gates(d0, d1)
+
+
+## A timed team buff (the larger value and the longer time win): &"volleys" = army volleys x (1 + value)
+## (Run.volley_mult), &"volley_status" = every army volley on a squad also applies data.statuses (Run.hurt),
+## &"machines" = machine damage + value (buff_value; read by the machines' bucket 2).
+func buff(kind: StringName, value: float, sec: float, data := {}) -> void:
+	if sec <= 0.0:
+		return
+	var b: Array = _buffs.get(kind, [0.0, 0.0, {}])
+	if float(b[1]) <= run.t:
+		b = [0.0, 0.0, {}]
+	_buffs[kind] = [maxf(float(b[0]), value), maxf(float(b[1]), run.t + sec), data if not data.is_empty() else b[2]]
+
+
+## The value of buff `kind` now (0 when none or over).
+func buff_value(kind: StringName) -> float:
+	if _buffs.is_empty():
+		return 0.0
+	var b: Array = _buffs.get(kind, [])
+	return float(b[0]) if not b.is_empty() and float(b[1]) > run.t else 0.0
+
+
+## The data of buff `kind` now ({} when none or over).
+func buff_data(kind: StringName) -> Dictionary:
+	if _buffs.is_empty():
+		return _no_status
+	var b: Array = _buffs.get(kind, [])
+	return b[2] if not b.is_empty() and float(b[1]) > run.t else _no_status
 
 
 ## Tethers squads `a` and `b` for `sec` s: Run.hurt hands every damage either takes to tether_share.
@@ -260,6 +443,22 @@ func grant_ward(kind: StringName, charges: int, sec: float) -> void:
 	_wards[kind] = [float(w[0]) + float(charges), maxf(float(w[1]), run.t + sec)]
 
 
+## Spends up to `want` whole ward charges of `kind` (LevelSim.WARD_KINDS; the Run's clash ticks spend the
+## "clash" wards of Вартан's wall HP, one soldier each); returns the charges spent.
+func spend_wards(kind: StringName, want: int) -> int:
+	if _wards.is_empty() or want <= 0:
+		return 0
+	var spent := 0
+	for wk: StringName in LevelSim.WARD_KINDS.get(kind, [kind]):
+		var w: Array = _wards.get(wk, [])
+		if spent >= want or w.is_empty() or float(w[1]) <= run.t or float(w[0]) < 1.0:
+			continue
+		var take := mini(int(floor(float(w[0]) + 0.0001)), want - spent)
+		w[0] = float(w[0]) - float(take)
+		spent += take
+	return spent
+
+
 ## One ward charge a `kind` hit may spend (LevelSim.WARD_KINDS: a blade hit spends a blade ward, then a
 ## contact ward); true = the hit is absorbed.
 func absorb(kind: StringName) -> bool:
@@ -285,7 +484,8 @@ func _squad_row(it: Dictionary) -> Dictionary:
 	if r.is_empty():
 		var props: Array = it.get("props", []) if it.get("props") is Array else []
 		r = {"id": int(it["kid"]), "d": 0.0, "x": 0.0, "n": 0.0, "flying": props.has("flying"),
-				"armored": props.has("armored"), "phantom": props.has("phantom"), "status": _no_status}
+				"armored": props.has("armored"), "phantom": props.has("phantom"), "status": _no_status,
+				"hw": float(it.get("w", 2.4)) * 0.5}
 		it["kv"] = r
 	r["d"] = float(it["d"])
 	r["x"] = float(it["x"])
@@ -295,13 +495,31 @@ func _squad_row(it: Dictionary) -> Dictionary:
 		# A grounded Flying squad reads as a ground squad (ground).
 		var props: Array = it.get("props", []) if it.get("props") is Array else []
 		r["flying"] = props.has("flying") and float(it["ground_end"]) <= run.t
+	if it.has("strip_end"):
+		# A stripped squad fights as a plain one (strip).
+		var props2: Array = it.get("props", []) if it.get("props") is Array else []
+		r["armored"] = props2.has("armored") and float(it["strip_end"]) <= run.t
+	return r
+
+
+func _gate_row(it: Dictionary) -> Dictionary:
+	var r: Dictionary = it.get("kv", _no_status)
+	if r.is_empty():
+		r = {"id": int(it["kid"]), "row": int(it.get("row", it["kid"])), "d": float(it["d"]), "x": 0.0,
+				"hw": float(it.get("w", 2.0)) * 0.5, "kind": "", "value": 0.0, "hidden": false}
+		it["kv"] = r
+	r["x"] = float(it["x"])
+	r["kind"] = str(it["op"])
+	r["value"] = float(it["value"])
+	r["hidden"] = not bool(it["revealed"])
 	return r
 
 
 func _hazard_row(it: Dictionary) -> Dictionary:
 	var r: Dictionary = it.get("kv", _no_status)
 	if r.is_empty():
-		r = {"id": int(it["kid"]), "d": float(it["d"]), "x": 0.0, "kind": str(it["kind"]), "hp": 0.0}
+		r = {"id": int(it["kid"]), "d": float(it["d"]), "x": 0.0, "kind": str(it["kind"]), "hp": 0.0,
+				"hw": run.half_span(it)}
 		it["kv"] = r
 	r["x"] = float(it["x"])
 	r["hp"] = float(it.get("hp", 0.0))

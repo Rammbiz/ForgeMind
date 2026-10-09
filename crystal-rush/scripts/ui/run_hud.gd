@@ -11,6 +11,13 @@ signal menu
 ## The drag hint hides once the player has dragged this far (px) or the run is past this d.
 const DRAG_HIDE_PX := 24.0
 const DRAG_HIDE_D := 6.0
+## The ult button's icon for the new hero kinds (one-colour line or legacy glyphs Icons draws; the starters
+## keep Balance.HEROES' storm / quake / fam_rift).
+const ULT_ICON := {
+	&"anchor": "slam", &"rime": "el_frost", &"comet": "el_volt", &"sunglaive": "el_plasma", &"forgewall": "cls_guardian",
+	&"spectrum": "glint", &"eyes": "el_rift", &"letter": "quests", &"doves": "wing",
+}
+const ULT_COLOR := Color(0.45, 0.75, 1.0)
 
 var run: Run
 var view: HudView
@@ -28,8 +35,7 @@ func _ready() -> void:
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	view = HudView.new()
-	var col: Color = run.def.get("color", Color(0.45, 0.75, 1.0))
-	view.setup(run.level, str(run.ult.get("icon", "storm")), col)
+	view.setup(run.level, ult_icon(), hero_color())
 	add_child(view)
 	view.pause_pressed.connect(pause)
 	view.resume_pressed.connect(resume)
@@ -94,10 +100,31 @@ func _on_ult() -> void:
 	if get_tree().paused:
 		return
 	if run.use_ult():
-		var hc: Color = (Balance.HEROES.get(run.hero_type, {}) as Dictionary).get("color", Color(0.6, 0.85, 1.0))
-		view.toast(Loc.t(run.ult["name"]), hc.lerp(Color.WHITE, 0.25))
+		view.toast(Loc.t(ult_popup()), hero_color().lerp(Color.WHITE, 0.25))
 	else:
 		Audio.play("error", -6.0)
+
+
+## The hero's colour from its run row (HeroKinds.def_for: Balance.HEROES' for the starters).
+func hero_color() -> Color:
+	var c: Variant = run.def.get("color", ULT_COLOR)
+	return c if c is Color else ULT_COLOR
+
+
+## The ult button's icon: a new kind's ULT_ICON (a v3 row names its ult kind, which Icons cannot draw), else
+## the run row's `ult.icon` (the starters' Balance.HEROES icon).
+func ult_icon() -> String:
+	var kind := HeroKinds.ult_kind(run.hero_type)
+	if ULT_ICON.has(kind):
+		return str(ULT_ICON[kind])
+	return str(run.ult.get("icon", "storm"))
+
+
+## The toast when the ult fires: the kind's cry (`<ult name>_POP`, the new heroes' voice lines) when Loc has
+## one, else the ult's name (the starters' «Громовий вихор!»).
+func ult_popup() -> String:
+	var key := str(run.ult.get("name", ""))
+	return key + "_POP" if Loc.has(key + "_POP") else key
 
 
 func _on_stairs_done(mult: float) -> void:

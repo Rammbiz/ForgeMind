@@ -17,6 +17,34 @@ const HERO_RIG := {
 	"bolt": {"ring": 1.0, "muzzle_y": 0.75, "attack_decay": 3.0, "pace": 1.0},
 	"titan": {"ring": 1.25, "muzzle_y": 0.9, "attack_decay": 1.6, "pace": 1.9},
 	"seer": {"ring": 1.1, "muzzle_y": 0.95, "attack_decay": 2.2, "pace": 1.0},
+	"arin": {"ring": 1.15, "muzzle_y": 0.85, "attack_decay": 2.2, "pace": 1.0},
+	"eira": {"ring": 1.1, "muzzle_y": 0.88, "attack_decay": 2.4, "pace": 1.0},
+	"iskar": {"ring": 1.1, "muzzle_y": 0.92, "attack_decay": 3.0, "pace": 1.0},
+	"vesta": {"ring": 1.15, "muzzle_y": 0.86, "attack_decay": 2.2, "pace": 1.0},
+	"vartan": {"ring": 1.25, "muzzle_y": 0.9, "attack_decay": 1.8, "pace": 1.0},
+	"lumen": {"ring": 1.1, "muzzle_y": 0.95, "attack_decay": 2.4, "pace": 1.0},
+	"pava": {"ring": 1.1, "muzzle_y": 0.9, "attack_decay": 2.4, "pace": 1.0},
+	"sirko": {"ring": 1.15, "muzzle_y": 0.86, "attack_decay": 2.2, "pace": 1.0},
+	"olha": {"ring": 1.1, "muzzle_y": 0.9, "attack_decay": 3.0, "pace": 1.0},
+}
+
+## Heroes without their Meshy model yet (§14.3): a grey-box adult on RunChampion's procedural rig, built
+## in the champions' 1.10 u frame and scaled to `h` (1.35-1.45 u, about 7.5 heads), holding the hero's
+## prop. `pose` is the RunChampion class whose carry pose and run cycle hold that prop (Ейра's harp-staff
+## and Пава's quill staff stand upright like a Mage's); `atk` / `ult` the RunChampion action a strike and
+## the ult cast play. The look is the champions' (§10.1, §10.3): one matte porcelain material, a white-gold
+## rim, a small trim (belt and collar) in the hero's element accent lifted toward white-gold. One draw
+## (+1 shadow). `float`: hovers this high while it runs (Люмен glides above the road).
+const PROXY := {
+	"arin": {"h": 1.42, "pose": "warrior", "atk": &"throw", "ult": &"throw"},
+	"eira": {"h": 1.40, "pose": "mage", "atk": &"spell", "ult": &"spell"},
+	"iskar": {"h": 1.45, "pose": "ranger", "atk": &"shot", "ult": &"shot"},
+	"vesta": {"h": 1.40, "pose": "warrior", "atk": &"throw", "ult": &"mend"},
+	"vartan": {"h": 1.45, "pose": "guardian", "atk": &"spell", "ult": &"block"},
+	"lumen": {"h": 1.43, "pose": "mage", "atk": &"spell", "ult": &"spell", "float": 0.1},
+	"pava": {"h": 1.40, "pose": "mage", "atk": &"spell", "ult": &"spell"},
+	"sirko": {"h": 1.42, "pose": "warrior", "atk": &"throw", "ult": &"spell"},
+	"olha": {"h": 1.42, "pose": "ranger", "atk": &"shot", "ult": &"spell"},
 }
 
 ## Heroes with real animation clips (owner's Meshy model, Mixamo-style rig). `file_h` is the
@@ -50,6 +78,8 @@ const CLIP_HEROES := {
 static func hero(type: String) -> Node3D:
 	if CLIP_HEROES.has(type):
 		return _clip_hero(type)
+	if PROXY.has(type):
+		return proxy(type)
 	return _rigged_hero(type, HERO_DIR + type + ".glb")
 
 
@@ -268,10 +298,13 @@ static func _hero_material(src: StandardMaterial3D, quality_high: bool, lift := 
 ## over the super moves; `alt` alternates the striking hand and `combat` raises the guard.
 ## `pace` scales the run cycle to the ground speed (1 = the heroes' own jog).
 static func animate_hero(model: Node3D, t: float, moving: bool, attack: float, ability := 0.0, ult := 0.0, alt := false, combat := false, pace := 1.0) -> void:
-	if str(model.get_meta("anim", "rig")) == "tree":
-		_animate_tree(model, t, moving, attack, ult, pace)
-		return
-	_animate_rig(model, t, moving, attack, ability, ult, alt, combat, pace)
+	match str(model.get_meta("anim", "rig")):
+		"tree":
+			_animate_tree(model, t, moving, attack, ult, pace)
+		"proxy":
+			_animate_proxy(model, t, moving, attack, ult, combat)
+		_:
+			_animate_rig(model, t, moving, attack, ability, ult, alt, combat, pace)
 
 
 ## Clip heroes: the AnimationTree runs the clips; this feeds it. A new strike (attack jumps up)
@@ -557,3 +590,328 @@ static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, a
 	return Vector2(lift, contact)
 
 
+# ------------------------------------------------------------------ grey-box heroes (PROXY)
+
+static var _proxy_meshes := {}
+
+
+## A hero without its 3D model yet (PROXY): RunChampion's procedural rig (one draw, +1 shadow) with this
+## hero's grey-box mesh, scaled to its height and turned to face +Z like every hero here. Metadata as
+## hero(): "anim" = "proxy", "proxy" (the RunChampion that animates it), "bar_y", "portrait".
+static func proxy(type: String) -> Node3D:
+	var spec: Dictionary = PROXY[type]
+	var h := float(spec["h"])
+	var root := Node3D.new()
+	root.name = "Model"
+	var turn := Node3D.new()
+	turn.name = "Turn"
+	turn.rotation.y = PI
+	root.add_child(turn)
+	var c := RunChampion.new()
+	c.name = "Proxy"
+	turn.add_child(c)
+	c.setup(str(spec["pose"]), "", false)
+	c.body.mesh = proxy_mesh(type)
+	c.body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if Save.quality == "high" \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	c.scale = Vector3.ONE * (h / RunChampion.HEIGHT)
+	c.animate(0.0, false, false)
+	root.set_meta("anim", "proxy")
+	root.set_meta("type", type)
+	root.set_meta("style", "proxy")
+	root.set_meta("proxy", c)
+	root.set_meta("state", {"t": -1.0, "attack": 0.0, "ult": 0.0})
+	root.set_meta("float", float(spec.get("float", 0.0)))
+	var face := Vector3(0.0, h * 0.93, 0.0)
+	root.set_meta("portrait", [face + Vector3(0.05, 0.08, 1.6), face])
+	root.set_meta("bar_y", h + 0.12)
+	return root
+
+
+## Grey-box heroes: RunChampion runs the rig (idle, run cycle, fight stance); a new strike plays the hero's
+## `atk` action, a new ult cast its `ult` action (strikes wait while the ult pose plays).
+static func _animate_proxy(model: Node3D, t: float, moving: bool, attack: float, ult: float, combat: bool) -> void:
+	var c := model.get_meta("proxy") as RunChampion
+	var st: Dictionary = model.get_meta("state")
+	var dt := clampf(t - float(st["t"]), 0.0, 0.1) if float(st["t"]) >= 0.0 else 0.0
+	st["t"] = t
+	var spec: Dictionary = PROXY[str(model.get_meta("type"))]
+	if ult > float(st["ult"]) + 0.3:
+		c.act(spec["ult"])
+	elif attack > float(st["attack"]) + 0.3 and ult <= 0.05:
+		c.act(spec["atk"])
+	st["attack"] = attack
+	st["ult"] = ult
+	c.animate(dt, moving and not combat, combat)
+
+
+## The grey-box mesh of hero `type` (built once, cached): the champions' adult figure in the RunChampion
+## frame (feet at y 0, facing -Z; the shader bends it about RunChampion's joints), the hero's headwear and
+## prop, the accent trim. One surface.
+static func proxy_mesh(type: String) -> ArrayMesh:
+	if _proxy_meshes.has(type):
+		return _proxy_meshes[type]
+	var b := RunChampion.Builder.new()
+	var el := str((HeroData.HEROES.get(type, {}) as Dictionary).get("element", ""))
+	var fam: Dictionary = ArsenalData.FAMILIES.get(el, {})
+	var acc: Color = (fam.get("accent", RunChampion.GOLD) as Color).lerp(Color("#FFE7A3"), 0.45)
+	_proxy_body(b, type, acc)
+	_proxy_prop(b, type, acc)
+	var m := b.commit()
+	_proxy_meshes[type] = m
+	return m
+
+
+## The figure: pelvis, chest, the accent belt and collar, neck, head, limbs, feet (RunChampion's
+## proportions and joints), with a robe for the long-coated heroes and pauldrons for the armoured.
+static func _proxy_body(b: RunChampion.Builder, type: String, acc: Color) -> void:
+	var torso: int = RunChampion.Part.TORSO
+	var skin := RunChampion.SKIN
+	var cloth := RunChampion.CLOTH
+	var dark := RunChampion.DARK
+	var robe := type in ["eira", "lumen", "pava", "olha"]
+	b.add(_pcap(0.085, 0.24), Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(1.0, 1.0, 0.8)),
+			Vector3(0.0, 0.585, 0.0)), torso, cloth)
+	var chest_w := 1.32 if type in ["arin", "vartan", "sirko"] else 1.2
+	b.add(_pcap(0.1, 0.36), _psc(Vector3(chest_w, 1.0, 0.75), Vector3(0.0, 0.77, 0.0)), torso, cloth if robe else skin)
+	# The trim: belt (Сірко's sash) and collar in the accent; Вартан's lime stays on his drone lamps (§6.8).
+	var trim := RunChampion.GOLD if type == "vartan" else acc
+	b.add(_pcyl(0.107, 0.107, 0.04 if type != "sirko" else 0.07), _psc(Vector3(1.0, 1.0, 0.8), Vector3(0.0, 0.665, 0.0)),
+			torso, trim)
+	b.add(_pcyl(0.052, 0.075, 0.035), _pat(Vector3(0.0, 0.925, 0.0)), torso, trim)
+	b.add(_pcyl(0.034, 0.038, 0.08), _pat(Vector3(0.0, 0.955, 0.0)), torso, skin)
+	if robe:
+		b.add(_pcyl(0.11, 0.18, 0.4), _psc(Vector3(1.0, 1.0, 0.85), Vector3(0.0, 0.45, 0.0)), torso, cloth)
+	b.add(_psph(0.072), _psc(Vector3(0.92, 1.08, 1.0), Vector3(0.0, 1.025, 0.0)), RunChampion.Part.HEAD, skin)
+	var hip_r := 0.066 if type == "sirko" else 0.056
+	for side: float in [-1.0, 1.0]:
+		var l := side < 0.0
+		var arm: int = RunChampion.Part.ARM_L if l else RunChampion.Part.ARM_R
+		var fore: int = RunChampion.Part.FORE_L if l else RunChampion.Part.FORE_R
+		var thigh: int = RunChampion.Part.THIGH_L if l else RunChampion.Part.THIGH_R
+		var shin: int = RunChampion.Part.SHIN_L if l else RunChampion.Part.SHIN_R
+		var sh := Vector3(RunChampion.SHOULDER.x * side, RunChampion.SHOULDER.y, 0.0)
+		var el := Vector3(RunChampion.ELBOW.x * side, RunChampion.ELBOW.y, 0.0)
+		var wr := Vector3(RunChampion.WRIST.x * side, RunChampion.WRIST.y, 0.0)
+		var hip := Vector3(RunChampion.HIP.x * side, RunChampion.HIP.y, 0.0)
+		var kn := Vector3(RunChampion.KNEE.x * side, RunChampion.KNEE.y, 0.0)
+		var an := Vector3(RunChampion.ANKLE.x * side, RunChampion.ANKLE.y, 0.0)
+		b.add(_psph(0.048), _pat(sh), arm, skin)
+		b.add(_pcap(0.037, 0.21), _pseg(sh, el), arm, cloth if robe else skin)
+		b.add(_pcap(0.032, 0.19), _pseg(el, wr), fore, skin)
+		b.add(_psph(0.033), _psc(Vector3(0.9, 1.15, 1.0), Vector3(RunChampion.WRIST.x * side, RunChampion.HAND_Y, -0.005)),
+				fore, skin)
+		b.add(_pcap(hip_r, 0.32), _pseg(hip, kn), thigh, cloth)
+		b.add(_pcap(0.043, 0.3), _pseg(kn, an), shin, cloth)
+		b.add(_pbox(Vector3(0.075, 0.055, 0.155)), _pat(Vector3(RunChampion.ANKLE.x * side, 0.03, -0.035)), shin, dark)
+		if type in ["arin", "vesta", "vartan", "sirko"]:
+			var pad := sh + Vector3(0.012 * side, 0.02, 0.0)
+			var pc := RunChampion.GOLD
+			if type == "vartan":
+				pc = dark
+			elif type == "sirko" and not l:
+				pc = cloth
+			b.add(_psph(0.068 if type != "sirko" or l else 0.078), _psc(Vector3(1.0, 0.7, 1.05), pad), arm, pc)
+
+
+## Headwear and the prop in hand (RunChampion's hands: the right fist holds along -Z, the left holds the
+## bow / the shield / the letter).
+static func _proxy_prop(b: RunChampion.Builder, type: String, acc: Color) -> void:
+	var torso: int = RunChampion.Part.TORSO
+	var head_p: int = RunChampion.Part.HEAD
+	var fore_l: int = RunChampion.Part.FORE_L
+	var fore_r: int = RunChampion.Part.FORE_R
+	var hand_l := Vector3(-RunChampion.WRIST.x, RunChampion.HAND_Y, 0.0)
+	var hand_r := Vector3(RunChampion.WRIST.x, RunChampion.HAND_Y, 0.0)
+	var fwd := Vector3(0.0, 0.0, -1.0)
+	var gold := RunChampion.GOLD
+	var steel := RunChampion.STEEL
+	var dark := RunChampion.DARK
+	var wood := RunChampion.WOOD
+	var skin := RunChampion.SKIN
+	var cloth := RunChampion.CLOTH
+	var parch := Color(1.0, 0.95, 0.84)
+	match type:
+		"arin":
+			# The anchor-hammer: a shaft from the fist, the anchor crown across its end with two flukes, the
+			# ring at the butt; the chain wound round the left forearm; his hair tied back.
+			b.add(_pcyl(0.014, 0.014, 0.56, 6), _pseg(hand_r - fwd * 0.1, hand_r + fwd * 0.46), fore_r, dark)
+			var head := hand_r + fwd * 0.47
+			b.add(_pbox(Vector3(0.2, 0.04, 0.045)), _pat(head), fore_r, steel)
+			for sgn: float in [-1.0, 1.0]:
+				b.add(_pbox(Vector3(0.03, 0.035, 0.11)), Transform3D(Basis(Vector3.UP, 0.5 * sgn), head
+						+ Vector3(0.1 * sgn, 0.0, 0.045)), fore_r, steel)
+			b.add(_psph(0.028, 8, 4), _pat(hand_r - fwd * 0.12), fore_r, gold)
+			for k in 3:
+				b.add(_psph(0.026, 6, 4), _pat(Vector3(-RunChampion.WRIST.x - 0.005, RunChampion.HAND_Y + 0.05 + 0.045 * k,
+						0.0)), fore_l, steel)
+			b.add(_psph(0.03, 6, 4), _pat(Vector3(0.0, 1.04, 0.07)), head_p, wood)
+		"vesta":
+			# The glaive, longer than she is: the shaft through the fist, a gold sun-ray guard, one pale topaz
+			# blade (matte here, §6.7); her braid down the back.
+			b.add(_pcyl(0.013, 0.013, 1.2, 6), _pseg(hand_r - fwd * 0.52, hand_r + fwd * 0.68), fore_r, wood)
+			b.add(_pbox(Vector3(0.14, 0.022, 0.024)), _pat(hand_r + fwd * 0.68), fore_r, gold)
+			b.add(_pbox(Vector3(0.014, 0.07, 0.26)), _pat(hand_r + fwd * 0.82), fore_r, Color(1.0, 0.93, 0.78))
+			b.add(_pcap(0.024, 0.3), _pseg(Vector3(0.0, 1.01, 0.07), Vector3(0.0, 0.76, 0.1)), head_p, wood)
+		"sirko":
+			# The curved sabre from the fist, a gold hilt; the letter rolled in the left hand; the forelock and
+			# the moustache.
+			var prev := hand_r + fwd * 0.04
+			for k in 4:
+				var nxt := hand_r + fwd * (0.04 + 0.12 * float(k + 1)) + Vector3(0.0, -0.012 * float(k + 1) * float(k + 1), 0.0)
+				b.add(_pbox(Vector3(0.01, 0.04, prev.distance_to(nxt) + 0.01)), _pseg_z(prev, nxt), fore_r, steel)
+				prev = nxt
+			b.add(_pbox(Vector3(0.1, 0.02, 0.022)), _pat(hand_r + fwd * 0.04), fore_r, gold)
+			b.add(_psph(0.02, 6, 4), _pat(hand_r - fwd * 0.06), fore_r, gold)
+			b.add(_pcyl(0.022, 0.022, 0.2, 8), Transform3D(Basis(Vector3.BACK, PI * 0.5), hand_l + Vector3(0.0, -0.03,
+					-0.02)), fore_l, parch)
+			b.add(_pcap(0.016, 0.1), _pseg(Vector3(0.0, 1.09, 0.0), Vector3(0.03, 1.06, 0.07)), head_p, dark)
+			for sgn2: float in [-1.0, 1.0]:
+				b.add(_pcap(0.008, 0.06), _pseg(Vector3(0.012 * sgn2, 1.0, -0.066), Vector3(0.04 * sgn2, 0.975, -0.06)), head_p,
+						dark)
+		"eira":
+			# The harp-staff as tall as she is (held upright), a harp frame with three strings at its head; the
+			# hood and the frost-fur collar.
+			b.add(_pcyl(0.013, 0.013, 1.12, 6), _pseg(hand_r - fwd * 0.56, hand_r + fwd * 0.56), fore_r, gold)
+			var top := hand_r + fwd * 0.56
+			var pts: Array[Vector3] = []
+			for k2 in 7:
+				var th := deg_to_rad(-80.0 + 160.0 * float(k2) / 6.0)
+				pts.append(top + Vector3(-0.12 * cos(th) * 0.5, 0.12 * sin(th), 0.0) + fwd * (0.12 - 0.12 * cos(th)))
+			for k3 in 6:
+				b.add(_pcyl(0.008, 0.008, pts[k3].distance_to(pts[k3 + 1]) + 0.01, 5), _pseg(pts[k3], pts[k3 + 1]), fore_r,
+						gold)
+			for k4 in 3:
+				var s0 := top + fwd * (0.04 + 0.05 * float(k4))
+				b.add(_pcyl(0.003, 0.003, 0.18, 4), _pseg(s0 + Vector3(0.0, -0.09, 0.0), s0 + Vector3(0.0, 0.09, 0.0)), fore_r,
+						acc)
+			b.add(_psph(0.084), _psc(Vector3(1.0, 1.0, 1.12), Vector3(0.0, 1.03, 0.022)), head_p, cloth)
+			b.add(_psph(0.07), _psc(Vector3(1.6, 0.5, 1.3), Vector3(0.0, 0.915, 0.0)), torso, skin)
+		"pava":
+			# The quill staff topped by one eye; the five-feather crest; the closed train of eye-feathers behind.
+			b.add(_pcyl(0.011, 0.011, 1.1, 6), _pseg(hand_r - fwd * 0.55, hand_r + fwd * 0.55), fore_r, gold)
+			b.add(_psph(0.045), _pat(hand_r + fwd * 0.6), fore_r, skin)
+			b.add(_psph(0.024, 8, 4), _pat(hand_r + fwd * 0.6 + Vector3(0.0, 0.0, -0.035)), fore_r, acc)
+			for k5 in 5:
+				var a := deg_to_rad(-40.0 + 20.0 * float(k5))
+				var base := Vector3(0.0, 1.08, 0.01)
+				b.add(_pcyl(0.006, 0.006, 0.12, 4), _pseg(base, base + Vector3(sin(a) * 0.05, 0.11, 0.03)), head_p, acc)
+			b.add(_pcap(0.075, 0.55), _pseg(Vector3(0.0, 0.6, 0.08), Vector3(0.0, 0.16, 0.42)), torso, cloth)
+			for k6 in 4:
+				b.add(_psph(0.026, 8, 4), _pat(Vector3(0.0, 0.5 - 0.1 * float(k6), 0.16 + 0.085 * float(k6)) + Vector3(0.0, 0.03,
+						0.05)), torso, acc)
+		"lumen":
+			# The floating prism by the left hand; the halo-crown of opal shards over the head.
+			b.add(_psph(0.07, 4, 2), _psc(Vector3(0.8, 1.35, 0.8), hand_l + Vector3(0.02, 0.15, -0.15)), fore_l, skin)
+			for k7 in 8:
+				var a2 := TAU * float(k7) / 8.0
+				b.add(_psph(0.018, 4, 2), _psc(Vector3(0.7, 1.6, 0.7), Vector3(cos(a2) * 0.1, 1.15, sin(a2) * 0.1 + 0.01)), head_p,
+						skin)
+		"iskar":
+			# The rail-bow in the left hand: two parallel rails joined by gold bridges; three light filaments
+			# swept back from the crown.
+			for sgn3: float in [-1.0, 1.0]:
+				var off := Vector3(0.0, 0.0, 0.022 * sgn3)
+				b.add(_pbox(Vector3(0.014, 0.66, 0.014)), _pat(hand_l + Vector3(0.0, 0.18, 0.0) + off), fore_l, steel)
+			for k8 in 3:
+				b.add(_pbox(Vector3(0.02, 0.018, 0.06)), _pat(hand_l + Vector3(0.0, -0.08 + 0.26 * float(k8), 0.0)), fore_l, gold)
+			for k9 in 3:
+				var dx := 0.035 * float(k9 - 1)
+				b.add(_pcyl(0.007, 0.004, 0.3, 4), _pseg(Vector3(dx, 1.08, 0.02), Vector3(dx * 2.0, 1.17, 0.3)), head_p, skin)
+		"olha":
+			# The recurved bow through the left fist with its string, a quiver of white-fletched arrows, the
+			# crown, the feather mantle down the back.
+			var r := 0.32
+			var c := hand_l + Vector3(0.0, r, 0.0)
+			var bow: Array[Vector3] = []
+			for k10 in 9:
+				var th2 := deg_to_rad(-65.0 + 130.0 * float(k10) / 8.0)
+				bow.append(c + Vector3(0.0, -r * cos(th2), r * sin(th2)))
+			for k11 in 8:
+				var rad := 0.013 if k11 in [3, 4] else 0.009
+				b.add(_pcyl(rad, rad, bow[k11].distance_to(bow[k11 + 1]) + 0.01, 6), _pseg(bow[k11], bow[k11 + 1]), fore_l, gold)
+			b.add(_pcyl(0.003, 0.003, bow[0].distance_to(bow[8]), 4), _pseg(bow[0], bow[8]), fore_l, steel)
+			var quiver := Transform3D(Basis(Vector3.BACK, -0.45), Vector3(0.07, 0.83, 0.095))
+			b.add(_pcyl(0.036, 0.032, 0.28), quiver, torso, dark)
+			b.add(_pbox(Vector3(0.05, 0.05, 0.05)), _pat(Vector3(0.13, 0.99, 0.1)), torso, skin)
+			b.add(_pcyl(0.066, 0.06, 0.06, 10), _pat(Vector3(0.0, 1.1, 0.0)), head_p, gold)
+			# The feather mantle: long feathers fanned down the back from the shoulders, never a slab.
+			for k12 in 5:
+				var u := float(k12) / 4.0 - 0.5
+				var top2 := Vector3(u * 0.22, 0.88, 0.07)
+				b.add(_pcap(0.028, 0.5), _pseg(top2, top2 + Vector3(u * 0.3, -0.46, 0.12)), torso, cloth)
+		"vartan":
+			# The basalt kite shield on the left forearm with a brass rim, the rivet cannon along the right
+			# forearm with its drum, the T-visor helm, the two ward-drones with their lamps (Tech lime).
+			var sc := hand_l + Vector3(-0.045, -0.05, -0.09)
+			b.add(_pbox(Vector3(0.28, 0.035, 0.5)), _pat(sc), fore_l, Color(0.66, 0.63, 0.62))
+			for e: Array in [[Vector3(0.0, -0.022, 0.25), Vector3(0.29, 0.02, 0.025)], [Vector3(0.0, -0.022, -0.25),
+					Vector3(0.29, 0.02, 0.025)], [Vector3(0.14, -0.022, 0.0), Vector3(0.025, 0.02, 0.5)],
+					[Vector3(-0.14, -0.022, 0.0), Vector3(0.025, 0.02, 0.5)]]:
+				b.add(_pbox(e[1] as Vector3), _pat(sc + (e[0] as Vector3)), fore_l, gold)
+			b.add(_pcyl(0.03, 0.034, 0.24, 8), _pseg(hand_r + Vector3(0.0, 0.0, 0.04), hand_r + fwd * 0.2), fore_r, dark)
+			b.add(_pcyl(0.048, 0.048, 0.05, 10), _pseg(hand_r + fwd * 0.02, hand_r + fwd * 0.07), fore_r, gold)
+			b.add(_psph(0.08), _psc(Vector3(1.0, 0.92, 1.06), Vector3(0.0, 1.035, 0.0)), head_p, steel)
+			b.add(_pbox(Vector3(0.07, 0.014, 0.012)), _pat(Vector3(0.0, 1.035, -0.083)), head_p, dark)
+			b.add(_pbox(Vector3(0.014, 0.05, 0.012)), _pat(Vector3(0.0, 1.015, -0.083)), head_p, dark)
+			b.add(_pbox(Vector3(0.07, 0.06, 0.02)), _pat(Vector3(0.0, 0.8, -0.085)), torso, gold)
+			for sgn4: float in [-1.0, 1.0]:
+				var dr := Vector3(0.24 * sgn4, 1.08, 0.06)
+				b.add(_psph(0.032, 8, 5), _pat(dr), torso, gold)
+				b.add(_psph(0.012, 6, 4), _pat(dr + Vector3(0.0, 0.0, -0.03)), torso, acc)
+
+
+static func _pat(p: Vector3) -> Transform3D:
+	return Transform3D(Basis.IDENTITY, p)
+
+
+static func _psc(scl: Vector3, p: Vector3) -> Transform3D:
+	return Transform3D(Basis.from_scale(scl), p)
+
+
+## A Y-aligned primitive between `a` and `b` (centre, axis along b - a).
+static func _pseg(a: Vector3, b: Vector3) -> Transform3D:
+	var dir := b - a
+	if dir.y < 0.0:
+		dir = -dir
+	return Transform3D(Basis(Quaternion(Vector3.UP, dir.normalized())), (a + b) * 0.5)
+
+
+## A Z-aligned primitive (a blade's length) between `a` and `b`.
+static func _pseg_z(a: Vector3, b: Vector3) -> Transform3D:
+	var dir := (b - a).normalized()
+	return Transform3D(Basis(Quaternion(Vector3.BACK, dir)), (a + b) * 0.5)
+
+
+static func _pcap(r: float, h: float) -> CapsuleMesh:
+	var m := CapsuleMesh.new()
+	m.radius = r
+	m.height = maxf(h, 2.0 * r + 0.001)
+	m.radial_segments = 10
+	m.rings = 3
+	return m
+
+
+static func _pcyl(top: float, bottom: float, h: float, segs := 10) -> CylinderMesh:
+	var m := CylinderMesh.new()
+	m.top_radius = top
+	m.bottom_radius = bottom
+	m.height = h
+	m.radial_segments = segs
+	m.rings = 1
+	return m
+
+
+static func _psph(r: float, segs := 10, rings := 6) -> SphereMesh:
+	var m := SphereMesh.new()
+	m.radius = r
+	m.height = 2.0 * r
+	m.radial_segments = segs
+	m.rings = rings
+	return m
+
+
+static func _pbox(size: Vector3) -> BoxMesh:
+	var m := BoxMesh.new()
+	m.size = size
+	return m

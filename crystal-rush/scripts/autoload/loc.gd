@@ -1310,6 +1310,17 @@ const STRINGS := {
 	"HINT_CHAMP_FALL": ["Чемпіон упав: його бонуси зникли до кінця рівня", "Champion down: its bonuses are gone for this level"],
 	"TOAST_SAVE_FAILED": ["Не вдалося зберегти — нічого не витрачено", "Could not save — nothing was spent"],
 	"SAVE_NEWER_READONLY": ["Цей запис зроблено новішою версією гри: лише перегляд", "This save is from a newer version of the game: view only"],
+	# The run's toast when a new hero fires the ult (RunHud.ult_popup): the hero's ult cry (§6 voice lines;
+	# Сірко's shortened to fit one line).
+	"ULT_ARIN_POP": ["Кидаю якір!", "Dropping anchor!"],
+	"ULT_EIRA_POP": ["Зимо, заспівай!", "Winter, sing!"],
+	"ULT_ISKAR_POP": ["Падай, комето!", "Fall, comet!"],
+	"ULT_VESTA_POP": ["Полудень!", "High noon!"],
+	"ULT_VARTAN_POP": ["Стіну зведено!", "The wall stands!"],
+	"ULT_LUMEN_POP": ["Розквітни, спектре!", "Bloom, spectrum!"],
+	"ULT_PAVA_POP": ["Розкрийтеся, очі!", "Open, eyes!"],
+	"ULT_SIRKO_POP": ["Пишемо відповідь!", "Write him an answer!"],
+	"ULT_OLHA_POP": ["Летіть додому!", "Fly home!"],
 	# ==== HEROES END
 }
 
