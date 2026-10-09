@@ -265,6 +265,13 @@ func _test_art() -> void:
 	_check(HeroArt.state("dovbush") == "splash" and HeroArt.card_texture("dovbush") != null, "Довбуш has the owner's card art")
 	_check(HeroArt.state("sirko") == "splash" and HeroArt.card_texture("sirko") != null, "Сірко has the owner's splash and a card crop")
 	_check(HeroArt.state("olha") == "splash" and HeroArt.card_texture("olha") != null, "Ольга has the owner's splash and a card crop")
+	# Ольга's signature walkout beat (§6.29): an additive "doves" beat on the full Opal walkout, keyed by a real hero id;
+	# the walkout lengths and the skip point are CeremonyData's, unchanged.
+	var sig_ok := str(SummonCeremony.SIGNATURE.get("olha", "")) == "doves"
+	for sid: String in SummonCeremony.SIGNATURE:
+		sig_ok = sig_ok and HeroData.HEROES.has(sid)
+	_check(sig_ok and is_equal_approx(CeremonyData.SKIP_FROM, 0.5) and is_equal_approx(CeremonyData.reveal_length("M"), 5.6),
+			"Ольга: the feathers-and-doves walkout beat, no extra length (0.6 + 5.0 s), skippable from 0.5 s")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 
