@@ -99,9 +99,9 @@ All paths below are from the repo root.
 - Done and pushed: Taras, Snaryad, Dovbush (champions), Sirko, Olha (heroes), prompts page, art tools.
 - **UI v3 "porcelain glass" + the «Порцеляна» key button are IN this branch** (merge c65e6a2: hub, Heroes, Portal restyle;
   `UITokens.CTA_STYLE = "porcelain"`, `--cta=ink|amber` only for dev comparisons). Spec: `crystal-rush/docs/design/ui_v3_spec.md`.
-  The cloud session is still removing the last amber accents (Ult button and its toast, avatar arc, nav label, Portal pity bar,
-  notify badges) on its `ui-v3` branch and will merge them here, then build APK 2.4. Until that merge lands, ask before editing
-  `crystal-rush/scripts/ui/` so the two sessions do not collide; `git pull --ff-only` first, every time.
+  The last amber accents are gone too (Ult button, avatar arc, nav, Portal, progress bars: ink + gold). The cloud session builds
+  APK 2.4 from this branch next (version bump in export_presets.cfg). Ask before large `crystal-rush/scripts/ui/` changes while
+  the cloud session is active, and always `git pull --ff-only` first so the two sessions do not collide.
 - Next in the queue: H2 champions in the run, H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop,
   Meta-1 review, Meta-2, perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка,
   Мамай, Одарка, Сковорода ...).
