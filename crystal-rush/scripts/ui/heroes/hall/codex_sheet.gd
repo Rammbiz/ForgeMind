@@ -89,20 +89,21 @@ class _Glyph extends Control:
 			"GEM":
 				# The same ring socket as the other rows, with the five-cut idea as a line glyph:
 				# the topaz star cut engraved in ink.
-				draw_circle(c + Vector2(0, 2), R - 2.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
-				draw_circle(c, R - 2.0, UITokens.PAPER_0)
-				draw_arc(c, R - 2.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+				HeroV3.disc(self, c, R - 2.0, 0.92, HeroV3.GOLD, 0.85, 0.08)
 				var star := GemDraw.cut_points("star", c + Vector2(0, 1), R * 1.05)
-				GemDraw.outline(self, star, UITokens.INK, 2.4)
+				GemDraw.outline(self, star, UITokens.INK, clampf(R * 0.08, 1.3, 2.4))
 				var inner := GemDraw.cut_points("star", c + Vector2(0, 1), R * 0.45)
-				GemDraw.outline(self, inner, Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.6), 1.4)
+				GemDraw.outline(self, inner, Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 0.6), UIKit.px(1.0))
 			"RECUT":
 				HeroGemEmblem.draw_emblem(self, "R", "C", c, R * 1.2, true)
 			_:
 				var slate := kind == "ELEMENT"
-				draw_circle(c + Vector2(0, 2), R - 2.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
-				draw_circle(c, R - 2.0, UITokens.SOCKET if slate else UITokens.PAPER_0)
-				draw_arc(c, R - 2.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
+				if slate:
+					HeroV3.shadow(self, Rect2(c - Vector2(R, R), Vector2(R, R) * 2.0), 0.08)
+					draw_circle(c, R - 2.0, UITokens.SOCKET, true, -1.0, true)
+					draw_arc(c, R - 2.0 - HeroV3.lp(1.0) * 0.5, 0, TAU, 48, HeroV3.a(HeroV3.GOLD, 0.85), HeroV3.lp(1.0), true)
+				else:
+					HeroV3.disc(self, c, R - 2.0, 0.92, HeroV3.GOLD, 0.85, 0.08)
 				var ic: String = {"CLASS": "cls_warrior", "ELEMENT": "el_plasma", "FACTION": "fac_dawn"}[kind]
 				var s := R * 1.1
 				Icons.line(self, ic, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.GOLD_HI if slate else UITokens.INK)

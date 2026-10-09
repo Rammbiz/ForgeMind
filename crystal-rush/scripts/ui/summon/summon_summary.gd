@@ -89,7 +89,7 @@ func _ready() -> void:
 			add_child(s)
 		_seals.append(s)
 	# The document: Seals, pity after the bundle, fragments per hero.
-	_panel = UIKit.panel("panel", Vector2(26, 18))
+	_panel = UIKit.panel("banner", Vector2(26, 18))   # v3.1: text on it: glass at the text alpha
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_panel)
 	var col := VBoxContainer.new()

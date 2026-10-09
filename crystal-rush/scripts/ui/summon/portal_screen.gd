@@ -197,6 +197,10 @@ func _summon_button(count: int, amber: bool, can: bool, cost: int, have: int, we
 		b = UIKit.button(label + "\n" + sub, false, 160)
 		b.add_theme_font_size_override("font_size", 24)
 		b.custom_minimum_size = Vector2(160, 104)
+		# v3.1: a disabled summon stays readable porcelain on the night (the kit's 0.5 disabled
+		# glass turns a grey slab over dark); the quieter ink says "not yet".
+		b.add_theme_stylebox_override("disabled", UIKit.lux("button"))
+		b.add_theme_color_override("font_disabled_color", UITokens.INK_DIM_GLASS)
 	b.disabled = not can
 	b.pressed.connect(func(): _summon(count))
 	return b

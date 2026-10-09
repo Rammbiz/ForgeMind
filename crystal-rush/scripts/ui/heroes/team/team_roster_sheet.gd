@@ -127,24 +127,20 @@ func _badge(text: String, kind: String) -> Control:
 		return t
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fill := UITokens.PAPER_0
+	# v3.1: a gain is the selected-segment glass (cream 0.92, one 1 dpx gold line, deep-gold ink:
+	# never an amber fill); a loss is a frameless well; anything else a plain glass tag.
 	var ink := UITokens.INK
-	var line := 1
+	var kind_lux := "seg_sel"
 	match kind:
 		"gain":
-			fill = UITokens.CTA_HI
-			ink = UIKit.BROWN
-		"loss":
-			fill = UITokens.PAPER_2
-			ink = UITokens.INK_DIM_GLASS
-		"here":
-			fill = UITokens.PAPER_0
 			ink = UITokens.GOLD_TEXT_GLASS
-		_:
-			fill = UITokens.PAPER_1
+		"loss":
 			ink = UITokens.INK_DIM_GLASS
-			line = 0
-	p.add_theme_stylebox_override("panel", UIKit.cbox(fill, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, line, Vector2(8, 2)))
+			kind_lux = "well"
+		_:
+			ink = UITokens.INK_DIM_GLASS
+			kind_lux = "row"
+	p.add_theme_stylebox_override("panel", UIKit.lux(kind_lux, Vector2(8, 2)))
 	var l := UIKit.label(text, 22, ink, kind == "gain")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(l)

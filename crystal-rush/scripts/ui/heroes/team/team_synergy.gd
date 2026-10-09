@@ -176,9 +176,12 @@ class _TagChip extends Control:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		var pts := GemDraw.chamfer_rect(r, UITokens.CHAMFER_XS)
-		draw_colored_polygon(pts, UITokens.PAPER_0 if active else UITokens.PAPER_2)
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
-		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-3.0), 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), 1.0)
+		# v3.1 (§3.2: no borders on chips inside a card): frameless glass, an active tag lifted
+		# to white with its 1 dpx light line, an idle one a quiet well.
+		if active:
+			HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.78, HeroV3.GOLD, 0.0, 0.8, 0.0, Color.WHITE)
+		else:
+			draw_colored_polygon(pts, HeroV3.a(UITokens.PAPER_3, 0.42))
 		var f := UIKit.font(true)
 		var fm := UIKit.font(false)
 		var x := 10.0

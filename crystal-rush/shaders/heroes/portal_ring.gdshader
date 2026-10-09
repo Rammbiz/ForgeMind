@@ -15,7 +15,7 @@ uniform float pulse = -1.0;      // gleam angle 0..1 round the ring (< 0 = off)
 uniform float opal = 0.0;
 uniform float open = 0.0;
 uniform float ring_r = 0.78;     // tube centre radius (UV half-size units)
-uniform float tube_w = 0.07;
+uniform float tube_w = 0.046;   // UI v3.1: a slimmer jewel band (was 0.07)
 
 
 
@@ -120,8 +120,8 @@ void fragment() {
 		float spec = pow(max(R.z, 0.0), 28.0);
 		float k = 0.18 + 0.72 * diff;
 		// Engraved grooves: a twisted rope pattern and fine cross-hatching.
-		float rope = abs(sin(a * 30.0 + n * 2.2));
-		float groove = smoothstep(0.12, 0.0, rope) * 0.35 * z;
+		float rope = abs(sin(a * 46.0 + n * 2.2));
+		float groove = smoothstep(0.1, 0.0, rope) * 0.16 * z;
 		k -= groove;
 		vec3 c = gold(clamp(k, 0.0, 1.0)) + vec3(1.0, 0.95, 0.8) * spec * 0.85;
 		// The pulse gleam running round the tube.

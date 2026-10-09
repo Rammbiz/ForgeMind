@@ -12,7 +12,7 @@ const SHADER := preload("res://shaders/heroes/portal_ring.gdshader")
 ## Socket order round the ring from the top, clockwise (72 degrees apart).
 const SOCKETS: Array[String] = ["M", "L", "E", "R", "C"]
 const RING_R := 0.78
-const TUBE_W := 0.07
+const TUBE_W := 0.046   ## UI v3.1: a slimmer jewel band (was 0.07)
 
 var driven := false
 var t := 0.0:
@@ -139,13 +139,13 @@ func _draw() -> void:
 	draw_texture_rect(light, Rect2(dc - Vector2(rx * 0.8, ry * 1.6), Vector2(rx * 1.6, ry * 3.2)), false, Color(1.0, 0.9, 0.7, 0.32 + 0.3 * charge))
 	var rim := PackedVector2Array(pts)
 	rim.append(pts[0])
-	draw_polyline(rim, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.85), 1.6, true)
+	draw_polyline(rim, Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.85), UIKit.line_px(1.0), true)
 	# Inner engraved ring on the dais.
 	var inner := PackedVector2Array()
 	for i in 49:
 		var a := TAU * float(i) / 48.0
 		inner.append(dc + Vector2(cos(a) * rx * 0.72, sin(a) * ry * 0.72))
-	draw_polyline(inner, Color(1.0, 0.92, 0.7, 0.35), 1.2, true)
+	draw_polyline(inner, Color(1.0, 0.92, 0.7, 0.35), UIKit.px(1.0), true)
 
 
 ## Sockets, glints and the pre-sting crawl, drawn over the shader quad.
@@ -155,7 +155,7 @@ class _Over extends Control:
 	func _draw() -> void:
 		if ring == null:
 			return
-		var s := minf(size.x, size.y) * 0.088
+		var s := minf(size.x, size.y) * 0.072
 		for g: String in SOCKETS:
 			var p := ring.socket_pos(g)
 			if g == ring.lit and ring.lit_k > 0.0:
@@ -167,7 +167,7 @@ class _Over extends Control:
 				# never reads as a button on the ring.
 				var qc := Color("#8E9BAD")
 				draw_colored_polygon(GemDraw.cut_points("round", p, s * 0.98), Color(qc.r, qc.g, qc.b, 0.32))
-				GemDraw.outline(self, GemDraw.cut_points("round", p, s * 0.98), Color("#D6DEE6"), 1.4)
+				GemDraw.outline(self, GemDraw.cut_points("round", p, s * 0.98), Color("#D6DEE6"), UIKit.line_px(1.0))
 		if ring.crawl > 0.0:
 			var c := ring.centre()
 			var R := ring.radius()

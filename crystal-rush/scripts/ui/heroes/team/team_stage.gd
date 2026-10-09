@@ -151,7 +151,7 @@ func _draw() -> void:
 	for i in n + 1:
 		var a := PI * i / n
 		foot.append(c + Vector2(cos(a) * rx, sin(a) * ry + dh))
-	draw_polyline(foot, Color(rim.r, rim.g, rim.b, 0.8), 2.0, true)
+	draw_polyline(foot, Color(rim.r, rim.g, rim.b, 0.8), UIKit.line_px(1.0), true)
 	var lip := PackedVector2Array()
 	for i in n + 1:
 		var a := PI * i / n
@@ -170,9 +170,9 @@ func _draw() -> void:
 		var a0 := 0.6 + i * 1.17
 		var vc := c + Vector2(cos(a0) * rx * 0.55, sin(a0) * ry * 0.5)
 		draw_arc(vc, rx * (0.22 + 0.05 * i), a0, a0 + 0.9, 18, Color(deep.r, deep.g, deep.b, 0.07), 1.2, true)
-	GemDraw.outline(self, _ellipse(c, rx + 3.0, ry + 3.0), Color(rim.r, rim.g, rim.b, 0.55), 3.0)
-	GemDraw.outline(self, top, hl, 2.0)
-	GemDraw.outline(self, _ellipse(c, rx * 0.9, ry * 0.9), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.85), 2.0)
+	GemDraw.outline(self, _ellipse(c, rx + 3.0, ry + 3.0), Color(rim.r, rim.g, rim.b, 0.55), UIKit.line_px(1.5))
+	GemDraw.outline(self, top, hl, UIKit.line_px(1.0))
+	GemDraw.outline(self, _ellipse(c, rx * 0.9, ry * 0.9), Color(UITokens.GOLD_HI.r, UITokens.GOLD_HI.g, UITokens.GOLD_HI.b, 0.85), UIKit.line_px(1.0))
 	GemDraw.outline(self, _ellipse(c, rx * 0.88, ry * 0.88), Color(hl.r, hl.g, hl.b, 0.5), 1.0)
 	GemDraw.outline(self, _ellipse(c, rx * 0.46, ry * 0.46), Color(hl.r, hl.g, hl.b, 0.4), 1.0)
 	# Inlaid compass: four engraved spokes and keystones on the outer ring.
@@ -197,7 +197,7 @@ func _draw() -> void:
 		if sl == focus_slot:
 			draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(srx * 2.2, sry * 3.2), Vector2(srx * 4.4, sry * 6.4)), false, Color(UITokens.CTA.r, UITokens.CTA.g, UITokens.CTA.b, 0.45))
 		if st == "champion":
-			draw_line(c, p, Color(hl.r, hl.g, hl.b, 0.75), 1.6, true)
+			draw_line(c, p, Color(hl.r, hl.g, hl.b, 0.75), UIKit.line_px(1.0), true)
 			GemDraw.draw_marquise(self, p.lerp(c, 0.5), (c - p).normalized(), 9.0, hl)
 			var cd := HeroesUIModel.champion(str(s["id"]))
 			var aura_r := float((ChampionData.CHAMPIONS.get(str(s["id"]), {"kit": {"radius": 1.0}}) as Dictionary)["kit"]["radius"])
@@ -206,14 +206,14 @@ func _draw() -> void:
 			draw_colored_polygon(_ellipse(p, ar * 1.5, ar * 0.54), Color(gc.r, gc.g, gc.b, 0.12))
 			GemDraw.outline(self, _ellipse(p, ar * 1.5, ar * 0.54), Color(gc.r, gc.g, gc.b, 0.4), 1.2)
 			draw_colored_polygon(_ellipse(p, srx, sry), Color(1, 1, 1, 0.5))
-			GemDraw.outline(self, _ellipse(p, srx, sry), hl, 2.0)
+			GemDraw.outline(self, _ellipse(p, srx, sry), hl, UIKit.line_px(1.5))
 		elif st == "empty":
 			_dashed(_ellipse(p, srx, sry, 40), Color(hl.r, hl.g, hl.b, 0.95), 1.6)
 		else:
 			draw_colored_polygon(_ellipse(p, srx, sry), Color(UITokens.PAPER_3.r, UITokens.PAPER_3.g, UITokens.PAPER_3.b, 0.8))
 			GemDraw.outline(self, _ellipse(p, srx, sry), Color(hl.r, hl.g, hl.b, 0.6), 1.2)
 	# Hero seat: a gold rosette under the leader.
-	GemDraw.outline(self, _ellipse(c, 92.0, 33.0), hl, 2.2)
+	GemDraw.outline(self, _ellipse(c, 92.0, 33.0), hl, UIKit.line_px(1.5))
 	GemDraw.outline(self, _ellipse(c, 80.0, 28.0), Color(hl.r, hl.g, hl.b, 0.5), 1.0)
 	var gl := 0.5 + 0.5 * sin(_t * 1.3)
 	GemDraw.draw_glint(self, c + Vector2(-70, -18), 14.0 + 6.0 * gl, Color(1, 1, 1, 0.5 + 0.3 * gl))

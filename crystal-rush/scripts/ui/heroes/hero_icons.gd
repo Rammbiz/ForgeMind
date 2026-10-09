@@ -142,10 +142,10 @@ static func _painted(ci: CanvasItem, k: String, r: Rect2, a: float) -> void:
 				GemDraw.draw_glint(ci, _p(r, 0.44, 0.22), s * 0.34, Color(1, 1, 1, 0.9 * a))
 
 
-## One-colour skill glyphs (stroke ~7.5 % of the size, round caps).
+## One-colour skill glyphs (UI v3.1 §8: stroke clamp(size * 0.055, 1.3, 2.4), round caps).
 static func line(ci: CanvasItem, k: String, r: Rect2, col: Color, width := -1.0) -> void:
 	var s := r.size.x
-	var w := width if width > 0.0 else clampf(s * 0.075, 1.6, 3.6)
+	var w := width if width > 0.0 else clampf(s * 0.055, 1.3, 2.4)   # UI v3.1 §8 line icons
 	var c := r.get_center()
 	match k:
 		"sk_ult":

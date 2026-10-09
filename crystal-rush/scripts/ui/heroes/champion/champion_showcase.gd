@@ -26,6 +26,7 @@ var _ins := Vector4.ZERO
 var _c: Dictionary = {}
 var _dirty := false
 
+var _frost: HeroFrost
 var _bg: HeroShowcaseBackdrop
 var _art: HeroesChampionParts.CardArt
 var _scroll: ScrollContainer
@@ -55,6 +56,9 @@ func _ready() -> void:
 	_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_bg.focus = Vector2(0.72, 0.24)
 	add_child(_bg)
+	# UI v3.1: the plates frost this screen's own sky (HeroFrost), body text on the 94 % bed.
+	_frost = HeroFrost.attach(self)
+	_bg.baked.connect(func(): _frost.set_layers([{"tex": _bg.baked_texture(), "rect": Rect2(Vector2.ZERO, size)}]))
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(_scroll)
@@ -188,7 +192,8 @@ func _build() -> void:
 	_body.add_child(_relic_row(inner))
 	_body.add_child(UIKit.gap(6))
 	# Dock.
-	var back := UIKit.secondary_button("", "back", Vector2(96, 88))
+	var back := UIKit.edge_button("back", 38.0)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(_back)
 	_dock.add_child(back)
 	var to_team := UIKit.secondary_button(HeroesText.t("CHAMP_UI_TO_TEAM"), "team", Vector2(0, 88), 26)
@@ -204,6 +209,14 @@ func _build() -> void:
 		_dock.add_child(rc)
 
 
+## A frosted glass panel over this screen (text on the 94 % bed), or the flat text glass.
+func _glass_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	if not HeroFrost.frost_panel(p, "panel", Vector2(20, 16), _frost):
+		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(20, 16)))
+	return p
+
+
 func _inner_w() -> float:
 	var W := size.x if size.x > 1.0 else get_viewport_rect().size.x
 	return W - UITokens.GUTTER * 2.0
@@ -214,7 +227,7 @@ func _role_line(text: String) -> Control:
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	p.add_theme_stylebox_override("panel", UIKit.cbox(UITokens.PAPER_0, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, 1, Vector2(14, 6)))
+	p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(14, 6)))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
 	var ic := Icons.make("cls_" + str(_c["class"]), 26.0, UITokens.GOLD_TEXT_GLASS)
@@ -245,7 +258,7 @@ func _facets_row() -> Control:
 
 
 func _plate_shell(title: String, w: float) -> Array:
-	var p := UIKit.panel("card")
+	var p := _glass_panel()
 	p.custom_minimum_size = Vector2(w, 0)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
@@ -317,7 +330,7 @@ func _wrap(text: String, fs: int, col: Color, bold: bool, w: float) -> Label:
 
 
 func _relic_row(inner: float) -> Control:
-	var p := UIKit.panel("card")
+	var p := _glass_panel()
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
 	p.add_child(h)
@@ -344,7 +357,7 @@ func _relic_row(inner: float) -> Control:
 
 
 func _run_panel(inner: float, slot: String) -> Control:
-	var p := UIKit.panel("card")
+	var p := _glass_panel()
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	p.add_child(v)
@@ -409,7 +422,8 @@ func _place_art() -> void:
 		holder.custom_minimum_size = Vector2(0, ch + 100.0)
 	if holder.has_meta("seal"):
 		var seal: Control = holder.get_meta("seal")
-		seal.position = Vector2(W - 70.0, 76.0)
+		# The «НОВИЙ» tag sits inside the card's top-right corner, on its top edge.
+		seal.position = Vector2(W - 6.0 - 70.0 - seal.size.x * 0.5, 96.0 - seal.size.y * 0.5)
 
 
 # ------------------------------------------------------------------ actions

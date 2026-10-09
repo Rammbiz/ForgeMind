@@ -39,6 +39,18 @@ func stamp(delay := 0.0) -> void:
 	tw.parallel().tween_property(self, "scale", Vector2.ONE, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
+## The drawn mark's size (the tag is wider than the square control; the badge smaller): callers
+## that align it to an edge use this.
+func drawn_size() -> Vector2:
+	var s := minf(size.x, size.y)
+	if s < 76.0 or text == "":
+		var d := clampf(s * 0.42, 18.0, 30.0)
+		return Vector2(d, d) * 1.24
+	var f := UIKit.font_w("medium")
+	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x + 2.0 * maxi(text.length() - 1, 0)
+	return Vector2(tw + 12.0 + 10.0 + 28.0, 36.0)
+
+
 func _draw() -> void:
 	var s := minf(size.x, size.y)
 	var c := size * 0.5
