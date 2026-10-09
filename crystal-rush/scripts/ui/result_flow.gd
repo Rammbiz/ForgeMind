@@ -1316,21 +1316,36 @@ class _VictoryBand extends Control:
 		if half < 2.0:
 			return
 		var xs := [x0, lerpf(x0, x1, 0.18), lerpf(x0, x1, 0.82), x1]
-		var ax := [0.0, 1.0, 1.0, 0.0]
-		var ys := [10.0, h * 0.5, h - 10.0]
 		# Honey band, lit from the top: the title and the subline (CTA ink) keep >= 4.5:1 down to
-		# the bottom stop (the old #DD8D36 stop measured 2.4 under the subline).
+		# the bottom stop (the old #DD8D36 stop measured 2.4 under the subline). One triangle
+		# array: smoothstep alpha over the outer 18 % (a linear ramp left a Mach-band seam at the
+		# knee) and the soft top light folded into the top row's colour (its own quad had hard
+		# vertical edges at the knees).
 		var cs := [Color("#FAD07F"), Color("#F4B65F"), Color("#F1AA4F")]
 		var a := 0.95
-		for j in 2:
-			for i in 3:
-				var c00: Color = cs[j]
-				var c10: Color = cs[j + 1]
-				draw_polygon(PackedVector2Array([Vector2(xs[i], ys[j]), Vector2(xs[i + 1], ys[j]), Vector2(xs[i + 1], ys[j + 1]), Vector2(xs[i], ys[j + 1])]),
-						PackedColorArray([Color(c00, a * ax[i]), Color(c00, a * ax[i + 1]), Color(c10, a * ax[i + 1]), Color(c10, a * ax[i])]))
-		# Soft light across the top third.
-		draw_polygon(PackedVector2Array([Vector2(xs[1], ys[0]), Vector2(xs[2], ys[0]), Vector2(xs[2], h * 0.36), Vector2(xs[1], h * 0.36)]),
-				PackedColorArray([Color(1, 1, 1, 0.16), Color(1, 1, 1, 0.16), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)]))
+		var ys := [10.0, h * 0.36, h * 0.5, h - 10.0]
+		var k1 := (h * 0.36 - 10.0) / maxf(h * 0.5 - 10.0, 1.0)
+		var rc := [(cs[0] as Color).lerp(Color.WHITE, 0.16), (cs[0] as Color).lerp(cs[1], k1), cs[1], cs[2]]
+		var ts: Array[float] = []
+		for i in 7:
+			ts.append(0.18 * i / 6.0)
+		for i in 7:
+			ts.append(1.0 - 0.18 * (6 - i) / 6.0)
+		var pts := PackedVector2Array()
+		var col := PackedColorArray()
+		var idx := PackedInt32Array()
+		for j in ys.size():
+			for t: float in ts:
+				var e := clampf(minf(t, 1.0 - t) / 0.18, 0.0, 1.0)
+				e = e * e * (3.0 - 2.0 * e)
+				pts.append(Vector2(lerpf(x0, x1, t), ys[j]))
+				col.append(Color(rc[j], a * e))
+		var nx := ts.size()
+		for j in ys.size() - 1:
+			for i in nx - 1:
+				var q := j * nx + i
+				idx.append_array([q, q + 1, q + nx + 1, q, q + nx + 1, q + nx])
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), idx, pts, col)
 		# The rules: one device px (1.25 at 540-class), light gold, fading with the band ends;
 		# a gap at the centre holds the diamond.
 		var lw := -1.0 if UIKit.ui_scale() >= 0.9 else UIKit.line_px(1.0)
