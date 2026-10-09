@@ -631,7 +631,7 @@ func _layout_ribbon() -> void:
 	var rs := _ribbon.get_combined_minimum_size()
 	_ribbon.size = Vector2(_W - 2.0 * UITokens.GUTTER, rs.y)
 	# Bottom-left on the art, clear of the end-state dock.
-	_ribbon.position.y = _H - _ins.w - 28.0 - 88.0 - 34.0 - rs.y
+	_ribbon.position.y = _H - _ins.w - 52.0 - 88.0 - 34.0 - rs.y
 
 
 ## Splash rect (the art fills ~90 % of the height; its body sits on focus_x).
@@ -1113,7 +1113,10 @@ func _render_card(u: float, L: float, st: Dictionary) -> void:
 	if _card_dup.visible:
 		_card_dup.reset_size()
 		_card_dup.position = Vector2((_W - _card_dup.size.x) * 0.5, dest.y + cs.y * 0.5 + vs.y * 0.5 + 30.0)
-		_card_dup.modulate.a = SummonFx.seg(u, float(b["card"]) * k + 0.25, 0.2) if not reduce else 1.0
+		# Fully opaque by the end of the beat (it used to stop at ~0.75 when the beat is short, so
+		# the dais showed through the slip and the label fell to 3.8:1).
+		var d0 := minf(float(b["card"]) * k + 0.25, L - 0.2)
+		_card_dup.modulate.a = SummonFx.seg(u, d0, 0.2) if not reduce else 1.0
 
 
 ## A deterministic FX layer: "back" (additive light behind the art), "mid" (seeds, crystal, cracks,
