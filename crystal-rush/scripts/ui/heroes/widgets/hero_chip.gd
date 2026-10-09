@@ -1,8 +1,8 @@
 class_name HeroChip
 extends Button
-## Engraved cartouche chip (heroes_design.md §9.1: filter / Focus / History / Odds chips): a 56 px
-## visual inside an 88 px hit area, 45-degree chamfer 6, cream with a gold hairline and an inner
-## hairline 3 px in; active = gold fill + dark text. Optional leading icon (line icon, painted
+## Glass chip (heroes_design.md §9.1: filter / Focus / History / Odds chips; UI v3.1 §7.4): a 56 px
+## visual inside an 88 px hit area, 45-degree chamfer 6, frameless translucent cream with a 1 dpx
+## light line; active = cream 0.94 with one 1 dpx deep-gold line and deep-gold Medium ink. Optional leading icon (line icon, painted
 ## icon via HeroIcons, or a gem-cut mark with `gem`).
 ##   var c := HeroChip.make("Шанси", "odds")
 ##   c.pressed.connect(_open_odds)
@@ -26,6 +26,9 @@ var active := false:
 		queue_redraw()
 var label_size := 22
 var visual_h := 56.0
+## Over painted art (the Showcase dock): the inactive chip is real glass (0.84 with its 1 dpx
+## gold line) instead of the frameless page chip, so its label keeps >= 4.5:1 on any art.
+var on_art := false
 
 
 static func make(p_label: String, p_icon := "", p_gem := "") -> HeroChip:
@@ -58,7 +61,7 @@ func _icon_w() -> float:
 
 
 func _resize() -> void:
-	var f := UIKit.font_w("bold")
+	var f := UIKit.font_w("medium")
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size).x if label != "" else 0.0
 	var iw := _icon_w()
 	var w := tw + iw + (10.0 if iw > 0.0 and tw > 0.0 else 0.0) + 40.0
@@ -67,34 +70,28 @@ func _resize() -> void:
 
 
 func _draw() -> void:
+	# v3.1 (§7.4, §3.2): a frameless glass chip (translucent cream, a 1 dpx inner light line, no
+	# gold frame, no drop shadow); active = the selected-segment idiom: cream 0.94 with ONE 1 dpx
+	# deep-gold line and deep-gold ink (never an amber fill: amber is for the key verbs only).
 	var vr := Rect2(Vector2(0, (size.y - visual_h) * 0.5), Vector2(size.x, visual_h))
-	if is_pressed() or button_pressed and toggle_mode:
-		vr.position.y += 1.0
-	var pts := GemDraw.chamfer_rect(vr, UITokens.CHAMFER_XS)
-	var sh := PackedVector2Array()
-	for p in pts:
-		sh.append(p + Vector2(0, 2))
-	draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.1))
+	var down := is_pressed() or (button_pressed and toggle_mode)
 	if active:
-		var cols := PackedColorArray()
-		for p in pts:
-			var t := (p.y - vr.position.y) / vr.size.y
-			cols.append(Color("#F3D89A").lerp(Color("#D9AE5A"), t))
-		draw_polygon(pts, cols)
+		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.94, HeroV3.DEEP, 0.9, 0.7)
+	elif on_art:
+		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.9 if down else 0.84, HeroV3.GOLD, 0.8, 0.62, 0.08,
+				UITokens.PAPER_3 if down else UITokens.PAPER_0)
 	else:
-		draw_colored_polygon(pts, UITokens.PAPER_3 if is_pressed() else UITokens.PAPER_0)
-	GemDraw.outline(self, pts, UITokens.HAIRLINE if not active else Color("#A87A2C"), 1.5)
-	var inner := GemDraw.chamfer_rect(vr.grow(-3.0), UITokens.CHAMFER_XS - 1.5)
-	GemDraw.outline(self, inner, Color(1, 1, 1, 0.55) if active else Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.35), 1.0)
-	var f := UIKit.font_w("bold")
+		HeroV3.glass(self, vr, UITokens.CHAMFER_XS, 0.72 if down else 0.5, HeroV3.GOLD, 0.0, 0.55,
+				0.0, UITokens.PAPER_3 if down else UITokens.PAPER_0)
+	var f := UIKit.font_w("medium")
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size).x if label != "" else 0.0
 	var iw := _icon_w()
 	var gapw := 10.0 if iw > 0.0 and tw > 0.0 else 0.0
 	var x := (size.x - (tw + iw + gapw)) * 0.5
 	var cy := vr.get_center().y
-	var ink := UIKit.BROWN if active else UITokens.INK
+	var ink := UITokens.GOLD_TEXT_GLASS if active else UITokens.INK
 	if gem != "":
-		GemDraw.draw_mark(self, UITokens.gem_of(gem), Vector2(x + iw * 0.5, cy), iw * 0.78)
+		GemDraw.draw_mark(self, UITokens.gem_of(gem), Vector2(x + iw * 0.5, cy), iw * 0.78, 1.0 if active else 0.92)
 	elif icon_kind != "":
 		HeroIcons.paint(self, icon_kind, Rect2(Vector2(x, cy - iw * 0.5), Vector2(iw, iw)), ink)
 	if label != "":

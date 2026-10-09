@@ -1,9 +1,10 @@
 class_name HeroWaxSeal
 extends Control
-## The «НОВИЙ» wax-seal stamp (heroes_design.md §9.1: NEW is a wax seal, never a red dot or a
-## numeric badge): a pressed disc of honey-amber wax with soft irregular drips, an embossed inner
-## ring and the word pressed into it, tilted a few degrees. `stamp()` plays the juicy press
-## (drops in from 1.5x, squash, settle; Reduce Motion: a 0.2 s fade).
+## The «НОВИЙ» mark (heroes_design.md §9.1: never a red dot or a numeric badge), UI v3.1: from
+## 76 px a chamfered glass tag (cream 0.95, one 1 dpx deep-gold line, the word in 22 px deep-gold
+## caps after a small amber diamond), centred on the control; under 76 px only the §7.11 notify
+## badge (the amber cut diamond on a cream disc). The class keeps its old name (call sites).
+## `stamp()` plays a quiet press-in (from 1.25x, no squash; Reduce Motion: a 0.2 s fade).
 ##   var s := HeroWaxSeal.make(64)          # text = HeroesText "HALL_NEW"
 ##   card.add_child(s); s.position = ...; s.stamp()
 
@@ -11,10 +12,7 @@ var text := "":
 	set(v):
 		text = v
 		queue_redraw()
-var tilt := -0.2
-const WAX_HI := Color("#F2B35A")
-const WAX := Color("#D27F2C")
-const WAX_LO := Color("#9A5418")
+var tilt := 0.0
 
 
 static func make(px := 64.0, p_text := "") -> HeroWaxSeal:
@@ -33,53 +31,43 @@ func stamp(delay := 0.0) -> void:
 		modulate.a = 0.0
 		create_tween().tween_property(self, "modulate:a", 1.0, 0.2).set_delay(delay)
 		return
-	scale = Vector2(1.5, 1.5)
+	scale = Vector2(1.25, 1.25)
 	modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_interval(delay)
-	tw.tween_property(self, "modulate:a", 1.0, 0.08)
-	tw.parallel().tween_property(self, "scale", Vector2(0.9, 0.9), 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(self, "scale", Vector2(1.04, 1.04), 0.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_property(self, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "modulate:a", 1.0, 0.12)
+	tw.parallel().tween_property(self, "scale", Vector2.ONE, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func _draw() -> void:
 	var s := minf(size.x, size.y)
 	var c := size * 0.5
-	var R := s * 0.44
-	draw_set_transform(c, tilt, Vector2.ONE)
-	# Wax blob: an irregular circle with three soft drips.
-	var pts := PackedVector2Array()
-	var n := 40
-	for i in n:
-		var a := TAU * i / n
-		var k := 1.0 + 0.045 * sin(a * 5.0 + 0.7) + 0.03 * sin(a * 9.0 + 2.1)
-		pts.append(Vector2(cos(a), sin(a)) * R * k)
-	var sh := PackedVector2Array()
-	for p in pts:
-		sh.append(p + Vector2(s * 0.02, s * 0.05))
-	draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.26))
-	var cols := PackedColorArray()
-	for p in pts:
-		var t := clampf((p.y + R) / (2.0 * R), 0.0, 1.0)
-		cols.append(WAX_HI.lerp(WAX, smoothstep(0.0, 0.6, t)).lerp(WAX_LO, smoothstep(0.55, 1.0, t)))
-	draw_polygon(pts, cols)
-	for d: Vector2 in [Vector2(0.62, 0.66), Vector2(-0.74, 0.5), Vector2(0.1, 0.92)]:
-		draw_circle(d * R, R * 0.13, WAX.lerp(WAX_LO, 0.4), true, -1.0, true)
-	GemDraw.outline(self, pts, Color(WAX_LO.r * 0.8, WAX_LO.g * 0.8, WAX_LO.b * 0.8, 0.7), 1.0)
-	# Embossed inner ring (a dark groove under a light lip).
-	draw_arc(Vector2(0, 1.0), R * 0.74, 0, TAU, 48, Color(0.4, 0.18, 0.04, 0.45), maxf(1.0, s * 0.03), true)
-	draw_arc(Vector2.ZERO, R * 0.74, 0, TAU, 48, Color(1.0, 0.86, 0.62, 0.7), maxf(1.0, s * 0.018), true)
-	# Wax sheen.
-	draw_arc(Vector2.ZERO, R * 0.9, PI * 1.1, PI * 1.55, 16, Color(1, 0.95, 0.85, 0.55), maxf(1.0, s * 0.03), true)
-	# The word, pressed in (dark groove offset under a light face).
-	if text != "":
-		var f := UIKit.font_w("extrabold")
-		var fs := int(s * 0.2)
-		while fs > 10 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > R * 1.36:
-			fs -= 1
-		var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var base := Vector2(-tw * 0.5, f.get_ascent(fs) * 0.36)
-		draw_string(f, base + Vector2(0, 1.2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.36, 0.16, 0.03, 0.7))
-		draw_string(f, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("#FFF1D6"))
+	if tilt != 0.0:
+		draw_set_transform(c, tilt, Vector2.ONE)
+		c = Vector2.ZERO
+	# UI v3.1: no wax, no orange. Small sizes (cards S / M, history rows) carry the notify badge of
+	# §7.11 (an amber cut diamond); from 64 px a glass tag with the word in deep-gold caps (22 px),
+	# one 1 dpx deep-gold line and the same amber diamond as its key.
+	var f := UIKit.font_w("medium")
+	var fs := 22
+	var track := 2
+	var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + track * maxi(text.length() - 1, 0)
+	if s < 76.0 or text == "":
+		var d := clampf(s * 0.42, 18.0, 30.0)
+		draw_circle(c, d * 0.62, HeroV3.a(UITokens.PAPER_0, 0.9), true, -1.0, true)
+		draw_arc(c, d * 0.62, 0, TAU, 40, HeroV3.a(HeroV3.DEEP, 0.6), HeroV3.lp(1.0), true)
+		GemDraw.draw_diamond(self, c, d * 0.78, UITokens.TOPAZ, Color("#A8662A"))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
+	var h := 36.0
+	var dz := 12.0
+	var w := tw + dz + 10.0 + 28.0
+	var r := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
+	HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.95, HeroV3.DEEP, 0.9, 0.7, 0.12)
+	GemDraw.draw_diamond(self, Vector2(r.position.x + 14.0 + dz * 0.5, r.get_center().y), dz, UITokens.TOPAZ, Color("#A8662A"))
+	var x := r.position.x + 14.0 + dz + 10.0
+	var y := r.get_center().y + f.get_ascent(fs) * 0.36
+	for ch in text:
+		draw_string(f, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS)
+		x += f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + track
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

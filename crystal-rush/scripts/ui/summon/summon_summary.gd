@@ -112,7 +112,7 @@ func _ready() -> void:
 	_pity.label = HeroesText.t("PORTAL_PITY_L", [int(after.get("pity_l_left", 30))])
 	_pity.value_text = HeroesText.t("PORTAL_PITY_E", [int(after.get("pity_e_left", 10))])
 	col.add_child(_pity)
-	_frags = UIKit.label(_frag_line(), 22, UITokens.INK_DIM)
+	_frags = UIKit.label(_frag_line(), 22, UITokens.INK_DIM_GLASS)
 	_frags.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_frags.custom_minimum_size.x = 560
 	col.add_child(_frags)

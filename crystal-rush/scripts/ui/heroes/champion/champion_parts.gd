@@ -30,7 +30,7 @@ class CardArt extends Control:
 		if st in ["splash", "card"]:
 			_tex = HeroArt.card_texture(id)
 		if _tex == null:
-			_note = UIKit.caps(HeroesText.t("CHAMP_UI_ART_SOON"), 20, UITokens.GOLD_TEXT)
+			_note = UIKit.caps(HeroesText.t("CHAMP_UI_ART_SOON"), 20, UITokens.GOLD_TEXT_GLASS)
 			_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			add_child(_note)
@@ -167,7 +167,7 @@ class RelicSocket extends Control:
 		draw_arc(c, R, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
 		draw_arc(c, R - 5.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), 1.0, true)
 		var s := R * 1.1
-		HeroIcons.paint(self, "sk_relic", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.GOLD_TEXT)
+		HeroIcons.paint(self, "sk_relic", Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), UITokens.GOLD_TEXT_GLASS)
 
 
 class TierPips extends Control:
@@ -185,7 +185,7 @@ class TierPips extends Control:
 			var lit := i < tier
 			GemDraw.draw_pip(self, c, 28.0, lit, HeroFacetPips.pip_color(g) if lit else UITokens.TOPAZ)
 			draw_string(f, Vector2(c.x - 22.0, 52.0), HeroesText.roman(i + 1), HORIZONTAL_ALIGNMENT_CENTER, 44.0, 20,
-					UITokens.INK if lit else Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.7))
+					UITokens.INK if lit else Color(UITokens.INK_DIM_GLASS.r, UITokens.INK_DIM_GLASS.g, UITokens.INK_DIM_GLASS.b, 0.7))
 
 
 class RunDemo extends Control:

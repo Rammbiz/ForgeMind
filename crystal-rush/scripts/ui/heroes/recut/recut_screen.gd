@@ -116,7 +116,7 @@ func _build() -> void:
 	tcol.add_child(UIKit.gradient_heading(HeroesText.t("RECUT_TITLE"), 44))
 	var sub := HeroesText.t("RECUT_HEAD", [str(_d["name"]), HeroesText.gem_name(gem), HeroesText.gem_name(nxt)]) if nxt != "" \
 			else str(_d["name"]) + " · " + HeroesText.gem_name(gem)
-	tcol.add_child(UIKit.label(sub, 26, UITokens.GOLD_TEXT, true))
+	tcol.add_child(UIKit.label(sub, 26, UITokens.GOLD_TEXT_GLASS, true))
 	_header.add_child(tcol)
 	var cx := UIKit.edge_button("help", 34.0)
 	cx.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -171,7 +171,7 @@ func _unlocks(inner: float) -> Control:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
 	head.add_child(UIKit.section(HeroesText.t("RECUT_UNLOCKS")))
-	var note := UIKit.label(HeroesText.t("RECUT_UNLOCK_NOTE"), 22, UITokens.INK_DIM)
+	var note := UIKit.label(HeroesText.t("RECUT_UNLOCK_NOTE"), 22, UITokens.INK_DIM_GLASS)
 	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	note.clip_text = true
 	note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -190,7 +190,7 @@ func _unlocks(inner: float) -> Control:
 		c.add_theme_stylebox_override("panel", UIKit.cbox(fill, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, 1, Vector2(12, 3)))
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 8)
-		var ic := Icons.make("arrow_up", 22.0, UIKit.BROWN if first else UITokens.GOLD_TEXT)
+		var ic := Icons.make("arrow_up", 22.0, UIKit.BROWN if first else UITokens.GOLD_TEXT_GLASS)
 		ic.custom_minimum_size = Vector2(22, 22)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(ic)
@@ -234,10 +234,10 @@ func _table(inner: float) -> Control:
 	var nxt := str(_p["next"])
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 0)
-	head.add_child(_cell("", lw, 20, UITokens.INK_SOFT, false, HORIZONTAL_ALIGNMENT_LEFT))
-	head.add_child(_cell(HeroesText.t("RECUT_COL_NOW"), cw, 20, UITokens.INK_SOFT, true))
-	head.add_child(_cell(HeroesText.t("RECUT_COL_AFTER"), cw, 20, UITokens.GOLD_TEXT, true))
-	head.add_child(_cell(HeroesText.t("RECUT_COL_NATIVE", [HeroesText.gem_name(nxt)]), cw, 20, UITokens.INK_SOFT, true))
+	head.add_child(_cell("", lw, 20, UITokens.INK_DIM_GLASS, false, HORIZONTAL_ALIGNMENT_LEFT))
+	head.add_child(_cell(HeroesText.t("RECUT_COL_NOW"), cw, 20, UITokens.INK_DIM_GLASS, true))
+	head.add_child(_cell(HeroesText.t("RECUT_COL_AFTER"), cw, 20, UITokens.GOLD_TEXT_GLASS, true))
+	head.add_child(_cell(HeroesText.t("RECUT_COL_NATIVE", [HeroesText.gem_name(nxt)]), cw, 20, UITokens.INK_DIM_GLASS, true))
 	v.add_child(head)
 	v.add_child(UIKit.hairline())
 	for r: Dictionary in _p["rows"]:
@@ -254,7 +254,7 @@ func _table(inner: float) -> Control:
 		row.custom_minimum_size = Vector2(w, 56)
 		v.add_child(row)
 	v.add_child(UIKit.gap(6))
-	var leg := UIKit.label(HeroesText.t("RECUT_AT_FULL"), 22, UITokens.INK_SOFT)
+	var leg := UIKit.label(HeroesText.t("RECUT_AT_FULL"), 22, UITokens.INK_DIM_GLASS)
 	v.add_child(leg)
 	v.add_child(UIKit.gap(4))
 	return p
@@ -286,12 +286,12 @@ func _top_status(inner: float) -> Control:
 		if bool(awk.get("open", false)) or bool(awk.get("born", false)):
 			v.add_child(UIKit.label(HeroesText.t("RECUT_TOP_AWAKEN", [int(awk.get("rank", 0)), int(awk.get("cap", 0))]), 24, UITokens.INK))
 	v.add_child(UIKit.hairline())
-	var l := UIKit.label(HeroesText.t("RECUT_AT_MAX"), 22, UITokens.INK_DIM)
+	var l := UIKit.label(HeroesText.t("RECUT_AT_MAX"), 22, UITokens.INK_DIM_GLASS)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(inner - 48.0, 0)
 	v.add_child(l)
 	if not hero:
-		v.add_child(UIKit.label(HeroesText.t("RECUT_OPAL_HEROES"), 22, UITokens.INK_DIM))
+		v.add_child(UIKit.label(HeroesText.t("RECUT_OPAL_HEROES"), 22, UITokens.INK_DIM_GLASS))
 	return p
 
 
@@ -328,12 +328,12 @@ func _ceiling(inner: float) -> Control:
 	honest.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	honest.custom_minimum_size = Vector2(w, 0)
 	v.add_child(honest)
-	var eq := UIKit.label(HeroesText.t("RECUT_EQUAL", [HeroesText.gem_name(nxt), HeroesText.pct(float(_p["equal_gap"]), 1)]), 22, UITokens.INK_DIM)
+	var eq := UIKit.label(HeroesText.t("RECUT_EQUAL", [HeroesText.gem_name(nxt), HeroesText.pct(float(_p["equal_gap"]), 1)]), 22, UITokens.INK_DIM_GLASS)
 	eq.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	eq.custom_minimum_size = Vector2(w, 0)
 	v.add_child(eq)
 	if bool(_p["first_recut"]):
-		var ex := UIKit.label(HeroesText.t("RECUT_NATIVE_EXPLAIN"), 22, UITokens.INK_DIM)
+		var ex := UIKit.label(HeroesText.t("RECUT_NATIVE_EXPLAIN"), 22, UITokens.INK_DIM_GLASS)
 		ex.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ex.custom_minimum_size = Vector2(w, 0)
 		v.add_child(ex)
@@ -363,9 +363,9 @@ func _cost(inner: float) -> Control:
 	bar.value_text = "%s / %s" % [HeroesText.num(have), HeroesText.num(cost)]
 	bar.label_size = 24
 	v.add_child(bar)
-	v.add_child(UIKit.label(HeroesText.t("RECUT_COST_ONLY"), 22, UITokens.INK_DIM))
+	v.add_child(UIKit.label(HeroesText.t("RECUT_COST_ONLY"), 22, UITokens.INK_DIM_GLASS))
 	if int(_p["short"]) > 0:
-		var src := UIKit.label(HeroesText.t("MANAGE_FACET_SOURCES"), 22, UITokens.INK_DIM)
+		var src := UIKit.label(HeroesText.t("MANAGE_FACET_SOURCES"), 22, UITokens.INK_DIM_GLASS)
 		src.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		src.custom_minimum_size = Vector2(inner - 48.0, 0)
 		v.add_child(src)
@@ -543,7 +543,7 @@ class _Stones extends Control:
 		var nx := b.x + 84.0 * wide
 		draw_string(f, Vector2(nx, cy - 4.0), HeroesText.gem_name(next), HORIZONTAL_ALIGNMENT_LEFT, W - nx, 30, UITokens.INK)
 		var fm := UIKit.font(false)
-		draw_string(fm, Vector2(nx, cy + 26.0), HeroesText.t("RECUT_STONE_NATIVE", [HeroesText.gem_name(native)]), HORIZONTAL_ALIGNMENT_LEFT, W - nx, 22, UITokens.GOLD_TEXT)
+		draw_string(fm, Vector2(nx, cy + 26.0), HeroesText.t("RECUT_STONE_NATIVE", [HeroesText.gem_name(native)]), HORIZONTAL_ALIGNMENT_LEFT, W - nx, 22, UITokens.GOLD_TEXT_GLASS)
 
 
 ## The five-gem path: each cut 30 px with its name; native = «корінний», current = a ring
@@ -588,10 +588,10 @@ class _Path extends Control:
 			draw_string(fb if i == xi or i == gi else f, Vector2(c.x - step * 0.5, y + 46.0), name, HORIZONTAL_ALIGNMENT_CENTER, step, 22,
 					Color(UITokens.INK.r, UITokens.INK.g, UITokens.INK.b, 1.0 if alpha > 0.5 else 0.55))
 			var tag := ""
-			var tcol := UITokens.INK_SOFT
+			var tcol := UITokens.INK_DIM_GLASS
 			if i == ni:
 				tag = HeroesText.t("RECUT_PATH_NATIVE")
-				tcol = UITokens.GOLD_TEXT
+				tcol = UITokens.GOLD_TEXT_GLASS
 			if i == gi and i != ni:
 				tag = HeroesText.t("RECUT_PATH_NOW")
 			if i == xi:
@@ -600,7 +600,7 @@ class _Path extends Control:
 			if tag != "":
 				draw_string(fb, Vector2(c.x - step * 0.5 - 6.0, y + 68.0), tag, HORIZONTAL_ALIGNMENT_CENTER, step + 12.0, 20, tcol)
 			if i == gi and i == ni:
-				draw_string(fb, Vector2(c.x - step * 0.5 - 6.0, y + 88.0), HeroesText.t("RECUT_PATH_NOW"), HORIZONTAL_ALIGNMENT_CENTER, step + 12.0, 20, UITokens.INK_SOFT)
+				draw_string(fb, Vector2(c.x - step * 0.5 - 6.0, y + 88.0), HeroesText.t("RECUT_PATH_NOW"), HORIZONTAL_ALIGNMENT_CENTER, step + 12.0, 20, UITokens.INK_DIM_GLASS)
 
 
 ## One honesty-table row: label · now · after (→ at Full facets) · native (→ at Full facets).
@@ -628,7 +628,7 @@ class _TableRow extends Control:
 		draw_line(Vector2(0, h - 0.5), Vector2(size.x, h - 0.5), Color(hl.r, hl.g, hl.b, 0.45), 1.0)
 		var f := UIKit.font(false)
 		var fb := UIKit.font(true)
-		draw_string(f, Vector2(0, h * 0.5 + 8.0), label, HORIZONTAL_ALIGNMENT_LEFT, lw - 8.0, 22, UITokens.INK_DIM)
+		draw_string(f, Vector2(0, h * 0.5 + 8.0), label, HORIZONTAL_ALIGNMENT_LEFT, lw - 8.0, 22, UITokens.INK_DIM_GLASS)
 		_cell(lw, now, "", fb, f)
 		_cell(lw + cw, after, after_full, fb, f)
 		_cell(lw + cw * 2.0, native, native_full, fb, f)
@@ -643,12 +643,12 @@ class _TableRow extends Control:
 				# Two lines («ранг 4» / «від народження») instead of clipping.
 				var parts := main.split(" · ", false, 1)
 				draw_string(fb, Vector2(x, h * 0.5 - 3.0), parts[0], HORIZONTAL_ALIGNMENT_CENTER, cw, fs, UITokens.INK)
-				draw_string(f, Vector2(x, h * 0.5 + 22.0), parts[1], HORIZONTAL_ALIGNMENT_CENTER, cw, 20, UITokens.INK_DIM)
+				draw_string(f, Vector2(x, h * 0.5 + 22.0), parts[1], HORIZONTAL_ALIGNMENT_CENTER, cw, 20, UITokens.INK_DIM_GLASS)
 				return
 			draw_string(fb, Vector2(x, h * 0.5 + 9.0), main, HORIZONTAL_ALIGNMENT_CENTER, cw, fs, UITokens.INK)
 			return
 		draw_string(fb, Vector2(x, h * 0.5 - 3.0), main, HORIZONTAL_ALIGNMENT_CENTER, cw, fs, UITokens.INK)
-		draw_string(fb, Vector2(x, h * 0.5 + 24.0), "→ " + full, HORIZONTAL_ALIGNMENT_CENTER, cw, 22, UITokens.GOLD_TEXT)
+		draw_string(fb, Vector2(x, h * 0.5 + 24.0), "→ " + full, HORIZONTAL_ALIGNMENT_CENTER, cw, 22, UITokens.GOLD_TEXT_GLASS)
 
 
 ## The native-ceiling bar: track = a native's Full facets in the next gem (100 %); fill = where you
@@ -685,7 +685,7 @@ class _CeilingBar extends Control:
 			x += 7.0
 		GemDraw.outline(self, pts, hl, 1.5)
 		# Marks.
-		draw_line(Vector2(xf, y - 6.0), Vector2(xf, y + hch + 8.0), UITokens.GOLD_TEXT, 2.0, true)
+		draw_line(Vector2(xf, y - 6.0), Vector2(xf, y + hch + 8.0), UITokens.GOLD_TEXT_GLASS, 2.0, true)
 		# The ceiling keystone hangs under the bar (the native label owns the space above it).
 		GemDraw.draw_keystone(self, Vector2(xf, y + hch + 12.0), 14.0)
 		draw_line(Vector2(x1 - 1.0, y - 8.0), Vector2(x1 - 1.0, y + hch + 8.0), UITokens.INK, 2.0, true)
@@ -693,12 +693,12 @@ class _CeilingBar extends Control:
 		var fm := UIKit.font(false)
 		var you := HeroesText.t("RECUT_CEILING_YOU") + " " + HeroesText.pct(float(bar["full"]), 1)
 		var yw := fm.get_string_size(you, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-		draw_string(f, Vector2(maxf(0.0, xf - yw - 16.0), y + hch + 30.0), you, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.GOLD_TEXT)
+		draw_string(f, Vector2(maxf(0.0, xf - yw - 16.0), y + hch + 30.0), you, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.GOLD_TEXT_GLASS)
 		var nat := HeroesText.t("RECUT_CEILING_NATIVE") + " " + HeroesText.pct(1.0, 0)
 		var nw := f.get_string_size(nat, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 		draw_string(f, Vector2(W - nw, y - 14.0), nat, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.INK)
 		var nowt := HeroesText.t("RECUT_COL_NOW") + " " + HeroesText.pct(float(bar["now"]), 1)
-		draw_string(fm, Vector2(0, y - 14.0), nowt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.INK_DIM)
+		draw_string(fm, Vector2(0, y - 14.0), nowt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.INK_DIM_GLASS)
 
 
 ## Removes every child at once (queue_free alone leaves them in the layout until the frame ends).

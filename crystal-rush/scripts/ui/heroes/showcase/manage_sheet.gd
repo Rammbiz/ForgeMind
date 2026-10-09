@@ -53,7 +53,7 @@ func _ready() -> void:
 	head.add_child(em)
 	head.move_child(em, 0)
 	_title.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	var nm := UIKit.label("· " + str(_h["name"]), 30, UITokens.GOLD_TEXT, true)
+	var nm := UIKit.label("· " + str(_h["name"]), 30, UITokens.GOLD_TEXT_GLASS, true)
 	nm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(nm)
@@ -152,7 +152,7 @@ func _fit_to_page(relayout := true) -> void:
 			_layout()
 
 
-func _small(text: String, col := UITokens.INK_SOFT) -> Label:
+func _small(text: String, col := UITokens.INK_DIM_GLASS) -> Label:
 	var l := UIKit.label(text, 22, col)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(560, 0)
@@ -167,7 +167,7 @@ func _teaser(page: Control, key: String, at: int) -> bool:
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.custom_minimum_size = Vector2(0, 260)
 	box.add_theme_constant_override("separation", 12)
-	var ic := Icons.make("lock", 48.0, UITokens.INK_DIM)
+	var ic := Icons.make("lock", 48.0, UITokens.INK_DIM_GLASS)
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(ic)
 	var l := UIKit.label(HeroesText.t("MANAGE_TEASER", [HeroesText.t(key), at]), 26, UITokens.INK, true)
@@ -188,19 +188,19 @@ func _level_page(page: Control) -> void:
 	page.add_child(top)
 	var lvc := VBoxContainer.new()
 	lvc.add_theme_constant_override("separation", -6)
-	lvc.add_child(UIKit.caps(HeroesText.t("MANAGE_TAB_LEVEL"), 20, UITokens.GOLD_TEXT))
+	lvc.add_child(UIKit.caps(HeroesText.t("MANAGE_TAB_LEVEL"), 20, UITokens.GOLD_TEXT_GLASS))
 	var lr := HBoxContainer.new()
 	lr.add_theme_constant_override("separation", 6)
 	var num := UIKit.number(str(lv), 72)
 	lr.add_child(num)
-	var cl := UIKit.label("/ %d" % cap, 30, UITokens.INK_DIM, true)
+	var cl := UIKit.label("/ %d" % cap, 30, UITokens.INK_DIM_GLASS, true)
 	cl.size_flags_vertical = Control.SIZE_SHRINK_END
 	lr.add_child(cl)
 	lvc.add_child(lr)
 	top.add_child(lvc)
 	var mc := VBoxContainer.new()
 	mc.add_theme_constant_override("separation", -6)
-	mc.add_child(UIKit.caps(HeroesText.t("POWER"), 20, UITokens.GOLD_TEXT))
+	mc.add_child(UIKit.caps(HeroesText.t("POWER"), 20, UITokens.GOLD_TEXT_GLASS))
 	mc.add_child(UIKit.number(HeroesText.num(int(h["might"])), 56))
 	top.add_child(mc)
 	var bar := HeroEngravedBar.make(str(h["gem"]), lv, cap, 600)
@@ -232,7 +232,7 @@ func _level_page(page: Control) -> void:
 		cta.disabled = true
 	page.add_child(cta)
 	page.add_child(UIKit.hairline())
-	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT))
+	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT_GLASS))
 	page.add_child(_small(HeroesText.t("MANAGE_LEVEL_GIVES", [HeroesText.pct(Ladder.LV_DMG, 1), HeroesText.pct(Ladder.LV_HP, 0), HeroesText.pct(Ladder.LV_RATE, 0)])))
 	var ult := 1.0 + Ladder.LV_ULT * (lv - 1)
 	var us := ("%.2f" % ult)
@@ -296,7 +296,7 @@ func _facets_page(page: Control) -> void:
 		else:
 			page.add_child(_small(HeroesText.t("MANAGE_RECUT_NEED", [ng, HeroesText.t("FACET_FRAGS", [int(rc["have"]), int(rc["cost"])])]), UITokens.INK))
 	page.add_child(UIKit.hairline())
-	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT))
+	page.add_child(UIKit.caps(HeroesText.t("MANAGE_TRUE_VALUE"), 20, UITokens.GOLD_TEXT_GLASS))
 	page.add_child(_small(HeroesText.t("FACET_GIVES", [HeroesText.pct(Ladder.FACET_STEP)])))
 	page.add_child(_small(HeroesText.t("FACET_GIVES_FULL")))
 	if bool(h["is_recut"]):
@@ -312,7 +312,7 @@ func _skills_page(page: Control) -> void:
 	var h := _h
 	var cur := HeroesUIModel.currencies()
 	var top := HBoxContainer.new()
-	top.add_child(UIKit.label(HeroesText.t("MANAGE_SKILL_CAP_NOTE"), 22, UITokens.INK_DIM))
+	top.add_child(UIKit.label(HeroesText.t("MANAGE_SKILL_CAP_NOTE"), 22, UITokens.INK_DIM_GLASS))
 	top.get_child(0).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	(top.get_child(0) as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	top.add_child(HeroCurrencyChip.make("tomes", HeroesText.num(int(cur["tomes"])), 150))
@@ -324,7 +324,7 @@ func _skills_page(page: Control) -> void:
 		var em := HeroGemEmblem.make(str(h["gem"]), 44, str(h["native"]))
 		em.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		cr.add_child(em)
-		var cl := _small(HeroesText.t("MANAGE_SKILL_CEILING", [HeroesText.gem_name(str(h["gem"]), "PL")]), UITokens.GOLD_TEXT)
+		var cl := _small(HeroesText.t("MANAGE_SKILL_CEILING", [HeroesText.gem_name(str(h["gem"]), "PL")]), UITokens.GOLD_TEXT_GLASS)
 		cl.custom_minimum_size = Vector2(0, 0)
 		cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cr.add_child(cl)
@@ -345,7 +345,7 @@ func _skills_page(page: Control) -> void:
 		var nl := HBoxContainer.new()
 		nl.add_theme_constant_override("separation", 10)
 		nl.add_child(UIKit.label(HeroesText.skill_name(hero_id, s), 24, UITokens.INK, true))
-		nl.add_child(UIKit.caps(HeroesText.skill_kind(s), 20, UITokens.GOLD_TEXT))
+		nl.add_child(UIKit.caps(HeroesText.skill_kind(s), 20, UITokens.GOLD_TEXT_GLASS))
 		col.add_child(nl)
 		var locked := s == "awakened" and not bool(r.get("open", false))
 		if locked:
@@ -356,7 +356,7 @@ func _skills_page(page: Control) -> void:
 				rk = HeroesText.t("MANAGE_SKILL_CAP_ROW", [rk])
 			col.add_child(UIKit.label(rk, 22, UITokens.INK))
 			if s == "ult":
-				col.add_child(UIKit.label(HeroesText.t("SKL_FORM", [HeroesText.roman(int(r["form"]))]) + " · " + HeroesText.t("FORM_" + str(r["form_gem"])), 22, UITokens.INK_DIM))
+				col.add_child(UIKit.label(HeroesText.t("SKL_FORM", [HeroesText.roman(int(r["form"]))]) + " · " + HeroesText.t("FORM_" + str(r["form_gem"])), 22, UITokens.INK_DIM_GLASS))
 			var gives := ""
 			match s:
 				"ult": gives = HeroesText.t("MANAGE_SKILL_ULT", [HeroesText.pct(Ladder.ULT_RANK_STEP)])
@@ -410,14 +410,14 @@ class _GearWell extends Control:
 		var R := size.x * 0.3
 		for k: float in [1.0, 0.82]:
 			var pts := GemDraw.cut_points("square", c, R * 2.0 * k)
-			GemDraw.outline(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8 if k == 1.0 else 0.4), 1.4)
+			HeroV3.frame(self, pts, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8 if k == 1.0 else 0.4))
 		var icon: String = {"weapon": "cls_warrior", "armour": "cls_guardian", "charm": "gem", "relic": "crown"}[slot]
 		var s := R * 1.0
 		var ir := Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s))
 		if open:
-			Icons.draw_icon(self, icon, ir, Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.55))
+			Icons.draw_icon(self, icon, ir, Color(UITokens.INK_DIM_GLASS.r, UITokens.INK_DIM_GLASS.g, UITokens.INK_DIM_GLASS.b, 0.55))
 		else:
-			Icons.draw_icon(self, "lock", ir, UITokens.INK_DIM)
+			Icons.draw_icon(self, "lock", ir, UITokens.INK_DIM_GLASS)
 		var f := UIKit.font_w("bold")
 		var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 		draw_string(f, Vector2((size.x - tw) * 0.5, r.end.y + 26.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UITokens.INK)
@@ -426,4 +426,4 @@ class _GearWell extends Control:
 		while fs > 16 and fm.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x:
 			fs -= 1
 		var sw := fm.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(fm, Vector2((size.x - sw) * 0.5, r.end.y + 26.0 + fs + 4.0), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK_DIM)
+		draw_string(fm, Vector2((size.x - sw) * 0.5, r.end.y + 26.0 + fs + 4.0), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK_DIM_GLASS)

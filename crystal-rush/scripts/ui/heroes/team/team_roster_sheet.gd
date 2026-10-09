@@ -32,7 +32,7 @@ func _ready() -> void:
 		title = HeroesText.t("TEAM_ROSTER_HERO")
 	else:
 		title = HeroesText.t("TEAM_ROSTER_CHAMP", [HeroesTeamLogic.slot_label(slot_name) if slot_name != &"" else ""])
-	var hint := UIKit.label(HeroesText.t("TEAM_ROSTER_HINT"), 22, UITokens.INK_DIM)
+	var hint := UIKit.label(HeroesText.t("TEAM_ROSTER_HINT"), 22, UITokens.INK_DIM_GLASS)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(620, 0)
 	body.add_child(hint)
@@ -122,7 +122,7 @@ func _cell(d: Dictionary) -> Control:
 func _badge(text: String, kind: String) -> Control:
 	if kind == "none" or kind == "here":
 		# Plain 20 px status lines (no box).
-		var t := UIKit.label(text, 20, UITokens.GOLD_TEXT if kind == "here" else UITokens.INK_SOFT, kind == "here")
+		var t := UIKit.label(text, 20, UITokens.GOLD_TEXT_GLASS if kind == "here" else UITokens.INK_DIM_GLASS, kind == "here")
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		return t
 	var p := PanelContainer.new()
@@ -136,13 +136,13 @@ func _badge(text: String, kind: String) -> Control:
 			ink = UIKit.BROWN
 		"loss":
 			fill = UITokens.PAPER_2
-			ink = UITokens.INK_DIM
+			ink = UITokens.INK_DIM_GLASS
 		"here":
 			fill = UITokens.PAPER_0
-			ink = UITokens.GOLD_TEXT
+			ink = UITokens.GOLD_TEXT_GLASS
 		_:
 			fill = UITokens.PAPER_1
-			ink = UITokens.INK_SOFT
+			ink = UITokens.INK_DIM_GLASS
 			line = 0
 	p.add_theme_stylebox_override("panel", UIKit.cbox(fill, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, line, Vector2(8, 2)))
 	var l := UIKit.label(text, 22, ink, kind == "gain")

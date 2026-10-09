@@ -1,7 +1,7 @@
 class_name SummonSheet
 extends Control
-## Base of the Portal sheets (Шанси, Вибір за печатками, Історія, Фокус): a cream modal document
-## (UIKit lux "modal": one gold hairline, 45-degree chamfers), title + close disc, a divider and a
+## Base of the Portal sheets (Шанси, Вибір за печатками, Історія, Фокус): a frosted glass modal
+## (UI v3.1: HeroFrost / KitGlass frost, the text bed, one 1 dpx frame, top-corner flourishes), title + close disc, a divider and a
 ## scrolling body, centred between the top bar and the dock. Works in both hosts:
 ##  * HeroesNav route ("odds", "seals"): the hub modal layer gives the scrim; `closed` -> back();
 ##  * embedded over the Portal screen (args ["embedded"]): PortalScreen adds the scrim.
@@ -34,7 +34,12 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = UIKit.theme()
-	_panel = UIKit.panel("modal", Vector2(28, 24))
+	# v3.1 (§9 summon row): a frosted modal (the Portal night glows through the rim), the 94 % text
+	# bed under the body, top-corner flourishes; the kit's world frost when no heroes screen is up.
+	_panel = PanelContainer.new()
+	if not HeroFrost.frost_panel(_panel, "modal", Vector2(28, 24)):
+		_panel.free()
+		_panel = UIKit.panel("modal", Vector2(28, 24))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 	var col := VBoxContainer.new()
@@ -52,6 +57,9 @@ func _ready() -> void:
 	head.add_child(x)
 	col.add_child(head)
 	col.add_child(UIKit.divider(600.0))
+	var bed := UIKit.text_bed_of(_panel)
+	if bed:
+		bed.header = head
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -136,7 +144,7 @@ static func gem_mark(g: String, px := 34.0) -> Control:
 
 
 ## A wrapped body paragraph (22 px, ink dim).
-static func para(text: String, size := 22, color := UITokens.INK_DIM) -> Label:
+static func para(text: String, size := 22, color := UITokens.INK_DIM_GLASS) -> Label:
 	var l := UIKit.label(text, size, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size.x = 100

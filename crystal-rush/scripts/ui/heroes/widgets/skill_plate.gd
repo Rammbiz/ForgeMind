@@ -1,7 +1,7 @@
 class_name HeroSkillPlate
 extends Control
-## A skill plate (heroes_design.md §9.3, fusion §6.8 #3): an octagonal cut-gem plate of cream enamel
-## with gold walls and the skill glyph engraved in it; a bezel stone on the top edge in the gem of
+## A skill plate (heroes_design.md §9.3, fusion §6.8 #3; UI v3.1): an octagonal cut-gem plate of
+## cream glass with one 1 dpx gold line and the skill glyph in deep-gold line art; a bezel stone on the top edge in the gem of
 ## the CURRENT ult form (Ult only; a recut hero's stone can never pass its native gem - rule #3
 ## visible on the plate); a hallmark tag on the bottom edge ("3 / 5" or МАКС); the skill name
 ## under it. Locked: the enamel greys and a small lock sits on the glyph (Awakening locked = a
@@ -109,10 +109,9 @@ func _draw() -> void:
 	var s := plate
 	var c := Vector2(size.x * 0.5, 12.0 + s * 0.5 + (1.0 if _down else 0.0))
 	var oct := _oct(c, s)
-	var sh := PackedVector2Array()
-	for p in oct:
-		sh.append(p + Vector2(0, 4))
-	draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14))
+	# v3.1: a glass octagon (cream 0.88 over whatever is behind), ONE 1 dpx gold line with the
+	# 1 dpx light line inside it, one soft halo; locked = quieter glass; Awakening locked = geode.
+	HeroV3.shadow(self, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), 0.1)
 	var geode := locked and skill == "awakened"
 	var cols := PackedColorArray()
 	for p in oct:
@@ -120,13 +119,12 @@ func _draw() -> void:
 		if geode:
 			cols.append(Color("#8E8AA6").lerp(Color("#5C5874"), t))
 		elif locked:
-			cols.append(UITokens.PAPER_2.lerp(UITokens.PAPER_3, t))
+			cols.append(HeroV3.a(UITokens.PAPER_2.lerp(UITokens.PAPER_3, t), 0.82))
 		else:
-			cols.append(UITokens.PAPER_0.lerp(UITokens.PAPER_2, t * 0.9))
+			cols.append(HeroV3.a(UITokens.PAPER_0.lerp(UITokens.PAPER_1, t), 0.9 if not _down else 0.96))
 	draw_polygon(oct, cols)
-	# Gold walls: outer hairline + an inner wall 6 px in.
-	GemDraw.outline(self, oct, UITokens.HAIRLINE, 2.0)
-	GemDraw.outline(self, _oct(c, s - 12.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.55), 1.0)
+	HeroV3.light_line(self, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), s * 0.27, 0.0 if geode else 0.7)
+	HeroV3.frame(self, oct, HeroV3.a(HeroV3.GOLD, 0.9))
 	if geode:
 		# A sealed geode: a crack and a hint of crystal inside.
 		draw_polyline(PackedVector2Array([c + Vector2(-s * 0.3, -s * 0.12), c + Vector2(-s * 0.08, 0), c + Vector2(0.04 * s, -s * 0.1), c + Vector2(s * 0.3, s * 0.06)]), Color("#E8DFFF"), 1.6, true)
@@ -136,13 +134,11 @@ func _draw() -> void:
 	var gr := Rect2(c - Vector2(gs, gs) * 0.5, Vector2(gs, gs))
 	var icon := str(HeroIcons.SKILL_ICON.get(skill, "sk_relic"))
 	if not geode:
-		var ink := UITokens.GOLD_TEXT if not locked else Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.45)
-		HeroIcons.line(self, icon, Rect2(gr.position + Vector2(0, 1.5), gr.size), Color(1, 1, 1, 0.9))
+		var ink := UITokens.GOLD_TEXT_GLASS if not locked else HeroV3.a(UITokens.INK_DIM_GLASS, 0.5)
 		HeroIcons.line(self, icon, gr, ink)
 	if locked:
 		var lr := Rect2(c + Vector2(s * 0.14, s * 0.1), Vector2(s * 0.26, s * 0.26))
-		draw_circle(lr.get_center(), lr.size.x * 0.62, UITokens.PAPER_0)
-		draw_arc(lr.get_center(), lr.size.x * 0.62, 0, TAU, 32, UITokens.HAIRLINE, 1.2, true)
+		HeroV3.disc(self, lr.get_center(), lr.size.x * 0.62, 0.94)
 		Icons.draw_icon(self, "lock", lr.grow(-lr.size.x * 0.12), UITokens.INK)
 	# Bezel stone (the current ult form's gem) on the top edge.
 	if form_gem != "" and not locked:
@@ -151,28 +147,21 @@ func _draw() -> void:
 	if not locked and show_hallmark:
 		var maxed := rank >= cap
 		var txt := HeroesText.t("SKL_MAX") if maxed else HeroesText.t("SKL_RANK_SHORT", [rank, cap])
-		var f := UIKit.font_w("extrabold")
+		var f := UIKit.font_w("bold")
 		var fs := 20
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var tr := Rect2(Vector2(c.x - tw * 0.5 - 12.0, c.y + s * 0.5 - 15.0), Vector2(tw + 24.0, 30.0))
-		var tp := GemDraw.chamfer_rect(tr, 6.0)
-		if maxed:
-			var tc := PackedColorArray()
-			for p in tp:
-				tc.append(Color("#F3D89A").lerp(Color("#D9AE5A"), (p.y - tr.position.y) / tr.size.y))
-			draw_polygon(tp, tc)
-		else:
-			draw_colored_polygon(tp, UITokens.PAPER_0)
-		GemDraw.outline(self, tp, UITokens.HAIRLINE, 1.2)
-		draw_string(f, Vector2(tr.get_center().x - tw * 0.5, tr.get_center().y + f.get_ascent(fs) * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.BROWN if maxed else UITokens.INK)
+		# Hallmark: a glass tag at the text alpha; МАКС earns the deep-gold line and ink (no gold fill).
+		HeroV3.glass(self, tr, UITokens.CHAMFER_XS, 0.95, HeroV3.DEEP if maxed else HeroV3.GOLD, 0.9 if maxed else 0.8, 0.6)
+		draw_string(f, Vector2(tr.get_center().x - tw * 0.5, tr.get_center().y + f.get_ascent(fs) * 0.36), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.GOLD_TEXT_GLASS if maxed else UITokens.INK)
 		if born:
-			GemDraw.draw_keystone(self, Vector2(tr.end.x + 2.0, tr.position.y + 2.0), 13.0, 1.0, Color(1.0, 0.86, 0.5))
+			GemDraw.draw_diamond(self, Vector2(tr.end.x + 2.0, tr.position.y + 2.0), 10.0, UITokens.TOPAZ, Color("#A8662A"))
 	# Name and the native-ceiling note under the plate (centred, two lines max each).
 	var y := c.y + s * 0.5 + 24.0
 	if title != "":
 		y = _text_block(title, y, 22, UITokens.INK, "bold", 2)
 	if note != "":
-		_text_block(note, y, 22, UITokens.INK_SOFT, "medium", 4)
+		_text_block(note, y, 22, UITokens.INK_DIM_GLASS, "medium", 4)
 
 
 func _text_block(txt: String, y: float, fs0: int, col: Color, weight: String, max_lines := 3) -> float:

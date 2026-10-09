@@ -413,7 +413,7 @@ func _auto_block(inner: float) -> Control:
 	# Why: the synergy change, then (when the synergy does not rise) the power reason.
 	var why := HBoxContainer.new()
 	why.add_theme_constant_override("separation", 14)
-	why.add_child(UIKit.label(HeroesText.t("TEAM_AUTO_GAINS", [int(best["syn_now"]), int(best["syn"])]), 22, UITokens.INK_DIM))
+	why.add_child(UIKit.label(HeroesText.t("TEAM_AUTO_GAINS", [int(best["syn_now"]), int(best["syn"])]), 22, UITokens.INK_DIM_GLASS))
 	var cur := HeroesTeamLogic.score(str(_team["hero"]), _team["champions"])
 	var nxt := HeroesTeamLogic.score(str(best["hero"]), best["champions"])
 	for k: String in ["faction", "class", "element"]:
@@ -456,7 +456,7 @@ static func _delta_tag(text: String, gain: bool) -> Control:
 	dot.custom_minimum_size = Vector2(12, 12)
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(dot)
-	h.add_child(UIKit.label(text, 20, UITokens.PLUS if gain else UITokens.INK_DIM, gain))
+	h.add_child(UIKit.label(text, 20, UITokens.PLUS if gain else UITokens.INK_DIM_GLASS, gain))
 	return h
 
 
@@ -542,7 +542,7 @@ class _Seat extends Control:
 		var c := Vector2(size.x * 0.5, size.y * 0.42)
 		draw_circle(c, 30.0, UITokens.PAPER_0)
 		draw_arc(c, 29.0, 0, TAU, 40, hl, 1.5, true)
-		Icons.draw_icon(self, "lock" if locked else "plus", Rect2(c - Vector2(18, 18), Vector2(36, 36)), UITokens.INK_DIM if locked else UITokens.GOLD_TEXT)
+		Icons.draw_icon(self, "lock" if locked else "plus", Rect2(c - Vector2(18, 18), Vector2(36, 36)), UITokens.INK_DIM_GLASS if locked else UITokens.GOLD_TEXT_GLASS)
 		var f := UIKit.font(true)
 		var fs := 22
 		while fs > 18 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x > size.x - 10.0:
@@ -557,7 +557,7 @@ class _Seat extends Control:
 					fs -= 1
 		var y := size.y * 0.42 + 62.0
 		for ln: String in lines:
-			draw_string(f, Vector2(5, y), ln, HORIZONTAL_ALIGNMENT_CENTER, size.x - 10.0, fs, UITokens.INK_DIM if locked else UITokens.INK)
+			draw_string(f, Vector2(5, y), ln, HORIZONTAL_ALIGNMENT_CENTER, size.x - 10.0, fs, UITokens.INK_DIM_GLASS if locked else UITokens.INK)
 			y += fs + 4.0
 
 
@@ -590,7 +590,7 @@ class _PresetKey extends Button:
 		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.5)
 		GemDraw.outline(self, GemDraw.chamfer_rect(r.grow(-3.0), 4.0), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.4), 1.0)
 		var f := UIKit.font_w("extrabold")
-		var ink := UIKit.BROWN if active else (UITokens.INK if gem != "" else UITokens.INK_DIM)
+		var ink := UIKit.BROWN if active else (UITokens.INK if gem != "" else UITokens.INK_DIM_GLASS)
 		if gem != "":
 			# The preset hero's gem (22 px) left of the numeral, on one line.
 			var cy := r.get_center().y
@@ -612,7 +612,7 @@ class _Dot extends Control:
 			draw_colored_polygon(pts, UITokens.GOLD_HI)
 			GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.0)
 		else:
-			GemDraw.outline(self, pts, UITokens.INK_DIM, 1.2)
+			GemDraw.outline(self, pts, UITokens.INK_DIM_GLASS, 1.2)
 
 
 ## Removes every child at once (queue_free alone leaves them in the layout until the frame ends).

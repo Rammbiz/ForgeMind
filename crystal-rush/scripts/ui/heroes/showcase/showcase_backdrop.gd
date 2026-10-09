@@ -25,6 +25,9 @@ const SKY := {
 const OPAL_FIRE: Array[Color] = [Color("#7FE3FF"), Color("#B48CFF"), Color("#FF9FD6"), Color("#FFE28A")]
 const FPS := 30.0
 
+## Emitted after each bake of the static sky (HeroFrost re-shoots its still from baked_texture()).
+signal baked
+
 var gem := "L":
 	set(v):
 		gem = HeroesText.gem_letter(v)
@@ -109,6 +112,14 @@ func _do_bake() -> void:
 	_painter.queue_redraw()
 	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	queue_redraw()
+	await RenderingServer.frame_post_draw
+	if is_instance_valid(self):
+		baked.emit()
+
+
+## The baked static sky (screen space, the size of the backdrop).
+func baked_texture() -> Texture2D:
+	return _vp.get_texture()
 
 
 func _process(delta: float) -> void:

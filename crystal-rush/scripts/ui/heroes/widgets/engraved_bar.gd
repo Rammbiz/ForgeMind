@@ -1,8 +1,8 @@
 class_name HeroEngravedBar
 extends Control
-## The engraved channel bar of §9.1 (fragments, pity, Champion Level, Seals): a 10 px channel cut
-## into the cream (dark top lip, light bottom lip, gold hairline), filled with the gem's UI hex
-## (opal = a soft spectrum), facet tick marks across the channel, an optional keystone marker
+## The progress bar of §9.1 (fragments, pity, Champion Level, Seals), drawn to UI v3.1 §7.5: a 1 dpx
+## hairline frame around a glass track, filled flat with the gem's UI hex (opal = a soft spectrum),
+## 1 dpx facet notches, a 9 px diamond at the end when full, an optional diamond marker above
 ## (e.g. the pity's soft start) and an optional label row above (caption left, value right).
 ## Value changes animate (ease-out); Reduce Motion snaps.
 ##   var b := HeroEngravedBar.make("L", 12, 30, 420)       # pity: 12 of 30, Топаз fill
@@ -96,23 +96,26 @@ func _draw() -> void:
 		var fb := UIKit.font_w("bold")
 		var base := label_size * 1.05
 		if label != "":
-			draw_string(fm, Vector2(0, base), label, HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.72, label_size, UITokens.INK_DIM)
+			draw_string(fm, Vector2(0, base), label, HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.72, label_size, UITokens.INK_DIM_GLASS)
 		if value_text != "":
 			var vw := fb.get_string_size(value_text, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size).x
 			draw_string(fb, Vector2(size.x - vw, base), value_text, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, UITokens.INK)
 		y = label_size * 1.45
+	# v3.1 progress (§7.5): a 1 dpx hairline frame, a glass track 2 px inside it, a flat gem fill
+	# (gem identity; 2 stops) with a 1 dpx table light, 45-degree chamfered ends (never a pill),
+	# 1 dpx facet notches; a full bar lights one 9 px diamond at its end.
 	var top := y + 7.0
 	var r := Rect2(Vector2(2, top), Vector2(size.x - 4, channel_h))
 	var ch := minf(channel_h * 0.5, 4.0)
 	var pts := GemDraw.chamfer_rect(r, ch)
-	# Channel: recessed cream with a dark upper lip and a light lower lip.
-	draw_colored_polygon(pts, UITokens.PAPER_3)
-	draw_line(Vector2(r.position.x + ch, r.position.y + 1.0), Vector2(r.end.x - ch, r.position.y + 1.0), Color(0.35, 0.26, 0.14, 0.28), 1.5, true)
-	draw_line(Vector2(r.position.x + ch, r.end.y + 1.0), Vector2(r.end.x - ch, r.end.y + 1.0), Color(1, 1, 1, 0.85), 1.0, true)
+	draw_colored_polygon(pts, HeroV3.a(UITokens.PAPER_0, 0.5))
+	var tr := r.grow(-2.0)
+	var tch := minf(ch - 1.0, tr.size.y * 0.5)
+	draw_colored_polygon(GemDraw.chamfer_rect(tr, tch), HeroV3.a(UITokens.PAPER_3, 0.5))
 	var frac := clampf(_shown if _shown >= 0.0 else _frac(), 0.0, 1.0)
 	if frac > 0.002:
-		var fr := Rect2(r.position + Vector2(1, 1.5), Vector2(maxf((r.size.x - 2) * frac, ch * 2.0), r.size.y - 3.0))
-		var fp := GemDraw.chamfer_rect(fr, maxf(ch - 1.0, 1.0))
+		var fr := Rect2(tr.position, Vector2(maxf(tr.size.x * frac, tch * 2.0 + 1.0), tr.size.y))
+		var fp := GemDraw.chamfer_rect(fr, tch)
 		var cols := PackedColorArray()
 		var gl := HeroesText.gem_letter(gem)
 		var fl: Array = UITokens.gem("opal")["flecks"]
@@ -120,27 +123,31 @@ func _draw() -> void:
 			var ty := (p.y - fr.position.y) / maxf(fr.size.y, 1.0)
 			var base := fill_color(gem)
 			if gl == "M":
-				var tx := clampf((p.x - fr.position.x) / maxf(r.size.x, 1.0), 0.0, 1.0) * (fl.size() - 1)
+				var tx := clampf((p.x - fr.position.x) / maxf(tr.size.x, 1.0), 0.0, 1.0) * (fl.size() - 1)
 				var i0 := int(floor(tx))
 				base = (fl[i0] as Color).lerp(fl[mini(i0 + 1, fl.size() - 1)], tx - i0)
-			cols.append(base.lightened(0.3).lerp(base.darkened(0.06), ty))
+			cols.append(base.lightened(0.18).lerp(base.darkened(0.04), ty))
 		draw_polygon(fp, cols)
-		draw_line(fr.position + Vector2(ch, fr.size.y * 0.32), Vector2(fr.end.x - ch, fr.position.y + fr.size.y * 0.32), Color(1, 1, 1, 0.5), 1.0, true)
-	# Facet tick marks (small rhombi cut across the channel).
+		if fr.size.y >= 5.0:
+			var ly := GemDraw.pixel_y(self, fr.position.y + 1.0)
+			draw_line(Vector2(fr.position.x + tch, ly), Vector2(fr.end.x - tch, ly), Color(1, 0.98, 0.92, 0.6), -1.0)
+	# Facet notches: 1 dpx light cuts across the fill, hairline cuts across the empty track.
 	var tk: Array = ticks.duplicate()
 	if tick_every > 0.0 and max_value / tick_every <= 40.0:
 		var v := tick_every
 		while v < max_value - 0.001:
 			tk.append(v)
 			v += tick_every
+	var cy := r.get_center().y
+	var nh := channel_h * 0.5 - 1.0
+	var lw := UIKit.px(1.0)
 	for tv in tk:
-		var x := r.position.x + r.size.x * clampf(float(tv) / max_value, 0.0, 1.0)
+		var x := roundf(tr.position.x + tr.size.x * clampf(float(tv) / max_value, 0.0, 1.0)) + lw * 0.5
 		var on := float(tv) <= value
-		var h := channel_h * 0.62
-		var w := 2.6
-		var rh := PackedVector2Array([Vector2(x, r.get_center().y - h), Vector2(x + w, r.get_center().y), Vector2(x, r.get_center().y + h), Vector2(x - w, r.get_center().y)])
-		draw_colored_polygon(rh, Color(1, 1, 1, 0.75) if on else Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.9))
-	GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.2)
+		draw_line(Vector2(x, cy - nh), Vector2(x, cy + nh), Color(1, 1, 1, 0.7) if on else HeroV3.a(UITokens.HAIRLINE, 0.6), lw)
+	HeroV3.frame(self, pts, HeroV3.a(UITokens.HAIRLINE, 0.8))
+	if frac >= 0.999:
+		GemDraw.draw_diamond(self, Vector2(r.end.x, cy), 9.0, fill_color(gem), fill_color(gem).darkened(0.35))
 	if marker >= 0.0:
 		var mx := r.position.x + r.size.x * clampf(marker / max_value, 0.0, 1.0)
-		GemDraw.draw_keystone(self, Vector2(mx, r.position.y - 3.0), 11.0, 1.0, Color(1.0, 0.88, 0.6))
+		GemDraw.draw_diamond(self, Vector2(mx, r.position.y - 4.0), 9.0, UITokens.PAPER_0, HeroV3.DEEP)

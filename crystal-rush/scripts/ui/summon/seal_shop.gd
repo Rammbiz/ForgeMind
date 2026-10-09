@@ -50,7 +50,7 @@ func _fill(b: VBoxContainer) -> void:
 		for r in items:
 			grid.add_child(_cell(r, seals))
 	b.add_child(UIKit.gap(6))
-	b.add_child(SummonSheet.para(HeroesText.t("SEAL_NOTE"), 22, UITokens.INK_DIM))
+	b.add_child(SummonSheet.para(HeroesText.t("SEAL_NOTE"), 22, UITokens.INK_DIM_GLASS))
 
 
 func _cell(r: Dictionary, seals: int) -> Control:
@@ -79,7 +79,7 @@ func _cell(r: Dictionary, seals: int) -> Control:
 		"hero": gives = HeroesText.t("SEAL_GIVES_HERO")
 		"frags": gives = HeroesText.t("SEAL_OWNED", [int(r["frags"])])
 		"tomes": gives = HeroesText.t("SEAL_OVERFLOW", [int(r["tomes"])])
-	var gl := UIKit.label(gives, 22, UITokens.GOLD_TEXT if str(r["gives"]) == "hero" else UITokens.INK, true)
+	var gl := UIKit.label(gives, 22, UITokens.GOLD_TEXT_GLASS if str(r["gives"]) == "hero" else UITokens.INK, true)
 	gl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(gl)
@@ -95,7 +95,7 @@ func _cell(r: Dictionary, seals: int) -> Control:
 		ic.custom_minimum_size = Vector2(28, 28)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		need.add_child(ic)
-		var nl := UIKit.label(HeroesText.t("SEAL_NEED", [HeroesText.count(price - seals, "seal")]), 22, UITokens.INK_DIM)
+		var nl := UIKit.label(HeroesText.t("SEAL_NEED", [HeroesText.count(price - seals, "seal")]), 22, UITokens.INK_DIM_GLASS)
 		nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		need.add_child(nl)
 		v.add_child(need)

@@ -31,7 +31,7 @@ func _ready() -> void:
 	col.add_child(head)
 	_title = UIKit.gradient_heading(HeroesText.t("HALL_TITLE"), 40)
 	head.add_child(_title)
-	_count = UIKit.label("", 24, UITokens.INK_DIM, true)
+	_count = UIKit.label("", 24, UITokens.INK_DIM_GLASS, true)
 	_count.size_flags_vertical = Control.SIZE_SHRINK_END
 	head.add_child(_count)
 	var opts := [["heroes", HeroesText.t("HALL_TAB_HEROES")]]

@@ -127,9 +127,9 @@ func _build() -> void:
 	_left.add_child(_role_line(str(_c["role"])))
 	var nm := UIKit.heading(str(_c["name"]), 62, UITokens.INK)
 	_left.add_child(nm)
-	_left.add_child(UIKit.label(str(_c["title"]), 26, UITokens.GOLD_TEXT, true))
+	_left.add_child(UIKit.label(str(_c["title"]), 26, UITokens.GOLD_TEXT_GLASS, true))
 	if bool(_c["is_recut"]):
-		_left.add_child(UIKit.label(HeroesText.t("RECUT_FROM", [HeroesText.gem_name(str(_c["native"]), "GEN")]), 22, UITokens.INK_DIM))
+		_left.add_child(UIKit.label(HeroesText.t("RECUT_FROM", [HeroesText.gem_name(str(_c["native"]), "GEN")]), 22, UITokens.INK_DIM_GLASS))
 	var badges := HBoxContainer.new()
 	badges.add_theme_constant_override("separation", 8)
 	badges.add_child(UIKit.socket("cls_" + str(_c["class"]), 52))
@@ -151,14 +151,14 @@ func _build() -> void:
 		lv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lv.custom_minimum_size = Vector2(COL_W - COL_PAD, 0)
 		_left.add_child(lv)
-		_left.add_child(UIKit.label(HeroesText.t("CHAMP_UI_SHARED"), 22, UITokens.INK_DIM))
+		_left.add_child(UIKit.label(HeroesText.t("CHAMP_UI_SHARED"), 22, UITokens.INK_DIM_GLASS))
 		if bool(_c["in_team"]):
 			var it := UIKit.label(HeroesText.t("SHOW_IN_TEAM") + " · " + HeroesTeamLogic.slot_label(StringName(slot)), 22, UITokens.PLUS, true)
 			_left.add_child(it)
 	else:
 		_left.add_child(UIKit.gap(6))
 		_left.add_child(UIKit.label(HeroesText.t("SHOW_NOT_OWNED"), 24, UITokens.INK, true))
-		_left.add_child(UIKit.label(HeroesText.t("SHOW_FROM_CHEST"), 22, UITokens.INK_DIM))
+		_left.add_child(UIKit.label(HeroesText.t("SHOW_FROM_CHEST"), 22, UITokens.INK_DIM_GLASS))
 	var art_holder := Control.new()
 	art_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	art_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -217,7 +217,7 @@ func _role_line(text: String) -> Control:
 	p.add_theme_stylebox_override("panel", UIKit.cbox(UITokens.PAPER_0, int(UITokens.CHAMFER_XS), UITokens.HAIRLINE, 1, Vector2(14, 6)))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
-	var ic := Icons.make("cls_" + str(_c["class"]), 26.0, UITokens.GOLD_TEXT)
+	var ic := Icons.make("cls_" + str(_c["class"]), 26.0, UITokens.GOLD_TEXT_GLASS)
 	ic.custom_minimum_size = Vector2(26, 26)
 	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(ic)
@@ -277,12 +277,12 @@ func _action_plate(n: Dictionary, w: float) -> Control:
 		note = HeroesText.t("CHAMP_UI_TIER_HAVE", [HeroesText.roman(top), HeroesText.gem_name(Ladder.CHAMPION_MAX_GEM)])
 	else:
 		note = HeroesText.t("CHAMP_UI_TIER_NATIVE", [HeroesText.roman(top), HeroesText.gem_name(Ladder.CHAMPION_MAX_GEM, "PL")])
-	v.add_child(_wrap(note, 22, UITokens.GOLD_TEXT, true, tw))
+	v.add_child(_wrap(note, 22, UITokens.GOLD_TEXT_GLASS, true, tw))
 	if bool(_c["is_recut"]):
-		v.add_child(_wrap(HeroesText.t("CHAMP_UI_TIER_KEPT", [HeroesText.roman(tier)]), 22, UITokens.INK_DIM, false, tw))
+		v.add_child(_wrap(HeroesText.t("CHAMP_UI_TIER_KEPT", [HeroesText.roman(tier)]), 22, UITokens.INK_DIM_GLASS, false, tw))
 	v.add_child(UIKit.hairline())
 	v.add_child(_wrap(str(n["action_text"]), 22, UITokens.INK, true, tw))
-	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper() + "_DESC"), 22, UITokens.INK_DIM, false, tw))
+	v.add_child(_wrap(HeroesText.t("ACT_" + champ_id.to_upper() + "_DESC"), 22, UITokens.INK_DIM_GLASS, false, tw))
 	return sh[0]
 
 
@@ -294,7 +294,7 @@ func _aura_plate(n: Dictionary, w: float) -> Control:
 	v.add_child(_wrap(HeroesText.t("AURA_" + cls.to_upper()), 26, UITokens.INK, true, tw))
 	var val := UIKit.number(str(n["aura_text"]).split(" ")[0], 44)
 	v.add_child(val)
-	v.add_child(_wrap(HeroesText.t("CHAMP_UI_AURA_NOTE"), 22, UITokens.INK_DIM, false, tw))
+	v.add_child(_wrap(HeroesText.t("CHAMP_UI_AURA_NOTE"), 22, UITokens.INK_DIM_GLASS, false, tw))
 	var sr := HBoxContainer.new()
 	sr.add_theme_constant_override("separation", 10)
 	var map := HeroesChampionParts.SlotMap.new()
@@ -330,13 +330,13 @@ func _relic_row(inner: float) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(UIKit.caps(HeroesText.t("SKL_RELIC"), 20, UITokens.INK_SOFT))
+	v.add_child(UIKit.caps(HeroesText.t("SKL_RELIC"), 20, UITokens.INK_DIM_GLASS))
 	v.add_child(UIKit.label(HeroesText.t("RELIC_" + champ_id.to_upper()), 26, UITokens.INK, true))
 	var line := HeroesText.t("CHAMP_UI_RELIC_RANK", [0]) if open else HeroesText.t("CHAMP_UI_RELIC_LOCKED", [int(HeroData.UNLOCK_AT["workshop"])])
-	v.add_child(_wrap(line, 22, UITokens.INK_DIM, false, inner - 140.0))
+	v.add_child(_wrap(line, 22, UITokens.INK_DIM_GLASS, false, inner - 140.0))
 	h.add_child(v)
 	if not open:
-		var lk := Icons.make("lock", 30.0, UITokens.INK_DIM)
+		var lk := Icons.make("lock", 30.0, UITokens.INK_DIM_GLASS)
 		lk.custom_minimum_size = Vector2(30, 30)
 		lk.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(lk)
@@ -364,7 +364,7 @@ func _run_panel(inner: float, slot: String) -> Control:
 	t.add_theme_constant_override("separation", 6)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.add_child(_wrap(str(_c["role"]), 24, UITokens.INK, true, inner - 360.0))
-	t.add_child(_wrap(HeroesText.t("CHAMP_UI_RUN_SOON"), 22, UITokens.INK_DIM, false, inner - 360.0))
+	t.add_child(_wrap(HeroesText.t("CHAMP_UI_RUN_SOON"), 22, UITokens.INK_DIM_GLASS, false, inner - 360.0))
 	h.add_child(t)
 	return p
 

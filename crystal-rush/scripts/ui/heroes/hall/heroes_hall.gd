@@ -64,7 +64,7 @@ func _ready() -> void:
 	_title = UIKit.gradient_heading(HeroesText.t("HALL_TITLE"), 40)
 	_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_title)
-	_count = UIKit.label("", 24, UITokens.INK_DIM, true)
+	_count = UIKit.label("", 24, UITokens.INK_DIM_GLASS, true)
 	_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_count)
 	head.add_child(UIKit.spacer())
@@ -88,7 +88,7 @@ func _ready() -> void:
 	_chips_sc.add_child(_chips)
 	# The chip row scrolls sideways: soft cream fades at both ends say "more", never a chip cut
 	# mid-glyph at the screen edge.
-	HeroHScrollFade.attach(_chips_sc, UITokens.PAPER_1)
+	HeroHScrollFade.attach(_chips_sc, UITokens.PAPER_1, 72.0)
 	_sc = ScrollContainer.new()
 	_sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -343,11 +343,11 @@ func _build_heroes() -> void:
 	_grid(sort_rows(rows), "XL" if few else "L", 2 if few else 3)
 	if few:
 		# First weeks (§11.4 first visit): one quiet slip, never a blocking coach mark.
-		var slip := UIKit.panel("card", Vector2(22, 16))
+		var slip := UIKit.panel("banner", Vector2(22, 16))
 		var r := HBoxContainer.new()
 		r.add_theme_constant_override("separation", 14)
 		slip.add_child(r)
-		var ic := Icons.make("info", 34.0, UITokens.GOLD_TEXT)
+		var ic := Icons.make("info", 34.0, UITokens.GOLD_TEXT_GLASS)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		r.add_child(ic)
 		var l := UIKit.label(HeroesText.t("TUT_HALL_CARD"), 22, UITokens.INK)
@@ -364,7 +364,7 @@ func _build_champions() -> void:
 			owned += 1
 	if owned >= 2:
 		_page.add_child(_champion_level_row())
-	var hint := UIKit.label(HeroesText.t("HALL_CHAMP_ROLE_HINT"), 22, UITokens.INK_DIM)
+	var hint := UIKit.label(HeroesText.t("HALL_CHAMP_ROLE_HINT"), 22, UITokens.INK_DIM_GLASS)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_page.add_child(hint)
 	var owned_rows: Array[Dictionary] = []
@@ -386,7 +386,7 @@ func _grid(rows: Array[Dictionary], kind: String, cols: int) -> void:
 		empty.alignment = BoxContainer.ALIGNMENT_CENTER
 		empty.add_theme_constant_override("separation", 14)
 		empty.custom_minimum_size = Vector2(0, 320)
-		var l := UIKit.label(HeroesText.t("HALL_FILTER_EMPTY"), 24, UITokens.INK_DIM)
+		var l := UIKit.label(HeroesText.t("HALL_FILTER_EMPTY"), 24, UITokens.INK_DIM_GLASS)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_child(l)
 		var b := UIKit.text_button(HeroesText.t("HALL_FILTER_RESET"))
@@ -422,7 +422,7 @@ func _grid(rows: Array[Dictionary], kind: String, cols: int) -> void:
 			cell.add_theme_constant_override("separation", 4)
 			cell.add_child(c)
 			var sub := str(d.get("role", "")) if bool(d["owned"]) else HeroesText.t("HALL_SRC_CHEST")
-			var rl := UIKit.label(sub, 20, UITokens.INK_SOFT)
+			var rl := UIKit.label(sub, 20, UITokens.INK_DIM_GLASS)
 			rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			rl.custom_minimum_size = Vector2(c.custom_minimum_size.x, 0)
@@ -441,7 +441,7 @@ func _champion_level_row() -> Control:
 	var cl := HeroesUIModel.champion_level()
 	var lv := int(cl["level"])
 	var cap := int(cl["cap"])
-	var p := UIKit.panel("card", Vector2(20, 14))
+	var p := UIKit.panel("banner", Vector2(20, 14))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	p.add_child(row)
@@ -460,7 +460,7 @@ func _champion_level_row() -> Control:
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(bar)
 	var note := HeroesText.t("CHAMP_UI_LEVEL_CAP", [lv, cap, int(cl["next_world"])]) if at_cap else HeroesText.t("HALL_CHAMP_LEVEL_NOTE")
-	var nl := UIKit.label(note, 22, UITokens.INK_DIM)
+	var nl := UIKit.label(note, 22, UITokens.INK_DIM_GLASS)
 	nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(nl)
 	return p
@@ -472,7 +472,7 @@ func _build_feats() -> void:
 	var un := HeroesUIModel.unlocks()
 	var head := UIKit.section(HeroesText.t("HALL_FEATS_TITLE"))
 	_page.add_child(head)
-	var note := UIKit.label(HeroesText.t("HALL_FEATS_NOTE"), 22, UITokens.INK_DIM)
+	var note := UIKit.label(HeroesText.t("HALL_FEATS_NOTE"), 22, UITokens.INK_DIM_GLASS)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_page.add_child(note)
 	var counts := _feat_counters()
@@ -487,7 +487,7 @@ func _build_feats() -> void:
 		any = true
 		_page.add_child(_feat_row(fid, f, int(counts.get(counter, 0))))
 	if not any:
-		_page.add_child(UIKit.label(HeroesText.t("HALL_FEATS_EMPTY"), 24, UITokens.INK_DIM))
+		_page.add_child(UIKit.label(HeroesText.t("HALL_FEATS_EMPTY"), 24, UITokens.INK_DIM_GLASS))
 
 
 func _feat_counters() -> Dictionary:
@@ -544,7 +544,7 @@ func _feat_row(fid: String, f: Dictionary, value: int) -> Control:
 	var nm := UIKit.label(HeroesText.t("FEAT_" + fid), 24, UITokens.INK, true)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(nm)
-	top.add_child(UIKit.label(HeroesText.t("SKL_RANK_SHORT", [mini(value, next), next]), 22, UITokens.INK_SOFT, true))
+	top.add_child(UIKit.label(HeroesText.t("SKL_RANK_SHORT", [mini(value, next), next]), 22, UITokens.INK_DIM_GLASS, true))
 	var bar := HeroEngravedBar.make(_FeatMedal.gem_of(tier + (0 if done else 1)), mini(value, next), next, 420)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(bar)
@@ -557,7 +557,7 @@ func _feat_row(fid: String, f: Dictionary, value: int) -> Control:
 	rw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(rw)
 	if done:
-		rw.add_child(Icons.make("check", 30.0, UITokens.GOLD_TEXT))
+		rw.add_child(Icons.make("check", 30.0, UITokens.GOLD_TEXT_GLASS))
 	else:
 		var amounts: Array = reward[1]
 		var icon := "tome" if str(reward[0]) == "tomes" else "ore"
@@ -617,19 +617,8 @@ class _WhereTag extends Control:
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		var pts := GemDraw.chamfer_rect(r, UITokens.CHAMFER_XS)
-		var sh := PackedVector2Array()
-		for q in pts:
-			sh.append(q + Vector2(0, 2))
-		draw_colored_polygon(sh, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.14))
-		draw_colored_polygon(pts, Color(UITokens.PAPER_0.r, UITokens.PAPER_0.g, UITokens.PAPER_0.b, 0.94))
-		GemDraw.outline(self, pts, UITokens.HAIRLINE, 1.2)
-		var f := UIKit.font_w("bold")
-		var fs := 22
-		while fs > 18 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 16.0:
-			fs -= 1
-		var tw := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(f, Vector2((size.x - tw) * 0.5, size.y * 0.5 + f.get_ascent(fs) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITokens.INK)
+		HeroV3.glass(self, r, UITokens.CHAMFER_XS, 0.94, HeroV3.GOLD, 0.8, 0.6)
+		HeroV3.text_in(self, r.grow_individual(-8, 0, -8, 0), text, 22, UITokens.INK, "medium")
 
 
 ## A thin engraved divider between the gem and the class chips.
@@ -640,7 +629,10 @@ class _ChipGap extends Control:
 
 	func _draw() -> void:
 		var x := size.x * 0.5
-		draw_line(Vector2(x, size.y * 0.3), Vector2(x, size.y * 0.7), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.7), 1.5)
+		var lw := UIKit.px(1.0)
+		x = roundf(x) + lw * 0.5
+		draw_polyline_colors(PackedVector2Array([Vector2(x, size.y * 0.26), Vector2(x, size.y * 0.5), Vector2(x, size.y * 0.74)]),
+				PackedColorArray([HeroV3.a(UITokens.HAIRLINE, 0.0), HeroV3.a(UITokens.HAIRLINE, 0.8), HeroV3.a(UITokens.HAIRLINE, 0.0)]), lw)
 
 
 ## A feat medallion: an engraved cream socket holding the gem cut of the reached tier
@@ -654,12 +646,9 @@ class _FeatMedal extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var R := minf(size.x, size.y) * 0.5
-		draw_circle(c + Vector2(0, 2), R - 1.0, Color(UITokens.SCRIM.r, UITokens.SCRIM.g, UITokens.SCRIM.b, 0.12))
-		draw_circle(c, R - 1.0, UITokens.PAPER_0)
-		draw_arc(c, R - 1.75, 0, TAU, 48, UITokens.HAIRLINE, 1.5, true)
-		draw_arc(c, R - 6.0, 0, TAU, 48, Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.45), 1.0, true)
+		HeroV3.disc(self, c, R - 1.0, 0.86)
 		if tier <= 0:
 			var pts := GemDraw.cut_points("round", c, R * 0.9)
-			GemDraw.outline(self, pts, Color(UITokens.INK_DIM.r, UITokens.INK_DIM.g, UITokens.INK_DIM.b, 0.45), 1.4)
+			HeroV3.frame(self, pts, HeroV3.a(UITokens.INK_DIM_GLASS, 0.5))
 		else:
 			GemDraw.draw_mark(self, gem_of(tier), c, R * 0.95)

@@ -1,6 +1,7 @@
 class_name HeroesBottomSheet
 extends Control
-## A full-screen holder for one kit bottom sheet (KitSheet: cream, arched top, keystone) with a
+## A full-screen holder for one kit bottom sheet (KitSheet, UI v3.1: frosted glass with the text bed,
+## a straight fading top rule with a centre diamond; HeroFrost picks the screen it frosts) with a
 ## title row (title + optional extra controls + close disc) and a `body` VBox. Used by the
 ## Codex «?» and the Manage sheet «Покращення». Works in three hosts:
 ##  * a Hub modal (hub.push_modal(sheet); the hub draws the scrim; `hub_modal = true`),
@@ -50,6 +51,9 @@ func _init() -> void:
 	_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_scrim)
 	sheet = UIKit.sheet(Vector2(UITokens.GUTTER + 4.0, 26.0))
+	# v3.1: over a full heroes screen the sheet frosts THAT screen (its sky and splash); over the
+	# Hall the kit's world frost stays. Frost rim + top 20 % ramp, rows on the 94 % text bed.
+	HeroFrost.frost_sheet(sheet, Vector2(UITokens.GUTTER + 4.0, 26.0))
 	sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(sheet)
 	var v := VBoxContainer.new()
@@ -104,7 +108,7 @@ func _ready() -> void:
 			_warm.modulate.a = 0.0
 			_warm.create_tween().tween_property(_warm, "modulate:a", 1.0, UITokens.MENU_IN)
 		else:
-			_scrim.create_tween().tween_property(_scrim, "color:a", 0.45, UITokens.MENU_IN)
+			_scrim.create_tween().tween_property(_scrim, "color:a", UITokens.SCRIM_MODAL, UITokens.MENU_IN)
 	_layout()
 	if defer_in:
 		sheet.modulate.a = 0.0

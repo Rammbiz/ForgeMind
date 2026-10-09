@@ -25,7 +25,7 @@ func setup(p_hub: Hub, _args: PackedStringArray) -> void:
 
 func _ready() -> void:
 	title = HeroesText.t("CODEX_TITLE")
-	var sub := UIKit.label(HeroesText.t("CODEX_SUB"), 22, UITokens.INK_DIM)
+	var sub := UIKit.label(HeroesText.t("CODEX_SUB"), 22, UITokens.INK_DIM_GLASS)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.custom_minimum_size = Vector2(600, 0)
 	body.add_child(sub)
@@ -66,7 +66,7 @@ func _row(k: String) -> Control:
 	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	txt.custom_minimum_size = Vector2(540, 0)
 	col.add_child(txt)
-	var where := UIKit.label(HeroesText.t("CODEX_WHERE", [HeroesText.t("CODEX_" + k + "_WHERE")]), 22, UITokens.GOLD_TEXT)
+	var where := UIKit.label(HeroesText.t("CODEX_WHERE", [HeroesText.t("CODEX_" + k + "_WHERE")]), 22, UITokens.GOLD_TEXT_GLASS)
 	where.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	where.custom_minimum_size = Vector2(540, 0)
 	col.add_child(where)

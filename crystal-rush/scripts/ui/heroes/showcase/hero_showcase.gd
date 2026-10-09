@@ -55,6 +55,8 @@ var _codex: Control
 var _hint3d: Control
 var _none3d: Control
 var _sheet: Control
+var _frost: HeroFrost
+var _frost_queued := false
 var _press_x := -1.0
 var _press_y := -1.0
 var _dirty := false
@@ -126,6 +128,9 @@ func _build_hero(entrance: bool) -> void:
 	_bg = HeroShowcaseBackdrop.make(gem, str(_h["element"]))
 	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_bg)
+	# UI v3.1: the glass on this screen frosts THIS screen (the sky + the splash), not the hub world.
+	_frost = HeroFrost.attach(self)
+	_bg.baked.connect(_queue_frost)
 	_art = Control.new()
 	_art.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -222,7 +227,8 @@ func _fill_info() -> void:
 	var recut := bool(h["is_recut"])
 	var show_facets := owned and (int(h["facets"]) > 0 or int(h["frags"]) > 0)
 	# 200 px Living Gem; 168 px beside a painted splash, so the face leads.
-	var em_px := 168 if HeroArt.state(hero_id) == "splash" else 200
+	# v3.1: 132 px beside a painted splash (the hero leads; the stone is the rarity, not a toy).
+	var em_px := 132 if HeroArt.state(hero_id) == "splash" else 176
 	var lg := HeroLivingGem.make_living(gem, em_px, int(h["facets"]) if show_facets else 0, str(h["native"]) if recut else "")
 	lg.set_meta("base_px", float(em_px))
 	if not owned:
@@ -231,12 +237,12 @@ func _fill_info() -> void:
 	_info.add_child(lg)
 	var nm := UIKit.gradient_heading(str(h["name"]), UIKit.fit_size(str(h["name"]), COL_W, 68, 44))
 	_info.add_child(nm)
-	var tl := UIKit.label(str(h["title"]), 28, UITokens.GOLD_TEXT, true)
+	var tl := UIKit.label(str(h["title"]), 28, UITokens.GOLD_TEXT_GLASS, true)
 	tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tl.custom_minimum_size = Vector2(COL_W, 0)
 	_info.add_child(tl)
 	if recut:
-		var rl := UIKit.label(HeroesText.t("RECUT_FROM", [HeroesText.gem_name(str(h["native"]), "GEN")]), 22, UITokens.INK_DIM)
+		var rl := UIKit.label(HeroesText.t("RECUT_FROM", [HeroesText.gem_name(str(h["native"]), "GEN")]), 22, UITokens.INK_DIM_GLASS)
 		_info.add_child(rl)
 	_info.add_child(UIKit.gap(6))
 	# Badges: class from L4, faction from L14 (champions), element from L20 (Portal) (§11.3).
@@ -252,9 +258,10 @@ func _fill_info() -> void:
 		badges.add_child(_badge("fac_" + str(h["faction"]), false))
 		tags.append(HeroesText.faction_label(str(h["faction"])))
 	_info.add_child(badges)
-	var tg := UIKit.label(" · ".join(tags), 22, UITokens.INK_DIM)
-	tg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tg.custom_minimum_size = Vector2(COL_W, 0)
+	# The tag line never runs into the art: whole tags wrap to a second line past COL_W - 64
+	# (a splash's hair or shoulder reaches under the column's right end).
+	var tg := UIKit.label(_tag_lines(tags, COL_W - 64.0), 22, UITokens.INK_DIM_GLASS)
+	tg.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_info.add_child(tg)
 	_info.add_child(UIKit.gap(10))
 	if not owned:
@@ -267,22 +274,22 @@ func _fill_info() -> void:
 	_info.add_child(stats)
 	var lvc := VBoxContainer.new()
 	lvc.add_theme_constant_override("separation", -4)
-	lvc.add_child(UIKit.caps(HeroesText.t("MANAGE_TAB_LEVEL"), 20, UITokens.GOLD_TEXT))
+	lvc.add_child(UIKit.caps(HeroesText.t("MANAGE_TAB_LEVEL"), 20, UITokens.GOLD_TEXT_GLASS))
 	var lvr := HBoxContainer.new()
 	lvr.add_theme_constant_override("separation", 6)
 	lvr.add_child(UIKit.number(str(int(h["eff_level"])), 46))
-	var capl := UIKit.label("/ %d" % int(h["level_cap"]), 26, UITokens.INK_DIM, true)
+	var capl := UIKit.label("/ %d" % int(h["level_cap"]), 26, UITokens.INK_DIM_GLASS, true)
 	capl.size_flags_vertical = Control.SIZE_SHRINK_END
 	lvr.add_child(capl)
 	lvc.add_child(lvr)
 	stats.add_child(lvc)
 	var mc := VBoxContainer.new()
 	mc.add_theme_constant_override("separation", -4)
-	mc.add_child(UIKit.caps(HeroesText.t("POWER"), 20, UITokens.GOLD_TEXT))
+	mc.add_child(UIKit.caps(HeroesText.t("POWER"), 20, UITokens.GOLD_TEXT_GLASS))
 	mc.add_child(UIKit.number(HeroesText.num(int(h["might"])), 46))
 	stats.add_child(mc)
 	if bool(h["synced"]):
-		var sy := UIKit.label(HeroesText.t("SYNC_LINE"), 22, UITokens.INK_DIM)
+		var sy := UIKit.label(HeroesText.t("SYNC_LINE"), 22, UITokens.INK_DIM_GLASS)
 		sy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		sy.custom_minimum_size = Vector2(COL_W, 0)
 		_info.add_child(sy)
@@ -312,8 +319,8 @@ func _fill_info() -> void:
 		var tr := HBoxContainer.new()
 		tr.add_theme_constant_override("separation", 8)
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tr.add_child(Icons.make("team", 26.0, UITokens.GOLD_TEXT))
-		tr.add_child(UIKit.label(HeroesText.t("SHOW_IN_TEAM"), 22, UITokens.GOLD_TEXT, true))
+		tr.add_child(Icons.make("team", 26.0, UITokens.GOLD_TEXT_GLASS))
+		tr.add_child(UIKit.label(HeroesText.t("SHOW_IN_TEAM"), 22, UITokens.GOLD_TEXT_GLASS, true))
 		_info.add_child(tr)
 
 
@@ -369,17 +376,21 @@ func _skill_band() -> PanelContainer:
 	var h := _h
 	var un := HeroesUIModel.unlocks()
 	var ranks_open := bool(un["skills"])
-	var p := UIKit.panel("cream_glass", Vector2(18, 14))
+	# v3.1: frosted glass over the splash (the hero's own colours glow through, blurred); no text
+	# bed: its labels are short and tint 0.8 keeps INK >= 5:1 on the darkest armour.
+	var p := PanelContainer.new()
+	if not HeroFrost.frost_panel(p, "panel", Vector2(18, 14), _frost, 0.8, false):
+		p.add_theme_stylebox_override("panel", UIKit.lux("banner", Vector2(18, 14)))
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	p.add_child(v)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
 	v.add_child(head)
-	head.add_child(UIKit.section(HeroesText.t("SHOW_SKILLS")))
+	head.add_child(UIKit.caps(HeroesText.t("SHOW_SKILLS"), 22, UITokens.GOLD_TEXT_GLASS))
 	head.add_child(UIKit.spacer())
 	if not ranks_open:
-		head.add_child(UIKit.label(HeroesText.t("SHOW_SKILLS_SOON", [int(HeroData.UNLOCK_AT["skills"])]), 22, UITokens.INK_DIM))
+		head.add_child(UIKit.label(HeroesText.t("SHOW_SKILLS_SOON", [int(HeroData.UNLOCK_AT["skills"])]), 22, UITokens.INK_DIM_GLASS))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 10)
@@ -402,7 +413,7 @@ func _skill_band() -> PanelContainer:
 		var ult: Dictionary = sk["ult"]
 		var txt := HeroesText.t("SHOW_RECUT_CAPS", [HeroesText.gem_name(str(h["gem"]), "PL")])
 		txt += "\n" + HeroesText.t("SHOW_RECUT_FORM", [HeroesText.roman(int(ult["form_max"])), HeroesText.gem_name(str(ult["form_max_gem"]))])
-		var foot := UIKit.label(txt, 22, UITokens.GOLD_TEXT)
+		var foot := UIKit.label(txt, 22, UITokens.GOLD_TEXT_GLASS)
 		foot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		foot.custom_minimum_size = Vector2(inner, 0)
@@ -418,7 +429,7 @@ func _skill_block(s: String, ranks_open: bool, bw := 152.0) -> Control:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
 	col.custom_minimum_size = Vector2(bw, 0)
-	var kind := UIKit.caps(HeroesText.skill_kind(s), 20, UITokens.GOLD_TEXT)
+	var kind := UIKit.caps(HeroesText.skill_kind(s), 20, UITokens.GOLD_TEXT_GLASS)
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(kind)
 	var plate := HeroShowcasePlate.make_from(h, s, 104, ranks_open)
@@ -446,7 +457,9 @@ func _build_dock() -> HBoxContainer:
 	var h := _h
 	var d := HBoxContainer.new()
 	d.add_theme_constant_override("separation", 12)
-	var back := UIKit.secondary_button("", "back", Vector2(96, 88))
+	# v3.1 (§7.9): back is a glass edge disc (one 1 dpx ring), not a cream tile.
+	var back := UIKit.edge_button("back", 38.0)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(_back)
 	d.add_child(back)
 	var cta: Control
@@ -480,6 +493,7 @@ func _build_dock() -> HBoxContainer:
 	_chip3d.label_size = 26
 	_chip3d.custom_minimum_size = Vector2(104, 88)
 	_chip3d.active = _mode3d
+	_chip3d.on_art = true
 	_chip3d.pressed.connect(func(): _set_3d(not _mode3d, true))
 	d.add_child(_chip3d)
 	if bool(HeroesUIModel.unlocks()["skills"]) and bool(h["owned"]):
@@ -499,7 +513,7 @@ func _make_hint3d() -> Control:
 
 
 func _make_none3d() -> Control:
-	var p := UIKit.panel("card", Vector2(28, 24))
+	var p := UIKit.panel("banner", Vector2(28, 24))
 	p.custom_minimum_size = Vector2(480, 0)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var v := VBoxContainer.new()
@@ -514,7 +528,7 @@ func _make_none3d() -> Control:
 	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	t.custom_minimum_size = Vector2(420, 0)
 	v.add_child(t)
-	var s := UIKit.label(HeroesText.t("SHOW_3D_NONE_SUB"), 22, UITokens.INK_DIM)
+	var s := UIKit.label(HeroesText.t("SHOW_3D_NONE_SUB"), 22, UITokens.INK_DIM_GLASS)
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(s)
 	return p
@@ -597,6 +611,42 @@ func _layout() -> void:
 	_hint3d.position = Vector2((W - _hint3d.size.x) * 0.5, dock_y - 30.0 - _hint3d.size.y)
 	_none3d.size = Vector2(minf(520.0, W - 64.0), _none3d.get_combined_minimum_size().y)
 	_none3d.position = Vector2((W - _none3d.size.x) * 0.5, H * 0.42 - _none3d.size.y * 0.5)
+	_queue_frost()
+
+
+## Tags joined with « · », wrapped between WHOLE tags at `w` px (never mid-name).
+func _tag_lines(tags: Array[String], w: float) -> String:
+	var f := UIKit.font_w("medium")
+	var lines: Array[String] = []
+	var cur := ""
+	for t in tags:
+		var cand := t if cur == "" else cur + " · " + t
+		if cur != "" and f.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x > w:
+			lines.append(cur + " ·")
+			cur = t
+		else:
+			cur = cand
+	if cur != "":
+		lines.append(cur)
+	return "\n".join(lines)
+
+
+## Re-shoots the screen frost (sky bake + splash + veil) once per layout burst.
+func _queue_frost() -> void:
+	if _frost_queued or _frost == null:
+		return
+	_frost_queued = true
+	(func():
+		_frost_queued = false
+		if not is_instance_valid(self) or _frost == null or not is_instance_valid(_frost):
+			return
+		var vp := _vp()
+		var L: Array = [{"tex": _bg.baked_texture(), "rect": Rect2(Vector2.ZERO, vp)}]
+		if _splash and _splash.texture:
+			L.append({"tex": _splash.texture, "rect": Rect2(_splash.position, _splash.size), "mod": _splash.modulate})
+		if _veil:
+			L.append({"tex": _veil.texture, "rect": Rect2(_veil.position, _veil.size)})
+		_frost.set_layers(L)).call_deferred()
 
 
 func _stage_rect(three_d: bool) -> Rect2:
@@ -785,7 +835,7 @@ class _ReliefArt extends Control:
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_note = UIKit.caps(HeroesText.t("SHOW_ART_SOON"), 20, UITokens.GOLD_TEXT)
+		_note = UIKit.caps(HeroesText.t("SHOW_ART_SOON"), 20, UITokens.GOLD_TEXT_GLASS)
 		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		add_child(_note)
 		resized.connect(_place_note)
