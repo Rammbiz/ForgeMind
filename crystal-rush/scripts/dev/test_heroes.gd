@@ -919,9 +919,10 @@ func _test_champions() -> void:
 ## C23 Тарас (heroes_design.md §6.25): a native Topaz Mage of Rune and Wildfang with the Mage template kit,
 ## Loc rows in uk and en, and rule #3 (a recut champion never matches a native Topaz) against him too.
 func _test_taras() -> void:
-	_ok(ChampionData.CHAMPIONS.has("taras") and ChampionData.CHAMPION_ORDER.back() == "taras", "Тарас is the last collector entry")
+	_ok(ChampionData.CHAMPIONS.has("taras") and ChampionData.CHAMPION_ORDER.has("taras"), "Тарас is in the collector order")
 	var t: Dictionary = ChampionData.CHAMPIONS.get("taras", {})
-	_ok(int(t.get("no", 0)) == HeroData.HERO_ORDER.size() + ChampionData.CHAMPION_ORDER.size(), "Тарас is C%d" % int(t.get("no", 0)))
+	_ok(int(t.get("no", 0)) == HeroData.HERO_ORDER.size() + ChampionData.CHAMPION_ORDER.find("taras") + 1 and int(t.get("no", 0)) == 23,
+			"Тарас is C%d (fixed at birth)" % int(t.get("no", 0)))
 	_ok(str(t.get("native", "")) == "L" and str(t.get("class", "")) == "mage" and str(t.get("element", "")) == "rune"
 			and str(t.get("faction", "")) == "wildfang" and str(t.get("slot", "")) == "rear", "Тарас: native Топаз, Mage, Rune, Wildfang, rear")
 	_ok(ChampionData.action_tier("taras") == 4, "Тарас: Action tier IV (native Topaz only)")
@@ -934,16 +935,33 @@ func _test_taras() -> void:
 	_ok(str(Loc.STRINGS.get("CHAMP_TARAS_TITLE", ["", ""])[0]) == "Кобзар", "Тарас — Кобзар")
 	var lore: Array = Loc.STRINGS.get("CHAMP_TARAS_LORE", ["", ""])
 	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Тарас lore: 3 lines uk and en")
-	# Rule #3 against Тарас: every champion recut to Topaz (any f, Champion Level, relic) stays below him.
+	# Rule #3 against Тарас on the real stats: every champion recut to Topaz (f 0-5, Champion Level 1-20, relic none..+12)
+	# stays below him at the same investment; a recut Mage also stays below his HP, Action and aura (same template).
 	var worst := 0.0
+	var bad: Array = []
+	var mages := 0
 	for cid: String in ChampionData.CHAMPION_ORDER:
-		var n := Ladder.gem_index(Roster.native(cid))
-		if n >= 3:
+		if Ladder.gem_index(Roster.native(cid)) >= 3:
 			continue
+		var same_class := str(ChampionData.CHAMPIONS[cid]["class"]) == str(t.get("class", ""))
+		mages += 1 if same_class else 0
 		for f in range(0, Ladder.FACETS_PER_GEM + 1):
-			for cl in [1, 10, 20]:
-				worst = maxf(worst, ChampionsMeta.index(n, 3, f, cl, 12) / ChampionsMeta.index(3, 3, f, cl, 12))
-	_ok(worst < 1.0, "rule #3: a recut Topaz champion < native Тарас (worst %.4f)" % worst)
+			for cl in range(1, 21):
+				for r in range(-1, 13):
+					var rc := ChampionsMeta.stats_at(cid, "L", f, cl, r)
+					var tc := ChampionsMeta.stats_at("taras", "L", f, cl, r)
+					worst = maxf(worst, float(rc["mult"]) / float(tc["mult"]))
+					if not float(rc["mult"]) < float(tc["mult"]):
+						bad.append("%s f%d cl%d r%d mult" % [cid, f, cl, r])
+					if same_class:
+						for key: String in ["hp", "action", "aura"]:
+							var capped := key == "aura" and float(tc[key]) >= ChampionData.AURA_CAP
+							if not (float(rc[key]) < float(tc[key]) or (capped and float(rc[key]) <= float(tc[key]))):
+								bad.append("%s f%d cl%d r%d %s" % [cid, f, cl, r, key])
+	print("  Тарас rule #3: worst recut / native mult %.4f, %d recut Mage(s) checked on HP / Action / aura" % [worst, mages])
+	_ok(bad.is_empty() and worst < 1.0, "rule #3: a recut Topaz champion < native Тарас on mult (worst %.4f), %d recut Mage(s) on HP / Action / aura %s"
+			% [worst, mages, str(bad.slice(0, 4))])
+
 
 # ------------------------------------------------------------------ team and synergy
 
