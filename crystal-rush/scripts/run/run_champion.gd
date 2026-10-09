@@ -7,15 +7,19 @@ extends Node3D
 ## glance: Warrior blade, Ranger bow (+ quiver), Mage staff with an orb (+ robe), Guardian tower
 ## shield (+ helm), Healer satchel and flask. One mesh, one surface, about 2.5k triangles.
 ##
-## The rig lives in the vertex shader: every vertex carries its body part in UV2.x and SHADER
-## bends the limbs about fixed joints (the constants below) from four uniforms, so a champion is
-## one draw call with no Skeleton3D. ChampionView calls follow() and animate() once a frame:
-## idle bob, run cycle (limb swing), fight stance, the class action pose (leap arc, draw, raise,
-## shield forward, kneel pulse), hit flinch, the hop over hazards, and the fall (a short hold,
-## a 0.6 s topple, it lies there, then sinks away after 2 s).
+## The rig lives in the vertex shader: every vertex carries its body part in UV2.x and the shader
+## bends the limbs about fixed joints (the constants below), so a champion needs no Skeleton3D. On
+## its own (setup(..., false): galleries, test_run_palette) a champion draws itself with SHADER and
+## four uniforms. In the run ChampionView builds them batched (setup(..., true)): this node keeps
+## only the animation state and its transform, and ChampionView draws every champion in ONE draw
+## (merged_mesh, BATCH_SHADER, pose_into; §10.6: one champion is never a draw call of its own).
+## ChampionView calls follow() and animate() once a frame: idle bob, run cycle (limb swing), fight
+## stance, the class action pose (leap arc, burrow, axe throw, draw, raise, shield forward, kneel
+## pulse), hit flinch, the hop over hazards, and the fall (a short hold, a 0.6 s topple, it lies
+## there, then sinks away after 2 s).
 
-## Joints of the rig (model space: feet at y 0, facing -Z; x = half distance across). SHADER
-## bends about the same points: keep both in step.
+## Joints of the rig (model space: feet at y 0, facing -Z; x = half distance across). RIG (both
+## shaders) bends about the same points: keep both in step.
 const HIP := Vector2(0.068, 0.56)
 const KNEE := Vector2(0.07, 0.30)
 const ANKLE := Vector2(0.07, 0.06)
@@ -28,13 +32,18 @@ const HEIGHT := 1.10
 ## Body parts (UV2.x of every vertex).
 enum Part { TORSO, HEAD, ARM_L, ARM_R, FORE_L, FORE_R, THIGH_L, THIGH_R, SHIN_L, SHIN_R }
 
-## Vertex tints over the material's warm grey porcelain (props and trims read by value only).
+## Vertex tints over the material's warm grey porcelain (props and trims read by value only). The darks
+## and the prop woods are deeper than the first grey-box's (0.6 / 0.78) so the class prop reads as a dark
+## line against a crowd of white knights; the gold stays (a richer gold reads as coin gold, §10.3).
 const SKIN := Color(1.0, 1.0, 1.0)
 const CLOTH := Color(0.84, 0.83, 0.84)
-const DARK := Color(0.6, 0.58, 0.57)
+const DARK := Color(0.5, 0.48, 0.47)
 const GOLD := Color(1.0, 0.88, 0.6)
 const STEEL := Color(0.93, 0.95, 1.0)
-const WOOD := Color(0.78, 0.68, 0.56)
+const WOOD := Color(0.68, 0.58, 0.47)
+## Rim strength (the look's y): the white-gold fresnel, a touch stronger than the first grey-box's 0.55
+## (with rim_power 2.8, was 3.0).
+const RIM := 0.68
 
 const RUN_CYCLE := 10.5      ## stride phase rad/s at RUN_SPEED (about 3.3 steps/s)
 const HOP_TIME := 0.42
@@ -44,11 +53,23 @@ const FALL_TIME := 0.6
 const LIE_TIME := 2.0
 const SINK_TIME := 0.8
 const FLINCH_TIME := 0.25
-const ACTION_LEN := {&"leap": 0.9, &"shot": 0.55, &"spell": 0.7, &"block": 0.6, &"mend": 0.8}
+const ACTION_LEN := {&"leap": 0.9, &"shot": 0.55, &"spell": 0.7, &"block": 0.6, &"mend": 0.8, &"burrow": 1.0,
+		&"throw": 0.95}
 ## Leap root motion: out to the target until LEAP_HIT (the impact), back from LEAP_BACK.
 const LEAP_HIT := 0.4
 const LEAP_BACK := 0.52
 const LEAP_H := 0.7
+## Burrow (Борко's leap, §6.13): dives in until BURROW_DOWN, travels under the road to BURROW_UP,
+## erupts at the target (the impact at BURROW_HIT), leaps back from BURROW_BACK. BURROW_DEEP sinks the
+## whole 1.10 u figure under the road surface.
+const BURROW_DOWN := 0.22
+const BURROW_UP := 0.42
+const BURROW_HIT := 0.5
+const BURROW_BACK := 0.58
+const BURROW_DEEP := 1.3
+## Axe throw (Довбуш's bartka, §6.27): wind-up, the release at THROW_RELEASE, the catch from THROW_CATCH.
+const THROW_RELEASE := 0.32
+const THROW_CATCH := 0.82
 
 ## Class carry pose: shoulder pitch L, R and elbow bend L, R (radians; + = forward). The prop arm
 ## holds still while running (SWING: arm swing share L, R).
@@ -66,18 +87,11 @@ const SWING := {
 ## Pose channels (_p, _a): the shader uniforms plus the root lift and yaw.
 enum P { HIP_L, HIP_R, KNEE_L, KNEE_R, SH_L, SH_R, RAISE_L, RAISE_R, EL_L, EL_R, LEAN, NOD, LIFT, YAW, COUNT }
 
-const SHADER := "shader_type spatial;
-render_mode cull_back, diffuse_burley, specular_schlick_ggx;
-// RunChampion's procedural rig: UV2.x = body part, the limbs bend about the joints below.
-// legs = hip pitch L, R and knee bend L, R; arms = shoulder pitch L, R and raise (outward) L, R;
-// body = elbow bend L, R, torso lean (forward +) and head nod; look = hit flash, rim, dim.
-uniform vec4 legs = vec4(0.0);
-uniform vec4 arms = vec4(0.0);
-uniform vec4 body = vec4(0.0);
-uniform vec4 look = vec4(0.0, 0.55, 0.0, 0.0);
-uniform vec3 base_color : source_color = vec3(0.81, 0.78, 0.74);
-uniform vec3 rim_color : source_color = vec3(1.0, 0.906, 0.639);
-
+## The rig, shared by the single-model SHADER and BATCH_SHADER: the joints (keep them in step with the
+## constants above) and rig(), which bends a vertex of body part `part` (UV2.x) by the pose. lg (legs) =
+## hip pitch L, R and knee bend L, R; am (arms) = shoulder pitch L, R and raise (outward) L, R; bd (body) =
+## elbow bend L, R, torso lean (forward +) and head nod.
+const RIG := "
 const vec3 HIP_L = vec3(-0.068, 0.56, 0.0);
 const vec3 HIP_R = vec3(0.068, 0.56, 0.0);
 const vec3 KNEE_L = vec3(-0.07, 0.30, 0.0);
@@ -95,6 +109,12 @@ mat3 rot_x(float a) {
 	return mat3(vec3(1.0, 0.0, 0.0), vec3(0.0, c, s), vec3(0.0, -s, c));
 }
 
+mat3 rot_y(float a) {
+	float c = cos(a);
+	float s = sin(a);
+	return mat3(vec3(c, 0.0, -s), vec3(0.0, 1.0, 0.0), vec3(s, 0.0, c));
+}
+
 mat3 rot_z(float a) {
 	float c = cos(a);
 	float s = sin(a);
@@ -105,81 +125,145 @@ vec3 to_linear(vec3 c) {
 	return mix(pow((c + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), c * (1.0 / 12.92), lessThan(c, vec3(0.04045)));
 }
 
-void vertex() {
-	int part = int(UV2.x + 0.5);
-	vec3 v = VERTEX;
-	vec3 n = NORMAL;
+void rig(inout vec3 v, inout vec3 n, int part, vec4 lg, vec4 am, vec4 bd) {
 	mat3 r = mat3(1.0);
 	// Child joints first (knee, elbow), then their parents (hip, shoulder), then the torso.
 	if (part == 8 || part == 9) {
 		vec3 k = part == 8 ? KNEE_L : KNEE_R;
-		r = rot_x(-(part == 8 ? legs.z : legs.w));
+		r = rot_x(-(part == 8 ? lg.z : lg.w));
 		v = r * (v - k) + k;
 		n = r * n;
 	}
 	if (part == 6 || part == 8) {
-		r = rot_x(legs.x);
+		r = rot_x(lg.x);
 		v = r * (v - HIP_L) + HIP_L;
 		n = r * n;
 	}
 	if (part == 7 || part == 9) {
-		r = rot_x(legs.y);
+		r = rot_x(lg.y);
 		v = r * (v - HIP_R) + HIP_R;
 		n = r * n;
 	}
 	if (part == 4) {
-		r = rot_x(body.x);
+		r = rot_x(bd.x);
 		v = r * (v - EL_L) + EL_L;
 		n = r * n;
 	}
 	if (part == 5) {
-		r = rot_x(body.y);
+		r = rot_x(bd.y);
 		v = r * (v - EL_R) + EL_R;
 		n = r * n;
 	}
 	if (part == 2 || part == 4) {
-		r = rot_z(-arms.z) * rot_x(arms.x);
+		r = rot_z(-am.z) * rot_x(am.x);
 		v = r * (v - SH_L) + SH_L;
 		n = r * n;
 	}
 	if (part == 3 || part == 5) {
-		r = rot_z(arms.w) * rot_x(arms.y);
+		r = rot_z(am.w) * rot_x(am.y);
 		v = r * (v - SH_R) + SH_R;
 		n = r * n;
 	}
 	if (part == 1) {
-		r = rot_x(-body.w);
+		r = rot_x(-bd.w);
 		v = r * (v - NECK) + NECK;
 		n = r * n;
 	}
 	if (part <= 5) {
-		r = rot_x(-body.z);
+		r = rot_x(-bd.z);
 		v = r * (v - WAIST) + WAIST;
 		n = r * n;
 	}
+}
+
+// The run look (§10.1, §10.3): matte warm porcelain with a thin white-gold fresnel rim, no emission, no
+// glow. lk = hit flash (lightens, never glows), rim strength, dim (a fallen champion greys down).
+vec3 porcelain(vec3 tint, vec3 nrm, vec3 view, vec4 lk) {
+	vec3 c = base_color * to_linear(tint);
+	float fres = pow(1.0 - clamp(dot(nrm, view), 0.0, 1.0), rim_power);
+	c = mix(c, rim_color, clamp(fres * lk.y, 0.0, 1.0));
+	c = mix(c, vec3(1.0), clamp(lk.x, 0.0, 1.0) * 0.55);
+	return c * (1.0 - 0.35 * clamp(lk.z, 0.0, 1.0));
+}
+"
+
+## The look uniforms both shaders share: a light warm porcelain, lifted a little from the first grey-box's
+## 0.81 / 0.78 / 0.74 so a champion reads inside a crowd of knights (§10.5). Not lighter: every gate
+## highlight is a near-white (cool, peach, lilac, cream, mint), and a lighter body sits closer to them
+## (§10.3, test_run_palette); this value scores a little better than the old one. And the white-gold rim.
+const LOOK_UNIFORMS := "
+uniform vec3 base_color : source_color = vec3(0.84, 0.81, 0.77);
+uniform vec3 rim_color : source_color = vec3(1.0, 0.906, 0.639);
+uniform float rim_power = 2.8;
+"
+
+## One champion on its own (galleries, test_run_palette): the pose in four uniforms.
+const SHADER := "shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+// RunChampion's procedural rig, one model: UV2.x = body part; legs / arms / body = the pose, look = hit
+// flash, rim, dim.
+uniform vec4 legs = vec4(0.0);
+uniform vec4 arms = vec4(0.0);
+uniform vec4 body = vec4(0.0);
+uniform vec4 look = vec4(0.0, 0.68, 0.0, 0.0);
+" + LOOK_UNIFORMS + RIG + "
+void vertex() {
+	vec3 v = VERTEX;
+	vec3 n = NORMAL;
+	rig(v, n, int(UV2.x + 0.5), legs, arms, body);
 	VERTEX = v;
 	NORMAL = n;
 }
 
 void fragment() {
-	vec3 c = base_color * to_linear(COLOR.rgb);
-	// A thin white-gold rim (fresnel) on a matte porcelain body; the hit flash lightens, never glows.
-	float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
-	c = mix(c, rim_color, clamp(fres * look.y, 0.0, 1.0));
-	c = mix(c, vec3(1.0), clamp(look.x, 0.0, 1.0) * 0.55);
-	c *= 1.0 - 0.35 * clamp(look.z, 0.0, 1.0);
-	ALBEDO = c;
+	ALBEDO = porcelain(COLOR.rgb, NORMAL, VIEW, look);
 	ROUGHNESS = 0.68;
 	SPECULAR = 0.3;
 }
 "
 
+## Every champion of the run in ONE draw (ChampionView, §10.6): one mesh holds each member's class model
+## (UV2.y = member index) and one uniform array the poses, POSE_ROWS vec4 per member: legs, arms, body,
+## look, place (x, y, z from the node, yaw), extra (pitch, shown 1 / hidden 0).
+const BATCH_SHADER := "shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+// RunChampion's procedural rig, every champion in one draw: UV2.x = body part, UV2.y = member.
+uniform vec4 pose[24];
+varying vec4 v_look;
+" + LOOK_UNIFORMS + RIG + "
+void vertex() {
+	int m = int(UV2.y + 0.5) * 6;
+	vec3 v = VERTEX;
+	vec3 n = NORMAL;
+	rig(v, n, int(UV2.x + 0.5), pose[m], pose[m + 1], pose[m + 2]);
+	vec4 place = pose[m + 4];
+	vec4 extra = pose[m + 5];
+	mat3 r = rot_y(place.w) * rot_x(extra.x);
+	VERTEX = r * v * extra.y + place.xyz;
+	NORMAL = r * n;
+	v_look = pose[m + 3];
+}
+
+void fragment() {
+	ALBEDO = porcelain(COLOR.rgb, NORMAL, VIEW, v_look);
+	ROUGHNESS = 0.68;
+	SPECULAR = 0.3;
+}
+"
+## vec4 rows per member in BATCH_SHADER's `pose`, and the members one batch holds (a team has <= 4).
+const POSE_ROWS := 6
+const BATCH_MAX := 4
+
 static var _shader: Shader
+static var _batch_shader: Shader
 static var _meshes := {}
 
 var cls := "warrior"
+## The model's own mesh and material (null when batched: ChampionView draws it).
 var body: MeshInstance3D
 var mat: ShaderMaterial
+## True when ChampionView draws this champion in its one-draw batch (setup(..., true)).
+var batched := false
 ## Where the champion stands now (smoothed, world; the leap and the hop ride on top of it).
 var pos := Vector3.ZERO
 var alive := true
@@ -207,15 +291,20 @@ var _a := PackedFloat32Array()
 var _legs := Vector4.ZERO
 var _arms := Vector4.ZERO
 var _body := Vector4.ZERO
-var _look := Vector4(0.0, 0.55, 0.0, 0.0)
+var _look := Vector4(0.0, RIM, 0.0, 0.0)
+var _pitch := 0.0
 
 
 ## Builds the model for class `p_cls` (TeamData class id). The element is not drawn on the body:
-## the run keeps it neutral (§10.3) and shows the element on the glyph (ChampionView).
-func setup(p_cls: String, _element := "") -> void:
+## the run keeps it neutral (§10.3) and shows the element on the glyph (ChampionView). `p_batched`:
+## no mesh of its own, ChampionView draws it (merged_mesh, pose_into).
+func setup(p_cls: String, _element := "", p_batched := false) -> void:
 	cls = p_cls if HOLD.has(p_cls) else "warrior"
+	batched = p_batched
 	_p.resize(P.COUNT)
 	_a.resize(P.COUNT)
+	if batched:
+		return
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = SHADER
@@ -233,11 +322,67 @@ func setup(p_cls: String, _element := "") -> void:
 
 ## Triangles of this champion's mesh (perf budget, §10.6).
 func triangles() -> int:
-	var m := body.mesh as ArrayMesh
+	return tri_count(mesh_for(cls))
+
+
+static func tri_count(m: ArrayMesh) -> int:
 	var n := 0
 	for s in m.get_surface_count():
 		n += m.surface_get_array_index_len(s) / 3
 	return n
+
+
+## This frame's pose for BATCH_SHADER: POSE_ROWS vec4 into `out` from `o` (legs, arms, body, look,
+## place = root - `anchor` + yaw, extra = pitch + shown). A hidden (sunk) champion is collapsed.
+func pose_into(out: PackedVector4Array, o: int, anchor: Vector3) -> void:
+	out[o] = _legs
+	out[o + 1] = _arms
+	out[o + 2] = _body
+	out[o + 3] = _look
+	var at := position - anchor
+	out[o + 4] = Vector4(at.x, at.y, at.z, _p[P.YAW])
+	out[o + 5] = Vector4(_pitch, 1.0 if visible else 0.0, 0.0, 0.0)
+
+
+## The batch shader (one material per ChampionView; the shader is shared).
+static func batch_material() -> ShaderMaterial:
+	if _batch_shader == null:
+		_batch_shader = Shader.new()
+		_batch_shader.code = BATCH_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = _batch_shader
+	return m
+
+
+## One mesh with each class of `classes` (member order) as its own member: UV2.y = the member index
+## (BATCH_SHADER reads that member's pose). One surface, the same triangles as the members' models.
+static func merged_mesh(classes: Array) -> ArrayMesh:
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var c := PackedColorArray()
+	var uv2 := PackedVector2Array()
+	var idx := PackedInt32Array()
+	for i in mini(classes.size(), BATCH_MAX):
+		var cl := str(classes[i])
+		var a := mesh_for(cl if HOLD.has(cl) else "warrior").surface_get_arrays(0)
+		var base := v.size()
+		v.append_array(a[Mesh.ARRAY_VERTEX])
+		n.append_array(a[Mesh.ARRAY_NORMAL])
+		c.append_array(a[Mesh.ARRAY_COLOR])
+		for p: Vector2 in (a[Mesh.ARRAY_TEX_UV2] as PackedVector2Array):
+			uv2.append(Vector2(p.x, float(i)))
+		for j: int in (a[Mesh.ARRAY_INDEX] as PackedInt32Array):
+			idx.append(base + j)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = v
+	arrays[Mesh.ARRAY_NORMAL] = n
+	arrays[Mesh.ARRAY_COLOR] = c
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return m
 
 
 # ------------------------------------------------------------------ state changes
@@ -258,7 +403,8 @@ func follow(goal: Vector3, dt: float, snap := false) -> void:
 	pos.z += (goal.z - pos.z) * (1.0 - exp(-12.0 * dt))
 
 
-## The class action (ChampionKinds fx): leap | shot | spell | block | mend, toward world `at`.
+## The class action (ChampionKinds fx): leap | burrow | throw | shot | spell | block | mend, toward
+## world `at`.
 func act(kind: StringName, at := Vector3.INF) -> void:
 	if not alive:
 		return
@@ -273,11 +419,20 @@ static func impact_delay(kind: StringName) -> float:
 	match kind:
 		&"leap":
 			return LEAP_HIT * float(ACTION_LEN[&"leap"])
+		&"burrow":
+			return BURROW_HIT * float(ACTION_LEN[&"burrow"])
+		&"throw":
+			return THROW_RELEASE * float(ACTION_LEN[&"throw"])
 		&"spell":
 			return 0.18
 		&"mend":
 			return 0.3
 	return 0.0
+
+
+## Seconds from act(&"throw") to the catch (the axe is back in the hand).
+static func catch_delay() -> float:
+	return THROW_CATCH * float(ACTION_LEN[&"throw"])
 
 
 func flinch() -> void:
@@ -288,8 +443,13 @@ func flinch() -> void:
 
 ## A small hop over a hazard (champions vault like the hero; hazards never touch them).
 func vault() -> void:
-	if alive and _hop <= 0.0 and _act != &"leap":
+	if alive and _hop <= 0.0 and _act != &"leap" and _act != &"burrow":
 		_hop = HOP_TIME
+
+
+## The model's depth under the road this frame (0 on it; up to BURROW_DEEP while burrowing).
+func buried() -> float:
+	return maxf(-(root.y - pos.y), 0.0) if _act == &"burrow" else 0.0
 
 
 ## Down for the level (§4.2): a beat, the topple, it lies there, then sinks away.
@@ -335,7 +495,7 @@ func animate(dt: float, running: bool, fighting: bool, cheering := false) -> voi
 		else:
 			off = _action_pose(s)
 			var w := smoothstep(0.0, 0.12, s) * (1.0 - smoothstep(0.82, 1.0, s))
-			if _act == &"leap":
+			if _act == &"leap" or _act == &"burrow":
 				w = 1.0 - smoothstep(0.85, 1.0, s)
 			for i in P.COUNT:
 				_p[i] = lerpf(_p[i], _a[i], w)
@@ -385,11 +545,13 @@ func animate(dt: float, running: bool, fighting: bool, cheering := false) -> voi
 	_arms = Vector4(_p[P.SH_L], _p[P.SH_R], _p[P.RAISE_L], _p[P.RAISE_R])
 	_body = Vector4(_p[P.EL_L], _p[P.EL_R], _p[P.LEAN], _p[P.NOD])
 	_look.x = _flash
-	mat.set_shader_parameter(&"legs", _legs)
-	mat.set_shader_parameter(&"arms", _arms)
-	mat.set_shader_parameter(&"body", _body)
-	mat.set_shader_parameter(&"look", _look)
+	if mat:
+		mat.set_shader_parameter(&"legs", _legs)
+		mat.set_shader_parameter(&"arms", _arms)
+		mat.set_shader_parameter(&"body", _body)
+		mat.set_shader_parameter(&"look", _look)
 	root = pos + off + Vector3(0.0, lift - sink, 0.0)
+	_pitch = pitch
 	position = root
 	rotation = Vector3(pitch, _p[P.YAW], 0.0)
 
@@ -467,6 +629,53 @@ func _action_pose(s: float) -> Vector3:
 			_a[P.KNEE_R] = 1.2 * air + 0.9 * strike
 			_a[P.LEAN] = 0.15 + 0.4 * strike
 			_a[P.LIFT] = -0.08 * strike
+		&"burrow":
+			# Dives in head first, travels under the road, erupts at the target with the strike, and
+			# leaps back to the slot.
+			var k2 := 0.0
+			var h2 := 0.0
+			if s < BURROW_DOWN:
+				var u2 := s / BURROW_DOWN
+				h2 = 0.25 * sin(u2 * PI) - BURROW_DEEP * u2 * u2
+			elif s < BURROW_UP:
+				var u3 := (s - BURROW_DOWN) / (BURROW_UP - BURROW_DOWN)
+				k2 = u3 * u3 * (3.0 - 2.0 * u3)
+				h2 = -BURROW_DEEP
+			elif s < BURROW_BACK:
+				var u4 := (s - BURROW_UP) / (BURROW_BACK - BURROW_UP)
+				k2 = 1.0
+				h2 = -BURROW_DEEP * (1.0 - u4) * (1.0 - u4) + 0.45 * sin(u4 * PI)
+			else:
+				var v2 := (s - BURROW_BACK) / (1.0 - BURROW_BACK)
+				k2 = 1.0 - v2 * v2 * (3.0 - 2.0 * v2)
+				h2 = LEAP_H * 0.5 * 4.0 * v2 * (1.0 - v2)
+			off = Vector3(to.x * k2, h2, to.z * k2)
+			var dive := 1.0 - smoothstep(BURROW_UP, BURROW_HIT, s)
+			var hit := smoothstep(BURROW_UP, BURROW_HIT, s) * (1.0 - smoothstep(BURROW_BACK, BURROW_BACK + 0.15, s))
+			_a[P.SH_L] = 2.6 * dive + 0.3 * hit
+			_a[P.SH_R] = 2.6 * dive + lerpf(2.7, 0.35, hit) * hit
+			_a[P.EL_L] = 0.1
+			_a[P.EL_R] = 0.4 * (1.0 - hit)
+			_a[P.LEAN] = 0.9 * dive + 0.4 * hit
+			_a[P.HIP_L] = 0.4 * dive + 0.5 * hit
+			_a[P.HIP_R] = 0.2 * dive + 0.2 * hit
+			_a[P.KNEE_L] = 0.6 * dive + 0.8 * hit
+			_a[P.KNEE_R] = 0.5 * dive + 0.9 * hit
+		&"throw":
+			# The axe over the head, the throw (arm whips forward, torso follows), the open hand while
+			# it flies, the catch as it spins back.
+			var wind := smoothstep(0.0, THROW_RELEASE - 0.06, s) * (1.0 - smoothstep(THROW_RELEASE - 0.06,
+					THROW_RELEASE, s))
+			var fling := smoothstep(THROW_RELEASE - 0.06, THROW_RELEASE + 0.06, s)
+			var grab := smoothstep(THROW_CATCH - 0.12, THROW_CATCH, s)
+			_a[P.SH_R] = 2.8 * wind + (1.25 + 0.35 * grab) * fling
+			_a[P.EL_R] = 0.9 * wind + 0.15 * fling
+			_a[P.RAISE_R] = 0.15 * wind
+			_a[P.SH_L] = 0.6 * fling
+			_a[P.LEAN] = -0.12 * wind + 0.3 * fling * (1.0 - 0.5 * grab)
+			_a[P.HIP_L] = 0.35 * fling
+			_a[P.KNEE_L] = 0.4 * fling
+			_a[P.YAW] = clampf(atan2(-to.x, -to.z), -0.6, 0.6)
 		&"shot":
 			# Bow arm out, string hand drawn to the chin, turned toward the target.
 			_a[P.SH_L] = 1.55

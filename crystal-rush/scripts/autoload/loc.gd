@@ -1306,6 +1306,7 @@ const STRINGS := {
 	"HINT_AURA": ["Солдати в колі чемпіона сильніші", "Soldiers inside a champion's ring are stronger"],
 	"HINT_CHAMP_BLOCK": ["Блок! Страж прийняв удар леза", "Block! The Guardian took the blade hit"],
 	"CHAMP_BLOCK_POP": ["БЛОК", "BLOCK"],
+	"CHAMP_CLEAR_POP": ["ЧИСТО!", "ALL CLEAR!"],
 	"HINT_CHAMP_FALL": ["Чемпіон упав: його бонуси зникли до кінця рівня", "Champion down: its bonuses are gone for this level"],
 	"TOAST_SAVE_FAILED": ["Не вдалося зберегти — нічого не витрачено", "Could not save — nothing was spent"],
 	"SAVE_NEWER_READONLY": ["Цей запис зроблено новішою версією гри: лише перегляд", "This save is from a newer version of the game: view only"],
