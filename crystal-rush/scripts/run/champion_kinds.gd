@@ -652,7 +652,7 @@ static func _mage(view: KindView, m: Dictionary, dt: float) -> void:
 			if st != &"":
 				view.status(sid, st, float(c["status_s"]))
 			if lull > 0.0:
-				# Тая's lull: 50% speed and clash damage (the view's hold verb at strength 0.5).
+				# Тая's lull: speed and clash damage x (1 - lull_strength) (the view's hold verb).
 				view.hold(sid, lull, float(tw.get("lull_strength", 0.5)))
 				lulled += 1
 	var smult := float(c["struct_iii"]) if tier >= 3 else 1.0
