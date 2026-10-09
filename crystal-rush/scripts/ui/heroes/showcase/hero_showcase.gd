@@ -569,8 +569,9 @@ func _layout() -> void:
 		var sh := full * sc
 		var sw := sh * aspect
 		var eye: Vector2 = meta.get("eye", Vector2(0.6, 0.3))
-		var ex := W * 0.64 - eye.x * sw
-		ex = clampf(ex, W - sw - 40.0, 40.0)
+		# Art with props held out to the left (Мейра's shards) sits further right: META eye_x / max_left.
+		var ex := W * float(meta.get("eye_x", 0.64)) - eye.x * sw
+		ex = clampf(ex, W - sw - 40.0, maxf(40.0, float(meta.get("max_left", 40.0))))
 		var sy := H - full + eye.y * (full - sh)
 		_splash.size = Vector2(sw, sh)
 		_splash.position = Vector2(ex, sy)

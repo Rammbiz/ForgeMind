@@ -20,13 +20,15 @@ const STATES: Array[String] = ["splash", "card", "live3d", "silhouette", "placeh
 
 ## Per-character framing (normalised to the splash): `crop` = the card crop (x, y, w, h),
 ## `eye` = the eye line (Showcase placement), `focus_x` = where the body sits horizontally,
-## optional `scale` (Showcase art size, 1 = full height) and `veil` (cream veil behind the info column, 0.5).
+## optional `scale` (Showcase art size, 1 = full height), `veil` (cream veil behind the info column, 0.5),
+## `eye_x` (screen x of the eyes, 0.64) and `max_left` (how far right the art may start, 40 px).
 ## Update when the owner's final splash lands (assets/heroes/<id>/README.md).
 const META := {
 	"vesta": {"crop": Rect2(0.33, 0.19, 0.58, 0.40), "eye": Vector2(0.61, 0.315), "focus_x": 0.66},
 	# Owner's splashes 2026-10-08 (1K sources in art_src/, empty top band cropped so the eyes sit at ~30 %).
 	"titan": {"crop": Rect2(0.30, 0.10, 0.60, 0.54), "eye": Vector2(0.61, 0.30), "focus_x": 0.56, "scale": 0.8, "veil": 0.74},
 	"bolt": {"crop": Rect2(0.10, 0.08, 0.60, 0.51), "eye": Vector2(0.40, 0.30), "focus_x": 0.55},
+	"seer": {"crop": Rect2(0.29, 0.14, 0.60, 0.44), "eye": Vector2(0.59, 0.30), "focus_x": 0.6, "eye_x": 0.72, "max_left": 120.0, "veil": 0.7},
 }
 
 static var _tex: Dictionary = {}          ## path -> Texture2D (or null when missing)
