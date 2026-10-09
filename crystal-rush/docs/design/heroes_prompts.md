@@ -158,7 +158,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 
 | Крок | Що | Навіщо саме зараз (що розблоковує) |
 |---|---|---|
-| 1 | **Веста — сплеш 4K** (H07 a) → затвердити → `style_anchor.png` | еталон стилю для всіх 21 інших; макет «Вітрини героя» (H3) |
+| 1 | **Веста — сплеш 4K** (H07 a) → затвердити → `style_anchor.png` | еталон стилю для всіх 25 інших; макет «Вітрини героя» (H3) |
 | 2 | **Отто, Альба, Міла** повністю: картка → листи → пропи → Meshy 8k → риг → кліпи → іконка | фаза H2: чемпіони в забігу й заміри fps на телефоні зі справжніми моделями; сценарні скрині №1/№2 (L14) |
 | 3 | **Набір хабу:** Портал (концепт + Meshy), Скриня героїв, 4 валюти, 4 герби фракцій, 5 значків класів, 4 фони фракцій | екрани H3: Портал, Зала героїв, Команда, Вітрина |
 | 4 | **Стартери-ремейки (хвиля 0): Горан, Руді, Мейра** повністю (сплеш → листи → Meshy 15k → риг → кліпи → 4 іконки; Мейрі ще «очі закриті») | вони в грі з L1–L5; без ремейку реліз не вийде (поки працюють старі моделі) |
@@ -6115,7 +6115,7 @@ Text, letters, numbers, frame, border, ring, badge plate, background scene, face
 
 **(a) Картка чемпіона (3:4, до середини стегна)** — `snaryad_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/snaryad/snaryad_card_src.jpg`, 3584×4800; у грі — `assets/heroes/snaryad/card.png` і на весь зріст `splash.png`).
 
-Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Нижче — промт, з яким ви зробили цю картку, з ОДНІЄЮ правкою: рядок Bandolier тепер грає з ім'ям «Снаряд» (великий снаряд, а не патрон); інших імен у промті немає. Перегенеровувати не треба.
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Нижче — промт, з яким ви зробили цю картку, з ОДНІЄЮ правкою: з рядка Bandolier прибрано гру слів з іменем; імен у промті немає. Перегенеровувати не треба.
 
 ```
 Create ONE vertical champion card illustration for a premium fantasy mobile game.
@@ -6136,7 +6136,7 @@ CHARACTER - a legendary little sapper hound who sniffs out every trap on the roa
 - Head: an unmistakable Jack Russell terrier head: short white coat, rich tan-brown (#A8642E) markings covering both ears and around both eyes, a narrow white blaze running down the middle of the face to a black nose; folded button ears, slightly oversized and expressive; bright clever dark eyes; the chin raised proudly and the nose lifted, sniffing the air; mouth closed in a confident little smile.
 - Fur: short white coat on the body, a small tan-brown patch at the base of the short upright tail.
 - Outfit: a fitted sapper's vest of polished white enamel plates over cream quilted cloth (#EFE6D2) with fine gold (#C9A24B) filigree trim; a short heroic cream half-cape with gold embroidery flowing behind one shoulder; fingerless leather gloves on his paws; a polished white enamel sapper helmet with a gold rim, tilted slightly back.
-- Bandolier: a gold-and-leather bandolier across the chest holding a row of crystal "shells": each is a slim faceted violet amethyst crystal set in a short gold casing (a playful nod to his name «Снаряд», which means a big shell, not a cartridge); these are crystals, not real ammunition.
+- Bandolier: a gold-and-leather bandolier across the chest holding a row of five slim faceted violet amethyst crystals, each set through a short gold casing; these are crystals, not real ammunition.
 - Medals: a neat row of small gold rings pinned on the left side of the vest like medals, each a pulled-out safety ring of a defused trap, a trophy for every trap he has cleared.
 - Shield and probe: his left arm braces an oversized round sapper's detector disc used as a shield: a gold-rimmed white enamel disc with fine engraved concentric rings and a small violet amethyst at its centre; in his right paw a long slender brass detector probe with a leather grip, its tip planted on the ground like a standard.
 - Heart gem: one faceted kite cut of deep violet amethyst (#7A35D6), about 4% of the figure height, set in the gold buckle at the centre of his vest, clearly visible from the front.
@@ -6184,7 +6184,7 @@ POSE & VIEW
 - Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart; feet pointing forward.
 - Hands open and EMPTY, palms facing down, fingers together, clearly separated from the body.
 - The helmet sits level on the head with both folded ears visible under its rim; the half-cape hangs behind the shoulder and does not cover the arm.
-- The white tail hangs down behind him, clearly separated from the legs.
+- The white tail with its tan base sticks out behind him below the tunic hem, its tip just visible beside one leg, clearly separated from the legs.
 - Neutral calm expression, mouth closed, eyes open looking forward.
 
 RENDER
@@ -6327,7 +6327,7 @@ ART STYLE
 - Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
 
 MOTIF - Sapper's Nose (champion action)
-- a stylised dog's nose seen in profile at the upper left (only the nose, no face), a curling scent line running from it down to a fantasy spiked trap-charge (a round iron ball with short spikes, not a real mine) whose pulled-out safety ring dangles beside it, defused
+- a stylised dog's nose in profile at the upper left (only the nose, no face) and a curling scent line leading down to a fantasy blade-trap tile of the ember horde (a flat hexagonal iron plate with three short curved blades folded flat, defused)
 
 COLOUR
 - Main colours: signal lime (#49FF0C) and graphite grey (#3A3F47), ivory white and gold; the darkest shading in graphite (#24282E) so the motif separates clearly from the grey background.
@@ -6338,7 +6338,7 @@ COMPOSITION
 - At most three main shapes; no detail smaller than 3% of the canvas.
 
 AVOID
-Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark.
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, a spiked ball, a sea mine, a landmine, a grenade, a bomb.
 ```
 
 ---
