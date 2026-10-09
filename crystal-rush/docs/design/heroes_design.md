@@ -1446,7 +1446,8 @@ believes a word spoken in time is stronger than any weapon, and he opens every b
 
 **Fantasy:** a kobzar, a poet and painter who carries the word of his people; his heavy books are bound in brass and
 topaz, strike like stones and burst into pages that cut like blades. A tribute to Taras Shevchenko (1814–1861), the
-Ukrainian national poet, drawn after his 1859 self-portrait. **Tone (binding):** he is revered; every line about him is
+Ukrainian national poet, drawn after his 1860 etched self-portrait in a fur cap and sheepskin coat (from A. Denier's
+1858 photograph). **Tone (binding):** he is revered; every line about him is
 respectful and dignified, never a joke at his expense, no political slogans, no quotations turned into catchphrases.
 **Personality:** calm, wise, warm with the young, stern with cruelty; speaks little, and every word lands. **Voice:**
 pick «Слово не згорить.» / "A word does not burn." · action «Слово!» / "The Word!"
