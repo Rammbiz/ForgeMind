@@ -46,8 +46,8 @@ machines stay the biggest share of power (50–52% at L60). Ceremonies take 14.2
 Players coming from the current save get everything the content they already played would have paid, on update day.
 
 **When things happen (casual p50 · regular p50).** First champion: day 5 · day 2. Portal and first Топаз hero: day 7 ·
-day 3. First Опал hero: day 24 · day 10. All 11 heroes: day 91 · day 75 (Сірко is the third Опал). A hero fully cut at Опал:
-day 70 · day 56.
+day 3. First Опал hero: day 24 · day 10. All 12 heroes: day 102 · day 77 (Сірко and Ольга are the third and fourth Опал;
+19% of casual players still miss one at day 180). A hero fully cut at Опал: day 71 · day 63.
 Tomes no longer pile up: the cosmetic «Хроніка героя» pages absorb the surplus.
 
 **The look.** Your Genshin × AFK Journey fusion: light cream panels, gold lines, painted portraits, M PLUS Rounded 1c,
@@ -379,7 +379,7 @@ Rules:
 | Топаз | 9 | 91 | 273 | 3 (born) | 5 |
 | Опал | 11 | 161 | 483 | 4 (born) | 10 |
 
-Roster at native max: 2 453 Tomes; all 11 at Opal f5 (recut caps 10): 4 423 Tomes (Сірко added 493). No coins anywhere.
+Roster at native max: 2 946 Tomes; all 12 at Opal f5 (recut caps 10): 4 916 Tomes (Сірко and Ольга added 493 each). No coins anywhere.
 
 | Skill | Numeric per rank | Rule content | Budget (§2.3) |
 |---|---|---|---|
@@ -1925,10 +1925,10 @@ fragments, Workshop = Star Ore. **Coins** remain for machines, Barracks, Tactics
 
 | Coin sink of the hero system (upper bound) | Coins |
 |---|---|
-| Hero levels (11 heroes since Сірко, no Hero Sync) | 463 540 |
+| Hero levels (12 heroes since Ольга, no Hero Sync) | 505 680 |
 | Champion Level 1 → 20 (one shared track) | 26 840 |
 | Skills · recut · Workshop | 0 · 0 · 0 |
-| **Total** (Meta-1 Arsenal for comparison: 578 270) | **490 380** |
+| **Total** (Meta-1 Arsenal for comparison: 578 270) | **532 520** |
 
 ### 8.2 `TEAM_DEMAND` — the one-time difficulty re-bake
 
@@ -2004,9 +2004,9 @@ chests 1.52 · bosses 0.53 · weekly 0.27 · Expedition 0.20 · Hero Chests 0. S
 | Workshop (L32) · first item at +12 | 10 · 57 | 5 · 33 | 2 · 20 |
 | first skill rank 7 · rank 9 | 40 · 77 | 21 · 56 | 14 · 56 |
 | all 15 champions (C24–C25 run, 90 seeds, 2026-10-09; all 13 in the same 90-seed run before them: 14 / 21 / 29 · 7 / 11 / 15 · 3 / 5 / 7; all 12 at launch: 14 / 18 / 24 · 7 / 9 / 11 · 3 / 4 / 5) | 19 / 27 / 35 | 9 / 14 / 21 | 4 / 6 / 14 |
-| all 11 heroes (H26 run, 90 seeds, 2026-10-09; casual reach it in 98% of seeds by day 180; all 10 in the same 90-seed run before him: 23 / 57 / 98 · 12 / 35 / 77 · 7 / 35 / 76) | 35 / 91 / 133 | 21 / 75 / 109 | 21 / 68 / 98 |
-| first hero recut to Opal · first hero at Opal f5 (H26 run; before him 46 · 63 · 35 · 49 · 33 · 44) | 50 · 70 | 38 · 56 | 35 · 56 |
-| first Opal by a Seal pick (share of seeds by day 180; before him 21% · 17% · 17%) | 47% | 50% | 43% |
+| all 12 heroes (H27 run, 90 seeds, 2026-10-09; by day 180 casual reach it in 81% of seeds, regular and hardcore in 97%; all 11 in the H26 run before her: 35 / 91 / 133 · 21 / 75 / 109 · 21 / 68 / 98) | 77 / 102 / — | 42 / 77 / 173 | 43 / 74 / 160 |
+| first hero recut to Opal · first hero at Opal f5 (H27 run; H26 run 50 · 70 · 38 · 56 · 35 · 56; before Сірко 46 · 63 · 35 · 49 · 33 · 44) | 54 · 71 | 39 · 63 | 35 · 56 |
+| an Opal hero picked with Seals (share of seeds by day 180; H26 run 47% · 50% · 43%; before Сірко 21% · 17% · 17%) | 77% | 71% | 64% |
 | first skill rank 11 (Opal max) | 20% of seeds by day 180 | 13% | 6% |
 
 Time-to-fun (E10): casual meets champions on day 5 and the Portal with its guaranteed Topaz on day 7 (v1: day 6 and the
@@ -2017,23 +2017,23 @@ first Topaz on day 10); regular on day 2 and day 3.
 | Regular account | d1 | d3 | d7 | d14 | d30 | d60 | d90 | d180 |
 |---|---|---|---|---|---|---|---|---|
 | frontier level | 8 | 23 | 53 | 104 | 113 | 113 | 113 | 113 |
-| heroes owned · team hero gem (0 = Кварц … 4 = Опал) | 2 · 1 | 6 · 3 | 8 · 3 | 9 · 3 | 9 · 3 | 10 · 4 | 11 · 4 | 11 · 4 |
+| heroes owned · team hero gem (0 = Кварц … 4 = Опал) | 2 · 1 | 6 · 3 | 8 · 3 | 9 · 3 | 9 · 3 | 10 · 4 | 12 · 4 | 12 · 4 |
 | team hero Ult + Attack + Rally ranks · Awakening | 3 · 0 | 3 · 1 | 12 · 3 | 17 · 3 | 19 · 3 | 23 · 3 | 26 · 3 | 30 · 3 |
 | champions owned · Champion Level | 0 · 1 | 7 · 3 | 12 · 6 | 15 · 14 | 15 · 18 | 15 · 20 | 15 · 20 | 15 · 20 |
 | recuts done · summons done | 0 · 0 | 0 · 10 | 2 · 30 | 9 · 70 | 15 · 100 | 23 · 160 | 28 · 220 | 38 · 410 |
-| Seals banked · Tomes banked | 0 · 0 | 10 · 0 | 30 · 2 | 70 · 6 | 100 · 4 | 160 · 13 | 20 · 12 | 20 · 47 |
+| Seals banked · Tomes banked | 0 · 0 | 10 · 0 | 30 · 2 | 70 · 6 | 100 · 4 | 160 · 13 | 20 · 12 | 10 · 47 |
 | average machine level | 3.6 | 4.7 | 6.5 | 8.2 | 11.2 | 13.3 | 14.0 | 14.5 |
 
 | Day 180 (p50) | Tomes earned | banked | spent on Chronicle | Seals banked | owned Seal picks |
 |---|---|---|---|---|---|
-| casual | 477 | 42 | 40 (4 pages of 55) | 130 | 1 |
-| regular | 575 | 47 | 140 (13 pages of 55) | 20 | 3 |
-| hardcore | 615 | 46 | 200 (17 pages of 55) | 20 | 3 |
+| casual | 460 | 44 | 35 (4 pages of 60) | 130 | 0 |
+| regular | 564 | 45 | 135 (13 pages of 60) | 10 | 1 |
+| hardcore | 609 | 46 | 180 (16 pages of 60) | 20 | 1 |
 
-(H26 run, 90 seeds; the snapshot rows of the regular account above are its heroes, Seals and team gem rows, the other rows
-are the earlier 30-seed run.) With Сірко the third Опал hero is usually bought with 200 Seals: Seals bank toward it
-(regular p50 160 at day 60, casual 180 at day 90 and still 130 at day 180, when 2% of casual seeds have not finished
-the roster) instead of buying owned picks (casual 3 → 1, regular 4 → 3).
+(H27 run, 90 seeds; the snapshot rows of the regular account above are its heroes, Seals and team gem rows, the other rows
+are the earlier 30-seed run.) With Сірко and Ольга the third and fourth Опал heroes are usually bought with 200 Seals:
+Seals bank toward them (regular p50 160 at day 60; casual 130 at day 60 and day 180, when 19% of casual seeds still
+miss a hero) instead of buying owned picks (casual 1 → 0, regular 3 → 1).
 
 v1 for comparison: regular banked 1 262 of 1 670 Tomes. Power growth share at day 180 (after content): machines 40–41%,
 heroes 43–44%, champions + synergy 7%, Barracks 5%, Tactics 4% — post-content growth is mostly hero recuts toward Opal;
@@ -2078,6 +2078,7 @@ earned; Seals banked ≤ 120.
 | C23 Тарас joins (2026-10-09) | 12 → 13 champions, Топаз pool 3 → 4 | full re-run (repo `tools/heroes_sim.py`, 80 seeds, `PYTHONHASHSEED=0`): all 69 invariants PASS before and after. Real shift: completing the champion roster takes longer (p50 casual day 18 → 21, regular 9 → 11, hardcore 4 → 5); Workshop all relics 11 520 → 11 730 Star Ore. Everything else moves only by the RNG stream (win rates ±1 pp, champions + synergy at L60 8–9%, `TEAM_DEMAND` recalibration ≤ 0.003 per world, not re-baked: the EXPECTED profile holds no Тарас); the EXPECTED Champion Level table (`SaveV3Data`) re-derived, §12.3 anchors hold |
 | C24 Снаряд + C25 Довбуш join (2026-10-09) | 13 → 15 champions, Аметист pool 3 → 4, Топаз 4 → 5 · long-horizon seeds 30 → 90 | full re-run before (C23 roster) and after, both with 90 long-horizon seeds: all 69 invariants PASS in both. Real shift: completing the champion roster takes longer (p50 casual day 21 → 27, regular 11 → 14, hardcore 5 → 6); Workshop all relics 11 730 → 12 150 Star Ore. Everything else moves only by the RNG stream (win rates unchanged, champions + synergy at L60 8.0–8.3%, `TEAM_DEMAND` recalibration ≤ 0.004 per world, not re-baked: the EXPECTED profile holds neither). Why 90 seeds: with 30 the p50 day of «all 10 heroes» (p10 ≈ day 10, p90 ≈ day 77) moved between day 21 and 42 with the RNG stream alone and crossed the invariant's day-25 bound (the champions never touch the Portal; 90 seeds: day 28 before, 35 after). The EXPECTED Champion Level table (`SaveV3Data`) is kept as published (`gen_save_v3_data.py --roster-only`): its 12-seed median sits on x.5 at several frontiers, the 60-seed means moved ≤ 0.15 except L80 (+0.35), so the §12.3 anchors stay |
 | H26 Сірко joins (2026-10-09), the 11th hero | 10 → 11 heroes, Portal Опал pool 2 → 3 (each 0.70% → 0.47%) | full re-run (90 long-horizon seeds, `PYTHONHASHSEED=0`): all 69 invariants PASS. Real shift: completing the hero roster takes much longer, because the third Опал comes from a 1.41% gem share or 200 Seals (p50 casual day 57 → 91, regular 35 → 75, hardcore 35 → 68; still inside the invariant's 25–100 / 35–140); the first hero at Опал f5 moves day 63 → 70 (casual) / 49 → 56 (regular); a Seal pick brings the first Опал in 43–50% of seeds (was 17–21%), so Seals bank toward 200 (casual 30 → 130 at day 180, regular 30 → 20) and owned picks drop; Chronicle pages 50 → 55 per account (Tomes spent on pages fall 5–10); hero coin sink 421 400 → 463 540; Workshop all relics 12 150 → 12 570 Star Ore; Tomes for the roster at native max 1 960 → 2 453. Unchanged: win rates (campaign + Invasion casual 83%, regular 91%, hardcore 96%), first Опал hero (day 22 / 9 / 5), summons per day, champions + synergy at L60 7.4–8.1%, ceremony 13.8–14.8%; `TEAM_DEMAND` recalibration moved ≤ 0.002 per world and is not re-baked (the EXPECTED profile holds no Опал hero). The EXPECTED Champion Level table stays as published (`gen_save_v3_data.py --roster-only`, anchors hold) |
+| H27 Ольга joins (2026-10-09), the 12th hero | 11 → 12 heroes, Portal Опал pool 3 → 4 (each 0.47% → 0.35%) | full re-run (90 long-horizon seeds, `PYTHONHASHSEED=0`): all 69 invariants PASS. The roster takes longer again: all heroes p50 casual day 91 → 102, regular 75 → 77, hardcore 68 → 74, inside the invariant's 25–100 / 35–140, but casual p90 is now past day 180 (81% of casual seeds own all 12 by day 180, was 98%; regular and hardcore 97%); an Опал hero is picked with Seals in 64–77% of seeds (was 43–50%); the first hero at Опал f5 moves day 70 → 71 (casual) / 56 → 63 (regular); owned Seal picks fall (casual 1 → 0, regular 3 → 1); Chronicle pages 55 → 60 per account; hero coin sink 463 540 → 505 680; Workshop all relics 12 570 → 12 990 Star Ore; Tomes for the roster at native max 2 453 → 2 946. Unchanged: win rates (casual 83% in the invariant row; the greedy all-archetype rows casual 78%, regular 89%, hardcore 94% equal the H26 run's), first Опал hero (day 22 / 9 / 5), ceremony 14.2–14.4%, champions + synergy at L60 7.2–7.9%; `TEAM_DEMAND` recalibration moved ≤ 0.002 per world and is not re-baked (the EXPECTED profile holds no Опал hero). The EXPECTED Champion Level table stays as published (`gen_save_v3_data.py --roster-only`) |
 
 ## 9. Screens and ceremonies
 
