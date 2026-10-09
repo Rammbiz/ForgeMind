@@ -59,9 +59,72 @@ func _test_states() -> void:
 	_check(HeroesUIModel.team()["slots"] == 3, "late: three champion slots")
 	_check(bool(HeroesUIModel.unlocks()["workshop"]), "late: Workshop open")
 	_check(HeroesUIModel.hero("lumen")["skills"]["awakened"]["rank"] >= 1, "late: Люмен awakened")
+	# C23 Тарас (§6.25): owned and NEW in 'late', listed but not owned in every other state; his art is the owner's card.
+	var tr := HeroesUIModel.champion("taras")
+	_check(bool(tr["owned"]) and bool(tr["is_new"]) and str(tr["gem"]) == "L" and not bool(tr["is_recut"]), "late: Тарас owned, NEW, native Топаз")
+	_check(str(tr["name"]) != "CHAMP_TARAS" and str(tr["title"]) != "CHAMP_TARAS_TITLE", "late: Тарас name and title from Loc")
+	_check(int(tr["action_tier"]) == 4 and str(tr["class"]) == "mage" and str(tr["faction"]) == "wildfang", "late: Тарас Mage of Wildfang, tier IV")
+	var owned_c := 0
+	for c in HeroesUIModel.champions():
+		owned_c += 1 if bool(c["owned"]) else 0
+	_check(owned_c < HeroesUIModel.champions().size(), "late: the Hall count follows the data (%d / %d)" % [owned_c, HeroesUIModel.champions().size()])
+	for st2: String in HeroesUIModel.STATES:
+		if st2 == "late":
+			continue
+		HeroesUIModel.set_state(st2)
+		_check(not bool(HeroesUIModel.champion("taras")["owned"]), "%s: Тарас listed as not owned" % st2)
+	HeroesUIModel.set_state("late")
+	# C24 Снаряд (§6.26): owned and NEW in 'late', listed but not owned in every other state.
+	_test_joined_state("snaryad", "Снаряд", "E", 3, "guardian", "dawn")
+	# C25 Довбуш (§6.27): the same.
+	_test_joined_state("dovbush", "Довбуш", "L", 4, "warrior", "stoneheart")
+	# H26 Сірко (§6.28), the 11th hero: owned, NEW, native Опал and born awakened in 'late'; listed, not owned elsewhere.
+	_test_joined_hero_state("sirko", "Сірко", "M", "warrior", "dawn")
+	# H27 Ольга (§6.29), the 12th hero: the same.
+	_test_joined_hero_state("olha", "Ольга", "M", "ranger", "wildfang")
 	HeroesUIModel.set_state("fresh")
 	_check(not bool(HeroesUIModel.unlocks()["portal"]) and not bool(HeroesUIModel.hero("arin")["listed"]), "fresh: Portal heroes hidden")
 	_check(bool(HeroesUIModel.hero("seer")["listed"]) and not bool(HeroesUIModel.hero("seer")["owned"]), "fresh: Мейра listed, not owned")
+
+
+## A champion that joined after launch in the mock states: owned, NEW and native in 'late' (name and title from Loc,
+## its tier, class and faction), listed but not owned in every other state; leaves the model in 'late'.
+func _test_joined_state(cid: String, uk: String, gem: String, tier: int, cls: String, fac: String) -> void:
+	HeroesUIModel.set_state("late")
+	var c := HeroesUIModel.champion(cid)
+	_check(bool(c["owned"]) and bool(c["is_new"]) and str(c["gem"]) == gem and not bool(c["is_recut"]), "late: %s owned, NEW, native %s" % [uk, gem])
+	_check(str(c["name"]) != "CHAMP_%s" % cid.to_upper() and str(c["title"]) != "CHAMP_%s_TITLE" % cid.to_upper(), "late: %s name and title from Loc" % uk)
+	_check(int(c["action_tier"]) == tier and str(c["class"]) == cls and str(c["faction"]) == fac, "late: %s %s of %s, tier %d" % [uk, cls, fac, tier])
+	for st: String in HeroesUIModel.STATES:
+		if st == "late":
+			continue
+		HeroesUIModel.set_state(st)
+		_check(HeroesUIModel.champion(cid).has("id") and not bool(HeroesUIModel.champion(cid)["owned"]), "%s: %s listed as not owned" % [st, uk])
+	HeroesUIModel.set_state("late")
+
+
+## A hero that joined after launch in the mock states: owned, NEW, native and born awakened in 'late' (all four skills
+## visible, name and title from Loc, class and faction, the Hall count follows the data); listed but not owned in every
+## other state; leaves the model in 'late'.
+func _test_joined_hero_state(hid: String, uk: String, gem: String, cls: String, fac: String) -> void:
+	HeroesUIModel.set_state("late")
+	var h := HeroesUIModel.hero(hid)
+	_check(bool(h["owned"]) and bool(h["is_new"]) and str(h["gem"]) == gem and str(h["native"]) == gem and not bool(h["is_recut"]),
+			"late: %s owned, NEW, native %s" % [uk, gem])
+	_check(str(h["name"]) != "HERO_%s" % hid.to_upper() and str(h["title"]) != "HERO_%s_TITLE" % hid.to_upper(), "late: %s name and title from Loc" % uk)
+	_check(str(h["class"]) == cls and str(h["faction"]) == fac, "late: %s %s of %s" % [uk, cls, fac])
+	var awk: Dictionary = h["skills"]["awakened"]
+	_check(int(awk["rank"]) >= 1 and bool(awk["visible"]) and int(h["skills"]["ult"]["cap"]) >= 10, "late: %s born awakened with the Opal caps" % uk)
+	var owned_h := 0
+	for row in HeroesUIModel.heroes():
+		owned_h += 1 if bool(row["owned"]) else 0
+	_check(owned_h < HeroesUIModel.heroes().size(), "late: the Hall hero count follows the data (%d / %d)" % [owned_h, HeroesUIModel.heroes().size()])
+	for st: String in HeroesUIModel.STATES:
+		if st == "late":
+			continue
+		HeroesUIModel.set_state(st)
+		_check(HeroesUIModel.hero(hid).has("id") and not bool(HeroesUIModel.hero(hid)["owned"]), "%s: %s listed as not owned" % [st, uk])
+	HeroesUIModel.set_state("late")
 
 
 func _test_rule3_rows() -> void:
@@ -188,9 +251,27 @@ func _test_art() -> void:
 	_check(HeroArt.state("bolt") == bolt_want, "Руді uses his splash, else the live 3D bust")
 	_check(HeroArt.splash_variant("seer", "eyes_closed") != null, "Мейра has the eyes-closed walkout splash")
 	_check(HeroArt.splash_variant("vesta", "eyes_closed") == null, "no variant means null, not a crash")
-	# Пава fell back to the class emblem until her splash landed (all ten heroes have one now).
-	var pava_want := "splash" if ResourceLoader.exists("res://assets/heroes/pava/splash.png") else "placeholder"
-	_check(HeroArt.state("pava") == pava_want, "Пава uses her splash, else the class emblem")
+	# Every hero has a painted splash now (Пава's landed 2026-10-08); the fallback is checked on a champion whose
+	# art has not landed yet (the first one without a folder), so the test follows the assets.
+	_check(HeroArt.state("pava") == "splash", "Пава has her splash")
+	var no_art := ""
+	for cid: String in ChampionData.CHAMPION_ORDER:
+		if not ResourceLoader.exists("res://assets/heroes/%s/splash.png" % cid) and not ResourceLoader.exists("res://assets/heroes/%s/card.png" % cid):
+			no_art = cid
+			break
+	_check(no_art == "" or HeroArt.state(no_art) == "placeholder", "%s falls back to the class emblem" % (no_art if no_art != "" else "(every champion has art)"))
+	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
+	_check(HeroArt.state("snaryad") == "splash" and HeroArt.card_texture("snaryad") != null, "Снаряд has the owner's card art")
+	_check(HeroArt.state("dovbush") == "splash" and HeroArt.card_texture("dovbush") != null, "Довбуш has the owner's card art")
+	_check(HeroArt.state("sirko") == "splash" and HeroArt.card_texture("sirko") != null, "Сірко has the owner's splash and a card crop")
+	_check(HeroArt.state("olha") == "splash" and HeroArt.card_texture("olha") != null, "Ольга has the owner's splash and a card crop")
+	# Ольга's signature walkout beat (§6.29): an additive "doves" beat on the full Opal walkout, keyed by a real hero id;
+	# the walkout lengths and the skip point are CeremonyData's, unchanged.
+	var sig_ok := str(SummonCeremony.SIGNATURE.get("olha", "")) == "doves"
+	for sid: String in SummonCeremony.SIGNATURE:
+		sig_ok = sig_ok and HeroData.HEROES.has(sid)
+	_check(sig_ok and is_equal_approx(CeremonyData.SKIP_FROM, 0.5) and is_equal_approx(CeremonyData.reveal_length("M"), 5.6),
+			"Ольга: the feathers-and-doves walkout beat, no extra length (0.6 + 5.0 s), skippable from 0.5 s")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
 

@@ -186,6 +186,8 @@ HEROES = {
     "vartan": dict(n=3, cls="guardian", el="tech", fac="stoneheart"),
     "lumen": dict(n=4, cls="mage", el="plasma", fac="celestial"),
     "pava": dict(n=4, cls="healer", el="rune", fac="wildfang"),
+    "sirko": dict(n=4, cls="warrior", el="rune", fac="dawn"),     # the 11th hero, added after launch (heroes_design.md §6.28)
+    "olha": dict(n=4, cls="ranger", el="plasma", fac="wildfang"),  # the 12th hero, added after launch (heroes_design.md §6.29)
 }
 STARTERS = ("titan", "bolt", "seer")
 PAID_HERO_SKUS = ()            # v2: NO hero SKUs and no Hero Editions at launch (critique B1 / X2; two-track rule)
@@ -202,6 +204,9 @@ CHAMPS = {
     "nimb": dict(n=3, cls="guardian", el="volt", fac="celestial"),
     "dara": dict(n=3, cls="ranger", el="volt", fac="dawn"),
     "menhir": dict(n=3, cls="mage", el="rune", fac="stoneheart"),
+    "taras": dict(n=3, cls="mage", el="rune", fac="wildfang"),     # C23, added after launch (heroes_design.md §6.25)
+    "snaryad": dict(n=2, cls="guardian", el="tech", fac="dawn"),   # C24, added after launch (heroes_design.md §6.26)
+    "dovbush": dict(n=3, cls="warrior", el="kinetic", fac="stoneheart"),  # C25, added after launch (heroes_design.md §6.27)
 }
 SCRIPTED_FIRST = {"bolt": "alba", "titan": "otto"}
 SCRIPTED_FIRST_DEFAULT = "otto"
@@ -2172,22 +2177,25 @@ def section_sinks():
     print("| Native | max rank (f5) | Tomes per skill | Tomes 3 skills | coins 3 skills | Awakening cap | Tomes Awakening |")
     print("|---|---|---|---|---|---|---|")
     tot_t = tot_c = 0
+    n_native = [sum(1 for d in HEROES.values() if d["n"] == n) for n in range(5)]   # heroes per native gem (the data)
     for n in range(5):
         cap = skill_cap(n, n, 5)
         t = cum[cap - 1]
         c = sum(skill_coins(r) for r in range(1, cap))
         ak = awaken_cap(n, n)
         ta = cum[ak - 1] if ak else 0
-        tot_t += 2 * (3 * t + ta)
-        tot_c += 2 * 3 * c
+        k = n_native[n]
+        tot_t += k * (3 * t + ta)
+        tot_c += k * 3 * c
         print("| %s | %d | %d | %d | %d | %s | %d |" % (GEM_EN[n], cap, t, 3 * t, 3 * c, ak or "—", ta))
-    print("Roster at native max (10 heroes): %d Tomes, %d coins. All 10 at Opal f5 (recut caps):" % (tot_t, tot_c), end=" ")
+    print("Roster at native max (%d heroes): %d Tomes, %d coins. All %d at Opal f5 (recut caps):" % (
+        len(HEROES), tot_t, tot_c, len(HEROES)), end=" ")
     t_all = c_all = 0
     for n in range(5):
         cap = skill_cap(n, 4, 5)
         ak = awaken_cap(n, 4)
-        t_all += 2 * (3 * cum[cap - 1] + cum[ak - 1])
-        c_all += 2 * (3 * sum(skill_coins(r) for r in range(1, cap)) + sum(skill_coins(r) for r in range(1, ak)))
+        t_all += n_native[n] * (3 * cum[cap - 1] + cum[ak - 1])
+        c_all += n_native[n] * (3 * sum(skill_coins(r) for r in range(1, cap)) + sum(skill_coins(r) for r in range(1, ak)))
     print("%d Tomes, %d coins" % (t_all, c_all))
     cl_tot = sum(champ_level_cost(L) for L in range(1, CHAMP_LEVEL_MAX))
     print("Champion Level 1->20: %d coins (L1 %d, L10 %d, L19 %d); cap 2 + 2 x world, 20 in Invasion" % (
@@ -2199,18 +2207,18 @@ def section_sinks():
     cr_c = CRAFT["champ_relic"][0] + sum(temper_cost("champ_relic", r)[0] for r in range(12))
     cr_m = CRAFT["champ_relic"][1] + sum(temper_cost("champ_relic", r)[1] for r in range(12))
     print("Workshop to +12: item %d coins / %d mats; hero relic %d / %d; champion relic %d / %d" % (it_c, it_m, hr_c, hr_m, cr_c, cr_m))
-    ws_c = 12 * it_c + 10 * hr_c + 12 * cr_c
-    ws_m = 12 * it_m + 10 * hr_m + 12 * cr_m
-    print("Workshop all (12 items + 22 relics): %d coins, %d materials" % (ws_c, ws_m))
+    ws_c = 12 * it_c + len(HEROES) * hr_c + len(CHAMPS) * cr_c
+    ws_m = 12 * it_m + len(HEROES) * hr_m + len(CHAMPS) * cr_m
+    print("Workshop all (12 items + %d relics): %d coins, %d materials" % (len(HEROES) + len(CHAMPS), ws_c, ws_m))
     print("Item stats by rank (wearer-independent):")
     for slot in SLOTS:
         print("  %-6s " % slot + " ".join("+%d:%s" % (r, ",".join("%s %.3f" % kv for kv in item_stats(slot, r).items())) for r in (0, 3, 4, 6, 8, 9, 12)))
-    recut_all = 2 * sum(sum(RECUT_COINS[g] for g in range(n, 4)) for n in range(5))
-    recut_ch = 3 * sum(sum(RECUT_COINS[g] for g in range(n, 3)) for n in range(4))
-    hero_lv = 10 * sum(E.hero_cost(L) for L in range(1, 30))
-    print("Coin sinks of the hero system (upper bounds): hero levels (10 heroes, no sync) %d; recut %d (heroes) + %d (champions); "
+    recut_all = sum(n_native[n] * sum(RECUT_COINS[g] for g in range(n, 4)) for n in range(5))
+    recut_ch = sum(sum(RECUT_COINS[g] for g in range(d["n"], 3)) for d in CHAMPS.values())
+    hero_lv = len(HEROES) * sum(E.hero_cost(L) for L in range(1, 30))
+    print("Coin sinks of the hero system (upper bounds): hero levels (%d heroes, no sync) %d; recut %d (heroes) + %d (champions); "
           "skills %d; Champion Level %d; Workshop %d -> total %d (Meta-1 Arsenal = 578270)" % (
-              hero_lv, recut_all, recut_ch, c_all, cl_tot, ws_c, hero_lv + recut_all + recut_ch + c_all + cl_tot + ws_c))
+              len(HEROES), hero_lv, recut_all, recut_ch, c_all, cl_tot, ws_c, hero_lv + recut_all + recut_ch + c_all + cl_tot + ws_c))
 
 
 # ---------------------------------------------------------------- 3. Portal
@@ -2267,8 +2275,8 @@ def section_portal(n_mc):
     stages = [
         ("A. Portal opens (L20): own Bolt, Titan", {"titan", "bolt"}, None),
         ("B. + Seer (L24) and one of each gem", {"titan", "bolt", "seer", "arin", "eira", "iskar", "vesta", "lumen"}, None),
-        ("C. all 10 owned, no Focus set", set(HEROES), None),
-        ("D. all 10 owned, Focus = Vesta / Lumen / Seer / Bolt / Titan", set(HEROES), {"L": "vesta", "M": "lumen", "E": "seer", "R": "bolt", "C": "titan"}),
+        ("C. all %d owned, no Focus set" % len(HEROES), set(HEROES), None),
+        ("D. all %d owned, Focus = Vesta / Lumen / Seer / Bolt / Titan" % len(HEROES), set(HEROES), {"L": "vesta", "M": "lumen", "E": "seer", "R": "bolt", "C": "titan"}),
     ]
     order = list(HEROES)
     print("| Stage | " + " | ".join("%s (%s)" % (h, G[HEROES[h]["n"]]) for h in order) + " |")
@@ -2615,7 +2623,7 @@ MILESTONES = [("champions", "champions + Hero Chest (L14)"), ("portal", "Portal 
               ("first_awakening", "first Awakening"), ("full_team", "full team (hero + 3 champions)"),
               ("workshop", "Workshop (L32)"), ("skill_rank_7", "first skill rank 7"), ("skill_rank_9", "first skill rank 9"),
               ("skill_rank_11", "first skill rank 11 (Opal max)"), ("skill_native_max_L", "a Topaz hero at native max rank"),
-              ("first_item_12", "first item at +12"), ("all_heroes", "all 10 heroes"), ("all_champions", "all 12 champions"),
+              ("first_item_12", "first item at +12"), ("all_heroes", "all %d heroes" % len(HEROES)), ("all_champions", "all %d champions" % len(CHAMPS)),
               ("hero_recut_to_M", "first hero recut to Opal"), ("hero_opal_f5", "first hero at Opal f5"),
               ("quartz_hero_opal_possible", "a Quartz hero has the fragments for Opal f5")]
 SNAP_DAYS = (1, 3, 7, 14, 30, 60, 90, 180)
@@ -2709,7 +2717,7 @@ def section_long(seeds, tf, days=180):
     inv("casual first Opal hero p50 <= day 45", ms("casual", "hero_gem_M") <= 45, "day %s" % ms("casual", "hero_gem_M"))
     inv("regular first recut p50 <= day 10", ms("regular", "first_recut") <= 10, "day %s" % ms("regular", "first_recut"))
     inv("casual first recut p50 <= day 21", ms("casual", "first_recut") <= 21, "day %s" % ms("casual", "first_recut"))
-    inv("all 10 heroes: regular p50 in day 25-100, casual p50 in day 35-140 (slower than v1's day 28; the roster grows by updates)",
+    inv("all %d heroes: regular p50 in day 25-100, casual p50 in day 35-140 (slower than v1's day 28; the roster grows by updates)" % len(HEROES),
         25 <= ms("regular", "all_heroes") <= 100 and 35 <= ms("casual", "all_heroes") <= 140,
         "regular day %s, casual day %s" % (ms("regular", "all_heroes"), ms("casual", "all_heroes")))
     inv("a hero at Opal f5 is a month-plus goal: regular p50 in day 30-90", 30 <= ms("regular", "hero_opal_f5") <= 90, "day %s" % ms("regular", "hero_opal_f5"))
@@ -2865,7 +2873,9 @@ def main():
         if tf is None:
             tf, _ = calibrate_tf(16 if q else 30, 112)
             print("TEAM_DEMAND (recalibrated for this section):", tf)
-        section_long(10 if q else 30, tf)
+        # 90 seeds (was 30): the p50 day of "all 10 heroes" spreads from day ~9 (p10) to ~77 (p90), so a 30-seed median
+        # moved by 7-20 days with the RNG stream alone (a roster addition reshuffles it) and crossed the day-25 bound
+        section_long(10 if q else 90, tf)
     if args.export:
         export_consts(args.export, tf)
     print("\n%d invariant(s) failed: %s" % (len(FAILS), FAILS) if FAILS else "\nall invariants pass")

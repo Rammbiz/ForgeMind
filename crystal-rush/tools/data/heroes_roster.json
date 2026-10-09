@@ -40,7 +40,9 @@
   "vesta",
   "vartan",
   "lumen",
-  "pava"
+  "pava",
+  "sirko",
+  "olha"
  ],
  "champion_order": [
   "mila",
@@ -54,7 +56,10 @@
   "olena",
   "nimb",
   "dara",
-  "menhir"
+  "menhir",
+  "taras",
+  "snaryad",
+  "dovbush"
  ],
  "starters": [
   "titan",
@@ -423,6 +428,74 @@
     "base": 0.06,
     "note": "champion aura value x(1+v)"
    }
+  },
+  "sirko": {
+   "no": 26,
+   "native": "M",
+   "class": "warrior",
+   "element": "rune",
+   "element2": "tech",
+   "faction": "dawn",
+   "niche": "",
+   "ult": "letter",
+   "kit": {
+    "hp": 25,
+    "rate": 1.7,
+    "dmg": 3,
+    "splash": 2,
+    "range": 11,
+    "targets": 1,
+    "ult_charge": 42
+   },
+   "ult_main": {
+    "value": 16,
+    "note": "laughter kills & breaks per squad / structure under the scroll"
+   },
+   "ult2": {
+    "value": 8,
+    "note": "Second Roar kills & breaks (form III)",
+    "rank": 5
+   },
+   "rally": {
+    "hook": "army_recruits",
+    "param": "",
+    "base": 1.0,
+    "note": "soldiers added to every recruit group"
+   }
+  },
+  "olha": {
+   "no": 27,
+   "native": "M",
+   "class": "ranger",
+   "element": "plasma",
+   "element2": "kinetic",
+   "faction": "wildfang",
+   "niche": "structures",
+   "ult": "doves",
+   "kit": {
+    "hp": 15,
+    "rate": 3.4,
+    "dmg": 1,
+    "splash": 0,
+    "range": 16,
+    "targets": 1,
+    "ult_charge": 40
+   },
+   "ult_main": {
+    "value": 18,
+    "note": "breaks per structure / gate the flock reaches (squads under the flight path lose a third + BURN)"
+   },
+   "ult2": {
+    "value": 8,
+    "note": "Fourth Revenge kills on the biggest squad (form III)",
+    "rank": 5
+   },
+   "rally": {
+    "hook": "ult_charge",
+    "param": "",
+    "base": 0.05,
+    "note": "ult charge rate x(1+v)"
+   }
   }
  },
  "champions": {
@@ -617,6 +690,54 @@
    },
    "action_note": "rune-strike kills per squad (every 4 s)",
    "aura_note": "volley status proc x"
+  },
+  "taras": {
+   "no": 23,
+   "native": "L",
+   "class": "mage",
+   "element": "rune",
+   "faction": "wildfang",
+   "slot": "rear",
+   "kit": {
+    "hp": 26,
+    "action": 4,
+    "aura": 0.15,
+    "radius": 1.2
+   },
+   "action_note": "The Word kills per squad (every 4 s; pages cut on)",
+   "aura_note": "volley status proc x"
+  },
+  "snaryad": {
+   "no": 24,
+   "native": "E",
+   "class": "guardian",
+   "element": "tech",
+   "faction": "dawn",
+   "slot": "front",
+   "kit": {
+    "hp": 60,
+    "action": 2,
+    "aura": 0.1,
+    "radius": 1.0
+   },
+   "action_note": "Sapper's Nose charge kills (per Block, every 6 s; + MARK)",
+   "aura_note": "clash losses -"
+  },
+  "dovbush": {
+   "no": 25,
+   "native": "L",
+   "class": "warrior",
+   "element": "kinetic",
+   "faction": "stoneheart",
+   "slot": "front",
+   "kit": {
+    "hp": 48,
+    "action": 1.5,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "bartka kills per squad x2 squads (every 5 s; + STAGGER)",
+   "aura_note": "squad clash loss +"
   }
  },
  "index_terms": {

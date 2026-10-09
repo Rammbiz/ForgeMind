@@ -231,15 +231,27 @@ func _test_derived() -> void:
 
 func _test_roster() -> void:
 	print("== roster")
-	_ok(HeroData.HERO_ORDER.size() == 10 and HeroData.HEROES.size() == 10, "10 heroes")
-	_ok(ChampionData.CHAMPION_ORDER.size() == 12 and ChampionData.CHAMPIONS.size() == 12, "12 champions")
+	# Counts follow the data (10 at launch + the heroes who joined after): the order, the rows and SaveV3Data list the same roster.
+	var n_hero := HeroData.HEROES.size()
+	_ok(HeroData.HERO_ORDER.size() == n_hero and n_hero >= 10 and SaveV3Data.HERO_NATIVE.size() == n_hero,
+			"%d heroes (order, rows and SaveV3Data agree)" % n_hero)
+	# Counts follow the data (12 at launch + the champions who joined after): the order, the rows and SaveV3Data list the same roster.
+	var n_champ := ChampionData.CHAMPIONS.size()
+	_ok(ChampionData.CHAMPION_ORDER.size() == n_champ and n_champ >= 12 and SaveV3Data.CHAMPION_NATIVE.size() == n_champ,
+			"%d champions (order, rows and SaveV3Data agree)" % n_champ)
 	var per_gem_h := {}
+	var per_fac_h := {}
+	var cls_gem_h := {}
 	var per_gem_c := {}
 	var per_fac_c := {}
 	var nos := {}
 	for hid: String in HeroData.HERO_ORDER:
 		var h: Dictionary = HeroData.HEROES[hid]
 		per_gem_h[h["native"]] = int(per_gem_h.get(h["native"], 0)) + 1
+		per_fac_h[h["faction"]] = int(per_fac_h.get(h["faction"], 0)) + 1
+		var cg := "%s %s" % [h["native"], h["class"]]
+		_ok(not cls_gem_h.has(cg), "%s: no other hero of gem %s has class %s (§6.0)" % [hid, h["native"], h["class"]])
+		cls_gem_h[cg] = hid
 		nos[int(h["no"])] = hid
 		_ok(h["class"] in TeamData.CLASSES and h["element"] in TeamData.ELEMENTS and h["faction"] in TeamData.FACTIONS,
 				"%s tags are TeamData ids" % hid)
@@ -249,7 +261,9 @@ func _test_roster() -> void:
 			_ok(k.has(stat) and float(k[stat]) >= 0.0, "%s kit.%s" % [hid, stat])
 		_ok(str(h["ult"]) != "" and float(h["ult_main"]["value"]) > 0.0, "%s ult kind + main number" % hid)
 	for g: String in Ladder.GEMS:
-		_ok(int(per_gem_h.get(g, 0)) == 2, "2 heroes of gem %s" % g)
+		_ok(int(per_gem_h.get(g, 0)) >= 2, "%d heroes of gem %s (at least 2)" % [int(per_gem_h.get(g, 0)), g])
+	for f0: String in TeamData.FACTIONS:
+		_ok(int(per_fac_h.get(f0, 0)) in [2, 3, 4], "faction %s has %d heroes (2-4, §5.3)" % [f0, int(per_fac_h.get(f0, 0))])
 	for cid: String in ChampionData.CHAMPION_ORDER:
 		var c: Dictionary = ChampionData.CHAMPIONS[cid]
 		per_gem_c[c["native"]] = int(per_gem_c.get(c["native"], 0)) + 1
@@ -261,11 +275,18 @@ func _test_roster() -> void:
 		_ok(float(c["kit"]["aura"]) <= ChampionData.AURA_CAP, "%s aura <= AURA_CAP" % cid)
 		_ok(Ladder.gem_index(c["native"]) <= Ladder.gem_index(Ladder.CHAMPION_MAX_GEM), "%s native <= Topaz" % cid)
 	for g: String in ["C", "R", "E", "L"]:
-		_ok(int(per_gem_c.get(g, 0)) == 3, "3 champions of gem %s" % g)
+		_ok(int(per_gem_c.get(g, 0)) >= 3, "%d champions of gem %s (at least 3, §4.1)" % [int(per_gem_c.get(g, 0)), g])
+	_ok(int(per_gem_c.get("M", 0)) == 0, "no Opal champion (Opal is hero-only)")
 	for f: String in TeamData.FACTIONS:
-		_ok(int(per_fac_c.get(f, 0)) == 3, "faction %s has exactly 3 champions (§5.3)" % f)
-	for i in range(1, 23):
+		_ok(int(per_fac_c.get(f, 0)) in [3, 4], "faction %s has %d champions (3-4, §5.3)" % [f, int(per_fac_c.get(f, 0))])
+	for i in range(1, HeroData.HERO_ORDER.size() + n_champ + 1):
 		_ok(nos.has(i), "collector number %02d" % i)
+	_ok(nos.size() == HeroData.HERO_ORDER.size() + n_champ, "collector numbers are unique")
+	_test_taras()
+	_test_snaryad()
+	_test_dovbush()
+	_test_sirko()
+	_test_olha()
 	_ok(ChampionData.action_tier("mila") == 1 and ChampionData.action_tier("menhir") == 4, "Action tier = native + 1")
 	for s: String in HeroData.STARTERS:
 		_ok(HeroData.HEROES.has(s) and HeroData.STARTER_AT.has(s), "starter %s" % s)
@@ -542,7 +563,11 @@ func _test_power_rule3() -> void:
 				var bm := _index_t(g4, g4, 5, lv4, _max_ranks(g4, g4, 5), mg, 3, true, lo[0], lo[1], lo[2], lo[3], lo[4])
 				t_mx = maxf(t_mx, am / bm)
 	print("  real-kit tolerance grid (%d hero pairs): worst equal %.4f · max %.4f" % [pairs, t_eq, t_mx])
-	_ok(pairs == 40, "every real hero recut into every higher native gem vs every real native (%d pairs)" % pairs)
+	var want_pairs := 0
+	for ga in 5:
+		for gb in range(ga + 1, 5):
+			want_pairs += _heroes_of(Ladder.GEMS[ga]).size() * _heroes_of(Ladder.GEMS[gb]).size()
+	_ok(pairs == want_pairs and pairs >= 40, "every real hero recut into every higher native gem vs every real native (%d pairs)" % pairs)
 	_ok(t_eq < 1.0, "test_rule3_power / tolerance grid, equal investment (worst %.4f)" % t_eq)
 	_near(t_eq, 0.9797, 6e-5, "worst adversarial equal-investment ratio = §2.3")
 	_ok(t_mx < 1.0, "test_rule3_power / tolerance grid, max investment (worst %.4f)" % t_mx)
@@ -889,7 +914,9 @@ func _test_champions() -> void:
 			"otto": [65, 118, 127, 1.08, 1.97, 2.12, 0.108, 0.038, 0.227], "taya": [28, 51, 55, 4.32, 7.88, 8.47, 0.162, 0.040, 0.340],
 			"brant": [56, 102, 106, 3.50, 6.38, 6.62, 0.117, 0.041, 0.245], "teo": [30, 55, 57, 1.17, 2.13, 2.21, 0.175, 0.044, 0.367],
 			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [76, 138, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
-			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396]}
+			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396],
+			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [70, 128, 132, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245],
+			"dovbush": [60, 110, -1, 1.89, 3.45, -1, 0.126, 0.044, 0.264]}
 	for cid: String in rows:
 		var w: Array = rows[cid]
 		var nat := Roster.native(cid)
@@ -906,6 +933,402 @@ func _test_champions() -> void:
 		line = line and absf(float(sr["aura"]) - float(w[8])) < 0.0006
 		_ok(line, "§4.4 row %s (HP %d / %d, aura %.3f)" % [cid, roundi(float(s0["hp"])), roundi(float(s5["hp"])), float(s0["aura"])])
 	_ok(float(ChampionsMeta.stats_at("menhir", "L", 5, 20, 12)["aura"]) <= ChampionData.AURA_CAP, "aura capped at AURA_CAP")
+
+
+
+## C23 Тарас (heroes_design.md §6.25): a native Topaz Mage of Rune and Wildfang with the Mage template kit,
+## Loc rows in uk and en, and rule #3 (a recut champion never matches a native Topaz) against him too.
+func _test_taras() -> void:
+	_ok(ChampionData.CHAMPIONS.has("taras") and ChampionData.CHAMPION_ORDER.has("taras"), "Тарас is in the collector order")
+	var t: Dictionary = ChampionData.CHAMPIONS.get("taras", {})
+	_ok(int(t.get("no", 0)) == 23 and _joined_after_launch("taras"), "Тарас is C%d (fixed at birth)" % int(t.get("no", 0)))
+	_ok(str(t.get("native", "")) == "L" and str(t.get("class", "")) == "mage" and str(t.get("element", "")) == "rune"
+			and str(t.get("faction", "")) == "wildfang" and str(t.get("slot", "")) == "rear", "Тарас: native Топаз, Mage, Rune, Wildfang, rear")
+	_ok(ChampionData.action_tier("taras") == 4, "Тарас: Action tier IV (native Topaz only)")
+	_ok(_diff(t.get("kit", {}), ChampionData.CHAMPIONS["menhir"]["kit"]) == "", "Тарас: the Mage template kit of Менгір (hp, action, aura, radius)")
+	_ok(SaveV3Data.CHAMPION_NATIVE.get("taras", "") == "L", "SaveV3Data knows Тарас")
+	for k: String in ["CHAMP_TARAS", "CHAMP_TARAS_TITLE", "CHAMP_TARAS_ROLE", "CHAMP_TARAS_LORE", "ACT_TARAS", "ACT_TARAS_DESC",
+			"ACT_TARAS_VALUE", "RELIC_TARAS", "RELIC_TARAS_DESC"]:
+		var row: Array = Loc.STRINGS.get(k, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % k)
+	_ok(str(Loc.STRINGS.get("CHAMP_TARAS_TITLE", ["", ""])[0]) == "Кобзар", "Тарас — Кобзар")
+	var lore: Array = Loc.STRINGS.get("CHAMP_TARAS_LORE", ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Тарас lore: 3 lines uk and en")
+	# Rule #3 against Тарас on the real stats: every champion recut to Topaz (f 0-5, Champion Level 1-20, relic none..+12)
+	# stays below him at the same investment; a recut Mage also stays below his HP, Action and aura (same template).
+	var worst := 0.0
+	var bad: Array = []
+	var mages := 0
+	for cid: String in ChampionData.CHAMPION_ORDER:
+		if Ladder.gem_index(Roster.native(cid)) >= 3:
+			continue
+		var same_class := str(ChampionData.CHAMPIONS[cid]["class"]) == str(t.get("class", ""))
+		mages += 1 if same_class else 0
+		for f in range(0, Ladder.FACETS_PER_GEM + 1):
+			for cl in range(1, 21):
+				for r in range(-1, 13):
+					var rc := ChampionsMeta.stats_at(cid, "L", f, cl, r)
+					var tc := ChampionsMeta.stats_at("taras", "L", f, cl, r)
+					worst = maxf(worst, float(rc["mult"]) / float(tc["mult"]))
+					if not float(rc["mult"]) < float(tc["mult"]):
+						bad.append("%s f%d cl%d r%d mult" % [cid, f, cl, r])
+					if same_class:
+						for key: String in ["hp", "action", "aura"]:
+							var capped := key == "aura" and float(tc[key]) >= ChampionData.AURA_CAP
+							if not (float(rc[key]) < float(tc[key]) or (capped and float(rc[key]) <= float(tc[key]))):
+								bad.append("%s f%d cl%d r%d %s" % [cid, f, cl, r, key])
+	print("  Тарас rule #3: worst recut / native mult %.4f, %d recut Mage(s) checked on HP / Action / aura" % [worst, mages])
+	_ok(bad.is_empty() and worst < 1.0, "rule #3: a recut Topaz champion < native Тарас on mult (worst %.4f), %d recut Mage(s) on HP / Action / aura %s"
+			% [worst, mages, str(bad.slice(0, 4))])
+
+
+## C24 Снаряд (heroes_design.md §6.26): a native Amethyst Guardian of Tech and Dawn on the Guardian template (the Block's
+## +1 kill becomes the carried charge, kit action 2), Loc rows in uk and en, rule #3 against him.
+func _test_snaryad() -> void:
+	_test_joined_champion("snaryad", "Снаряд", 24, {"native": "E", "class": "guardian", "element": "tech", "faction": "dawn", "slot": "front"},
+			"ivo", {"hp": 60, "action": 2, "aura": 0.1, "radius": 1.0}, "Пес-сапер")
+
+
+## C25 Довбуш (heroes_design.md §6.27): a native Topaz Warrior of Kinetic and Stoneheart on the Warrior template (the
+## leap becomes the bartka throw through two squads, kit action 1.5 per squad), Loc rows, rule #3 against him.
+func _test_dovbush() -> void:
+	_test_joined_champion("dovbush", "Довбуш", 25, {"native": "L", "class": "warrior", "element": "kinetic", "faction": "stoneheart", "slot": "front"},
+			"brant", {"hp": 48, "action": 1.5, "aura": 0.1, "radius": 1.1}, "Опришок")
+
+
+## H26 Сірко (heroes_design.md §6.28), the 11th hero: a native Opal Warrior of Rune and Dawn (form V adds Tech), his kit
+## inside the Warrior band, ult `letter` with its numbers, the free `army_recruits` hook, born awakened with the Opal
+## caps, the Loc rows, rule #3 against him for every hero recut into Opal, his kit profile and the Portal pool of Opal.
+func _test_sirko() -> void:
+	var h: Dictionary = HeroData.HEROES.get("sirko", {})
+	_ok(not h.is_empty() and HeroData.HERO_ORDER.has("sirko"), "Сірко is in the hero order")
+	_ok(int(h.get("no", 0)) == 26 and _joined_after_launch("sirko"), "Сірко is H%d (fixed at birth, after C25)" % int(h.get("no", 0)))
+	_ok(str(h.get("native", "")) == "M" and str(h.get("class", "")) == "warrior" and str(h.get("element", "")) == "rune"
+			and str(h.get("element2", "")) == "tech" and str(h.get("faction", "")) == "dawn" and str(h.get("ult", "")) == "letter"
+			and str(h.get("niche", "x")) == "", "Сірко: native Опал, Warrior, Rune (+Tech in V), Dawn, ult letter")
+	# §5.1 Warrior hero band (hp 24-28 · rate 1.4-1.8 · dmg 3 · splash 2 · range 11-12 · targets 1).
+	var k: Dictionary = h.get("kit", {})
+	_ok(float(k.get("hp", 0)) >= 24 and float(k.get("hp", 0)) <= 28 and float(k.get("rate", 0)) >= 1.4 and float(k.get("rate", 0)) <= 1.8
+			and float(k.get("dmg", 0)) == 3.0 and float(k.get("splash", 0)) == 2.0 and float(k.get("range", 0)) >= 11
+			and float(k.get("range", 0)) <= 12 and int(k.get("targets", 0)) == 1, "Сірко: kit inside the Warrior band %s" % str(k))
+	_ok(float(h["ult_main"]["value"]) == 16.0 and float(h["ult2"]["value"]) == 8.0 and int(h["ult2"]["rank"]) == 5
+			and Ladder.ult_form("M", int(h["ult2"]["rank"])) == 3, "Сірко: laughter 16 kills & breaks, the Second Roar 8 from form III")
+	var r: Dictionary = h.get("rally", {})
+	_ok(str(r.get("hook", "")) == "army_recruits" and float(r.get("base", 0)) == 1.0
+			and float(TeamData.RALLY_HOOKS["army_recruits"]["base"]) == 1.0, "Сірко: Rally army_recruits, +1 per recruit group (§5.4)")
+	var rally_users := 0
+	for hid: String in HeroData.HERO_ORDER:
+		rally_users += 1 if str(HeroData.HEROES[hid]["rally"]["hook"]) == "army_recruits" else 0
+	_ok(rally_users == 1, "army_recruits is used by one hero (was free)")
+	_ok(SaveV3Data.HERO_NATIVE.get("sirko", "") == "M", "SaveV3Data knows Сірко")
+	var st := EconData.new_hero_state("sirko")
+	_ok(int(st["skills"]["awakened"]) == 1 and str(st["gem"]) == "M", "Сірко is born awakened at Опал")
+	_ok(Ladder.skill_cap("M", "M", 0) == 10 and Ladder.skill_cap("M", "M", 5) == 11 and Ladder.ult_form("M", 9) == 5
+			and Ladder.awaken_cap("M", "M") == 4, "Сірко: rank cap 10 / 11, forms to V, Awakening cap 4")
+	# Loc (uk, en): every hero key family of §12.4 and the sheet's names.
+	var keys: Array[String] = ["HERO_SIRKO", "HERO_SIRKO_TITLE", "HERO_SIRKO_LORE", "ULT_SIRKO", "ULT_SIRKO_DESC", "ULT_SIRKO_VALUE",
+			"ULT_SIRKO_F3", "ULT_SIRKO_F4", "ULT_SIRKO_F5", "ATK_SIRKO", "ATK_SIRKO_DESC", "RALLY_SIRKO", "RALLY_SIRKO_DESC",
+			"RALLY_SIRKO_VALUE", "AWK_SIRKO", "AWK_SIRKO_DESC", "RELIC_SIRKO", "RELIC_SIRKO_DESC"]
+	for f in range(2, 6):
+		keys.append("ULT_SIRKO_F%d_DESC" % f)
+	for b: int in Ladder.ATK_BEATS:
+		keys.append("ATK_SIRKO_B%d" % b)
+		keys.append("ATK_SIRKO_B%d_DESC" % b)
+	for key: String in keys:
+		var row: Array = Loc.STRINGS.get(key, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % key)
+	_ok(str(Loc.STRINGS.get("HERO_SIRKO", ["", ""])[0]) == "Сірко" and str(Loc.STRINGS.get("HERO_SIRKO_TITLE", ["", ""])[0]) == "Характерник"
+			and str(Loc.STRINGS.get("ULT_SIRKO", ["", ""])[0]) == "Козацька відповідь", "Сірко — Характерник, «Козацька відповідь»")
+	var lore: Array = Loc.STRINGS.get("HERO_SIRKO_LORE", ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Сірко lore: 3 lines uk and en")
+	# Rule #3 (§2.3, §2.5 tests 3-5) against him: every real hero recut into Opal, equal and max investment, Lv 1/10/20/30,
+	# f 0-5, no gear and full gear, with the adversarial kit tolerance (the recut at +1.5%, Сірко at -1.5%), stays below him;
+	# its forms stop below his V, its Awakening cap and rank cap one below his.
+	var mg := _max_gear()
+	var zero := HeroesMeta.NO_GEAR
+	var hi := [1.0 + Ladder.KIT_TOL, Ladder.AWK_STEP, Ladder.FORM_STEP, Ladder.ATK_BEAT, Ladder.RELIC_BEAT]
+	var lo := [1.0 - Ladder.KIT_TOL, Ladder.AWK_STEP, Ladder.FORM_STEP, Ladder.ATK_BEAT, Ladder.RELIC_BEAT]
+	var m := Ladder.gem_index("M")
+	var worst := 0.0
+	var recuts := 0
+	var caps_ok := true
+	for rid: String in HeroData.HERO_ORDER:
+		var n := Ladder.gem_index(HeroData.native(rid))
+		if n >= m:
+			continue
+		recuts += 1
+		caps_ok = caps_ok and Ladder.ult_form(HeroData.native(rid), 11) < Ladder.ult_form("M", 11) \
+				and Ladder.awaken_cap(HeroData.native(rid), "M") < Ladder.awaken_cap("M", "M") \
+				and Ladder.skill_cap(HeroData.native(rid), "M", 5) < Ladder.skill_cap("M", "M", 5)
+		for lv in [1, 10, 20, 30]:
+			for f2 in Ladder.FACETS_PER_GEM + 1:
+				var rc := _max_ranks(n, m, f2)
+				var nc := _max_ranks(m, m, f2)
+				var eq := [mini(rc[0], nc[0]), mini(rc[1], nc[1]), mini(rc[2], nc[2]), mini(rc[3], nc[3])]
+				for gs: Array in [[zero, 0, false], [mg, 3, true]]:
+					worst = maxf(worst, _index_t(n, m, f2, lv, eq, gs[0], gs[1], gs[2], hi[0], hi[1], hi[2], hi[3], hi[4])
+							/ _index_t(m, m, f2, lv, eq, gs[0], gs[1], gs[2], lo[0], lo[1], lo[2], lo[3], lo[4]))
+			worst = maxf(worst, _index_t(n, m, 5, lv, _max_ranks(n, m, 5), mg, 3, true, hi[0], hi[1], hi[2], hi[3], hi[4])
+					/ _index_t(m, m, 5, lv, _max_ranks(m, m, 5), mg, 3, true, lo[0], lo[1], lo[2], lo[3], lo[4]))
+	print("  Сірко rule #3: %d heroes recut into Опал, worst adversarial recut / Сірко %.4f" % [recuts, worst])
+	_ok(recuts > 0 and worst < 1.0 and caps_ok, "rule #3: every hero recut into Опал < native Сірко (worst %.4f), forms / Awakening / ranks below his" % worst)
+	# Kit budget, the data half (test_kit_budget; the LevelSim half lands in H2): at every reference state (Lv1 f0 rank 1,
+	# each Attack beat, each ult form, each Awakening rank, each relic beat) his profile equals the P0 profile of a native
+	# Опал, i.e. the other Opal heroes' (Люмен, Пава), inside KIT_TOL.
+	var acc := _acc(31, ["sirko", "lumen"])
+	var states: Array = [[1, 1, 1, 1, 0]]
+	for b2: int in Ladder.ATK_BEATS:
+		states.append([1, b2, 1, 1, 0])
+	for fr: int in Ladder.FORM_AT_RANK:
+		states.append([fr, 1, 1, 1, 0])
+	for aw in range(1, Ladder.awaken_cap("M", "M") + 1):
+		states.append([1, 1, 1, aw, 0])
+	for rb in range(1, 4):
+		states.append([1, 1, 1, 1, rb])
+	var prof_ok := true
+	for sv: Array in states:
+		for id2: String in ["sirko", "lumen"]:
+			var sk: Dictionary = Roster.entry(acc, id2)["skills"]
+			sk["ult"] = sv[0]
+			sk["attack"] = sv[1]
+			sk["awakened"] = sv[3]
+		var p0 := HeroesMeta.index(m, m, 0, HeroesMeta.eff_level(acc, "sirko"), [sv[0], sv[1], 1, sv[3]], zero, sv[4])
+		var ps := HeroesMeta.power(acc, "sirko", zero, sv[4])
+		prof_ok = prof_ok and absf(ps / p0 - 1.0) <= Ladder.KIT_TOL and is_equal_approx(ps, HeroesMeta.power(acc, "lumen", zero, sv[4]))
+	_ok(prof_ok, "test_kit_budget (data): Сірко's profile = P0 of a native Опал at %d reference states" % states.size())
+	# Portal: he joins the Opal pool (every Opal hero of the data), splits the Opal share, Seals 200.
+	var all := _acc(25, HeroData.HERO_ORDER)
+	var opal := _heroes_of("M")
+	_ok(Summon.pool(all, "M") == opal and opal.has("sirko") and opal.size() >= 3, "Portal Опал pool = %s" % str(opal))
+	var ho := Summon.hero_odds(_acc(21, ["bolt", "titan"]))
+	_ok(is_equal_approx(float(ho["sirko"]), float(Summon.consolidated()["M"]) / opal.size()), "Portal opens: Сірко %.2f%% = Опал / %d"
+			% [100.0 * float(ho["sirko"]), opal.size()])
+	var sa := _acc(25, ["bolt", "titan"])
+	(sa["summon"] as Dictionary)["seals"] = 200
+	var sp := Summon.seal_pick(sa, "sirko")
+	_ok(bool(sp["ok"]) and bool(sp["new"]) and int(sp["price"]) == PortalData.seal_price("M") and int(sp["price"]) == 200
+			and Roster.owned(sa, "sirko") and int(Roster.entry(sa, "sirko")["skills"]["awakened"]) == 1, "Сірко by Seals: 200, born awakened")
+
+
+## H27 Ольга (heroes_design.md §6.29), the 12th hero: a native Opal Ranger of Plasma and Wildfang (form V adds Kinetic),
+## niche structures, her kit inside the Ranger band, ult `doves` with its numbers, the `ult_charge` hook (the last free
+## one), born awakened with the Opal caps, the Loc rows, rule #3 against her for every hero recut into Opal, her kit
+## profile (the owner wants her "the best": the top rarity and the biggest siege moment, but Opal-parity numbers) and the
+## Portal pool of Opal.
+func _test_olha() -> void:
+	var h: Dictionary = HeroData.HEROES.get("olha", {})
+	_ok(not h.is_empty() and HeroData.HERO_ORDER.has("olha"), "Ольга is in the hero order")
+	_ok(int(h.get("no", 0)) == 27 and _joined_after_launch("olha"), "Ольга is H%d (fixed at birth, after H26)" % int(h.get("no", 0)))
+	_ok(str(h.get("native", "")) == "M" and str(h.get("class", "")) == "ranger" and str(h.get("element", "")) == "plasma"
+			and str(h.get("element2", "")) == "kinetic" and str(h.get("faction", "")) == "wildfang" and str(h.get("ult", "")) == "doves"
+			and str(h.get("niche", "")) == "structures", "Ольга: native Опал, Ranger, Plasma (+Kinetic in V), Wildfang, niche structures, ult doves")
+	# §5.1 Ranger hero band (hp 12-16 · rate 3.0-4.0 · dmg 1 · splash 0 · range 15-17 · targets 1).
+	var k: Dictionary = h.get("kit", {})
+	_ok(float(k.get("hp", 0)) >= 12 and float(k.get("hp", 0)) <= 16 and float(k.get("rate", 0)) >= 3.0 and float(k.get("rate", 0)) <= 4.0
+			and float(k.get("dmg", 0)) == 1.0 and float(k.get("splash", -1)) == 0.0 and float(k.get("range", 0)) >= 15
+			and float(k.get("range", 0)) <= 17 and int(k.get("targets", 0)) == 1, "Ольга: kit inside the Ranger band %s" % str(k))
+	# "The best" is a niche, never a number: no Opal hero has less HP (her siege edge is paid for), the ult charge is
+	# inside the Opal heroes' range.
+	var opal_min_hp := INF
+	for oid: String in _heroes_of("M"):
+		if oid != "olha":
+			opal_min_hp = minf(opal_min_hp, float(HeroData.HEROES[oid]["kit"]["hp"]))
+	_ok(float(k.get("hp", 0)) < opal_min_hp, "Ольга: the lowest HP of the Opal heroes (%s < %s)" % [k.get("hp", 0), opal_min_hp])
+	_ok(float(h["ult_main"]["value"]) == 18.0 and float(h["ult2"]["value"]) == 8.0 and int(h["ult2"]["rank"]) == 5
+			and Ladder.ult_form("M", int(h["ult2"]["rank"])) == 3, "Ольга: the flock 18 breaks per structure, the Fourth Revenge 8 from form III")
+	var r: Dictionary = h.get("rally", {})
+	_ok(str(r.get("hook", "")) == "ult_charge" and is_equal_approx(float(r.get("base", 0)), 0.05)
+			and is_equal_approx(float(TeamData.RALLY_HOOKS["ult_charge"]["base"]), 0.05)
+			and str(TeamData.RALLY_HOOKS["ult_charge"]["op"]) == "mul", "Ольга: Rally ult_charge, x1.05 at rank 1 (§5.4)")
+	var rally_users := 0
+	var hooks_used := {}
+	for hid: String in HeroData.HERO_ORDER:
+		rally_users += 1 if str(HeroData.HEROES[hid]["rally"]["hook"]) == "ult_charge" else 0
+		hooks_used[str(HeroData.HEROES[hid]["rally"]["hook"])] = true
+	_ok(rally_users == 1, "ult_charge is used by one hero (was free)")
+	_ok(hooks_used.size() == TeamData.RALLY_HOOKS.size(), "every Rally hook has a hero now (%d / %d)" % [hooks_used.size(), TeamData.RALLY_HOOKS.size()])
+	_ok(SaveV3Data.HERO_NATIVE.get("olha", "") == "M", "SaveV3Data knows Ольга")
+	var st := EconData.new_hero_state("olha")
+	_ok(int(st["skills"]["awakened"]) == 1 and str(st["gem"]) == "M", "Ольга is born awakened at Опал")
+	# Loc (uk, en): every hero key family of §12.4 and the sheet's names.
+	var keys: Array[String] = ["HERO_OLHA", "HERO_OLHA_TITLE", "HERO_OLHA_LORE", "ULT_OLHA", "ULT_OLHA_DESC", "ULT_OLHA_VALUE",
+			"ULT_OLHA_F3", "ULT_OLHA_F4", "ULT_OLHA_F5", "ATK_OLHA", "ATK_OLHA_DESC", "RALLY_OLHA", "RALLY_OLHA_DESC",
+			"RALLY_OLHA_VALUE", "AWK_OLHA", "AWK_OLHA_DESC", "RELIC_OLHA", "RELIC_OLHA_DESC"]
+	for f in range(2, 6):
+		keys.append("ULT_OLHA_F%d_DESC" % f)
+	for b: int in Ladder.ATK_BEATS:
+		keys.append("ATK_OLHA_B%d" % b)
+		keys.append("ATK_OLHA_B%d_DESC" % b)
+	for key: String in keys:
+		var row: Array = Loc.STRINGS.get(key, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % key)
+	_ok(str(Loc.STRINGS.get("HERO_OLHA", ["", ""])[0]) == "Ольга" and str(Loc.STRINGS.get("HERO_OLHA_TITLE", ["", ""])[0]) == "Княгиня Помсти"
+			and str(Loc.STRINGS.get("ULT_OLHA", ["", ""])[0]) == "Летіть додому" and str(Loc.STRINGS.get("ULT_OLHA_F5", ["", ""])[0]) == "Іскоростень",
+			"Ольга — Княгиня Помсти, «Летіть додому», form V «Іскоростень»")
+	var lore: Array = Loc.STRINGS.get("HERO_OLHA_LORE", ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "Ольга lore: 3 lines uk and en")
+	# Tone (§6.29, binding): the lore names the chronicle legend, never a halo, a church or a house set on fire.
+	var lore_all := (str(lore[0]) + " " + str(lore[1])).to_lower()
+	_ok(lore_all.contains("літописн") and lore_all.contains("chronicle"), "Ольга lore: «the chronicle legend»")
+	var tone_ok := true
+	for w: String in ["німб", "церкв", "хрест", "хат", "halo", "church", "cross", "house"]:
+		tone_ok = tone_ok and not lore_all.contains(w)
+	_ok(tone_ok, "Ольга lore: no halo, church, cross or houses")
+	_test_native_opal_hero("olha", "Ольга")
+
+
+## A native Opal hero `hid` against the data: rank cap 10 / 11, forms to V, Awakening cap 4; rule #3 (§2.3, §2.5 tests
+## 3-5): every real hero recut into Opal, equal and max investment, Lv 1/10/20/30, f 0-5, no gear and full gear, with the
+## adversarial kit tolerance (the recut at +1.5%, `hid` at -1.5%), stays below it, and its forms, Awakening cap and rank
+## cap stay below; the kit budget (data half): its profile equals the P0 profile of a native Опал (Люмен's) at every
+## reference state; the Portal: it is in the Opal pool (every Opal hero of the data), splits the Opal share, Seals 200.
+func _test_native_opal_hero(hid: String, uk: String) -> void:
+	_ok(Ladder.skill_cap("M", "M", 0) == 10 and Ladder.skill_cap("M", "M", 5) == 11 and Ladder.ult_form("M", 9) == 5
+			and Ladder.awaken_cap("M", "M") == 4, "%s: rank cap 10 / 11, forms to V, Awakening cap 4" % uk)
+	var mg := _max_gear()
+	var zero := HeroesMeta.NO_GEAR
+	var hi := [1.0 + Ladder.KIT_TOL, Ladder.AWK_STEP, Ladder.FORM_STEP, Ladder.ATK_BEAT, Ladder.RELIC_BEAT]
+	var lo := [1.0 - Ladder.KIT_TOL, Ladder.AWK_STEP, Ladder.FORM_STEP, Ladder.ATK_BEAT, Ladder.RELIC_BEAT]
+	var m := Ladder.gem_index("M")
+	var worst := 0.0
+	var recuts := 0
+	var caps_ok := true
+	for rid: String in HeroData.HERO_ORDER:
+		var n := Ladder.gem_index(HeroData.native(rid))
+		if n >= m:
+			continue
+		recuts += 1
+		caps_ok = caps_ok and Ladder.ult_form(HeroData.native(rid), 11) < Ladder.ult_form("M", 11) \
+				and Ladder.awaken_cap(HeroData.native(rid), "M") < Ladder.awaken_cap("M", "M") \
+				and Ladder.skill_cap(HeroData.native(rid), "M", 5) < Ladder.skill_cap("M", "M", 5)
+		for lv in [1, 10, 20, 30]:
+			for f2 in Ladder.FACETS_PER_GEM + 1:
+				var rc := _max_ranks(n, m, f2)
+				var nc := _max_ranks(m, m, f2)
+				var eq := [mini(rc[0], nc[0]), mini(rc[1], nc[1]), mini(rc[2], nc[2]), mini(rc[3], nc[3])]
+				for gs: Array in [[zero, 0, false], [mg, 3, true]]:
+					worst = maxf(worst, _index_t(n, m, f2, lv, eq, gs[0], gs[1], gs[2], hi[0], hi[1], hi[2], hi[3], hi[4])
+							/ _index_t(m, m, f2, lv, eq, gs[0], gs[1], gs[2], lo[0], lo[1], lo[2], lo[3], lo[4]))
+			worst = maxf(worst, _index_t(n, m, 5, lv, _max_ranks(n, m, 5), mg, 3, true, hi[0], hi[1], hi[2], hi[3], hi[4])
+					/ _index_t(m, m, 5, lv, _max_ranks(m, m, 5), mg, 3, true, lo[0], lo[1], lo[2], lo[3], lo[4]))
+	print("  %s rule #3: %d heroes recut into Опал, worst adversarial recut / %s %.4f" % [uk, recuts, uk, worst])
+	_ok(recuts > 0 and worst < 1.0 and caps_ok, "rule #3: every hero recut into Опал < native %s (worst %.4f), forms / Awakening / ranks below" % [uk, worst])
+	var acc := _acc(31, [hid, "lumen"])
+	var states: Array = [[1, 1, 1, 1, 0]]
+	for b2: int in Ladder.ATK_BEATS:
+		states.append([1, b2, 1, 1, 0])
+	for fr: int in Ladder.FORM_AT_RANK:
+		states.append([fr, 1, 1, 1, 0])
+	for aw in range(1, Ladder.awaken_cap("M", "M") + 1):
+		states.append([1, 1, 1, aw, 0])
+	for rb in range(1, 4):
+		states.append([1, 1, 1, 1, rb])
+	var prof_ok := true
+	for sv: Array in states:
+		for id2: String in [hid, "lumen"]:
+			var sk: Dictionary = Roster.entry(acc, id2)["skills"]
+			sk["ult"] = sv[0]
+			sk["attack"] = sv[1]
+			sk["awakened"] = sv[3]
+		var p0 := HeroesMeta.index(m, m, 0, HeroesMeta.eff_level(acc, hid), [sv[0], sv[1], 1, sv[3]], zero, sv[4])
+		var ps := HeroesMeta.power(acc, hid, zero, sv[4])
+		prof_ok = prof_ok and absf(ps / p0 - 1.0) <= Ladder.KIT_TOL and is_equal_approx(ps, HeroesMeta.power(acc, "lumen", zero, sv[4]))
+	_ok(prof_ok, "test_kit_budget (data): %s's profile = P0 of a native Опал at %d reference states" % [uk, states.size()])
+	var all := _acc(25, HeroData.HERO_ORDER)
+	var opal := _heroes_of("M")
+	_ok(Summon.pool(all, "M") == opal and opal.has(hid), "Portal Опал pool = %s" % str(opal))
+	var ho := Summon.hero_odds(_acc(21, ["bolt", "titan"]))
+	_ok(is_equal_approx(float(ho[hid]), float(Summon.consolidated()["M"]) / opal.size()), "Portal opens: %s %.2f%% = Опал / %d"
+			% [uk, 100.0 * float(ho[hid]), opal.size()])
+	var sa := _acc(25, ["bolt", "titan"])
+	(sa["summon"] as Dictionary)["seals"] = 200
+	var sp := Summon.seal_pick(sa, hid)
+	_ok(bool(sp["ok"]) and bool(sp["new"]) and int(sp["price"]) == PortalData.seal_price("M") and int(sp["price"]) == 200
+			and Roster.owned(sa, hid) and int(Roster.entry(sa, hid)["skills"]["awakened"]) == 1, "%s by Seals: 200, born awakened" % uk)
+
+
+## The heroes of native `gem` in collector order (the data).
+static func _heroes_of(gem: String) -> Array[String]:
+	var out: Array[String] = []
+	for hid: String in HeroData.HERO_ORDER:
+		if HeroData.native(hid) == gem:
+			out.append(hid)
+	return out
+
+
+## Collector numbers 01-22 were given at launch (10 heroes, 12 champions); a character that joined after launch carries
+## a number above them and above every character listed before it in its own order (numbers follow the joining order).
+const LAUNCH_NUMBERS := 22
+
+
+static func _joined_after_launch(id: String) -> bool:
+	var is_hero := HeroData.HEROES.has(id)
+	var order: Array[String] = HeroData.HERO_ORDER if is_hero else ChampionData.CHAMPION_ORDER
+	var rows: Dictionary = HeroData.HEROES if is_hero else ChampionData.CHAMPIONS
+	var no := int(rows[id]["no"])
+	if no <= LAUNCH_NUMBERS:
+		return false
+	for other: String in order.slice(0, order.find(id)):
+		if int(rows[other]["no"]) >= no:
+			return false
+	return true
+
+
+## A champion that joined after launch: collector number fixed at birth, tags, Action tier, its class template kit (hp,
+## aura, radius equal to `template_cid`; the action number is the sheet's), SaveV3Data, the Loc rows (uk, en; 3-line
+## lore), and rule #3 on the real stats: every champion recut to its native gem (f 0-5, Champion Level 1-20, relic
+## none..+12) stays below it on the power multiplier, and a recut champion of its class also below its HP and aura.
+func _test_joined_champion(cid: String, uk: String, no: int, tags: Dictionary, template_cid: String, kit: Dictionary, title_uk: String) -> void:
+	var t: Dictionary = ChampionData.CHAMPIONS.get(cid, {})
+	_ok(not t.is_empty() and ChampionData.CHAMPION_ORDER.has(cid), "%s is in the collector order" % uk)
+	_ok(int(t.get("no", 0)) == no and _joined_after_launch(cid), "%s is C%d (fixed at birth)" % [uk, int(t.get("no", 0))])
+	var tag_ok := true
+	for k: String in tags:
+		tag_ok = tag_ok and str(t.get(k, "")) == str(tags[k])
+	_ok(tag_ok, "%s: %s" % [uk, str(tags)])
+	var native := str(tags["native"])
+	_ok(ChampionData.action_tier(cid) == Ladder.gem_index(native) + 1, "%s: Action tier %d (native %s)" % [uk, ChampionData.action_tier(cid), native])
+	_ok(_diff(t.get("kit", {}), kit) == "", "%s: kit %s %s" % [uk, str(kit), _diff(t.get("kit", {}), kit)])
+	var tk: Dictionary = ChampionData.CHAMPIONS[template_cid]["kit"]
+	_ok(str(ChampionData.CHAMPIONS[template_cid]["class"]) == str(tags["class"]) and float(tk["hp"]) == float(kit["hp"])
+			and float(tk["aura"]) == float(kit["aura"]) and float(tk["radius"]) == float(kit["radius"]),
+			"%s: the %s template of %s (hp, aura, radius)" % [uk, tags["class"], template_cid])
+	_ok(SaveV3Data.CHAMPION_NATIVE.get(cid, "") == native, "SaveV3Data knows %s" % uk)
+	var idu := cid.to_upper()
+	for k: String in ["CHAMP_%s" % idu, "CHAMP_%s_TITLE" % idu, "CHAMP_%s_ROLE" % idu, "CHAMP_%s_LORE" % idu, "ACT_%s" % idu,
+			"ACT_%s_DESC" % idu, "ACT_%s_VALUE" % idu, "RELIC_%s" % idu, "RELIC_%s_DESC" % idu]:
+		var row: Array = Loc.STRINGS.get(k, [])
+		_ok(row.size() >= 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % k)
+	_ok(str(Loc.STRINGS.get("CHAMP_%s" % idu, ["", ""])[0]) == uk and str(Loc.STRINGS.get("CHAMP_%s_TITLE" % idu, ["", ""])[0]) == title_uk,
+			"%s — %s" % [uk, title_uk])
+	var lore: Array = Loc.STRINGS.get("CHAMP_%s_LORE" % idu, ["", ""])
+	_ok(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "%s lore: 3 lines uk and en" % uk)
+	var worst := 0.0
+	var bad: Array = []
+	var same := 0
+	var recut := 0
+	for c2: String in ChampionData.CHAMPION_ORDER:
+		if Ladder.gem_index(Roster.native(c2)) >= Ladder.gem_index(native):
+			continue
+		recut += 1
+		var same_class := str(ChampionData.CHAMPIONS[c2]["class"]) == str(tags["class"])
+		same += 1 if same_class else 0
+		for f in range(0, Ladder.FACETS_PER_GEM + 1):
+			for cl in range(1, 21):
+				for r in range(-1, 13):
+					var rc := ChampionsMeta.stats_at(c2, native, f, cl, r)
+					var tc := ChampionsMeta.stats_at(cid, native, f, cl, r)
+					worst = maxf(worst, float(rc["mult"]) / float(tc["mult"]))
+					if not float(rc["mult"]) < float(tc["mult"]):
+						bad.append("%s f%d cl%d r%d mult" % [c2, f, cl, r])
+					if same_class:
+						for key: String in ["hp", "aura"]:
+							var capped := key == "aura" and float(tc[key]) >= ChampionData.AURA_CAP
+							if not (float(rc[key]) < float(tc[key]) or (capped and float(rc[key]) <= float(tc[key]))):
+								bad.append("%s f%d cl%d r%d %s" % [c2, f, cl, r, key])
+	print("  %s rule #3: %d champions recut to %s, worst recut / native mult %.4f, %d of its class checked on HP / aura" % [uk, recut, native, worst, same])
+	_ok(recut > 0 and bad.is_empty() and worst < 1.0, "rule #3: a champion recut to %s < native %s on mult (worst %.4f), %d of its class on HP / aura %s"
+			% [native, uk, worst, same, str(bad.slice(0, 4))])
 
 
 # ------------------------------------------------------------------ team and synergy
@@ -1019,6 +1442,9 @@ func _test_summon_tables() -> void:
 		var ho := Summon.hero_odds(acc)
 		var want2: Dictionary = st[2]
 		var bad := []
+		for id0: String in HeroData.HERO_ORDER:
+			if not want2.has(id0):
+				bad.append("%s not disclosed" % id0)
 		for id: String in want2:
 			if absf(100.0 * float(ho[id]) - float(want2[id])) > 0.0051:
 				bad.append("%s %.3f vs %.2f" % [id, 100.0 * float(ho[id]), want2[id]])
@@ -1050,13 +1476,13 @@ func _stages() -> Array:
 		Summon.set_focus(d, kv[0], kv[1])
 	return [
 		["A", a, {"titan": 0.0, "arin": 52.09, "bolt": 0.0, "eira": 26.52, "seer": 0.0, "iskar": 14.35, "vesta": 2.81,
-				"vartan": 2.81, "lumen": 0.70, "pava": 0.70}],
+				"vartan": 2.81, "lumen": 0.35, "pava": 0.35, "sirko": 0.35, "olha": 0.35}],
 		["B", b, {"titan": 26.05, "arin": 26.05, "bolt": 13.26, "eira": 13.26, "seer": 7.18, "iskar": 7.18, "vesta": 0.0,
-				"vartan": 5.63, "lumen": 0.0, "pava": 1.41}],
+				"vartan": 5.63, "lumen": 0.0, "pava": 0.47, "sirko": 0.47, "olha": 0.47}],
 		["C", c, {"titan": 26.05, "arin": 26.05, "bolt": 13.26, "eira": 13.26, "seer": 7.18, "iskar": 7.18, "vesta": 2.81,
-				"vartan": 2.81, "lumen": 0.70, "pava": 0.70}],
+				"vartan": 2.81, "lumen": 0.35, "pava": 0.35, "sirko": 0.35, "olha": 0.35}],
 		["D", d, {"titan": 31.26, "arin": 20.84, "bolt": 15.91, "eira": 10.61, "seer": 8.61, "iskar": 5.74, "vesta": 3.38,
-				"vartan": 2.25, "lumen": 0.84, "pava": 0.56}],
+				"vartan": 2.25, "lumen": 0.84, "pava": 0.19, "sirko": 0.19, "olha": 0.19}],
 	]
 
 
@@ -1239,11 +1665,14 @@ func _test_summon_rules() -> void:
 	_ok([int(acc3["summon"]["since_e"]), int(acc3["summon"]["since_l"]), int(acc3["summon"]["total"])] == pity0,
 			"Seal picks move no pity and give no Seals")
 	var offer := Summon.seal_offer(acc3)
-	var offer_ok := offer.size() == 6
+	var amethyst_plus := 0
+	for hid2: String in HeroData.HERO_ORDER:
+		amethyst_plus += 1 if Ladder.gem_index(HeroData.native(hid2)) >= Ladder.gem_index("E") else 0
+	var offer_ok := offer.size() == amethyst_plus
 	for row2: Dictionary in offer:
 		if str(row2["id"]) == "lumen":
 			offer_ok = offer_ok and bool(row2["owned"]) and int(row2["frags"]) == 200 and int(row2["price"]) == 200
-	_ok(offer_ok, "Seal shop lists the six Amethyst+ heroes with prices and owned-pick fragments")
+	_ok(offer_ok, "Seal shop lists the %d Amethyst+ heroes with prices and owned-pick fragments" % amethyst_plus)
 	# Beacons: earned sources only; fractions bank.
 	var acc4 := _acc(21)
 	var whole := 0
@@ -1374,6 +1803,35 @@ func _test_chests() -> void:
 		if HeroChest.pick_champion(acc6, "C", rng) == "ivo":
 			fo += 1
 	_ok(_z(fo, fn, 0.6) <= 4.0, "chest Focus share %.3f ~ 0.6" % [float(fo) / fn])
+	# Топаз holds 4 since C23 Тарас: the Focus keeps exactly 60%, the other three share 40% evenly.
+	var pool_l := HeroChest.pool("L")
+	HeroChest.set_focus(acc6, "L", "taras")
+	var wl := HeroChest.champion_weights(acc6, "L")
+	var rest_ok := true
+	for cl: String in pool_l:
+		if cl != "taras":
+			rest_ok = rest_ok and is_equal_approx(float(wl[cl]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1))
+	_ok(pool_l.has("taras") and is_equal_approx(float(wl["taras"]), PortalData.CHEST_FOCUS_TOTAL) and rest_ok,
+			"chest Focus Тарас: 60%% and the other %d Topaz champions %.2f%% each" % [pool_l.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1)])
+	# Топаз holds 5 since C25 Довбуш: a Focus on him keeps exactly 60%, the other four share 40% evenly.
+	HeroChest.set_focus(acc6, "L", "dovbush")
+	var wd := HeroChest.champion_weights(acc6, "L")
+	var rest_d := true
+	for cd: String in pool_l:
+		if cd != "dovbush":
+			rest_d = rest_d and is_equal_approx(float(wd[cd]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1))
+	_ok(pool_l.has("dovbush") and is_equal_approx(float(wd["dovbush"]), PortalData.CHEST_FOCUS_TOTAL) and rest_d,
+			"chest Focus Довбуш: 60%% and the other %d Topaz champions %.2f%% each" % [pool_l.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_l.size() - 1)])
+	# Аметист holds 4 since C24 Снаряд: the same rule inside the Amethyst pool.
+	var pool_e := HeroChest.pool("E")
+	HeroChest.set_focus(acc6, "E", "snaryad")
+	var we := HeroChest.champion_weights(acc6, "E")
+	var rest_e := true
+	for ce: String in pool_e:
+		if ce != "snaryad":
+			rest_e = rest_e and is_equal_approx(float(we[ce]), (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_e.size() - 1))
+	_ok(pool_e.has("snaryad") and is_equal_approx(float(we["snaryad"]), PortalData.CHEST_FOCUS_TOTAL) and rest_e,
+			"chest Focus Снаряд: 60%% and the other %d Amethyst champions %.2f%% each" % [pool_e.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_e.size() - 1)])
 	var acc7 := _acc(15, ["bolt"], ["mila"])
 	var w7 := HeroChest.champion_weights(acc7, "C")
 	_ok(float(w7["mila"]) == 0.0 and is_equal_approx(float(w7["ivo"]), 0.5), "unowned champions first")

@@ -851,7 +851,8 @@ func _test_save_v3() -> void:
 		print("  (python3 not found: generator check skipped)")
 	else:
 		_ok(code == 0, "save_v3_data.gd in sync with heroes_consts.json: %s" % str(out).strip_edges())
-	_ok(SaveV3Data.HERO_NATIVE.size() == 10 and SaveV3Data.CHAMPION_NATIVE.size() == 12 and SaveV3Data.EXPECTED_CHAMPION_LEVEL.size() == 113, "roster 10 + 12, Champion Level table 0..112")
+	_ok(SaveV3Data.HERO_NATIVE.size() == HeroData.HEROES.size() and SaveV3Data.CHAMPION_NATIVE.size() == ChampionData.CHAMPIONS.size() and SaveV3Data.EXPECTED_CHAMPION_LEVEL.size() == 113,
+			"roster %d + %d (follows the data), Champion Level table 0..112" % [SaveV3Data.HERO_NATIVE.size(), SaveV3Data.CHAMPION_NATIVE.size()])
 	# Sanitize.
 	var bad := ConfigFile.new()
 	bad.set_value("meta", "version", 3)
@@ -887,6 +888,25 @@ func _test_save_v3() -> void:
 	var once := var_to_str(s)
 	Save.sanitize(s)
 	_ok(var_to_str(s) == once, "sanitize is idempotent")
+	# §9.6 orphans come back: an older build that did not know a champion (Тарас) or a hero parked them in _orphans;
+	# this build knows the ids again, so they return to the roster, owned, and leave _orphans.
+	var older := ConfigFile.new()
+	older.set_value("meta", "version", 3)
+	older.set_value("progress", "level", 40)
+	older.set_value("champions", "roster", {"alba": {"owned": true, "gem": "C"}})
+	older.set_value("_orphans", "champions", {"taras": {"owned": true, "gem": "L", "facets": 2, "frags": 7}, "ghost": {"owned": true}, "otto": 5})
+	older.set_value("_orphans", "heroes", {"lumen": {"owned": true, "gem": "M", "lvl": 12}, "zorro": {"lvl": 4}})
+	var so := Save.account_from_cfg(older)
+	var rt: Dictionary = (so["champions"]["roster"] as Dictionary).get("taras", {})
+	_ok(Roster.owned(so, "taras") and str(rt.get("gem", "")) == "L" and int(rt.get("facets", -1)) == 2 and int(rt.get("frags", -1)) == 7
+			and not (so["_orphans"]["champions"] as Dictionary).has("taras"), "orphaned Тарас -> sanitize_v3 -> owned again, facets and fragments kept")
+	_ok(Roster.owned(so, "lumen") and int(so["heroes"]["lumen"]["lvl"]) == 12 and not (so["_orphans"]["heroes"] as Dictionary).has("lumen"), "orphaned known hero comes back")
+	_ok((so["_orphans"]["champions"] as Dictionary).has("ghost") and (so["_orphans"]["champions"] as Dictionary).has("otto")
+			and (so["_orphans"]["heroes"] as Dictionary).has("zorro") and not (so["champions"]["roster"] as Dictionary).has("otto"),
+			"unknown ids and broken entries stay parked in _orphans")
+	var once2 := var_to_str(so)
+	Save.sanitize(so)
+	_ok(var_to_str(so) == once2, "sanitize with restored orphans is idempotent")
 	# v3 round trip, orphans included.
 	DirAccess.make_dir_recursive_absolute(TMP_DIR)
 	(s["progress"] as Dictionary)["hero"] = "bolt"     # the legacy hero key is always written
@@ -1407,8 +1427,19 @@ func _test_meta_api_heroes() -> void:
 	_ok(Roster.owned(acc, "pava") or not (Meta.hero_card("pava")["sources"] as Array).is_empty(), "unowned hero card lists its sources")
 	var cc := Meta.champion_card("alba")
 	_ok(cc.has_all(["action", "aura", "hp", "level", "slot", "class", "role"]) and int(cc["action"]["tier"]) == 2, "champion_card: Action tier II for a native Sapphire")
-	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == ["lumen", "pava"] and Array(Meta.champion_ids("class:guardian")) == ["ivo", "otto", "nimb"],
-			"hero_ids / champion_ids filters")
+	# The class filter follows the data (C24 Снаряд is a Guardian too): every Guardian in collector order.
+	var guardians: Array = []
+	for gid: String in ChampionData.CHAMPION_ORDER:
+		if str(ChampionData.CHAMPIONS[gid]["class"]) == "guardian":
+			guardians.append(gid)
+	# The native filter follows the data too (H26 Сірко is an Opal hero): every native Opal hero in collector order.
+	var opals: Array = []
+	for hid: String in HeroData.HERO_ORDER:
+		if HeroData.native(hid) == "M":
+			opals.append(hid)
+	_ok(Meta.hero_ids("owned").has("bolt") and Array(Meta.hero_ids("native:M")) == opals and opals.slice(0, 2) == ["lumen", "pava"]
+			and Array(Meta.champion_ids("class:guardian")) == guardians and guardians.slice(0, 3) == ["ivo", "otto", "nimb"],
+			"hero_ids / champion_ids filters (%d Opal heroes, %d Guardians)" % [opals.size(), guardians.size()])
 	# Facets and recut through the API (fragments only, never coins).
 	var coins0 := MetaAcc.amount(acc, "coins")
 	Roster.ensure(acc, "bolt")["frags"] = 200

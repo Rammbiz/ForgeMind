@@ -31,6 +31,8 @@ KITS = [
     ("vartan", "Вартан", 3, "Guardian", "Tech", "Stoneheart", 33, 1.1, 4, 3, 12, 1, 42),
     ("lumen", "Люмен", 4, "Mage", "Plasma", "Celestials", 17, 2.2, 1, 1, 15, 2, 42),
     ("pava", "Пава", 4, "Healer", "Rune", "Wildfang", 21, 1.9, 1, 0, 14, 1, 44),
+    ("sirko", "Сірко", 4, "Warrior", "Rune", "Dawn", 25, 1.7, 3, 2, 11, 1, 42),   # H26, the 11th hero (§6.28)
+    ("olha", "Ольга", 4, "Ranger", "Plasma", "Wildfang", 15, 3.4, 1, 0, 16, 1, 40),   # H27, the 12th hero (§6.29)
 ]
 
 # main ult number per hero (form I, rank 1, Quartz-normalised) + what it measures; forms add RULES (S budget +3% each)
@@ -45,6 +47,8 @@ ULT = {
     "vartan": (8, "wall contact kills (wall HP 30 scales the same)"),
     "lumen": (2, "fan kills & breaks per ray per tick (10 ticks)"),
     "pava": (8, "fan base return (+30% of the revive pool)"),
+    "sirko": (16, "laughter kills & breaks per squad / structure under the scroll"),
+    "olha": (18, "breaks per structure / gate the flock reaches (squads under the flight path lose a third + BURN)"),
 }
 # second ult number that scales with ult.power (optional)
 ULT2 = {
@@ -52,6 +56,8 @@ ULT2 = {
     "vartan": (8, "Landslide (form IV)", 7),
     "lumen": (4, "Crown Shard hit (form IV)", 7),
     "pava": (4, "Eyes Wide kills (form IV)", 7),
+    "sirko": (8, "Second Roar kills & breaks (form III)", 5),
+    "olha": (8, "Fourth Revenge kills on the biggest squad (form III)", 5),
 }
 
 # Rally hook and base value at rank 1 (Quartz-normalised; = S's per-hook parity base, critique B2)
@@ -66,6 +72,8 @@ RALLY = {
     "vartan": ("army_volleys", 0.15, "army volley damage x(1+v)"),
     "lumen": ("machines_element (Plasma)", 0.03, "Plasma machine damage, bucket 2"),
     "pava": ("champions_aura", 0.06, "champion aura value x(1+v)"),
+    "sirko": ("army_recruits", 1.0, "soldiers added to every recruit group"),
+    "olha": ("ult_charge", 0.05, "ult charge rate x(1+v)"),
 }
 
 # ------------------------------------------------------------------------------------------------ champions
@@ -83,6 +91,9 @@ CHAMPS = [
     ("nimb", "Німб", 3, "Guardian", "Volt", "Celestials", 60, 2, "Lightning Rod damage x3 targets (per Block)", 0.10, "clash losses -", 1.0, "front"),
     ("dara", "Дара", 3, "Ranger", "Volt", "Dawn", 26, 1.0, "shot damage (every 1.2 s; harpoon every 3rd)", 0.15, "army volleys +", 1.4, "rear"),
     ("menhir", "Менгір", 3, "Mage", "Rune", "Stoneheart", 26, 4, "rune-strike kills per squad (every 4 s)", 0.15, "volley status proc x", 1.2, "right"),
+    ("taras", "Тарас", 3, "Mage", "Rune", "Wildfang", 26, 4, "The Word kills per squad (every 4 s; pages cut on)", 0.15, "volley status proc x", 1.2, "rear"),
+    ("snaryad", "Снаряд", 2, "Guardian", "Tech", "Dawn", 60, 2, "Sapper's Nose charge kills (per Block, every 6 s; + MARK)", 0.10, "clash losses -", 1.0, "front"),
+    ("dovbush", "Довбуш", 3, "Warrior", "Kinetic", "Stoneheart", 48, 1.5, "bartka kills per squad x2 squads (every 5 s; + STAGGER)", 0.10, "squad clash loss +", 1.1, "front"),
 ]
 AURA_SHARE = {"front": 0.35, "left": 0.30, "right": 0.30, "rear": 0.25}
 AURA_CAP = 0.40

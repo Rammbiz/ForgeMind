@@ -887,12 +887,24 @@ static func _build_state(name: String) -> Dictionary:
 			H["vesta"] = _hero_st(true, "L", 5, 40, 24, 8, 6, 5, 2)
 			H["vartan"] = _hero_st(true, "L", 1, 26, 19, 5, 4, 3, 1)
 			H["lumen"] = _hero_st(true, "M", 2, 22, 21, 9, 7, 6, 2, true)
+			# H26 Сірко (Характерник), the 11th hero, native Опал, just summoned (§6.28): born awakened, synced level;
+			# every other state lists him not owned.
+			H["sirko"] = _hero_st(true, "M", 0, 0, 21, 1, 1, 1, 1, true)
+			# H27 Ольга (Княгиня Помсти), the 12th hero, native Опал, the latest summon (§6.29): born awakened, synced
+			# level; every other state lists her not owned.
+			H["olha"] = _hero_st(true, "M", 0, 0, 21, 1, 1, 1, 1, true)
 			for c: String in ChampionData.CHAMPION_ORDER:
 				if c != "menhir" and c != "nimb":
 					C[c] = _champ_st(true, str(ChampionData.CHAMPIONS[c]["native"]), 2, 6)
 			C["mila"] = _champ_st(true, "R", 3, 8)
 			C["alba"] = _champ_st(true, "R", 5, 30)
 			C["dara"] = _champ_st(true, "L", 1, 4, true)
+			# C23 Тарас (Кобзар), native Топаз, just joined from a Hero Chest (§6.25); other states list him not owned.
+			C["taras"] = _champ_st(true, "L", 0, 0, true)
+			# C24 Снаряд (Пес-сапер), native Аметист, just joined from a Hero Chest (§6.26); other states list him not owned.
+			C["snaryad"] = _champ_st(true, "E", 0, 0, true)
+			# C25 Довбуш (Опришок), native Топаз, just joined from a Hero Chest (§6.27); other states list him not owned.
+			C["dovbush"] = _champ_st(true, "L", 0, 0, true)
 			acc["champion_level"] = 9
 			acc["team"] = {"hero": "vesta", "champions": ["mila", "ivo", "dara"]}
 			acc["portal"] = {"welcome": false, "since_e": 2, "since_l": 23, "focus": {"C": "arin"}, "history": [], "total": 164}
@@ -924,7 +936,7 @@ static func _build_state(name: String) -> Dictionary:
 			["titan", false, 10], ["eira", true, 0], ["arin", true, 0], ["vesta", true, 0], ["titan", false, 10]], 37)
 	elif name == "late":
 		acc["portal"]["history"] = _mock_history([
-			["lumen", true, 0], ["arin", false, 10], ["eira", false, 15], ["seer", false, 25], ["titan", false, 10],
+			["olha", true, 0], ["sirko", true, 0], ["lumen", true, 0], ["arin", false, 10], ["eira", false, 15], ["seer", false, 25], ["titan", false, 10],
 			["vartan", true, 0], ["bolt", false, 15], ["arin", false, 10]], 164)
 	return acc
 

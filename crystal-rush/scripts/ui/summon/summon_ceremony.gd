@@ -51,6 +51,11 @@ const CARD := {"C": {"crack": 0.1, "card": 0.18, "new": 0.25, "stamp": 0.5, "ref
 		"R": {"crack": 0.2, "card": 0.32, "new": 0.4, "stamp": 0.7, "glint": 0.7, "ref": 1.2}}
 ## Gem -> pentatonic step for the tell ring (C6 E6 G6 B6 D7 rising; Audio.chord).
 const RING_STEP := {"C": 5, "R": 7, "E": 8, "L": 10, "M": 12}
+## Per-hero signature beats added on top of a FULL walkout (the sheets' «Signature beat»; no extra length, no new
+## flash, nothing in Reduce Motion, short walkouts or Seal picks). "doves" = H27 Ольга (§6.29): before she appears a
+## blizzard of white feathers fills the screen and doves fly out of it as she steps out; all of it is gone before the
+## name lands, so her face and the name are never covered.
+const SIGNATURE := {"olha": "doves"}
 
 var hub: Hub
 var mode := "x1"                   ## x1 | x10 | seal | replay
@@ -1066,6 +1071,7 @@ func _render_walk(u: float, bt: Dictionary, g: String, walk: String, L: float) -
 	out["motes"] = SummonFx.seg(u, float(bt["hold"]) - 0.3, 0.6) if not stat else 0.0
 	out["rays"] = SummonFx.seg(u, float(bt.get("gather", step)), 0.4) * (1.0 if not stat else 0.0)
 	out["seal_stream"] = SummonFx.seg(u, 0.0, 0.3) if walk == "seal" else -1.0
+	out["sig"] = str(SIGNATURE.get(str(r["id"]), "")) if walk == "full" else ""
 	return out
 
 
@@ -1452,6 +1458,109 @@ func _draw_walk_mid(ci: Control, st: Dictionary) -> void:
 	var su := float(w["shard_u"])
 	if su >= 0.0:
 		SummonFx.draw_shards(ci, g, _cc, size * 0.5, su, 0.5 if g != "M" else 0.6, 18 if g == "E" else (22 if g == "L" else 24))
+	if str(w.get("sig", "")) == "doves":
+		_draw_doves_beat(ci, u, bt, t)
+
+
+## Ольга's signature beat (§6.29): a blizzard of white (some ember-tipped) feathers blows in across the whole screen
+## from just before the shatter, thickest as she steps out, and clears before the name lands; seven white doves burst
+## out of it from the crystal at the step-out and fly off the screen. Pure function of the walk time `u`.
+func _draw_doves_beat(ci: Control, u: float, bt: Dictionary, t: float) -> void:
+	var step := float(bt["step"])
+	var a_in := SummonFx.seg(u, float(bt.get("gather", step - 0.45)) - 0.7, 0.7)
+	var a_out := 1.0 - SummonFx.seg(u, step + 0.1, minf(0.7, maxf(0.2, float(bt["name"]) - step - 0.25)))
+	var fa := a_in * a_out
+	if fa > 0.0:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 2701
+		var span := Vector2(_W, _H)
+		for i in 120:
+			var p0 := Vector2(rng.randf_range(-0.2, 1.1), rng.randf_range(-0.15, 1.05)) * span
+			var vel := Vector2(rng.randf_range(160.0, 320.0), rng.randf_range(70.0, 190.0))
+			var ph := rng.randf() * TAU
+			var ln := rng.randf_range(26.0, 62.0)
+			var ember := rng.randf() < 0.22
+			var depth := rng.randf_range(0.55, 1.0)
+			# The feathers blow in from the upper left (the veil streams to the right) and flutter as they go.
+			var p := p0 + vel * (u - step) * depth + Vector2(sin(t * 2.3 + ph) * 14.0, cos(t * 1.7 + ph) * 8.0)
+			p = Vector2(fposmod(p.x + 0.2 * _W, 1.3 * _W) - 0.2 * _W, fposmod(p.y + 0.15 * _H, 1.2 * _H) - 0.15 * _H)
+			var ang := 0.6 + 0.9 * sin(t * 3.1 * depth + ph)
+			_draw_feather(ci, p, ang, ln * depth, fa * (0.55 + 0.45 * depth), ember)
+	# The doves: out of the blizzard at the step-out, fanning to the left and up-left, away from her face (upper right
+	# of the crystal on the splash), and off the screen before the name lands.
+	var du := u - step + 0.1
+	if du > 0.0 and du < 1.2:
+		for j in 7:
+			var dir := Vector2.from_angle(deg_to_rad([-105.0, -125.0, -145.0, -165.0, 175.0, 155.0, 138.0][j]))
+			var k := clampf(du / 1.2, 0.0, 1.0)
+			var p := _cc + Vector2(-30.0, 0.0) + dir * (30.0 + _W * 0.95 * (0.35 * k + 0.65 * k * k) * (0.8 + 0.08 * float(j % 3)))
+			var da := clampf(du * 5.0, 0.0, 1.0) * (1.0 - SummonFx.seg(du, 0.9, 0.3))
+			_draw_dove(ci, p, dir, 46.0 + 10.0 * float(j % 3), t * 13.0 + float(j) * 1.3, da)
+
+
+## One feather: a white vane around a thin quill along `ang`, `len` px long; ember-tipped ones (Ольга's mantle) carry a
+## warm tip (never the enemy's lava orange: a soft rose-gold).
+func _draw_feather(ci: Control, p: Vector2, ang: float, len: float, a: float, ember: bool) -> void:
+	if a <= 0.01:
+		return
+	var d := Vector2.from_angle(ang)
+	var n := Vector2(-d.y, d.x)
+	var pts := PackedVector2Array()
+	for i in 9:
+		var f := float(i) / 8.0
+		pts.append(p + d * len * (f - 0.5) + n * len * 0.24 * sin(PI * f) * (1.0 - 0.3 * f))
+	for i in range(8, -1, -1):
+		var f := float(i) / 8.0
+		pts.append(p + d * len * (f - 0.5) - n * len * 0.19 * sin(PI * f) * (1.0 - 0.3 * f))
+	ci.draw_colored_polygon(pts, Color(0.99, 0.98, 0.95, 0.9 * a))
+	if ember:
+		var tip := PackedVector2Array([p + d * len * 0.5, p + d * len * 0.22 + n * len * 0.15, p + d * len * 0.22 - n * len * 0.12])
+		ci.draw_colored_polygon(tip, Color(0.86, 0.45, 0.4, 0.85 * a))
+	ci.draw_line(p - d * len * 0.62, p + d * len * 0.5, Color(0.78, 0.74, 0.68, 0.8 * a), 1.2)
+
+
+## One white dove seen from the side, flying along `dir` (body length `s` px): a plump body, the head forward, a fanned
+## tail, the near wing raised over the back and the far wing behind it, both flapping with `flap` (a bird silhouette,
+## never a cross shape: the wings rise from the back, not across the body).
+func _draw_dove(ci: Control, p: Vector2, dir: Vector2, s: float, flap: float, a: float) -> void:
+	if a <= 0.01:
+		return
+	var d := dir.normalized()
+	var up := Vector2(-d.y, d.x)
+	if up.y > 0.0:
+		up = -up
+	var col := Color(1.0, 1.0, 0.98, a)
+	var shade := Color(0.86, 0.87, 0.92, a)
+	ci.draw_texture_rect(UIKit.glow_texture(), Rect2(p - Vector2(s, s) * 1.1, Vector2(s, s) * 2.2), false, Color(1.0, 0.95, 0.85, 0.2 * a))
+	var w := 0.2 + 0.4 * (1.0 + sin(flap))  # 1 = wings up, 0.2 = the down-stroke (never below the body)
+	# The far wing (behind the body, a little smaller and shaded).
+	ci.draw_colored_polygon(PackedVector2Array([p + d * s * 0.1, p + up * s * (0.15 + 0.55 * w) + d * s * 0.05,
+			p + up * s * (0.1 + 0.5 * w) - d * s * 0.35, p - d * s * 0.2]), shade)
+	# Tail fan.
+	ci.draw_colored_polygon(PackedVector2Array([p - d * s * 0.32, p - d * s * 0.75 + up * s * 0.14, p - d * s * 0.8,
+			p - d * s * 0.72 - up * s * 0.1]), col)
+	# Body (a plump teardrop) and the head with a small dark beak and eye.
+	var body := PackedVector2Array()
+	for k in 14:
+		var an := TAU * float(k) / 14.0
+		var rx := s * (0.42 if cos(an) > 0.0 else 0.38)
+		body.append(p + d * cos(an) * rx + up * sin(an) * s * (0.17 if sin(an) > 0.0 else 0.14))
+	ci.draw_colored_polygon(body, col)
+	var hp := p + d * s * 0.42 + up * s * 0.12
+	ci.draw_circle(hp, s * 0.13, col)
+	ci.draw_colored_polygon(PackedVector2Array([hp + d * s * 0.1 + up * s * 0.02, hp + d * s * 0.22, hp + d * s * 0.1 - up * s * 0.04]),
+			Color(0.85, 0.55, 0.5, a))
+	ci.draw_circle(hp + d * s * 0.04 + up * s * 0.03, maxf(1.0, s * 0.025), Color(0.15, 0.13, 0.2, a))
+	# The near wing: rises from the back, the long primaries swept back, a curved trailing edge.
+	var wing := PackedVector2Array([p + d * s * 0.18 + up * s * 0.08])
+	wing.append(p + up * s * (0.25 + 0.75 * w) + d * s * 0.12)
+	wing.append(p + up * s * (0.3 + 0.85 * w) - d * s * 0.18)
+	wing.append(p + up * s * (0.22 + 0.62 * w) - d * s * 0.42)
+	wing.append(p + up * s * (0.12 + 0.34 * w) - d * s * 0.36)
+	wing.append(p + up * s * 0.06 - d * s * 0.24)
+	ci.draw_colored_polygon(wing, col)
+	GemDraw.outline(ci, wing, Color(0.78, 0.8, 0.88, 0.7 * a), 1.0)
+
 
 
 ## An identity glyph on a light pillar: a cream socket with a gem-light ring and an ink glyph,

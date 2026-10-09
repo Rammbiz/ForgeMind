@@ -262,11 +262,23 @@ static func sanitize_v3(acc: Dictionary) -> void:
 	ws["migration_ore"] = maxi(0, int(ws["migration_ore"]))
 
 
+## §9.6 orphans are never deleted: an entry an older build parked in `_orphans` (an id it did not know yet, e.g. a
+## champion added after launch) comes back when this build knows the id again. Only Dictionary entries whose id is
+## not already in `section` are moved back; anything else stays parked.
+static func _restore_orphans(section: Dictionary, orphans: Dictionary, known: Dictionary) -> void:
+	for id in orphans.keys():
+		var sid := str(id)
+		if known.has(sid) and orphans[id] is Dictionary and not section.has(sid):
+			section[sid] = orphans[id]
+			orphans.erase(id)
+
+
 static func _sanitize_heroes(acc: Dictionary) -> void:
 	if not acc.get("heroes") is Dictionary:
 		acc["heroes"] = {}
 	var hs: Dictionary = acc["heroes"]
 	var orphans: Dictionary = (acc["_orphans"] as Dictionary)["heroes"]
+	_restore_orphans(hs, orphans, SaveV3Data.HERO_NATIVE)
 	for id in hs.keys():
 		var sid := str(id)
 		if not SaveV3Data.HERO_NATIVE.has(sid) or not hs[id] is Dictionary:
@@ -321,6 +333,7 @@ static func _sanitize_champions(acc: Dictionary) -> void:
 	ch["level"] = clampi(int(ch["level"]), 1, SaveV3Data.CHAMP_LEVEL_MAX)
 	var ro: Dictionary = ch["roster"]
 	var orphans: Dictionary = (acc["_orphans"] as Dictionary)["champions"]
+	_restore_orphans(ro, orphans, SaveV3Data.CHAMPION_NATIVE)
 	for id in ro.keys():
 		var sid := str(id)
 		if not SaveV3Data.CHAMPION_NATIVE.has(sid) or not ro[id] is Dictionary:
