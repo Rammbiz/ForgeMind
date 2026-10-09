@@ -48,13 +48,15 @@ const NO_ARMY := {}
 ## Marks instances: four per member (shadow, foot ring, aura ring, glyph), the FX pool, the tethers, the plate.
 const PER_MEMBER := 4
 const TETHERS := 6
-## The stamp («БЛОК» / «ЧИСТО!»): one Label3D on a porcelain plate (ChampionFx PLATE), above the hazard.
+## The stamp («БЛОК» / «ЧИСТО!»): one Label3D on a porcelain plate (ChampionFx PLATE), over the Guardian.
 const STAMP_LIFE := 0.95
 const STAMP_PX := 64
 const STAMP_PIXEL := 0.0056
 const STAMP_H := 0.5
 const STAMP_PAD := 0.3
 const STAMP_RISE := 0.3
+## Over the Guardian's head (the hazard has the run's own loss count over it, «−12», Run._loss_popup).
+const STAMP_Y := 1.75
 const STAMP_INK := Color("#2C3158")
 ## Under the gate labels (3+), over the marks (1): §10.2.
 const STAMP_PRIORITY := 2
@@ -531,7 +533,7 @@ func on_fx(event: StringName, data: Dictionary) -> void:
 					hp = Vector3(float(it.get("x0", it["x"])), 0.0, -float(it["d"]))
 				c.act(&"block", hp)
 				var key := str(STAMPS.get(StringName(str(data.get("stamp", "block"))), STAMPS[&"block"]))
-				stamp(Loc.t(key), hp + Vector3(0.0, 1.55, 0.0))
+				stamp(Loc.t(key), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2))
 				_burst(c.root + Vector3(-0.15, 0.6, -0.35), 6, 1.6, MARK, 0.08, 0.05, 1.0, 3.0)
 				Audio.play("upgrade", -12.0, 0.15)
 		&"champ_mend":
