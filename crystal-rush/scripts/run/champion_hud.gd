@@ -17,6 +17,10 @@ extends Node
 ## the banner reaches full opacity (its glass, discs, line glyphs and pips are ~170 canvas draws a
 ## frame), and the layer shows that frame as one premultiplied TextureRect following the banner's fade
 ## (its own short fade-in first).
+##
+## The ribbon keeps TeamBanner's own band (its centre at a third of the height): over real level starts
+## (hud_lab --banner: 18 levels, at READY and with the run tapped into motion the moment it shows, so it
+## lives its whole time over a moving run) no gate label came within 140 px of it (§10.2).
 
 const MEDALLIONS_CLASS := "ChampionMedallions"
 const BANNER_CLASS := "TeamBanner"
@@ -78,6 +82,22 @@ func _process(delta: float) -> void:
 func on_fx(event: StringName, data: Dictionary) -> void:
 	if medallions and _can_fx:
 		medallions.call("on_fx", event, data)
+
+
+## The nodes behind this part of the HUD's draws, for the bench's split (gallery_champions --bench hides
+## them one after another on a frozen frame): "medallions" (their canvas draws, every frame) and
+## "banner" (the banner's cached picture: one draw while it shows at READY). Empty lists before linking.
+func bench_parts() -> Dictionary:
+	return {"medallions": [medallions] if is_instance_valid(medallions) else [],
+			"banner": [_btex] if is_instance_valid(_btex) else []}
+
+
+## The champion layer's canvas transform (layer coordinates -> viewport pixels; dev tools project the
+## ribbon with it), identity before linking.
+func layer_transform() -> Transform2D:
+	if not is_instance_valid(_view):
+		return Transform2D.IDENTITY
+	return _view.champion_layer().get_global_transform_with_canvas()
 
 
 func _link() -> void:

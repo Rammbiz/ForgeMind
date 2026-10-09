@@ -25,6 +25,8 @@ const ROTOR_HUB := 0.45         # solid hub radius
 const VIEW_AHEAD := 75.0
 const VIEW_BEHIND := 14.0
 const TURRET_SHOT_SPEED := 17.0
+## A warded turret shot (a hero ult ward spent) ends in this matte white-gold spark, costing nothing.
+const WARD_SPARK := Color(1.0, 0.91, 0.64)
 ## Emberhorn squads: march speed of the charge (step_squads moves units at 4.2 u/s), their run
 ## clip rate (stylised like the knights', VatClip.RUN_RATE), the stab rate and unit size.
 const SQUAD_CHARGE_SPEED := 4.2
@@ -280,10 +282,17 @@ func step_turrets(dt: float, army: Army) -> void:
 		Audio.play("turret_shot", -11.0, 0.1)
 		node.set_meta("kick", 1.0)
 		var item := it
+		var dist := muzzle.distance_to(target)
+		# Hero ult wards (KindView.absorb, H2), where LevelSim._turrets spends them: one charge takes one
+		# shot (one soldier), before Німб's catch; under the quake's armour the shot is free and spends none.
+		# No-op until a hero kind grants wards (RunKindView.absorb answers false at once without any).
+		if run._armor <= 0.0 and run.kind_view and run.kind_view.absorb(&"turret"):
+			run.effects.projectile(muzzle, target, "turret", dist / TURRET_SHOT_SPEED,
+					func() -> void: run.effects.hit_spark(target, WARD_SPARK))
+			continue
 		# Under the quake's armour the shot is free anyway: Німб keeps his catch (LevelSim._turrets).
 		if run.champions.active() and run._armor <= 0.0 and _caught(it, muzzle):
 			continue
-		var dist := muzzle.distance_to(target)
 		run.effects.projectile(muzzle, target, "turret", dist / TURRET_SHOT_SPEED, func() -> void: run.turret_hit(item, target))
 
 

@@ -14,21 +14,25 @@ extends Node
 ## Champions.step per frame (Run.champ_perf), the scene's node count, ChampionView's and the medallions'
 ## node counts and ChampionView.budget(); TIME_PROCESS (Godot's max over the last second) goes to the CSV.
 ## Per mode the frames of its two warmed passes are pooled (p50 = the median frame, p95, max, means).
-## The split pass stops the game every SPLIT_EVERY frames and renders the same frame three times: as is,
-## with ChampionView's steady parts hidden (the champion models with their shadows, the ring and glyph
-## MultiMeshes, the HUD medallions) and with its motes hidden too (the champion VFX MultiMesh); the
-## draw-call differences are the steady part and the champion-VFX transient part of what ON adds; the rest
-## of ON - OFF ("other": run.effects rings / popups the champions trigger, the soldiers Mend returns, the
-## different fight) is the warmed delta less both.
+## The split pass stops the game every SPLIT_EVERY frames, pauses the tree (nothing animates on its own)
+## and renders the same frame again part by part: as is, then with the champions' draws hidden one after
+## another (ChampionHud.bench_parts: the medallions, the start banner's cached picture; ChampionView.
+## bench_parts: the stamp's text, the marks with every VFX, the batched bodies with their shadow), then as is
+## once more (the probe's noise); each state counts the fewest draws of SPLIT_RENDERS renders. Each step's
+## fall in draw calls is that part's share: steady = bodies + marks + medallions, transient = stamp + banner
+## (the VFX live inside the marks draw and add none); the rest of ON - OFF ("other": run.effects rings /
+## popups the champions trigger, the soldiers Mend returns, the different fight) is the warmed delta less both.
 ## Prints
 ##   BENCH champions=off|on pass=N p50=.. p95=.. max=.. draws=.. prims=.. step_us=.. (one line per pass)
 ##   BENCH_MODE off|on (pooled) ...
 ##   BENCH_DELTA draws=+.. prims=+.. p95=+..ms (warmed, pooled)
-##   BENCH_SPLIT added draws +.. = steady +.. (models .., rings / glyphs .., medallions ..) + champion VFX
-##   +.. + other +..
+##   BENCH_SPLIT added draws +.. = steady +.. (bodies .., marks + VFX .., medallions ..) + transient +..
+##   (stamp .., banner ..) + other +..
 ##   BENCH_GATES (the §10.6 "added by 3 champions" rows, warmed passes only: draws <= +10 (+1 transient),
-##   tris <= +25k, Champions.step <= 0.25 ms)
+##   the split's steady part <= +10, tris <= +25k, Champions.step <= 0.25 ms; a split with 0 probes is
+##   UNMEASURED, never PASS, and counts as a failed gate)
 ## and writes DIR/bench_champions.csv (one row per frame and pass) and DIR/bench_champions_summary.csv.
+## Exit code: the number of failed (or unmeasured) gates.
 ## Needs a real renderer (the draw / primitive monitors read 0 headless), e.g. the hidden desktop:
 ##   godot --path . --resolution 720x1280 res://scenes/dev/gallery_champions.tscn -- --autotest --bench --out=DIR
 ##        [--seconds=60] [--level=45] [--hero=bolt] [--team=borko,taya,mila] [--fps=60] [--skip=30]
@@ -62,8 +66,11 @@ const AFTER_BLOCK := 0.25
 const AFTER_FALL := 0.8
 ## Stills: the hero steers onto a hazard this far ahead while the Block still is pending.
 const SEEK_AHEAD := 12.0
-## Bench split pass: a probe every this many frames.
+## Bench split pass: a probe every this many frames; the parts it hides, in this order (_probe).
 const SPLIT_EVERY := 15
+const SPLIT_PARTS: Array[String] = ["medallions", "banner", "stamp", "marks", "bodies"]
+## Renders per probed state; the fewest draws count (_draws).
+const SPLIT_RENDERS := 3
 ## Headless without --setup-only: nothing measured, exit code 77.
 const SKIPPED := 77
 
@@ -197,28 +204,35 @@ func _bench() -> int:
 			float(on["cpu_p95"]) - float(off["cpu_p95"]), float(on["nodes"]) - float(off["nodes"]),
 			float(on["tex_mb"]) - float(off["tex_mb"])])
 	var sp: Dictionary = split.get("split", {})
-	var probes := maxi(int(sp.get("n", 0)), 1)
-	var p_models := float(sp.get("models", 0.0)) / probes
-	var p_marks := float(sp.get("marks", 0.0)) / probes
-	var p_meds := float(sp.get("medallions", 0.0)) / probes
-	var p_motes := float(sp.get("motes", 0.0)) / probes
-	var steady := p_models + p_marks + p_meds
-	print("BENCH_SPLIT added draws %+.1f = steady %+.1f (models with shadows %+.1f, rings / glyphs %+.1f, medallions %+.1f; canvas draws of the medallions %+.1f) + champion VFX (motes) %+.2f (live in %.0f%% of probes, %+.1f when live) + other %+.1f (run.effects the champions trigger, Mend's soldiers, the different fight); %d probes every %d frames, probe noise %.2f draws (the same frame rendered again)" % [
-			dd, steady, p_models, p_marks, p_meds, float(sp.get("canvas", 0.0)) / probes, p_motes,
-			100.0 * float(sp.get("motes_live", 0)) / probes, float(sp.get("motes", 0.0)) / maxf(float(sp.get("motes_live", 0)), 1.0),
-			dd - steady - p_motes, int(sp.get("n", 0)), SPLIT_EVERY, float(sp.get("noise", 0.0)) / probes])
+	var n_probes := int(sp.get("n", 0))
+	var probes := maxi(n_probes, 1)
+	var share := {}
+	for k: String in SPLIT_PARTS:
+		share[k] = float(sp.get(k, 0.0)) / probes
+	var steady := float(share["bodies"]) + float(share["marks"]) + float(share["medallions"])
+	var transient := float(share["stamp"]) + float(share["banner"])
+	print("BENCH_SPLIT added draws %+.1f = steady %+.1f (bodies with shadow %+.1f, marks + VFX %+.1f, medallions %+.1f; canvas draws of the medallions %+.1f) + transient %+.2f (stamp text %+.2f, showing in %.0f%% of probes, %+.1f when showing; banner picture %+.2f) + other %+.1f (run.effects the champions trigger, Mend's soldiers, the different fight); VFX alive in %.0f%% of probes (inside the marks draw: +0 of their own); %d probes every %d frames, each state the fewest draws of %d renders, probe noise %.2f draws (the same frame rendered again)%s" % [
+			dd, steady, share["bodies"], share["marks"], share["medallions"], float(sp.get("canvas", 0.0)) / probes,
+			transient, share["stamp"], 100.0 * float(sp.get("stamp_live", 0)) / probes,
+			float(sp.get("stamp", 0.0)) / maxf(float(sp.get("stamp_live", 0)), 1.0), share["banner"], dd - steady - transient,
+			100.0 * float(sp.get("fx_live", 0)) / probes, n_probes, SPLIT_EVERY, SPLIT_RENDERS, float(sp.get("noise", 0.0)) / probes,
+			"" if n_probes > 0 else " - NO PROBE RAN: the split is unmeasured"])
 	var step_ms := float(on["step_us_p95"]) / 1000.0
-	print("BENCH_GATES (warmed) draws %+.1f mean / %+.0f max (<= +%d, +1 transient): %s [steady %+.1f: %s]; champion tris %d (<= %d): %s; Champions.step p95 %.3f ms (<= %.2f): %s" % [
-			dd, ddm, int(GATE_DRAWS), _ok(dd <= GATE_DRAWS and ddm <= GATE_DRAWS + 1.0), steady, _ok(steady <= GATE_DRAWS),
-			int(on["champ_tris"]), GATE_TRIS, _ok(int(on["champ_tris"]) <= GATE_TRIS), step_ms, GATE_STEP_MS,
-			_ok(step_ms <= GATE_STEP_MS)])
+	var gates := [_gate(dd <= GATE_DRAWS and ddm <= GATE_DRAWS + 1.0), _gate(steady <= GATE_DRAWS, n_probes > 0),
+			_gate(int(on["champ_tris"]) <= GATE_TRIS), _gate(step_ms <= GATE_STEP_MS)]
+	print("BENCH_GATES (warmed) draws %+.1f mean / %+.0f max (<= +%d, +1 transient): %s [split steady %+.1f (<= +%d) over %d probes: %s]; champion tris %d (<= %d): %s; Champions.step p95 %.3f ms (<= %.2f): %s" % [
+			dd, ddm, int(GATE_DRAWS), gates[0], steady, int(GATE_DRAWS), n_probes, gates[1], int(on["champ_tris"]), GATE_TRIS,
+			gates[2], step_ms, GATE_STEP_MS, gates[3]])
 	if out_dir != "":
 		_write("bench_champions.csv", _csv)
 		_write("bench_champions_summary.csv", _summary)
-	return 0
+	return gates.count("FAIL") + gates.count("UNMEASURED")
 
 
-static func _ok(c: bool) -> String:
+## A gate's verdict: PASS / FAIL, or UNMEASURED when nothing was measured (never a vacuous PASS).
+static func _gate(c: bool, measured := true) -> String:
+	if not measured:
+		return "UNMEASURED"
 	return "PASS" if c else "FAIL"
 
 
@@ -255,7 +269,9 @@ func _bench_run(mode: String, pass_k: int, team: Array, path: PackedFloat32Array
 	var frame := 0
 	var game_t := 0.0
 	var end_t := -1.0
-	var split := {"n": 0, "models": 0.0, "marks": 0.0, "medallions": 0.0, "motes": 0.0, "motes_live": 0, "canvas": 0.0}
+	var split := {"n": 0, "canvas": 0.0, "noise": 0.0, "fx_live": 0, "stamp_live": 0}
+	for part: String in SPLIT_PARTS:
+		split[part] = 0.0
 	while game_t < secs and (end_t < 0.0 or game_t < end_t + 1.0):
 		await get_tree().process_frame
 		var now := Time.get_ticks_usec()
@@ -358,30 +374,35 @@ func _line(head: String, res: Dictionary) -> void:
 			int(res["champ_tris"]), int(res["champ_draws"])])
 
 
-## The split probe: the game frozen, the same frame rendered as is, then with ChampionView's parts hidden
-## one after another (medallions, rings + glyphs, models, motes); each step's fall in draw calls is that
-## part's share. Visibility restored after. Adds into `acc`.
+## The split probe: the game frozen, the same frame rendered as is, then with the champions' draws hidden
+## one after another (SPLIT_PARTS: ChampionHud.bench_parts' medallions and banner picture, ChampionView.
+## bench_parts' stamp text, marks + VFX and bodies); each step's fall in draw calls is that part's share.
+## Visibility restored after. Adds into `acc`.
 func _probe(run: Run, acc: Dictionary) -> void:
 	var cv := run.champ_view
-	var hud: ChampionHud = cv.hud
-	var parts: Array = [
-		["medallions", [hud.medallions] if hud and is_instance_valid(hud.medallions) else []],
-		["marks", [cv._rings, cv._glyphs]],
-		["models", cv.models.duplicate()],
-		["motes", [cv._motes]],
-	]
+	var have: Dictionary = cv.bench_parts()
+	if cv.hud:
+		have.merge(cv.hud.bench_parts())
 	var keep: Array = []
+	# Paused: nothing animates on its own while the same frame is rendered part by part (the run is stepped
+	# by this bench only; the popups, effects and medallions process with the tree).
+	var was := get_tree().paused
+	get_tree().paused = true
 	var before := await _draws()
 	var first := before
-	acc["motes_live"] = int(acc["motes_live"]) + (1 if cv._motes.visible else 0)
-	for p: Array in parts:
-		var nodes: Array = p[1]
+	acc["fx_live"] = int(acc["fx_live"]) + (1 if int(have.get("fx_live", 0)) > 0 else 0)
+	var stamp: Array = have.get("stamp", [])
+	acc["stamp_live"] = int(acc["stamp_live"]) + (1 if not stamp.is_empty() and (stamp[0] as Node3D).visible else 0)
+	for part: String in SPLIT_PARTS:
+		var nodes: Array = have.get(part, [])
 		for n: Variant in nodes:
+			if not is_instance_valid(n):
+				continue
 			keep.append([n, (n as Node).get("visible")])
 			(n as Node).set("visible", false)
 		var after := await _draws()
-		acc[p[0]] = float(acc[p[0]]) + float(before.x - after.x)
-		if p[0] == "medallions":
+		acc[part] = float(acc[part]) + float(before.x - after.x)
+		if part == "medallions":
 			acc["canvas"] = float(acc["canvas"]) + float(before.y - after.y)
 		before = after
 	for e: Array in keep:
@@ -389,17 +410,25 @@ func _probe(run: Run, acc: Dictionary) -> void:
 	# The same frame again with everything back: what moved by itself between the renders (fx nodes that
 	# animate on their own) is the probe's noise.
 	var again := await _draws()
+	get_tree().paused = was
 	acc["noise"] = float(acc.get("noise", 0.0)) + absf(again.x - first.x)
 	acc["n"] = int(acc["n"]) + 1
 
 
-## Draw calls of the next rendered frame: x = RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME (the monitor the
-## gate reads), y = the viewport's canvas draws (Viewport.RENDER_INFO_TYPE_CANVAS).
+## Draw calls of the frozen frame once the last change is in: x = RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME (the
+## monitor the gate reads), y = the viewport's canvas draws (Viewport.RENDER_INFO_TYPE_CANVAS); each the
+## fewest over SPLIT_RENDERS renders (the shadow atlas re-renders a light now and then on its own, a
+## one-frame extra that is not the part's).
 func _draws() -> Vector2:
 	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	return Vector2(float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)),
-			float(get_viewport().get_render_info(Viewport.RENDER_INFO_TYPE_CANVAS, Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME)))
+	var best := Vector2(INF, INF)
+	for k in SPLIT_RENDERS:
+		await RenderingServer.frame_post_draw
+		var total := float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+		var canvas := float(get_viewport().get_render_info(Viewport.RENDER_INFO_TYPE_CANVAS,
+				Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME))
+		best = best.min(Vector2(total, canvas))
+	return best
 
 
 static func _pct(a: PackedFloat32Array, q: float) -> float:

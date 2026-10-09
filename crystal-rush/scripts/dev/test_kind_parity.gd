@@ -9,7 +9,9 @@ extends Node
 ##    Run, its Statuses stepped by hand) and SimKindView (LevelSim) must leave the same hp, strengths and
 ##    answers: MARK x1.25 on a hit, a tether's 50% both ways and one hop only, the stronger / longer
 ##    hold, a 3 s BURN = 3 units, a JOLT chain of 75% to a squad 1.5 u away (one stack spent), a
-##    grounded Flying squad reads as ground, and contact wards spent by blade and barricade hits only.
+##    grounded Flying squad reads as ground, and contact wards spent by blade and barricade hits only;
+##    then the Run's own hazard contacts spend them where LevelSim._hazards does (Run.hazard_kills: one
+##    charge spares one soldier, the barricade keeps its wear).
 ## 2. Cases: seeds x heroes x team setups. A seed is a campaign level (LevelGen is deterministic per
 ##    level; seed k plays LEVELS[k], all >= 41 so the 4-member team is legal on every one). Heroes: the
 ##    three that run today (bolt, titan, seer). Setups: "none" (no champions), "expected" (the synthetic
@@ -303,8 +305,44 @@ func _verbs() -> void:
 		got.append([v.absorb(&"turret"), v.absorb(&"blade"), v.absorb(&"contact"), v.absorb(&"contact")])
 	_ok(got[0] == [false, true, true, false] and got[1] == got[0],
 			"wards: turret, blade, contact, contact -> Run %s, Sim %s (want false, true, true, false)" % [got[0], got[1]])
+	_ward_contacts(run)
 	_drop(run)
 	print("TEST_KIND_PARITY_VERBS %s: %d failed" % ["PASS" if _fails == fails0 else "FAIL", _fails - fails0])
+
+
+## The Run spends wards where LevelSim._hazards does (Run.hazard_kills, after the Barracks Scrape Guard,
+## before the champions): three soldiers on a barricade (its Scrape Guard used up) lose 2 fewer with 2
+## contact charges than without, the charges are gone after, and the barricade wears the same 3 hp both
+## times (a ward keeps the band's wear, as a Block does).
+func _ward_contacts(run: Run) -> void:
+	var bar: Dictionary = {}
+	for it: Dictionary in run.hazards.spikes:
+		if it["alive"]:
+			bar = it
+			break
+	if bar.is_empty():
+		_ok(false, "ward contacts: L%d has no barricade" % VERB_LEVEL)
+		return
+	var units := PackedInt32Array([0, 1, 2])
+	bar["hp"] = maxf(float(bar["hp"]), 50.0)
+	var res: Array = []
+	var w := 1.0
+	for warded in [false, true]:
+		if warded:
+			run.kind_view.grant_ward(&"contact", 2, 5.0)
+		# A fresh army of 20 (one soldier per drawn unit), the barricade's Scrape Guard used up.
+		run.set_army(20)
+		w = float(run.army) / maxf(float(run.army_view.shown), 1.0)
+		bar["guard_left"] = 0
+		var a0 := run.army
+		var hp0 := float(bar["hp"])
+		run.hazard_kills(bar, units, Vector3.ZERO)
+		res.append([a0 - run.army, hp0 - float(bar["hp"])])
+	var left := run.kind_view.absorb(&"contact")
+	var want := maxi(int(res[0][0]) - 2, 0)
+	_ok(int(res[1][0]) == want and not left and is_equal_approx(float(res[0][1]), float(res[1][1])),
+			"ward contacts (Run.hazard_kills): 3 soldiers (x%.1f) on a barricade lose %d without wards, %d with 2 contact charges (want %d); a charge left after: %s; wear %.1f / %.1f hp" % [
+			w, int(res[0][0]), int(res[1][0]), want, left, float(res[0][1]), float(res[1][1])])
 
 
 ## Each verb check starts from the same state: both squads alive at RESET_HP, no statuses, holds or

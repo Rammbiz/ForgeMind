@@ -1344,6 +1344,17 @@ func hazard_kills(it: Dictionary, idxs: PackedInt32Array, push: Vector3) -> void
 	if spared > 0:
 		lost -= spared
 		_side_popup("+%d" % spared, Vector3(float(it["x"]), 1.6, -float(it["d"])), GAIN, 0.7)
+	if lost > 0:
+		# Hero ult wards (KindView.absorb, H2), where LevelSim._hazards spends them: one charge spares one
+		# soldier's contact (a blade spends a blade ward, then a contact one; a barricade keeps its wear).
+		# No-op until a hero kind grants wards (RunKindView.absorb answers false at once without any).
+		var wk: StringName = &"contact" if spikes else &"blade"
+		var warded := 0
+		while lost > 0 and kind_view.absorb(wk):
+			lost -= 1
+			warded += 1
+		if warded > 0:
+			hazard_deaths -= float(warded)
 	if lost > 0 and champions.active():
 		lost = _champion_hazard(it, lost)
 	army = maxi(army - lost, 0)
@@ -2492,13 +2503,14 @@ func _volley_procs(it: Dictionary) -> void:
 			arsenal.statuses.apply(it, str(row["status"]), 1.0, {"id": str(row["id"])})
 
 
-## Healer Mend (RunKindView.add_soldiers): `n` soldiers come back at the blob front.
+## Healer Mend (RunKindView.add_soldiers): `n` soldiers come back at the blob front. Their «+N» is the
+## champions' one-draw stamp over the Healer (ChampionView.mend_stamp on the champ_mend that follows), not
+## an outlined popup (three Label3D, ~6 draws every pulse: §10.6).
 func champion_mend(n: int) -> void:
 	if n <= 0 or army <= 0:
 		return
 	var front := army_view.front_point()
 	_change_army(n, front + Vector3(0.0, 0.5, 0.0), Vector3(0.45, 0.3, 0.2))
-	_side_popup("+%d" % n, front + Vector3(0.0, 1.2, 0.0), GAIN, 0.75)
 
 
 ## The item behind KindView target id `id` ({} when there is none).

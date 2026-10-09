@@ -10,7 +10,9 @@ extends Node3D
 ##   ring (under the drawn model, so it reads inside a crowd of knights), aura ring and class glyph,
 ##   then the ChampionFx pool: arrow tracers, leap dust, spell and mend sparkles, spell rings, the
 ##   ring shatter, every twist's placeholder (§6.11-6.27), Дара's tethers and the stamp plate.
-## - The stamp text: one Label3D without outline (+1 draw only while a «БЛОК» / «ЧИСТО!» shows).
+## - The stamp text: one Label3D without outline (+1 draw only while a «БЛОК» / «ЧИСТО!» or a Mend's
+##   «+N» shows). One slot: a Block's stamp takes it at once; a Mend's count waits for it (and adds up)
+##   while a Block's shows, so the Healer's pulses never cost the outlined popup's ~6 draws (§10.6).
 ## ChampionHud puts the medallions and the start banner on the HUD. Run builds this only while
 ## Champions.active(); it never changes the rules (ChampionKinds) and reads the members as the rules
 ## left them.
@@ -61,6 +63,8 @@ const STAMP_INK := Color("#2C3158")
 ## Under the gate labels (3+), over the marks (1): §10.2.
 const STAMP_PRIORITY := 2
 const STAMPS := {&"block": "CHAMP_BLOCK_POP", &"clear": "CHAMP_CLEAR_POP", &"catch": "CHAMP_BLOCK_POP"}
+## A Mend's «+N» joins the count showing over the same Healer while the stamp is younger than this (s).
+const MEND_JOIN := 0.6
 
 static var _marks_sh: Shader
 
@@ -94,6 +98,12 @@ var _stamp_t := -1.0
 var _stamp_at := Vector3.ZERO
 var _stamp_on := -1
 var _stamp_w := 1.0
+## What the stamp shows now (&"block" for «БЛОК» / «ЧИСТО!», &"mend" for a Mend's count), the count
+## shown, and a count waiting for the slot (soldiers, the Healer's model index).
+var _stamp_kind: StringName = &""
+var _mend_n := 0
+var _mend_due := 0
+var _mend_on := -1
 
 
 ## Builds a batched model per member of `p_run.champions` at its slot around the start blob, the
@@ -153,14 +163,17 @@ func draw(dt: float) -> void:
 
 
 ## Adds the living champions' solid circles to the army's obstacles (Run._army_step; merged with
-## the hazards', machines' and gate pylons', never replacing them).
+## the hazards', machines' and gate pylons', never replacing them). Each circle stands where the rules
+## stand the member (_rule_at: its x / d, its slot before the start), never at the drawn model: a leap,
+## Борко's burrow or Довбуш's throw animates the model, and gameplay (the crowd's formation, so its hazard
+## contacts) must not depend on an animation (§4.2).
 func add_solids(out: Array) -> void:
+	var a: Dictionary = run.kind_view.army() if run.state == Run.State.READY else NO_ARMY
 	for i in models.size():
-		var c := models[i]
-		if not c.alive:
+		if not bool(members[i]["alive"]):
 			continue
 		var s: Array = _solids[i]
-		s[0] = Vector3(c.root.x, 0.0, c.root.z)
+		s[0] = _rule_at(i, a)
 		out.append(s)
 
 
@@ -171,6 +184,16 @@ func budget() -> Dictionary:
 	var tris := RunChampion.tri_count(_bodies.mesh as ArrayMesh) if _bodies else 0
 	return {"models": models.size(), "tris": tris, "surfaces": 1, "multimeshes": 1, "draws_steady": 2,
 			"draws_shadow": 1, "draws_transient": 1, "fx_pool": ChampionFx.POOL}
+
+
+## The nodes behind each of this view's draws, for the bench's split (gallery_champions --bench hides
+## them one after another on a frozen frame): "bodies" (the one batched draw, +1 in the sun's shadow
+## pass), "marks" (the marks with every VFX and the stamp plate: one draw) and "stamp" (the stamp's text:
+## the transient draw while a «БЛОК» / «ЧИСТО!» or a Mend's «+N» shows). "fx_live": VFX primitives alive in
+## the pool now.
+func bench_parts() -> Dictionary:
+	return {"bodies": [_bodies] if _bodies else [], "marks": [_marks] if _marks else [],
+			"stamp": [_stamp] if _stamp else [], "fx_live": fx.active()}
 
 
 ## One VFX mote (kept for dev tools: ChampionFx.mote).
@@ -189,16 +212,19 @@ func _place(dt: float, snap: bool) -> void:
 	var a: Dictionary = run.kind_view.army() if st == Run.State.READY else NO_ARMY
 	for i in models.size():
 		var c := models[i]
-		var m: Dictionary = members[i]
 		if not c.alive:
 			continue
-		var goal := c.pos
-		if stepped:
-			goal = Vector3(float(m["x"]), 0.0, -float(m["d"]))
-		elif st == Run.State.READY:
-			var off := ChampionKinds.slot_offset(m["slot"], float(a["radius"]))
-			goal = Vector3(float(a["x"]) + off.x, 0.0, -(float(a["d"]) - off.y))
-		c.follow(goal, dt, snap)
+		c.follow(_rule_at(i, a) if stepped or st == Run.State.READY else c.pos, dt, snap)
+
+
+## Where the rules stand member `i` (world, y 0): its slot around the blob at READY (`a` =
+## run.kind_view.army()), else its x / d as the rules left them (they include the slot offset).
+func _rule_at(i: int, a: Dictionary) -> Vector3:
+	var m: Dictionary = members[i]
+	if run.state == Run.State.READY:
+		var off := ChampionKinds.slot_offset(m["slot"], float(a["radius"]))
+		return Vector3(float(a["x"]) + off.x, 0.0, -(float(a["d"]) - off.y))
+	return Vector3(float(m["x"]), 0.0, -float(m["d"]))
 
 
 ## Champions hop over the hazards they cross, as the hero does (Run._vault_check).
@@ -372,18 +398,38 @@ func _build_stamp() -> void:
 
 
 ## Shows `text` on the porcelain plate at `at`, or riding over champion `on` (its model index; the run
-## carries it forward) when on >= 0 (a new stamp replaces the one showing).
-func stamp(text: String, at: Vector3, on := -1) -> void:
+## carries it forward) when on >= 0. A Block's stamp (`kind` &"block") replaces whatever shows; a Mend's
+## count goes through mend_stamp.
+func stamp(text: String, at: Vector3, on := -1, kind: StringName = &"block") -> void:
 	_stamp.text = text
 	var w := _stamp.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, STAMP_PX).x * STAMP_PIXEL
 	_stamp_w = w + STAMP_PAD
 	_stamp_at = at
 	_stamp_on = on if on < models.size() else -1
 	_stamp_t = 0.0
+	_stamp_kind = kind
 	_stamp.visible = true
 
 
-## The stamp's pop (0.14 s), rise and fade; its plate goes into the marks at `n`.
+## A Mend returned `n` soldiers (champ_mend): «+N» over the Healer (model `i`) in the stamp's one slot. While
+## a Block's stamp shows, the count waits (adding up) and shows once that one is gone (<= STAMP_LIFE later);
+## a count already showing over the same Healer and younger than MEND_JOIN adds up and pops again.
+func mend_stamp(i: int, n: int) -> void:
+	if n <= 0 or i < 0 or i >= models.size():
+		return
+	var showing := _stamp_t >= 0.0
+	if showing and _stamp_kind != &"mend":
+		_mend_due += n
+		_mend_on = i
+		return
+	if showing and _stamp_on == i and _stamp_t < MEND_JOIN:
+		n += _mend_n
+	_mend_n = n
+	stamp("+%d" % n, Vector3(models[i].pos.x, STAMP_Y, models[i].pos.z - 0.2), i, &"mend")
+
+
+## The stamp's pop (0.14 s), rise and fade; its plate goes into the marks at `n`. A waiting Mend count
+## takes the slot when it frees.
 func _draw_stamp(dt: float, n: int) -> int:
 	if _stamp_t < 0.0:
 		return n
@@ -391,8 +437,15 @@ func _draw_stamp(dt: float, n: int) -> int:
 	var k := _stamp_t / STAMP_LIFE
 	if k >= 1.0 or n >= _cap:
 		_stamp_t = -1.0
-		_stamp.visible = false
-		return n
+		_stamp_kind = &""
+		var due := _mend_due
+		_mend_due = 0
+		if due > 0 and _mend_on >= 0 and models[_mend_on].alive and n < _cap:
+			mend_stamp(_mend_on, due)
+			k = 0.0
+		else:
+			_stamp.visible = false
+			return n
 	var pop := 0.82 + 0.24 * smoothstep(0.0, 0.09, _stamp_t) - 0.06 * smoothstep(0.09, 0.14, _stamp_t)
 	var a := 1.0 - smoothstep(0.72, 1.0, k)
 	var at := _stamp_at
@@ -548,6 +601,7 @@ func on_fx(event: StringName, data: Dictionary) -> void:
 				c.act(&"mend")
 				_rise(c.pos, 6, 0.35, MEND, RunChampion.impact_delay(&"mend"))
 				_rise(run.army_view.front_point(), 6, 0.5, MEND, 0.15)
+				mend_stamp(i, int(floor(float(data.get("n", 0.0)) + 0.0001)))
 				Audio.play("recruit", -14.0, 0.15)
 		&"champ_heal":
 			var tc := model(str(data.get("target", "")))

@@ -20,7 +20,9 @@ extends Node
 ##    white star glint and the recruits' near-white silver: every lit model has near-white speculars and
 ##    near-black shade, so a neutral porcelain sphere would "read as a hidden gate" (measured: 85% of its
 ##    pixels within ΔE 10 of the hidden highlight #E6EBFF). The share against all three colours of every
-##    kind (the strict §10.3 reading) is printed beside the verdict and written to the CSV, not asserted.
+##    kind (the strict §10.3 reading) is printed beside the verdict and written to the CSV, not asserted:
+##    the pixel section opens with READING (which reading is asserted, pending the lead's sign-off) and
+##    every model's line (always printed) carries both shares side by side.
 ##    Two self-checks on the same stage must hold or the test fails: a sphere painted exactly in a gate
 ##    colour (unshaded, the "good" gate's field) FAILS, and a neutral grey porcelain sphere (lit, albedo
 ##    PORCELAIN) PASSES; the mask is also checked to cover the model and not the background.
@@ -75,6 +77,8 @@ const HEROES: Array[String] = ["bolt", "titan", "seer"]
 ## Pickup identity colours (see the header).
 const COIN_RIM := Color(1.0, 0.72, 0.2)      ## Run._coin_mesh rim albedo
 const COIN_FACE := Color(1.0, 0.86, 0.38)    ## Run._coin_mesh face glow
+## The reading this test asserts, printed as the pixel section's header (the strict one waits for a decision).
+const READING := "§10.3 reading: field colours + pickups (strict share printed, not asserted) — pending the lead's sign-off"
 
 var _fails := 0
 var _passes := 0
@@ -107,10 +111,11 @@ func _ready() -> void:
 	get_tree().quit(_fails)
 
 
-func _ok(cond: bool, what: String) -> void:
+## Books a check; a pass prints only with --verbose or `always` (the per-model lines: both shares every run).
+func _ok(cond: bool, what: String, always := false) -> void:
 	if cond:
 		_passes += 1
-		if _verbose:
+		if _verbose or always:
 			print("  ok ", what)
 	else:
 		_fails += 1
@@ -338,6 +343,7 @@ func _pixels(level: int, render: bool) -> String:
 	if render:
 		print("== pixels: run models vs gate / pickup colours (ΔE2000 >= %.0f on >= %d%% of the model's pixels; mask alpha > %.1f)" % [
 				MIN_DE, int(MIN_SHARE * 100.0), MASK_ALPHA])
+		print(READING)
 	else:
 		print("== pixels: setup only (headless: no renderer); the stage, every model and both spheres are built")
 	if _out != "" and render:
@@ -406,9 +412,10 @@ func _pixels(level: int, render: bool) -> String:
 		node.free()
 		var share := float(res["share"])
 		var ok := share >= MIN_SHARE and int(res["pixels"]) > 200
-		var line := "%s %s: %.1f%% of %d model pixels at ΔE >= %.0f (worst: %s, %.1f%% of pixels within ΔE %.0f; strict, with highlights and outlines: %.1f%%; mask %.1f%% of the frame, sky-coloured %.1f%%)" % [
-				str(m[0]), str(m[1]), share * 100.0, int(res["pixels"]), MIN_DE, str(res["worst"]),
-				float(res["worst_share"]) * 100.0, MIN_DE, float(res["strict"]) * 100.0, float(res["cover"]) * 100.0,
+		# The asserted share (fields + pickups) and the strict one (+ the gates' highlights and outlines) side by side.
+		var line := "%s %s: fields + pickups %.1f%% (asserted >= %d%%) | strict %.1f%% (printed, not asserted) of %d model pixels at ΔE >= %.0f (worst: %s, %.1f%% of pixels within ΔE %.0f; mask %.1f%% of the frame, sky-coloured %.1f%%)" % [
+				str(m[0]), str(m[1]), share * 100.0, int(MIN_SHARE * 100.0), float(res["strict"]) * 100.0, int(res["pixels"]),
+				MIN_DE, str(res["worst"]), float(res["worst_share"]) * 100.0, MIN_DE, float(res["cover"]) * 100.0,
 				float(res["bg_like"]) * 100.0]
 		_csv.append("%s,%s,%d,%.4f,%s,%s,%.4f,%.4f" % [str(m[1]), str(m[0]), int(res["pixels"]), share, str(ok),
 				str(res["worst"]), float(res["worst_share"]), float(res["strict"])])
@@ -417,11 +424,11 @@ func _pixels(level: int, render: bool) -> String:
 		if str(m[0]) == "check":
 			var want_pass := str(m[1]) == "porcelain_sphere"
 			_ok(mask_ok and ok == want_pass, "self-check %s %s: %s" % [str(m[1]), "PASSES" if want_pass else "FAILS",
-					line])
+					line], true)
 			continue
 		scored += 1
 		passed += 1 if ok else 0
-		_ok(mask_ok and ok, line)
+		_ok(mask_ok and ok, line, true)
 	vp_mask.queue_free()
 	vp_lit.queue_free()
 	if not render:

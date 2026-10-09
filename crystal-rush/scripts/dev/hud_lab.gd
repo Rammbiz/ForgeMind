@@ -1,5 +1,5 @@
 extends Node
-## HUD lab (heroes design §10.2, §10.5, §12.6 #11). One mode so far:
+## HUD lab (heroes design §10.2, §10.5, §12.6 #11). Two modes:
 ##
 ## --gate-legibility: the gate-legibility rule (§10.2.1: no ult or champion VFX may drop the next gate
 ## row's label contrast below 3 : 1, measured on the label rect against what is drawn behind it). For
@@ -16,32 +16,59 @@ extends Node
 ##     (the leap lands 1.5 u before it, the arrows fly to 0.5 u past it, the spell ring sits on it, the
 ##     «БЛОК» pops at the nearest hazard ahead or the Guardian, the fallen champion lies at its slot).
 ## The run is started (RUNNING, as when an army meets a gate row) and the champions' start banner, which
-## only lives 1.2 s during READY (§10.5), is closed first: a gate row is never met under it.
+## only lives 1.2 s during READY (§10.5), is closed first: a gate row is never met under it (--banner
+## measures where it does show).
 ## Captures at CAPTURE_AT s after the trigger (and one baseline before it, on the quiet frame). A capture
 ## pauses the tree and renders the frame twice: as is, and with the row's label glyphs hidden (the big
 ## number and the forecast text: their fill and outline at alpha 0; their glow quad, drawn behind the
-## glyphs as part of the backdrop, stays). Text pixels = brighter than the glyph-less frame by TEXT_DIFF in
-## luminance (the white fill); contrast = WCAG ratio of their median luminance and the 90th-percentile
-## luminance of the glyph-less frame AT those pixels (what is drawn right behind the glyphs, its bright end).
-## A rect with fewer than MIN_TEXT text pixels counts as covered (ratio 1). A case FAILS when any label at
-## any capture is below 3 : 1. Self-check (once per run of the lab): the baseline of the plain gate row on
-## the quiet frame must be >= 3 : 1 on every label (printed per label; if the game's own labels are below
-## it, the numbers say so and the lab fails); beside it, for information, the same row restyled as every
-## gate kind. Each case also prints the worst label's own baseline and the drop the fx took from it.
-## (Before: the label-less frame hid the Label3D with its glow, the background was the 90th percentile of
-## the whole rect, and the READY banner lay over the row in every champion case, so even the baseline read
-## 1.01 : 1: the "background" was the banner's white.)
+## glyphs as part of the backdrop, stays). Glyph mask: on the baseline frame, each label's text pixels
+## (brighter than the glyph-less frame by TEXT_DIFF in luminance: the white fill), kept as offsets from the
+## label's projected corner with their count. At every capture the label is measured on that mask: its text
+## pixels = mask pixels still brighter than the glyph-less frame by TEXT_DIFF; fewer than COVER_SHARE of the
+## baseline count = covered (ratio 1, a failure: half a washed-out label never passes on the half left);
+## else contrast = WCAG ratio of their median luminance and the 90th-percentile luminance of the glyph-less
+## frame over the WHOLE mask (what is drawn right behind every glyph pixel, its bright end). A label whose
+## text an ult changed (it hits the gate: "+45" -> "+52") gets its mask re-taken for the new text from a
+## glyphs-only render (the row's labels alone on a black clear, the HUD hidden: fill brighter than ISO_LUM);
+## the baseline self-check prints how well that render's masks agree with the baseline's. A baseline mask
+## under MIN_TEXT pixels counts as covered. A case FAILS when any label at any capture is below 3 : 1 or
+## covered. Self-check (once per run of the lab): the baseline of the plain gate row on the quiet frame must
+## be >= 3 : 1 on every label (printed per label; if the game's own labels are below it, the numbers say so
+## and the lab fails); beside it, for information, the same row restyled as every gate kind. Each case also
+## prints the worst label's own baseline and the drop the fx took from it.
+## (Before: the background was sampled only at the pixels still detected as text, so a half-washed label
+## could pass on its other half; before that, the label-less frame hid the Label3D with its glow, the
+## background was the 90th percentile of the whole rect, and the READY banner lay over the row in every
+## champion case.)
+##
+## --banner: the champions' start banner (TeamBanner, 1.2 s from READY, ChampionHud places it) over a
+## REAL level start, §10.2: for each of --levels (default BANNER_LEVELS) a fresh run (bolt, team borko,
+## alba, taya, ivo: the widest ribbon) is left at READY as the game leaves it (nothing skipped, the army
+## where the level starts it) until the banner and its cached picture are fully in; then every gate row
+## ahead with a label on screen is projected and its label rects intersected with the ribbon (its glass
+## plus the marquise ends, in viewport px), and the first row's labels are measured as above: baseline =
+## the same paused frame with the banner's picture hidden, capture = with it. Then the worst case of a real
+## start: the player taps at once (Run.start the moment the banner is in) and the run moves on under the
+## banner for the rest of its life, every frame checked against the ribbon again. A level FAILS when the
+## ribbon touches any gate label on screen (at READY or running under it) or a first-row label loses more
+## than BANNER_DROP of its own banner-less ratio (or is newly covered). The first row's absolute ratio is
+## printed, not asserted: at 30-85 u ahead its labels are small and below 3 : 1 with or without the
+## banner (the game's far-row legibility, not the banner's). Last line: HUD_LAB_BANNER PASS|FAIL.
 ##
 ## Needs a real renderer (e.g. the hidden desktop):
 ##   godot --path . --resolution 720x1280 res://scenes/dev/hud_lab.tscn -- --autotest --gate-legibility --out=DIR
 ##        [--level=45] [--tag=720] [--cases=ult_storm,champ_shot]
-## writes DIR/gate_legibility_<case>_<tag>.png (the worst capture, label rects outlined: green >= 3 : 1,
-## red below), DIR/gate_legibility_baseline_<tag>.png and DIR/gate_legibility.csv (case, capture time,
-## label, contrast, text / background luminance, text pixels, baseline). Exit code = failing cases (+1 when
-## the baseline self-check fails). Last line: HUD_LAB_GATES PASS|FAIL: ...
-## Headless: prints SKIPPED and exits 77; with --setup-only it builds every case, finds the row, triggers
-## the fx, runs its frames and checks the labels project into the screen (nothing measured), exit 0 when
-## all set up:
+##   godot --path . --resolution 720x1280 res://scenes/dev/hud_lab.tscn -- --autotest --banner --out=DIR
+##        [--levels=1,12,45] [--tag=720]
+## --gate-legibility writes DIR/gate_legibility_<case>_<tag>.png (the worst capture, label rects outlined:
+## green >= 3 : 1, red below), DIR/gate_legibility_baseline_<tag>.png and DIR/gate_legibility.csv (case,
+## capture time, label, contrast, text / background luminance, text pixels, glyph-mask pixels, covered, mask
+## source, baseline); --banner writes DIR/banner_L<level>_<tag>.png (the ribbon outlined in gold, the label
+## rects green / red) and DIR/banner_overlap.csv. Exit code = failing cases / levels (+1 when the baseline
+## self-check fails). Last line: HUD_LAB_GATES | HUD_LAB_BANNER PASS|FAIL: ...
+## Headless: prints SKIPPED and exits 77; with --setup-only --gate-legibility builds every case, finds the
+## row, triggers the fx, runs its frames and checks the labels project into the screen (nothing measured),
+## exit 0 when all set up:
 ##   godot --headless --path . res://scenes/dev/hud_lab.tscn -- --autotest --gate-legibility [--setup-only]
 ## Always pass --autotest: it makes Save read-only before Meta loads, so the real save is never touched.
 
@@ -56,6 +83,20 @@ const CAPTURE_AT: Array[float] = [0.1, 0.25, 0.5, 0.8, 1.2, 1.8, 2.5]
 const TEXT_DIFF := 0.1
 const MIN_TEXT := 12
 const BG_PCT := 0.9
+## A label at a capture keeps at least this share of its baseline glyph-mask pixels as text, else covered.
+const COVER_SHARE := 0.7
+## Glyphs-only render (re-masking a label whose text changed): a glyph fill pixel is brighter than this.
+const ISO_LUM := 0.2
+## The visual layer the glyphs-only render puts the row's labels on (nothing else of the run uses it).
+const ISO_LAYER := 1 << 19
+## --banner: the level spread (early campaign, the world changes, the 4-member team's levels).
+const BANNER_LEVELS: Array[int] = [1, 2, 3, 5, 8, 12, 16, 20, 25, 30, 35, 41, 45, 50, 60, 75, 90, 110]
+## --banner: frames to wait for the banner to be fully in (it links within ~30 frames, fades in 0.15 s).
+const BANNER_WAIT := 180
+## The ribbon's marquise ends reach this far past its glass (TeamBanner._draw: 7 + 10 px).
+const MARQUISE := 17.0
+## --banner: a first-row label may read at most this much below its own banner-less ratio (render noise).
+const BANNER_DROP := 0.05
 const TEAM_A: Array[String] = ["borko", "alba", "taya", "ivo"]
 const TEAM_B: Array[String] = ["mila"]
 ## name -> [hero, team, what]
@@ -97,12 +138,15 @@ func _ready() -> void:
 	_render = DisplayServer.get_name() != "headless"
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Save.readonly = true
-	if not args.has("gate-legibility"):
-		print("hud_lab: pass --gate-legibility (see the header)")
+	var banner := args.has("banner")
+	if not args.has("gate-legibility") and not banner:
+		print("hud_lab: pass --gate-legibility or --banner (see the header)")
 		get_tree().quit(0)
 		return
-	if not _render and not args.has("setup-only"):
-		print("HUD_LAB_GATES SKIPPED: headless (no renderer); run windowed on a hidden desktop, or pass --setup-only")
+	var gate := "HUD_LAB_BANNER" if banner else "HUD_LAB_GATES"
+	if not _render and (banner or not args.has("setup-only")):
+		print("%s SKIPPED: headless (no renderer); run windowed on a hidden desktop%s" % [gate,
+				"" if banner else ", or pass --setup-only"])
 		get_tree().quit(SKIPPED)
 		return
 	var old_phase := EconData.phase_override
@@ -110,6 +154,16 @@ func _ready() -> void:
 	Juice.hitstop_enabled = false
 	if out_dir != "" and _render:
 		DirAccess.make_dir_recursive_absolute(out_dir)
+	if banner:
+		await _banner_lab()
+	else:
+		await _gate_lab()
+	EconData.phase_override = old_phase
+	Juice.hitstop_enabled = true
+	get_tree().quit(_fails)
+
+
+func _gate_lab() -> void:
 	var names: Array = CASES.keys()
 	if args.has("cases"):
 		names = []
@@ -117,9 +171,10 @@ func _ready() -> void:
 			if CASES.has(c):
 				names.append(c)
 	var t0 := Time.get_ticks_msec()
-	print("HUD_LAB gate legibility: L%d, gate row %.0f u ahead, army %d, captures at %s s, rule >= %.0f : 1%s" % [level,
-			AHEAD, ARMY, str(CAPTURE_AT), MIN_RATIO, "" if _render else " (headless: setup check only)"])
-	_csv.append("case,capture_t,label,contrast,text_lum,bg_lum,text_px,baseline")
+	print("HUD_LAB gate legibility: L%d, gate row %.0f u ahead, army %d, captures at %s s, rule >= %.0f : 1, covered below %.0f%% of the baseline glyph pixels%s" % [
+			level, AHEAD, ARMY, str(CAPTURE_AT), MIN_RATIO, COVER_SHARE * 100.0,
+			"" if _render else " (headless: setup check only)"])
+	_csv.append("case,capture_t,label,contrast,text_lum,bg_lum,text_px,glyph_px,covered,mask,baseline")
 	if not _render:
 		_baseline_checked = true
 	var passed := 0
@@ -128,17 +183,20 @@ func _ready() -> void:
 		passed += 1 if ok else 0
 		if not ok:
 			_fails += 1
-	if out_dir != "" and _render:
-		var f := FileAccess.open(out_dir.path_join("gate_legibility.csv"), FileAccess.WRITE)
-		if f:
-			f.store_string("\n".join(_csv) + "\n")
-			f.close()
-			print("HUD_LAB written ", out_dir.path_join("gate_legibility.csv"))
-	EconData.phase_override = old_phase
-	Juice.hitstop_enabled = true
+	_write_csv("gate_legibility.csv")
 	print("HUD_LAB_GATES %s: %d of %d cases %s (%.1f s)" % ["PASS" if _fails == 0 else "FAIL", passed, names.size(),
-			"at >= 3 : 1" if _render else "set up (headless: nothing measured)", float(Time.get_ticks_msec() - t0) / 1000.0])
-	get_tree().quit(_fails)
+			"at >= 3 : 1, none covered" if _render else "set up (headless: nothing measured)",
+			float(Time.get_ticks_msec() - t0) / 1000.0])
+
+
+func _write_csv(name: String) -> void:
+	if out_dir == "" or not _render:
+		return
+	var f := FileAccess.open(out_dir.path_join(name), FileAccess.WRITE)
+	if f:
+		f.store_string("\n".join(_csv) + "\n")
+		f.close()
+		print("HUD_LAB written ", out_dir.path_join(name))
 
 
 # ------------------------------------------------------------------ one case
@@ -202,47 +260,69 @@ func _case(name: String) -> bool:
 				on_screen, what])
 		await _drop(holder)
 		return ok_setup
-	var base: Dictionary = await _capture(run, row, labels)
-	var base_min := _min_ratio(base)
+	var base: Dictionary = await _capture(labels, {}, true)
 	if not _baseline_checked:
 		_baseline_checked = true
 		_baseline_check(base, name)
 		await _kinds_check(run, row)
 		labels = _labels(row)
+		# The row is back in its own style: its glyph masks are taken again on the quiet frame.
+		base = await _capture(labels)
+	var base_min := _min_ratio(base)
 	var what2 := _trigger(run, spec[2], row, gd, gx)
 	var worst := {"ratio": INF}
 	var worst_img: Image = null
 	var worst_rects: Array = []
 	var worst_t := 0.0
 	var measured := 0
+	var covered := 0
+	var remasked := 0
 	var t := 0.0
 	for at in CAPTURE_AT:
 		while t + DT * 0.5 < at:
 			await _frame(run, str(spec[2]) == "ult")
 			t += DT
-		var cap: Dictionary = await _capture(run, row, labels)
+		var cap: Dictionary = await _capture(labels, base)
 		for r: Dictionary in cap["rows"]:
 			measured += 1
-			_csv.append("%s,%.2f,%s,%.2f,%.3f,%.3f,%d,%.2f" % [name, at, str(r["label"]), float(r["ratio"]),
-					float(r["text"]), float(r["bg"]), int(r["px"]), float((base["by"] as Dictionary).get(str(r["key"]), 0.0))])
+			covered += 1 if r["covered"] else 0
+			remasked += 1 if str(r["mask"]) == "re-masked" else 0
+			_csv.append(_csv_row(name, at, r, float((base["by"] as Dictionary).get(str(r["key"]), 0.0))))
 			if float(r["ratio"]) < float(worst["ratio"]):
 				worst = r
 				worst_img = cap["img"]
 				worst_rects = cap["rects"]
 				worst_t = at
-	# Nothing measured (no label on screen, no image) is a failure, never a vacuous pass.
+	# Nothing measured (no label on screen, no image) is a failure, never a vacuous pass; a covered label
+	# measures ratio 1.
 	var ok := measured > 0 and on_screen > 0 and float(worst["ratio"]) >= MIN_RATIO
 	# What the fx itself took: the same label's quiet-frame ratio minus its worst under the fx.
 	var same_base := float((base["by"] as Dictionary).get(str(worst.get("key", "")), 0.0))
-	print("  %s %s (%s): worst %.2f : 1 on %s at %.2f s (text lum %.2f vs background %.2f, %d text px; median background %.2f : 1); that label's baseline %.2f : 1 (fx drop %+.2f); baseline worst %.2f : 1; %d label measurements" % [
+	print("  %s %s (%s): worst %.2f : 1 on %s at %.2f s (%s); that label's baseline %.2f : 1 (fx drop %+.2f); baseline worst %.2f : 1; %d label measurements, %d covered, %d re-masked (text changed)" % [
 			"PASS" if ok else "FAIL", name, what2, float(worst["ratio"]), str(worst.get("label", "?")), worst_t,
-			float(worst.get("text", 0.0)), float(worst.get("bg", 0.0)), int(worst.get("px", 0)),
-			float(worst.get("ratio_med", 0.0)), same_base, float(worst["ratio"]) - same_base, base_min, measured])
+			_detail(worst), same_base, float(worst["ratio"]) - same_base, base_min, measured, covered, remasked])
 	if worst_img and out_dir != "":
 		_outline(worst_img, worst_rects)
 		worst_img.save_png(out_dir.path_join("gate_legibility_%s_%s.png" % [name, tag]))
 	await _drop(holder)
 	return ok
+
+
+## One CSV row of a label measurement (see _gate_lab's header line).
+static func _csv_row(name: String, at: float, r: Dictionary, baseline: float) -> String:
+	return "%s,%.2f,%s,%.2f,%.3f,%.3f,%d,%d,%s,%s,%.2f" % [name, at, str(r["label"]), float(r["ratio"]), float(r["text"]),
+			float(r["bg"]), int(r["px"]), int(r["n"]), str(r["covered"]), str(r["mask"]), baseline]
+
+
+## A measurement's numbers in words: text vs background luminance and the glyph pixels left.
+static func _detail(r: Dictionary) -> String:
+	if r.is_empty() or not r.has("n"):
+		return "nothing measured"
+	var px := "%d of %d glyph px still text" % [int(r["px"]), int(r["n"])]
+	if r["covered"]:
+		return "COVERED: %s, below %.0f%%; background %.2f" % [px, COVER_SHARE * 100.0, float(r["bg"])]
+	return "text lum %.2f vs background %.2f over the glyph mask, %s; median background %.2f : 1%s" % [float(r["text"]),
+			float(r["bg"]), px, float(r["ratio_med"]), ", re-masked" if str(r["mask"]) == "re-masked" else ""]
 
 
 func _drop(holder: Node) -> void:
@@ -357,51 +437,145 @@ static func _hazard_near(run: Run, gd: float) -> int:
 
 # ------------------------------------------------------------------ measuring
 
-## Pauses the tree, renders the frame as is and with the row's label glyphs hidden (fill and outline at
-## alpha 0; the glow quad behind them stays), measures every label rect, resumes. Returns {img, rows
-## [{label, key, ratio, text, bg, px}], by {key: ratio}, rects [[Rect2i, ratio]]}; a label's key is its
-## place in the row's label list and kind ("l0 num", "l1 sub"), stable while an ult changes the number.
-func _capture(run: Run, row: Array, labels: Array) -> Dictionary:
+## Pauses the tree, renders the frame as is and with the labels' glyphs hidden (fill and outline at alpha 0;
+## the glow quad behind them stays), measures every label, restores the pause state. With no `base` this
+## frame is the baseline: each label's glyph mask is taken here (its text pixels, as offsets from the
+## label's projected corner) and returned in "masks"; with `iso` the glyphs-only render's mask sizes come
+## too ("iso": the self-check's agreement). With a `base`, each label is measured on the base's mask for
+## its key, re-taken from a glyphs-only render when its text changed. Returns {img, rows [{label, key,
+## ratio, ratio_med, text, bg, px, n, covered, mask}], by {key: ratio}, rects [[Rect2i, ratio]], masks
+## {key: mask}, iso {key: pixels}}; a label's key is its place in the label list and its kind ("l0 num",
+## "l1 sub"), stable while an ult changes the number.
+func _capture(labels: Array, base := {}, iso := false) -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
+	var was := get_tree().paused
 	get_tree().paused = true
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	var a := get_viewport().get_texture().get_image()
+	var a := await _grab()
 	var keep: Array = []
 	for l: Label3D in labels:
 		keep.append([l.modulate, l.outline_modulate])
 		l.modulate = Color(l.modulate, 0.0)
 		l.outline_modulate = Color(l.outline_modulate, 0.0)
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	var b := get_viewport().get_texture().get_image()
+	var b := await _grab()
 	for i in labels.size():
 		(labels[i] as Label3D).modulate = keep[i][0]
 		(labels[i] as Label3D).outline_modulate = keep[i][1]
-	get_tree().paused = false
-	var out := {"img": a, "rows": [], "by": {}, "rects": []}
+	var masks: Dictionary = base.get("masks", {})
+	var remask := iso
+	for i in labels.size():
+		var g0: Dictionary = masks.get(_key(labels[i], i), {})
+		if not base.is_empty() and (g0.is_empty() or str(g0["text"]) != (labels[i] as Label3D).text):
+			remask = true
+	var c: Image = null
+	if remask:
+		c = await _glyphs_only(labels)
+	get_tree().paused = was
+	var out := {"img": a, "rows": [], "by": {}, "rects": [], "masks": {}, "iso": {}}
 	if a == null or b == null or a.is_empty():
 		return out
 	a.convert(Image.FORMAT_RGBA8)
 	b.convert(Image.FORMAT_RGBA8)
+	if c:
+		c.convert(Image.FORMAT_RGBA8)
+	var vp := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
 	for i in labels.size():
 		var l: Label3D = labels[i]
-		var r := _rect(l, cam)
+		var raw := _rect_raw(l, cam)
+		var r := raw.intersection(vp)
 		if not r.has_area():
 			continue
-		var key := "l%d %s" % [i, "num" if l.font_size > 150 else "sub"]
-		var m := _measure(a, b, Rect2i(r))
+		var key := _key(l, i)
+		var anchor := Vector2i(raw.position.round())
+		var g: Dictionary = masks.get(key, {})
+		var src := "baseline"
+		if base.is_empty():
+			g = _mask_from(a, b, Rect2i(r), anchor, l.text)
+			src = "own"
+			(out["masks"] as Dictionary)[key] = g
+			if c:
+				(out["iso"] as Dictionary)[key] = int(_mask_from(c, null, Rect2i(r), anchor, l.text)["n"])
+		elif g.is_empty() or str(g["text"]) != l.text:
+			g = _mask_from(c, null, Rect2i(r), anchor, l.text)
+			src = "re-masked"
+		var m := _measure(a, b, g, anchor)
 		m["label"] = "%s '%s'" % [key, l.text.replace(",", " ").replace("\n", " ")]
 		m["key"] = key
+		m["mask"] = src
 		(out["rows"] as Array).append(m)
 		(out["by"] as Dictionary)[key] = float(m["ratio"])
 		(out["rects"] as Array).append([Rect2i(r), float(m["ratio"])])
 	return out
 
 
+## The next rendered frame of the viewport (two post-draws: a frame with the latest changes in it).
+func _grab() -> Image:
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	return get_viewport().get_texture().get_image()
+
+
+## A label's stable key: its place in the label list and its kind.
+static func _key(l: Label3D, i: int) -> String:
+	return "l%d %s" % [i, "num" if l.font_size > 150 else "sub"]
+
+
+## The labels alone (on their own visual layer, the only one the camera sees) over a black clear with a
+## linear tonemap and no glow or fog, every CanvasLayer (the HUD) hidden: where their glyphs are now,
+## whatever the fx draws over them. Everything is put back.
+func _glyphs_only(labels: Array) -> Image:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return null
+	var keep_mask := cam.cull_mask
+	var keep_env := cam.environment
+	var layers: Array = []
+	for l: Label3D in labels:
+		layers.append(l.layers)
+		l.layers = ISO_LAYER
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color.BLACK
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	env.glow_enabled = false
+	env.fog_enabled = false
+	cam.cull_mask = ISO_LAYER
+	cam.environment = env
+	var hidden: Array = []
+	for n: Node in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		var cl := n as CanvasLayer
+		if cl.visible:
+			cl.visible = false
+			hidden.append(cl)
+	var img := await _grab()
+	for cl: CanvasLayer in hidden:
+		cl.visible = true
+	cam.cull_mask = keep_mask
+	cam.environment = keep_env
+	for i in labels.size():
+		(labels[i] as Label3D).layers = layers[i]
+	return img
+
+
+## A label's glyph mask in rect `r`: with `b`, the pixels of `a` brighter than `b` by TEXT_DIFF (the
+## baseline's text pixels); without, the pixels of the glyphs-only render `a` brighter than ISO_LUM. Kept
+## as offsets from `anchor` (the label's projected corner): {text, mask [dx, dy, ...], n}.
+static func _mask_from(a: Image, b: Image, r: Rect2i, anchor: Vector2i, text: String) -> Dictionary:
+	var mask := PackedInt32Array()
+	if a != null:
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				var la := lum(a.get_pixel(x, y))
+				var on: bool = (la - lum(b.get_pixel(x, y)) > TEXT_DIFF) if b != null else la > ISO_LUM
+				if on:
+					mask.append(x - anchor.x)
+					mask.append(y - anchor.y)
+	return {"text": text, "mask": mask, "n": mask.size() / 2}
+
+
 ## Info beside the self-check: the same quiet row restyled as every gate kind (Models.gate_style, the
-## row's own number and forecast; "?" for hidden), each label's ratio printed, then the row's own style
-## back (Run._style_gate). Not asserted: the game shows these kinds where its levels put them.
+## row's own number and forecast; "?" for hidden), each label's ratio printed (on its own glyphs), then
+## the row's own style back (Run._style_gate). Not asserted: the game shows these kinds where its levels
+## put them.
 func _kinds_check(run: Run, row: Array) -> void:
 	var texts: Array = []
 	for g: Dictionary in row:
@@ -415,7 +589,7 @@ func _kinds_check(run: Run, row: Array) -> void:
 			Models.gate_style(row[i]["node"] as Node3D, "?" if kind == "hidden" else str(t[0]), str(t[1]), kind)
 		for k in 3:
 			await _frame(run, false)
-		var cap: Dictionary = await _capture(run, row, _labels(row))
+		var cap: Dictionary = await _capture(_labels(row))
 		var parts: PackedStringArray = PackedStringArray()
 		for r: Dictionary in cap["rows"]:
 			parts.append("%s %.2f (median bg %.2f)" % [str(r["label"]), float(r["ratio"]), float(r["ratio_med"])])
@@ -439,14 +613,17 @@ static func _close_banner(run: Run) -> void:
 
 
 ## Self-check: the plain gate row on the quiet frame (before any fx) must read >= MIN_RATIO on every
-## label, else the lab's own reference frame is illegible (printed with the numbers; the lab fails).
+## label, else the lab's own reference frame is illegible (printed with the numbers; the lab fails). Beside
+## it (info): each label's baseline glyph mask against the glyphs-only render's (the re-mask path).
 func _baseline_check(base: Dictionary, name: String) -> void:
 	var rows: Array = base["rows"]
 	var low: PackedStringArray = PackedStringArray()
 	var parts: PackedStringArray = PackedStringArray()
+	var agree: PackedStringArray = PackedStringArray()
 	for r: Dictionary in rows:
-		parts.append("%s %.2f (text %.2f / bg %.2f, %d px; median bg %.2f)" % [str(r["label"]), float(r["ratio"]),
-				float(r["text"]), float(r["bg"]), int(r["px"]), float(r["ratio_med"])])
+		parts.append("%s %.2f (text %.2f / bg %.2f, %d glyph px; median bg %.2f)" % [str(r["label"]), float(r["ratio"]),
+				float(r["text"]), float(r["bg"]), int(r["n"]), float(r["ratio_med"])])
+		agree.append("%s %d / %d" % [str(r["key"]), int(r["n"]), int((base["iso"] as Dictionary).get(str(r["key"]), 0))])
 		if float(r["ratio"]) < MIN_RATIO:
 			low.append(str(r["label"]))
 	var ok := not rows.is_empty() and low.is_empty()
@@ -454,6 +631,7 @@ func _baseline_check(base: Dictionary, name: String) -> void:
 		_fails += 1
 	print("  %s baseline self-check (%s's quiet frame, no fx): every label >= %.0f : 1: %s" % ["PASS" if ok else "FAIL",
 			name, MIN_RATIO, "; ".join(parts) if not parts.is_empty() else "no label measured"])
+	print("    glyph masks (info), baseline / glyphs-only render pixels: %s" % ", ".join(agree))
 	if out_dir != "" and base.get("img") is Image:
 		var img: Image = (base["img"] as Image).duplicate()
 		_outline(img, base["rects"])
@@ -467,9 +645,14 @@ static func _min_ratio(cap: Dictionary) -> float:
 	return v
 
 
-## The label's screen rect: its mesh AABB corners projected (clipped to the viewport; empty when behind
-## the camera or off screen).
+## The label's screen rect: its mesh AABB corners projected, clipped to the viewport (empty when behind the
+## camera or off screen).
 func _rect(l: Label3D, cam: Camera3D) -> Rect2:
+	return _rect_raw(l, cam).intersection(Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size))
+
+
+## The same, not clipped (a glyph mask is anchored at its corner).
+static func _rect_raw(l: Label3D, cam: Camera3D) -> Rect2:
 	if cam == null:
 		return Rect2()
 	var box := l.get_aabb()
@@ -483,8 +666,7 @@ func _rect(l: Label3D, cam: Camera3D) -> Rect2:
 		var s := cam.unproject_position(p)
 		lo = lo.min(s)
 		hi = hi.max(s)
-	var vp := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
-	return Rect2(lo, hi - lo).intersection(vp)
+	return Rect2(lo, hi - lo)
 
 
 ## WCAG relative luminance of an sRGB colour.
@@ -500,35 +682,272 @@ static func ratio(l1: float, l2: float) -> float:
 	return (maxf(l1, l2) + 0.05) / (minf(l1, l2) + 0.05)
 
 
-## Text pixels of `a` (brighter than the glyph-less `b` by TEXT_DIFF) in `r` against `b` at those very
-## pixels (what is drawn right behind the glyphs): {ratio, text, bg, px}.
-static func _measure(a: Image, b: Image, r: Rect2i) -> Dictionary:
+## A label on its glyph mask `g` (anchored at `anchor`): its text pixels = mask pixels of `a` still brighter
+## than the glyph-less `b` by TEXT_DIFF; fewer than COVER_SHARE of the mask (or a mask under MIN_TEXT) =
+## covered, ratio 1; else the WCAG ratio of their median luminance and the BG_PCT luminance of `b` over the
+## WHOLE mask (what is drawn right behind every glyph pixel, its bright end): {ratio, ratio_med, text, bg,
+## px, n, covered}.
+static func _measure(a: Image, b: Image, g: Dictionary, anchor: Vector2i) -> Dictionary:
+	var mask: PackedInt32Array = g.get("mask", PackedInt32Array())
+	var n := int(g.get("n", 0))
 	var text := PackedFloat32Array()
 	var bg := PackedFloat32Array()
-	for y in range(r.position.y, r.end.y):
-		for x in range(r.position.x, r.end.x):
-			var la := lum(a.get_pixel(x, y))
-			var lb := lum(b.get_pixel(x, y))
-			if la - lb > TEXT_DIFF:
-				text.append(la)
-				bg.append(lb)
-	if text.size() < MIN_TEXT or bg.is_empty():
-		return {"ratio": 1.0, "ratio_med": 1.0, "text": 0.0, "bg": 0.0, "px": text.size()}
-	text.sort()
+	var w := a.get_width()
+	var h := a.get_height()
+	for k in range(0, mask.size(), 2):
+		var x := anchor.x + mask[k]
+		var y := anchor.y + mask[k + 1]
+		if x < 0 or y < 0 or x >= w or y >= h:
+			continue
+		var la := lum(a.get_pixel(x, y))
+		var lb := lum(b.get_pixel(x, y))
+		bg.append(lb)
+		if la - lb > TEXT_DIFF:
+			text.append(la)
 	bg.sort()
+	var lbk := bg[clampi(int(BG_PCT * float(bg.size() - 1)), 0, bg.size() - 1)] if not bg.is_empty() else 0.0
+	var res := {"ratio": 1.0, "ratio_med": 1.0, "text": 0.0, "bg": lbk, "px": text.size(), "n": n, "covered": true}
+	if n < MIN_TEXT or text.is_empty() or float(text.size()) < COVER_SHARE * float(n):
+		return res
+	text.sort()
 	var lt := text[text.size() / 2]
-	var lbk := bg[clampi(int(BG_PCT * float(bg.size() - 1)), 0, bg.size() - 1)]
 	# ratio_med (info): against the median background behind the glyphs instead of its bright end.
-	return {"ratio": ratio(lt, lbk), "ratio_med": ratio(lt, bg[bg.size() / 2]), "text": lt, "bg": lbk,
-			"px": text.size()}
+	res.merge({"ratio": ratio(lt, lbk), "ratio_med": ratio(lt, bg[bg.size() / 2]), "text": lt, "covered": false}, true)
+	return res
 
 
 ## Outlines each [rect, ratio] on `img` (2 px; green at >= MIN_RATIO, red below).
 static func _outline(img: Image, rects: Array) -> void:
 	for e: Array in rects:
-		var r: Rect2i = e[0]
-		var col := Color(0.2, 1.0, 0.3) if float(e[1]) >= MIN_RATIO else Color(1.0, 0.15, 0.15)
-		img.fill_rect(Rect2i(r.position.x, r.position.y, r.size.x, 2), col)
-		img.fill_rect(Rect2i(r.position.x, r.end.y - 2, r.size.x, 2), col)
-		img.fill_rect(Rect2i(r.position.x, r.position.y, 2, r.size.y), col)
-		img.fill_rect(Rect2i(r.end.x - 2, r.position.y, 2, r.size.y), col)
+		_box(img, e[0], Color(0.2, 1.0, 0.3) if float(e[1]) >= MIN_RATIO else Color(1.0, 0.15, 0.15))
+
+
+static func _box(img: Image, r: Rect2i, col: Color) -> void:
+	r = r.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	if not r.has_area():
+		return
+	img.fill_rect(Rect2i(r.position.x, r.position.y, r.size.x, 2), col)
+	img.fill_rect(Rect2i(r.position.x, r.end.y - 2, r.size.x, 2), col)
+	img.fill_rect(Rect2i(r.position.x, r.position.y, 2, r.size.y), col)
+	img.fill_rect(Rect2i(r.end.x - 2, r.position.y, 2, r.size.y), col)
+
+
+# ------------------------------------------------------------------ the start banner over a level start (--banner)
+
+func _banner_lab() -> void:
+	var levels: Array[int] = []
+	if args.has("levels"):
+		for v in str(args["levels"]).split(",", false):
+			levels.append(maxi(1, int(v)))
+	else:
+		levels = BANNER_LEVELS.duplicate()
+	var t0 := Time.get_ticks_msec()
+	print("HUD_LAB start banner over a real level start (READY, nothing skipped): levels %s, hero bolt, team %s; the ribbon (glass + marquise ends) must touch no gate label on screen at READY nor while the run is tapped into motion under it, and the first row's labels must lose no contrast to it (> %.2f : 1 or covered; their own far-row ratio is printed, not asserted)" % [
+			str(levels), ",".join(PackedStringArray(TEAM_A)), BANNER_DROP])
+	_csv.append("level,phase,t,champions,ribbon_x0,ribbon_y0,ribbon_x1,ribbon_y1,row_ahead,label,label_x0,label_y0," +
+			"label_x1,label_y1,overlap_px")
+	var clear := 0
+	var gap := INF
+	for lvl in levels:
+		var res: Dictionary = await _banner_level(lvl)
+		clear += 1 if res["ok"] else 0
+		gap = minf(gap, float(res["gap"]))
+	_fails += levels.size() - clear
+	_write_csv("banner_overlap.csv")
+	print("HUD_LAB_BANNER %s: %d of %d level starts with the ribbon clear of every gate label on screen and no contrast lost; closest any gate label came to the ribbon: %.0f px (%.1f s)" % [
+			"PASS" if clear == levels.size() else "FAIL", clear, levels.size(), gap,
+			float(Time.get_ticks_msec() - t0) / 1000.0])
+
+
+## One level start (see the header), two fresh plays. READY: the run left at READY until its banner and
+## its picture are fully in; the ribbon against every gate label on screen; the first row's labels under
+## the banner's picture (if any) measured with the picture hidden (baseline) and shown. A tap at once: the
+## run started on the very frame the banner appears (it then lives its whole 1.2 s over a moving run) and
+## every frame checked again until the banner is gone. {ok, gap: the fewest px between the ribbon and any
+## gate label seen}.
+func _banner_level(lvl: int) -> Dictionary:
+	var holder := _banner_play(lvl)
+	var run: Run = holder.get_meta("run")
+	var ch: ChampionHud = run.champ_view.hud if run.champ_view else null
+	var frames := 0
+	while frames < BANNER_WAIT and not _banner_in(ch):
+		await get_tree().process_frame
+		frames += 1
+	if not _banner_in(ch):
+		print("  FAIL L%d: no start banner fully in after %d frames (champions %d, state %s)" % [lvl, BANNER_WAIT,
+				run.champions.members.size(), Run.State.keys()[run.state]])
+		await _drop(holder)
+		return {"ok": false, "gap": INF}
+	get_tree().paused = true
+	var cam := get_viewport().get_camera_3d()
+	var ribbon := _ribbon_px(ch)
+	var pic: Control = (ch.bench_parts()["banner"] as Array)[0]
+	var pic_px := ch.layer_transform() * Rect2(pic.position, pic.size)
+	var seen := _banner_seen(lvl, "ready", 0.0, run, cam, ribbon)
+	var hits: PackedStringArray = seen["hits"]
+	# The first row's labels the banner's picture lies over (none: it cannot change them).
+	var under: Array = []
+	for l: Label3D in seen["first"]:
+		if _rect(l, cam).intersects(pic_px):
+			under.append(l)
+	var drop := {}
+	var lost_any := false
+	if not under.is_empty():
+		pic.visible = false
+		var base: Dictionary = await _capture(under)
+		pic.visible = true
+		var cap: Dictionary = await _capture(under, base)
+		for r2: Dictionary in cap["rows"]:
+			var b0 := float((base["by"] as Dictionary).get(str(r2["key"]), 0.0))
+			var was_covered := true
+			for rb: Dictionary in base["rows"]:
+				if str(rb["key"]) == str(r2["key"]):
+					was_covered = bool(rb["covered"])
+			# Lost to the banner: below its own banner-less ratio by more than BANNER_DROP, or newly covered.
+			lost_any = lost_any or b0 - float(r2["ratio"]) > BANNER_DROP or (bool(r2["covered"]) and not was_covered)
+			if drop.is_empty() or float(r2["ratio"]) - b0 < float(drop["d"]):
+				drop = {"d": float(r2["ratio"]) - b0, "row": r2, "base": b0}
+	var img := await _grab()
+	var champs := run.champions.members.size()
+	get_tree().paused = false
+	await _drop(holder)
+	# A tap at once: a fresh play started the frame its banner appears.
+	holder = _banner_play(lvl)
+	run = holder.get_meta("run")
+	ch = run.champ_view.hud if run.champ_view else null
+	frames = 0
+	while frames < BANNER_WAIT and not (ch and is_instance_valid(ch.banner) and ch.banner.visible):
+		await get_tree().process_frame
+		frames += 1
+	run.start()
+	cam = get_viewport().get_camera_3d()
+	var t := 0.0
+	var run_hits: PackedStringArray = PackedStringArray()
+	var gap := float(seen["gap"])
+	var nearest := INF
+	var d0 := run.d
+	while ch and ch.banner.visible and t < 3.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var s2 := _banner_seen(lvl, "running", t, run, cam, ribbon)
+		run_hits.append_array(s2["hits"])
+		gap = minf(gap, float(s2["gap"]))
+		nearest = minf(nearest, float(s2["nearest"]))
+	var ran := run.d - d0
+	await _drop(holder)
+	var ok := hits.is_empty() and run_hits.is_empty() and not lost_any and int(seen["on_screen"]) > 0 and t > 0.5
+	var r3: Dictionary = drop.get("row", {})
+	print("  %s L%d: ribbon y %.0f-%.0f x %.0f-%.0f (%d champions); at READY %d gate labels on screen in %d rows, first row %.1f u ahead, overlap %s; tapped at once the run went %.1f u in the %.2f s the banner showed, nearest row %.1f u ahead, overlap %s; closest label edge %.0f px from the ribbon; the banner's picture over the first row: %s" % [
+			"PASS" if ok else "FAIL", lvl, ribbon.position.y, ribbon.end.y, ribbon.position.x, ribbon.end.x,
+			champs, int(seen["on_screen"]), int(seen["rows"]), float(seen["first_d"]),
+			"none" if hits.is_empty() else "; ".join(hits), ran, t, nearest,
+			"none" if run_hits.is_empty() else "; ".join(run_hits.slice(0, 3)), gap,
+			"over none of its labels" if drop.is_empty() else "%s %+.2f vs hidden (%.2f -> %.2f : 1 on %s; %s)" % [
+				"LOST" if lost_any else "no loss,", float(drop["d"]), float(drop["base"]), float(r3["ratio"]), str(r3["label"]),
+				_detail(r3)]])
+	if img and out_dir != "":
+		img.convert(Image.FORMAT_RGBA8)
+		_outline(img, seen["rects"])
+		_box(img, Rect2i(ribbon), Color(1.0, 0.85, 0.3))
+		img.save_png(out_dir.path_join("banner_L%d_%s.png" % [lvl, tag]))
+	return {"ok": ok, "gap": gap}
+
+
+## A play at level `lvl` (bolt, TEAM_A) as main.make_play builds it, in the tree, left at READY.
+func _banner_play(lvl: int) -> Node:
+	var acc := KP.account_with(lvl, "bolt", TEAM_A)
+	var keep: Array = KP.swap_in(acc, "bolt")
+	var holder := Node.new()
+	holder.name = "Play"
+	holder.process_mode = Node.PROCESS_MODE_PAUSABLE
+	var run := Run.new()
+	run.setup(lvl, "bolt")
+	holder.add_child(run)
+	var hud: CanvasLayer = (load(HUD_SCRIPT) as GDScript).new()
+	hud.call("setup", run)
+	holder.add_child(hud)
+	holder.set_meta("run", run)
+	holder.set_meta("hud", hud)
+	KP.swap_out(keep)
+	add_child(holder)
+	return holder
+
+
+## Every gate label on screen now against the ribbon: CSV rows, {hits, first (the nearest row's labels on
+## screen), first_d, on_screen, rows, rects [[Rect2i, ratio-ish]] (red when it touches), gap (fewest px
+## between the ribbon and a label), nearest (u ahead of the nearest row with a label on screen)}.
+func _banner_seen(lvl: int, phase: String, t: float, run: Run, cam: Camera3D, ribbon: Rect2) -> Dictionary:
+	var rows := _rows_ahead(run)
+	var out := {"hits": PackedStringArray(), "first": [], "first_d": -1.0, "on_screen": 0, "rows": 0, "rects": [],
+			"gap": INF, "nearest": INF}
+	for row: Array in rows:
+		var labels := _labels(row)
+		var ahead := float(row[0]["d"]) - run.d
+		var shown: Array = []
+		for i in labels.size():
+			var l: Label3D = labels[i]
+			var r := _rect(l, cam)
+			if not r.has_area():
+				continue
+			shown.append(l)
+			var ov := r.intersection(ribbon).get_area() if r.intersects(ribbon) else 0.0
+			if ov > 0.0:
+				(out["hits"] as PackedStringArray).append("%s row %.1f u ahead %s '%s' (%.0f px²)" % [phase, ahead, _key(l, i),
+						l.text.replace("\n", " "), ov])
+			out["gap"] = minf(float(out["gap"]), _rect_gap(r, ribbon))
+			if phase == "ready" or ov > 0.0:
+				_csv.append("%d,%s,%.2f,%d,%.0f,%.0f,%.0f,%.0f,%.1f,%s,%.0f,%.0f,%.0f,%.0f,%.0f" % [lvl, phase, t,
+						run.champions.members.size(), ribbon.position.x, ribbon.position.y, ribbon.end.x, ribbon.end.y,
+						ahead, _key(l, i), r.position.x, r.position.y, r.end.x, r.end.y, ov])
+			(out["rects"] as Array).append([Rect2i(r), MIN_RATIO if ov <= 0.0 else 0.0])
+		if shown.is_empty():
+			continue
+		out["on_screen"] = int(out["on_screen"]) + shown.size()
+		out["rows"] = int(out["rows"]) + 1
+		out["nearest"] = minf(float(out["nearest"]), ahead)
+		if (out["first"] as Array).is_empty():
+			out["first"] = shown
+			out["first_d"] = ahead
+	return out
+
+
+## Pixels between two rects (0 when they touch or overlap).
+static func _rect_gap(a: Rect2, b: Rect2) -> float:
+	var dx := maxf(maxf(b.position.x - a.end.x, a.position.x - b.end.x), 0.0)
+	var dy := maxf(maxf(b.position.y - a.end.y, a.position.y - b.end.y), 0.0)
+	return sqrt(dx * dx + dy * dy)
+
+
+## The banner is in: linked, visible at full opacity and its cached picture drawn and shown at full opacity.
+static func _banner_in(ch: ChampionHud) -> bool:
+	if ch == null or not is_instance_valid(ch.banner) or not ch.banner.visible or ch.banner.modulate.a < 0.999:
+		return false
+	var pic: Array = ch.bench_parts().get("banner", [])
+	return not pic.is_empty() and (pic[0] as CanvasItem).visible and (pic[0] as CanvasItem).modulate.a >= 0.999
+
+
+## The ribbon on screen (viewport px): TeamBanner.ribbon_rect (in the champion layer: the banner fills it
+## from its corner) with the marquise ends, through the layer's canvas transform.
+static func _ribbon_px(ch: ChampionHud) -> Rect2:
+	var rr: Rect2 = (ch.banner.call("ribbon_rect") as Rect2).grow_individual(MARQUISE, 0.0, MARQUISE, 0.0)
+	rr.position += ch.banner.position
+	return ch.layer_transform() * rr
+
+
+## The gate rows ahead of the run (d > run.d), nearest first: [[gate items], ...].
+static func _rows_ahead(run: Run) -> Array:
+	var rows := {}
+	var order: Array = []
+	for it: Dictionary in run.items:
+		if str(it["kind"]) != "gate" or float(it["d"]) <= run.d:
+			continue
+		var r := int(it.get("row", -1))
+		if not rows.has(r):
+			rows[r] = []
+			order.append(r)
+		(rows[r] as Array).append(it)
+	var out: Array = []
+	for r in order:
+		out.append(rows[r])
+	out.sort_custom(func(p: Array, q: Array) -> bool: return float(p[0]["d"]) < float(q[0]["d"]))
+	return out
