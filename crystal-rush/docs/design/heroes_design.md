@@ -1567,12 +1567,32 @@ runs. Measured income per day is in §8.4.
 | Tomes | none | 2 (after L30) |
 | Best card (exact, no pity) | Кварц 38.44% · Сапфір 40.77% · Аметист 16.83% · Топаз 3.96% | Аметист 78.58% · Топаз 21.42% |
 | Pity | a Топаз champion card by the 15th chest without one (both kinds count; hard) | same counter |
-| Inside a gem | unowned champion first; a complete gem → the champion Focus gets **exactly 60%**, the other two 20% each | same |
+| Inside a gem | unowned champion first; a complete gem → the champion Focus gets **exactly 60%**, the others share 40% evenly (20% each of two; 13.33% each of three in Топаз) | same |
 | Reveal | inline on the result screen: **1.6 s**, 1.2 s when nothing is NEW; a NEW champion adds the 2.0 s cameo | same, inside the boss's Altar visit |
 
 Measured stream (300 000 chests, 5 Hero : 1 Grand, with pity, sim §4): per card Кварц 56.45% · Сапфір 24.49% · Аметист
 14.14% · Топаз 4.92%; a Topaz champion card every 9.60 chests, longest gap 15; Monte Carlo vs the exact best-card table
 max |z| 1.11. Expected 13.5 fragments per champion card once its gem is complete (27 per Hero Chest, 40.5 per Grand).
+
+**Per-champion odds of one free card** (every gem complete; printed by `odds_table --chest`, checked by `--diff`
+against `DISCLOSED_CHAMP` and by `--check` per champion through `HeroChest.pick_champion`):
+
+| Gem | Champions | Each, no Focus | Focus | Each other |
+|---|---|---|---|---|
+| Кварц | 3 | 20.67% | 37.20% | 12.40% |
+| Сапфір | 3 | 9.00% | 16.20% | 5.40% |
+| Аметист | 3 | 3.00% | 5.40% | 1.80% |
+| Топаз | 4 | 0.50% | 1.20% | 0.27% |
+
+**Odds changelog** (`odds_table.gd ODDS_CHANGELOG`; the (i) sheet marks these rows «Змінено у …» for one version):
+
+| Version | Pool | Row | Was → now | Why |
+|---|---|---|---|---|
+| C23 | Hero Chest, Топаз card | each champion, no Focus | 0.67% → 0.50% | Тарас joins the Topaz champions (3 → 4) |
+| C23 | Hero Chest, Топаз card | each non-Focus champion | 0.40% → 0.27% | same; the Focus keeps exactly 60% of the gem (1.20%) |
+
+The gem odds of a card, the best-card tables, the chest pity and every Portal row are unchanged (Тарас is a champion:
+never in the Portal).
 
 **Scripted chests:** chest #1 at the unlock = Альба if Руді is the team hero, else Отто (+ one rolled card + fragments);
 chest #2 = Міла (+ one rolled card). **One inline reveal per result screen** (priority scripted > Grand > Hero Chest >

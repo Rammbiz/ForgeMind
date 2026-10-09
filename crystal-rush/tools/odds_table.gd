@@ -10,13 +10,29 @@ extends SceneTree
 ##             pick_champion (--n rolls per pool state, default 1 000 000): exit 1 when any |z| > 4,
 ##             a pity gap exceeds its guarantee (Amethyst+ 10, Topaz+ 30, chest Topaz 15) or the
 ##             Focus share drifts from exactly 60%
-##   --diff    exact tables vs the disclosed §7.2 / §7.5 rows (exit 1 on a difference > 0.005 pp)
+##   --diff    exact tables vs the disclosed §7.2 / §7.5 rows (exit 1 on a difference > 0.005 pp), including
+##             every champion's card odds; prints the odds changelog rows (ODDS_CHANGELOG, §9.3 «Змінено у»)
+##             and fails when a pool changed without a row
 ## No flag = --portal --chest.
 
 const DISCLOSED_GEMS := {"C": 52.09, "R": 26.52, "E": 14.35, "L": 5.63, "M": 1.41}
 const DISCLOSED_X10 := {"welcome": {"L": 78.46, "M": 21.54}, "fresh": {"E": 59.87, "L": 30.56, "M": 9.56},
 		"typical": {"E": 43.56, "L": 42.99, "M": 13.45}}
 const DISCLOSED_CHEST := {"hero": {"C": 38.44, "R": 40.77, "E": 16.83, "L": 3.96}, "grand": {"E": 78.58, "L": 21.42}}
+## §7.5 per-champion odds of one free chest card, every gem complete: champions per gem, each champion's % without a
+## Focus, and with a chest Focus on that gem (the Focus champion / each other one).
+const DISCLOSED_CHAMP := {
+	"C": {"pool": 3, "each": 20.67, "focus": 37.20, "other": 12.40},
+	"R": {"pool": 3, "each": 9.00, "focus": 16.20, "other": 5.40},
+	"E": {"pool": 3, "each": 3.00, "focus": 5.40, "other": 1.80},
+	"L": {"pool": 4, "each": 0.50, "focus": 1.20, "other": 0.27},
+}
+## Odds changelog (§9.3: the (i) sheet marks changed rows «Змінено у %s» for one version). One row per disclosed number
+## that a pool change moved; `now` must equal the exact table, `was` is the row it replaces.
+const ODDS_CHANGELOG := [
+	{"version": "C23", "pool": "chest L", "why": "Тарас joins the Topaz champions (3 -> 4)", "row": "each", "was": 0.67, "now": 0.50},
+	{"version": "C23", "pool": "chest L", "why": "Тарас joins the Topaz champions (3 -> 4)", "row": "other", "was": 0.40, "now": 0.27},
+]
 const STAGES := {
 	"A": {"own": ["bolt", "titan"], "focus": {}, "level": 21},
 	"B": {"own": ["titan", "arin", "bolt", "eira", "seer", "iskar", "vesta", "lumen"], "focus": {}, "level": 25},
@@ -130,6 +146,30 @@ func _chest() -> void:
 	for cid2 in ChampionData.CHAMPION_ORDER:
 		c3.append("%s %s" % [cid2, _pct(float(co[cid2]))])
 	print("- per champion card, every gem complete, chest Focus Quartz = mila: " + " · ".join(c3))
+	print("\n## Per-champion odds of one free card (every gem complete; §7.5)")
+	print("| Gem | Champions | Each, no Focus | Focus | Each other |")
+	print("|---|---|---|---|---|")
+	for g2: String in PortalData.CHEST_ODDS:
+		var r := _champ_row(g2)
+		if not r.is_empty():
+			print("| %s | %d | %.2f%% | %.2f%% | %.2f%% |" % [g2, int(r["pool"]), float(r["each"]), float(r["focus"]), float(r["other"])])
+
+
+## The exact per-champion odds of one free card of `gem` (every gem complete): {pool, each, focus, other} in %.
+static func _champ_row(gem: String) -> Dictionary:
+	var pool := HeroChest.pool(gem)
+	if pool.is_empty():
+		return {}
+	var acc := EconData.fresh_account()
+	(acc["progress"] as Dictionary)["level"] = 31
+	for cid in ChampionData.CHAMPION_ORDER:
+		Roster.grant(acc, cid, "chest", 1)
+	var p := 100.0 * float(PortalData.CHEST_ODDS[gem])
+	var even := HeroChest.champion_weights(acc, gem)
+	HeroChest.set_focus(acc, gem, pool[pool.size() - 1])
+	var fw := HeroChest.champion_weights(acc, gem)
+	return {"pool": pool.size(), "each": p * float(even[pool[0]]), "focus": p * float(fw[pool[pool.size() - 1]]),
+			"other": p * float(fw[pool[0]]) if pool.size() > 1 else 0.0}
 
 
 func _ok(cond: bool, what: String) -> void:
@@ -151,6 +191,22 @@ func _diff() -> void:
 		var b := HeroChest.exact_best(k2)
 		for g3: String in DISCLOSED_CHEST[k2]:
 			_ok(absf(100.0 * float(b.get(g3, 0.0)) - float(DISCLOSED_CHEST[k2][g3])) <= 0.005, "chest %s %s" % [k2, g3])
+	# Per-champion rows: the pool size and each disclosed % (rounded to 0.01 pp as printed).
+	for g4: String in PortalData.CHEST_ODDS:
+		var r := _champ_row(g4)
+		var d: Dictionary = DISCLOSED_CHAMP.get(g4, {})
+		if r.is_empty() or d.is_empty():
+			_ok(r.is_empty() and d.is_empty(), "chest champion row %s disclosed" % g4)
+			continue
+		_ok(int(r["pool"]) == int(d["pool"]), "chest %s pool %d champions, disclosed %d (add an ODDS_CHANGELOG row)" % [g4, int(r["pool"]), int(d["pool"])])
+		for k3: String in ["each", "focus", "other"]:
+			_ok(absf(snappedf(float(r[k3]), 0.01) - float(d[k3])) <= 0.005, "chest %s %s %.4f%% vs disclosed %.2f%%" % [g4, k3, float(r[k3]), float(d[k3])])
+	print("\n## Odds changelog rows (§9.3 «Змінено у»)")
+	for row: Dictionary in ODDS_CHANGELOG:
+		var g5 := str(row["pool"]).trim_prefix("chest ")
+		var now := snappedf(float(_champ_row(g5).get(str(row["row"]), -1.0)), 0.01)
+		_ok(absf(now - float(row["now"])) <= 0.005, "changelog %s %s: now %.2f%% vs exact %.2f%%" % [row["version"], row["row"], float(row["now"]), now])
+		print("- %s · %s · %s: %.2f%% -> %.2f%% (%s)" % [row["version"], row["pool"], row["row"], float(row["was"]), float(row["now"]), row["why"]])
 
 
 static func _z(k: int, n: int, p: float) -> float:
@@ -225,3 +281,26 @@ func _check(n: int) -> void:
 	print("  chests: %d (5 Hero : 1 Grand) · free-card max |z| %.2f · Topaz card gap max %d" % [chests, wz, mg])
 	_ok(wz <= 4.0, "chest card |z| %.2f" % wz)
 	_ok(mg <= PortalData.CHEST_PITY_L, "chest Topaz pity gap %d" % mg)
+	# Per champion: HeroChest.pick_champion inside every gem, every gem complete, without and with a chest Focus.
+	var acc2 := EconData.fresh_account()
+	(acc2["progress"] as Dictionary)["level"] = 31
+	for cid in ChampionData.CHAMPION_ORDER:
+		Roster.grant(acc2, cid, "chest", 1)
+	rng.seed = 7900
+	var cz := 0.0
+	var per := maxi(1000, n / 10)
+	for focus_on in [false, true]:
+		for g6: String in PortalData.CHEST_ODDS:
+			var pool := HeroChest.pool(g6)
+			if pool.is_empty():
+				continue
+			HeroChest.set_focus(acc2, g6, pool[pool.size() - 1] if focus_on else "")
+			var w := HeroChest.champion_weights(acc2, g6)
+			var cc := {}
+			for i5 in per:
+				var id5 := HeroChest.pick_champion(acc2, g6, rng)
+				cc[id5] = int(cc.get(id5, 0)) + 1
+			for id6: String in pool:
+				cz = maxf(cz, _z(int(cc.get(id6, 0)), per, float(w[id6])))
+	print("  champions: %d picks per gem and Focus state · max |z| %.2f" % [per, cz])
+	_ok(cz <= 4.0, "per-champion pick |z| %.2f" % cz)
