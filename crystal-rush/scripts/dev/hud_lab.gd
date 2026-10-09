@@ -55,6 +55,27 @@ extends Node
 ## printed, not asserted: at 30-85 u ahead its labels are small and below 3 : 1 with or without the
 ## banner (the game's far-row legibility, not the banner's). Last line: HUD_LAB_BANNER PASS|FAIL.
 ##
+## --compare (owner decision 10.10, for the owner to see before anything ships): today's gate labels (v1) beside
+## the legible variant v2 (Models.gate_labels_v2: an ink plate behind the number and the forecast, the labels
+## above every ult VFX, the ult layers held back over gate panels; §10.2 rules 2-3). --gate-legibility alone
+## measures v2 too when the run is started with --gate_labels=v2. Two parts:
+## A) the matrix: every COMPARE_KINDS gate kind x COMPARE_CASES case on the --level template (row AHEAD u ahead,
+##    army ARMY), under v1 and then v2. Per cell a fresh play with the global RNG seeded (COMPARE_SEED: both
+##    variants see the same frames), the row's gates set to the kind in the run's own data (_set_kind: the run
+##    styles them and an ult hits them as in the game), then the --gate-legibility measure: the quiet baseline's
+##    glyph masks, the trigger, the captures at CAPTURE_AT, a label covered on its baseline mask measured again on
+##    its true mask of that frame (_capture `moved`: the quake's camera shake, both variants alike). v2's
+##    glyph-less frame keeps the plate, so its ratio is the text against its own plate (and whatever the plate
+##    lets through). A table of the worst ratio per cell
+##    (v1 -> v2), DIR/gate_compare.csv and DIR/cells/<v1|v2>_<case>_<kind>.png (the worst capture around the row).
+## B) the stills (STILLS: a plain row, a power / arm row, Руді's storm over a row, a W4 row): the same frame under
+##    v1 and v2, DIR/<name>_v1.png, DIR/<name>_v2.png, DIR/compare_<name>.png (v1 left, v2 right) and
+##    DIR/compare_<name>_zoom.png (the row, x2).
+## Exit code = matrix cells where v2 reads below 3 : 1 (or is covered). Last line: HUD_LAB_COMPARE PASS|FAIL.
+##   godot --fixed-fps 60 --path . --resolution 720x1280 res://scenes/dev/hud_lab.tscn -- --autotest --compare
+##        --out=DIR [--level=45] [--cases=quiet,ult_storm] [--kinds=good,power] [--stills=storm_L12|none]
+##        [--matrix=none]
+##
 ## Needs a real renderer (e.g. the hidden desktop):
 ##   godot --path . --resolution 720x1280 res://scenes/dev/hud_lab.tscn -- --autotest --gate-legibility --out=DIR
 ##        [--level=45] [--tag=720] [--cases=ult_storm,champ_shot]
@@ -116,6 +137,29 @@ const CASES := {
 const OPS_PLAIN := ["+", "-", "x", "/"]
 ## Headless without --setup-only: nothing measured, exit code 77.
 const SKIPPED := 77
+## --compare: the gate kinds and the cases of the legibility matrix.
+const COMPARE_KINDS: Array[String] = ["good", "bad", "charge", "hidden", "power", "arm", "closed"]
+const COMPARE_CASES: Array[String] = ["quiet", "ult_storm", "ult_quake", "ult_rift"]
+## --compare: the global RNG seed of every play, so v1 and v2 see the same frames (with --fixed-fps 60 the frame
+## deltas match too).
+const COMPARE_SEED := 1010
+## --compare: the gate ops that make a power / arm row (Run._style_gate).
+const OPS_POWER := ["rate", "dmg", "multi", "weapon", "ult", "rank", "arm"]
+## --compare stills for the owner: name -> [level, hero, row (plain: the first plain row; power: the first row with
+## a power or arm gate, searched from the level on), fire (none | ult), u ahead, army (0: the level's own), shot
+## at s after the trigger (the storm ticks every 0.25 s: 0.52 s is just after a tick)].
+const STILLS := {
+	"plain_L5": [5, "bolt", "plain", "none", 7.0, 30, 0.5],
+	"power_arm": [5, "bolt", "power", "none", 7.0, 30, 0.5],
+	"storm_L12": [12, "bolt", "plain", "ult", 7.0, 60, 0.52],
+	"w4_L28": [28, "bolt", "plain", "none", 7.0, 120, 0.5],
+}
+## --compare stills: real milliseconds to block after parking, so the army counter (Juice.counter runs on the
+## wall clock, not the frame clock) has finished counting in both variants' frames.
+const COUNTER_MS := 900
+## --compare stills: the zoomed pair's crop around the row (px of margin) and its scale.
+const ZOOM_PAD := 40
+const ZOOM := 2
 
 var args := {}
 var out_dir := ""
@@ -139,14 +183,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Save.readonly = true
 	var banner := args.has("banner")
-	if not args.has("gate-legibility") and not banner:
-		print("hud_lab: pass --gate-legibility or --banner (see the header)")
+	var compare := args.has("compare")
+	if not args.has("gate-legibility") and not banner and not compare:
+		print("hud_lab: pass --gate-legibility, --banner or --compare (see the header)")
 		get_tree().quit(0)
 		return
-	var gate := "HUD_LAB_BANNER" if banner else "HUD_LAB_GATES"
-	if not _render and (banner or not args.has("setup-only")):
+	var gate := "HUD_LAB_BANNER" if banner else ("HUD_LAB_COMPARE" if compare else "HUD_LAB_GATES")
+	if not _render and (banner or compare or not args.has("setup-only")):
 		print("%s SKIPPED: headless (no renderer); run windowed on a hidden desktop%s" % [gate,
-				"" if banner else ", or pass --setup-only"])
+				"" if banner or compare else ", or pass --setup-only"])
 		get_tree().quit(SKIPPED)
 		return
 	var old_phase := EconData.phase_override
@@ -156,6 +201,8 @@ func _ready() -> void:
 		DirAccess.make_dir_recursive_absolute(out_dir)
 	if banner:
 		await _banner_lab()
+	elif compare:
+		await _compare_lab()
 	else:
 		await _gate_lab()
 	EconData.phase_override = old_phase
@@ -205,22 +252,8 @@ func _case(name: String) -> bool:
 	var spec: Array = CASES[name]
 	var hero := str(spec[0])
 	var team: Array = spec[1]
-	var acc := KP.account_with(level, hero, team)
-	var keep: Array = KP.swap_in(acc, hero)
-	var holder := Node.new()
-	holder.name = "Play"
-	# The lab runs while paused (captures); the play pauses with the tree.
-	holder.process_mode = Node.PROCESS_MODE_PAUSABLE
-	var run := Run.new()
-	run.setup(level, hero)
-	holder.add_child(run)
-	var hud: CanvasLayer = (load(HUD_SCRIPT) as GDScript).new()
-	hud.call("setup", run)
-	holder.add_child(hud)
-	holder.set_meta("run", run)
-	holder.set_meta("hud", hud)
-	KP.swap_out(keep)
-	add_child(holder)
+	var holder := _new_play(level, hero, team)
+	var run: Run = holder.get_meta("run")
 	await get_tree().process_frame
 	run.set_process(false)
 	var row := _pick_row(run)
@@ -228,19 +261,9 @@ func _case(name: String) -> bool:
 		print("  FAIL %s: no gate row on L%d" % [name, level])
 		await _drop(holder)
 		return false
-	var gd := float(row[0]["d"])
-	var gx := float(row[0]["x"])
-	for g: Dictionary in row:
-		if absf(float(g["x"])) < absf(gx):
-			gx = float(g["x"])
-	run.skip_to(gd - AHEAD)
-	run.set_army(ARMY)
-	run.hx = gx
-	run.target_x = gx
-	_place_champions(run)
-	# A gate row is met while RUNNING, never under the READY start banner (1.2 s, §10.5).
-	run.start()
-	_close_banner(run)
+	var parked: Array = _park(run, row, AHEAD, ARMY)
+	var gd := float(parked[0])
+	var gx := float(parked[1])
 	for k in 20:
 		await _frame(run, false)
 	var labels := _labels(row)
@@ -330,6 +353,47 @@ func _drop(holder: Node) -> void:
 	remove_child(holder)
 	holder.free()
 	await get_tree().process_frame
+
+
+## A play at level `lvl` (`hero`, `team`) as main.make_play builds it (the real Run + run HUD), in the tree, at
+## READY. The lab runs while paused (captures); the play pauses with the tree.
+func _new_play(lvl: int, hero: String, team: Array) -> Node:
+	var acc := KP.account_with(lvl, hero, team)
+	var keep: Array = KP.swap_in(acc, hero)
+	var holder := Node.new()
+	holder.name = "Play"
+	holder.process_mode = Node.PROCESS_MODE_PAUSABLE
+	var run := Run.new()
+	run.setup(lvl, hero)
+	holder.add_child(run)
+	var hud: CanvasLayer = (load(HUD_SCRIPT) as GDScript).new()
+	hud.call("setup", run)
+	holder.add_child(hud)
+	holder.set_meta("run", run)
+	holder.set_meta("hud", hud)
+	KP.swap_out(keep)
+	add_child(holder)
+	return holder
+
+
+## Parks the run `ahead` u before `row`: army `army` (0 keeps the level's own), the hero lined up on the gate
+## nearest the middle, the champions at their slots, RUNNING with the start banner closed (a gate row is met
+## while RUNNING, never under the READY start banner: 1.2 s, §10.5). Returns [row d, hero x].
+static func _park(run: Run, row: Array, ahead: float, army: int) -> Array:
+	var gd := float(row[0]["d"])
+	var gx := float(row[0]["x"])
+	for g: Dictionary in row:
+		if absf(float(g["x"])) < absf(gx):
+			gx = float(g["x"])
+	run.skip_to(gd - ahead)
+	if army > 0:
+		run.set_army(army)
+	run.hx = gx
+	run.target_x = gx
+	_place_champions(run)
+	run.start()
+	_close_banner(run)
+	return [gd, gx]
 
 
 ## The first row of revealed plain army gates (+ - x /) at d >= 20, else the first row: [gate items].
@@ -445,8 +509,11 @@ static func _hazard_near(run: Run, gd: float) -> int:
 ## its key, re-taken from a glyphs-only render when its text changed. Returns {img, rows [{label, key,
 ## ratio, ratio_med, text, bg, px, n, covered, mask}], by {key: ratio}, rects [[Rect2i, ratio]], masks
 ## {key: mask}, iso {key: pixels}}; a label's key is its place in the label list and its kind ("l0 num",
-## "l1 sub"), stable while an ult changes the number.
-func _capture(labels: Array, base := {}, iso := false) -> Dictionary:
+## "l1 sub"), stable while an ult changes the number. With `moved` (--compare, both variants alike) a label
+## covered on its baseline mask is measured again on a mask from the glyphs-only render of the same frame:
+## a camera shake (the quake's trauma rolls the camera up to 2 degrees) shifts small glyphs off their baseline
+## mask, while a label an fx really covers stays covered on its true mask ("re-masked (moved)").
+func _capture(labels: Array, base := {}, iso := false, moved := false) -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
 	var was := get_tree().paused
 	get_tree().paused = true
@@ -461,7 +528,7 @@ func _capture(labels: Array, base := {}, iso := false) -> Dictionary:
 		(labels[i] as Label3D).modulate = keep[i][0]
 		(labels[i] as Label3D).outline_modulate = keep[i][1]
 	var masks: Dictionary = base.get("masks", {})
-	var remask := iso
+	var remask := iso or (moved and not base.is_empty())
 	for i in labels.size():
 		var g0: Dictionary = masks.get(_key(labels[i], i), {})
 		if not base.is_empty() and (g0.is_empty() or str(g0["text"]) != (labels[i] as Label3D).text):
@@ -498,6 +565,11 @@ func _capture(labels: Array, base := {}, iso := false) -> Dictionary:
 			g = _mask_from(c, null, Rect2i(r), anchor, l.text)
 			src = "re-masked"
 		var m := _measure(a, b, g, anchor)
+		if moved and c and bool(m["covered"]) and src == "baseline":
+			var m2 := _measure(a, b, _mask_from(c, null, Rect2i(r), anchor, l.text), anchor)
+			if not m2["covered"]:
+				m = m2
+				src = "re-masked (moved)"
 		m["label"] = "%s '%s'" % [key, l.text.replace(",", " ").replace("\n", " ")]
 		m["key"] = key
 		m["mask"] = src
@@ -855,22 +927,7 @@ func _banner_level(lvl: int) -> Dictionary:
 
 ## A play at level `lvl` (bolt, TEAM_A) as main.make_play builds it, in the tree, left at READY.
 func _banner_play(lvl: int) -> Node:
-	var acc := KP.account_with(lvl, "bolt", TEAM_A)
-	var keep: Array = KP.swap_in(acc, "bolt")
-	var holder := Node.new()
-	holder.name = "Play"
-	holder.process_mode = Node.PROCESS_MODE_PAUSABLE
-	var run := Run.new()
-	run.setup(lvl, "bolt")
-	holder.add_child(run)
-	var hud: CanvasLayer = (load(HUD_SCRIPT) as GDScript).new()
-	hud.call("setup", run)
-	holder.add_child(hud)
-	holder.set_meta("run", run)
-	holder.set_meta("hud", hud)
-	KP.swap_out(keep)
-	add_child(holder)
-	return holder
+	return _new_play(lvl, "bolt", TEAM_A)
 
 
 ## Every gate label on screen now against the ribbon: CSV rows, {hits, first (the nearest row's labels on
@@ -950,4 +1007,292 @@ static func _rows_ahead(run: Run) -> Array:
 	for r in order:
 		out.append(rows[r])
 	out.sort_custom(func(p: Array, q: Array) -> bool: return float(p[0]["d"]) < float(q[0]["d"]))
+	return out
+
+
+# ------------------------------------------------------------------ today's gate labels beside v2 (--compare)
+
+func _compare_lab() -> void:
+	var t0 := Time.get_ticks_msec()
+	var keep := Models.gate_labels_v2
+	var cases: Array[String] = _list_arg("cases", COMPARE_CASES)
+	var kinds: Array[String] = _list_arg("kinds", COMPARE_KINDS)
+	if str(args.get("matrix", "")) != "none":
+		await _compare_matrix(cases, kinds)
+	if str(args.get("stills", "")) != "none":
+		await _compare_stills()
+	Models.gate_labels_v2 = keep
+	print("HUD_LAB_COMPARE %s: %d v2 cells below %.0f : 1 or covered (%.1f s)" % ["PASS" if _fails == 0 else "FAIL",
+			_fails, MIN_RATIO, float(Time.get_ticks_msec() - t0) / 1000.0])
+
+
+## The comma list in args[`key`] filtered to `all` (all of it when absent).
+func _list_arg(key: String, all: Array[String]) -> Array[String]:
+	if not args.has(key):
+		return all.duplicate()
+	var out: Array[String] = []
+	for v in str(args[key]).split(",", false):
+		if v in all:
+			out.append(v)
+	return out
+
+
+## Part A of --compare (see the header): every kind x case under v1 then v2, a table, the CSV and the cell crops.
+func _compare_matrix(cases: Array[String], kinds: Array[String]) -> void:
+	print("HUD_LAB compare matrix: L%d, gate row %.0f u ahead, army %d, captures at %s s; worst label ratio per cell, v1 (today) -> v2 (ink plate; measured against its own plate), rule >= %.0f : 1 (ideal 4.5)" % [
+			level, AHEAD, ARMY, str(CAPTURE_AT), MIN_RATIO])
+	_csv.append("case,kind,variant,worst,label,capture_t,text_lum,bg_lum,text_px,glyph_px,covered,mask,measurements," +
+			"moved_remasks")
+	if out_dir != "":
+		DirAccess.make_dir_recursive_absolute(out_dir.path_join("cells"))
+	var res := {}
+	for v2: bool in [false, true]:
+		Models.gate_labels_v2 = v2
+		for c: String in cases:
+			for k: String in kinds:
+				res["%s|%s|%s" % [c, k, v2]] = await _cell(c, k, v2)
+	var head := "  %-7s" % "kind"
+	for c: String in cases:
+		head += " | %-15s" % c
+	print(head)
+	var low: PackedStringArray = PackedStringArray()
+	for k: String in kinds:
+		var line := "  %-7s" % k
+		for c: String in cases:
+			var a: Dictionary = res["%s|%s|false" % [c, k]]
+			var b: Dictionary = res["%s|%s|true" % [c, k]]
+			line += " | %5.2f -> %5.2f%s" % [float(a["ratio"]), float(b["ratio"]), "!" if float(b["ratio"]) < MIN_RATIO else " "]
+			if float(b["ratio"]) < MIN_RATIO:
+				_fails += 1
+				low.append("%s %s: %s" % [c, k, _cell_note(b)])
+		print(line)
+	var worst2 := INF
+	for key: String in res:
+		if key.ends_with("|true"):
+			worst2 = minf(worst2, float((res[key] as Dictionary)["ratio"]))
+	print("  v2 worst cell %.2f : 1%s" % [worst2, "" if low.is_empty() else "; below %.0f : 1: %s" % [MIN_RATIO,
+			"; ".join(low)]])
+	_write_csv("gate_compare.csv")
+
+
+## One matrix cell: a fresh seeded play of `name` (CASES) on --level, the row set to `kind`, the --gate-legibility
+## measure (quiet baseline masks, the trigger, the captures). {ratio (worst; 1 when covered or nothing measured),
+## label, at, row (the worst measurement), measured}.
+func _cell(name: String, kind: String, v2: bool) -> Dictionary:
+	var spec: Array = CASES[name]
+	seed(COMPARE_SEED)
+	var holder := _new_play(level, str(spec[0]), spec[1])
+	var run: Run = holder.get_meta("run")
+	await get_tree().process_frame
+	run.set_process(false)
+	var row := _pick_row(run)
+	if row.is_empty():
+		await _drop(holder)
+		return {"ratio": 1.0, "label": "no gate row", "at": 0.0, "row": {}, "measured": 0}
+	var at0: Array = _park(run, row, AHEAD, ARMY)
+	_set_kind(run, row, kind)
+	for k in 20:
+		await _frame(run, false)
+	var labels := _labels(row)
+	var base: Dictionary = await _capture(labels)
+	var ult := str(spec[2]) == "ult"
+	_trigger(run, spec[2], row, float(at0[0]), float(at0[1]))
+	var worst := {"ratio": INF}
+	var worst_img: Image = null
+	var worst_rects: Array = []
+	var worst_t := 0.0
+	var measured := 0
+	var moved := 0
+	var t := 0.0
+	for at in CAPTURE_AT:
+		while t + DT * 0.5 < at:
+			await _frame(run, ult)
+			t += DT
+		var cap: Dictionary = await _capture(labels, base, false, true)
+		for r: Dictionary in cap["rows"]:
+			measured += 1
+			moved += 1 if str(r["mask"]) == "re-masked (moved)" else 0
+			if float(r["ratio"]) < float(worst["ratio"]):
+				worst = r
+				worst_img = cap["img"]
+				worst_rects = cap["rects"]
+				worst_t = at
+	await _drop(holder)
+	var ratio := float(worst["ratio"]) if measured > 0 else 1.0
+	var vname := "v2" if v2 else "v1"
+	_csv.append("%s,%s,%s,%.2f,%s,%.2f,%.3f,%.3f,%d,%d,%s,%s,%d,%d" % [name, kind, vname, ratio,
+			str(worst.get("label", "-")).replace(",", " "), worst_t, float(worst.get("text", 0.0)), float(worst.get("bg", 0.0)),
+			int(worst.get("px", 0)), int(worst.get("n", 0)), str(worst.get("covered", true)), str(worst.get("mask", "-")),
+			measured, moved])
+	if worst_img and out_dir != "":
+		var img: Image = worst_img.duplicate()
+		_outline(img, worst_rects)
+		var crop := _crop_rows(img, worst_rects, ZOOM_PAD)
+		crop.save_png(out_dir.path_join("cells").path_join("%s_%s_%s.png" % [vname, name, kind]))
+	return {"ratio": ratio, "label": str(worst.get("label", "-")), "at": worst_t, "row": worst, "measured": measured}
+
+
+static func _cell_note(c: Dictionary) -> String:
+	return "%.2f on %s at %.2f s (%s)" % [float(c["ratio"]), str(c["label"]), float(c["at"]), _detail(c["row"])]
+
+
+## Sets the row's gates to gate `kind` in the run's own data, so Run._style_gate draws them and an ult hits them as
+## in the game: good as generated; bad the same numbers as − / ÷; charge −12 that fills to +20; hidden unrevealed;
+## power +25 % rate / +30 % damage; arm crossbows / blasters; closed (the row passed: not alive).
+static func _set_kind(run: Run, row: Array, kind: String) -> void:
+	for i in row.size():
+		var it: Dictionary = row[i]
+		var f: Array = run._gate_face(it)
+		match kind:
+			"bad":
+				f[0] = "-" if str(f[0]) == "+" else "/"
+			"charge":
+				f[0] = "charge"
+				f[1] = -12.0
+				it["value0"] = -12.0
+				it["reward"] = {"op": "+", "value": 20}
+			"hidden":
+				it["revealed"] = false
+			"power":
+				f[0] = "rate" if i % 2 == 0 else "dmg"
+				f[1] = 25.0 if i % 2 == 0 else 30.0
+			"arm":
+				f[0] = "arm"
+				f[1] = 1.0 if i % 2 == 0 else 2.0
+			"closed":
+				it["alive"] = false
+		run._sync_face(it)
+		it.erase("_style")
+		run._style_gate(it)
+
+
+## The crop of `img` around the union of `rects` ([[Rect2i, ratio]]) grown by `pad` px (the whole image when none).
+static func _crop_rows(img: Image, rects: Array, pad: int) -> Image:
+	if rects.is_empty():
+		return img
+	var u: Rect2i = rects[0][0]
+	for e: Array in rects:
+		u = u.merge(e[0])
+	u = u.grow(pad).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	return img.get_region(u)
+
+
+## Part B of --compare: each still under v1 then v2 (same seed), saved alone and side by side (v1 left, v2 right),
+## plus a zoomed pair around the row.
+func _compare_stills() -> void:
+	var names: Array = STILLS.keys()
+	if args.has("stills"):
+		names = []
+		for v in str(args["stills"]).split(",", false):
+			if STILLS.has(v):
+				names.append(v)
+	for name: String in names:
+		var spec: Array = STILLS[name]
+		var lvl := int(spec[0])
+		if str(spec[2]) == "power":
+			lvl = await _level_with_power_row(lvl, str(spec[1]))
+		var shots: Array = []
+		var rows_px: Array = []
+		for v2: bool in [false, true]:
+			Models.gate_labels_v2 = v2
+			var got: Dictionary = await _still(lvl, spec)
+			shots.append(got.get("img"))
+			rows_px.append(got.get("rects", []))
+			print("  still %s v%d: L%d, %s" % [name, 2 if v2 else 1, lvl, str(got.get("note", ""))])
+		if shots[0] == null or shots[1] == null or out_dir == "":
+			continue
+		var a: Image = shots[0]
+		var b: Image = shots[1]
+		a.save_png(out_dir.path_join("%s_v1.png" % name))
+		b.save_png(out_dir.path_join("%s_v2.png" % name))
+		_pair(a, b).save_png(out_dir.path_join("compare_%s.png" % name))
+		var rects: Array = (rows_px[0] as Array) + (rows_px[1] as Array)
+		if not rects.is_empty():
+			var za := _crop_rows(a, rects, ZOOM_PAD)
+			var zb := _crop_rows(b, rects, ZOOM_PAD)
+			za.resize(za.get_width() * ZOOM, za.get_height() * ZOOM, Image.INTERPOLATE_NEAREST)
+			zb.resize(zb.get_width() * ZOOM, zb.get_height() * ZOOM, Image.INTERPOLATE_NEAREST)
+			_pair(za, zb).save_png(out_dir.path_join("compare_%s_zoom.png" % name))
+		print("HUD_LAB written ", out_dir.path_join("compare_%s.png" % name))
+
+
+## The first level from `lvl` on (up to 40 more) whose run has a row with a power or arm gate at d >= 20.
+func _level_with_power_row(lvl: int, hero: String) -> int:
+	for l in range(lvl, lvl + 41):
+		var holder := _new_play(l, hero, [])
+		var run: Run = holder.get_meta("run")
+		await get_tree().process_frame
+		var found := not _pick_ops_row(run, OPS_POWER).is_empty()
+		await _drop(holder)
+		if found:
+			return l
+	return lvl
+
+
+## The first row at d >= 20 with any gate whose op is in `ops`: [gate items], or [].
+static func _pick_ops_row(run: Run, ops: Array) -> Array:
+	var rows := _rows_ahead(run)
+	for row: Array in rows:
+		if float(row[0]["d"]) < 20.0:
+			continue
+		for g: Dictionary in row:
+			if str(g["op"]) in ops:
+				return row
+	return []
+
+
+## One still (spec as STILLS) under the current variant: a fresh seeded play parked before its row, fired, played
+## (visuals and the ult clock) to the shot time, then the frame. {img, rects (the row's label rects), note}.
+func _still(lvl: int, spec: Array) -> Dictionary:
+	seed(COMPARE_SEED)
+	var holder := _new_play(lvl, str(spec[1]), [])
+	var run: Run = holder.get_meta("run")
+	await get_tree().process_frame
+	run.set_process(false)
+	var row := _pick_ops_row(run, OPS_POWER) if str(spec[2]) == "power" else _pick_row(run)
+	if row.is_empty():
+		await _drop(holder)
+		return {"note": "no row"}
+	var at0: Array = _park(run, row, float(spec[4]), int(spec[5]))
+	OS.delay_msec(COUNTER_MS)
+	for k in 20:
+		await _frame(run, false)
+	var ult := str(spec[3]) == "ult"
+	var what := _trigger(run, "ult" if ult else "none", row, float(at0[0]), float(at0[1]))
+	var t := 0.0
+	while t + DT * 0.5 < float(spec[6]):
+		await _frame(run, ult)
+		t += DT
+	var cam := get_viewport().get_camera_3d()
+	get_tree().paused = true
+	var img := await _grab()
+	var rects: Array = []
+	var texts: PackedStringArray = PackedStringArray()
+	for l: Label3D in _labels(row):
+		var r := _rect(l, cam)
+		if r.has_area():
+			rects.append([Rect2i(r), MIN_RATIO])
+		texts.append(l.text)
+	var ops: PackedStringArray = PackedStringArray()
+	for g: Dictionary in row:
+		ops.append(str(g["op"]))
+	var note := "row %s (%s), %.0f u ahead, army %d, fired %s, shot %.2f s after" % [" ".join(texts), ",".join(ops),
+			float(spec[4]), run.army, what, t]
+	get_tree().paused = false
+	await _drop(holder)
+	if img:
+		img.convert(Image.FORMAT_RGBA8)
+	return {"img": img, "rects": rects, "note": note}
+
+
+## Two images side by side (a left, b right) on an ink gap.
+static func _pair(a: Image, b: Image) -> Image:
+	var gap := 12
+	var out := Image.create(a.get_width() + gap + b.get_width(), maxi(a.get_height(), b.get_height()), false,
+			Image.FORMAT_RGBA8)
+	out.fill(Color(0.08, 0.09, 0.14))
+	a.convert(Image.FORMAT_RGBA8)
+	b.convert(Image.FORMAT_RGBA8)
+	out.blit_rect(a, Rect2i(Vector2i.ZERO, a.get_size()), Vector2i.ZERO)
+	out.blit_rect(b, Rect2i(Vector2i.ZERO, b.get_size()), Vector2i(a.get_width() + gap, 0))
 	return out

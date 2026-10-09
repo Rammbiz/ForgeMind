@@ -62,6 +62,9 @@ const ARCANE := Color(0.66, 0.32, 1.0)
 const RIFT_SHADER := preload("res://shaders/fx_rift.gdshader")
 ## Machine vfx kinds (design §2.8 table) -> projectile looks above.
 const ALIAS := {"orb": "plasma", "missile_trail": "rocket", "tracer_dot": "drone", "shell_arc": "shell", "tracer_stream": "tracer"}
+## Gate labels v2 (Models.gate_labels_v2, dev only): an additive ult layer over a gate panel draws at alpha <= this
+## (heroes design §10.2 rule 3; see _gate_hold).
+const GATE_CAP := 0.35
 
 var quality_high := true
 var _lightning: Array = []   # [{mesh: MeshInstance3D, t: float, life: float}]
@@ -93,6 +96,11 @@ var _status := {}                    # id -> {node, mat, seen, k, kind}
 var _rail_id := -1000000
 var _time := 0.0
 var _rifts: Array[Dictionary] = []     # {node, mats, k, t, closing}
+## Gate labels v2 (Models.gate_labels_v2, dev only): the gate panels on screen this frame (Rect2 px) while an ult
+## runs, and whether that holds the ult layers back (see _gate_hold).
+var _panels: Array[Rect2] = []
+var _panels_frame := -1
+var _hold := false
 
 
 ## A set of simple particles in packed arrays (removal swaps with the last one).
@@ -261,6 +269,8 @@ func _upload() -> void:
 		var w := lerpf(_sparks.size_end[k], _sparks.size[k], f)
 		_put_streak(b, i, _sparks.pos[k], dir, maxf(sp * _sparks.extra[k], w * 1.5), w, c)
 		i += 1
+	if Models.gate_labels_v2 and _gate_hold():
+		_hold_back(b, i, 16)
 	_streak_mm.buffer = b
 	_streak_mm.visible_instance_count = i
 	# Glows: frame glows, then timed ones (they swell and fade).
@@ -280,6 +290,8 @@ func _upload() -> void:
 		c.a *= (1.0 - u) * (1.0 - u)
 		_put_sprite(g, i, _glows.pos[k], lerpf(_glows.size[k], _glows.size_end[k], e2), c, _glows.extra[k], _glows.drag[k], 1.0 - u)
 		i += 1
+	if Models.gate_labels_v2 and _gate_hold():
+		_hold_back(g, i, 20)
 	_glow_mm.buffer = g
 	_glow_mm.visible_instance_count = i
 	# Smoke.
@@ -345,6 +357,82 @@ static func _put_sprite(b: PackedFloat32Array, i: int, p: Vector3, s: float, c: 
 	b[k + 17] = y
 	b[k + 18] = z
 	b[k + 19] = 0.0
+
+
+# ------------------------------------------------------------------ gate labels v2: ult layers held back over gates
+
+## Gate labels v2 (Models.gate_labels_v2, dev only; owner decision 10.10 "hold the ult flashes back over the gates"):
+## while the run's ult clock runs, every additive layer whose screen footprint touches a gate panel draws at alpha
+## <= GATE_CAP (heroes design §10.2 rule 3): the pooled streaks and glow sprites each frame (sparks, flashes,
+## flares, projectile trails), and lightning, shockwave rings, rings and particle bursts when they are made; the
+## Seer's rift eases down to it while a panel stands over it. The gate labels draw above all of it (Models, §10.2
+## rule 2). Under v1 none of this runs. Returns whether this frame holds anything back (panels cached per frame).
+func _gate_hold() -> bool:
+	var f := Engine.get_process_frames()
+	if f == _panels_frame:
+		return _hold
+	_panels_frame = f
+	_panels.clear()
+	_hold = false
+	var run := get_parent()
+	var clock: Variant = run.get("ult_clock") if run else null
+	var cam := get_viewport().get_camera_3d()
+	if not (clock is Object and bool((clock as Object).call("active"))) or cam == null:
+		return false
+	var vp := get_viewport().get_visible_rect()
+	for n: Node in get_tree().get_nodes_in_group(Models.GATE_PANEL_GROUP):
+		var g := n as Node3D
+		if g == null or not g.is_visible_in_tree():
+			continue
+		var hw := float(g.get_meta("width", 2.0)) * 0.5
+		var top := float(g.get_meta("field_h", Models.GATE_H)) + 0.3
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		var seen := true
+		for c: Vector3 in [Vector3(-hw, 0.0, 0.0), Vector3(hw, 0.0, 0.0), Vector3(-hw, top, 0.0), Vector3(hw, top, 0.0)]:
+			var p := g.global_transform * c
+			if cam.is_position_behind(p):
+				seen = false
+				break
+			var s := cam.unproject_position(p)
+			lo = lo.min(s)
+			hi = hi.max(s)
+		var r := Rect2(lo, hi - lo).intersection(vp) if seen else Rect2()
+		if r.has_area():
+			_panels.append(r)
+	_hold = not _panels.is_empty()
+	return _hold
+
+
+## Gate labels v2: true when a layer at `p` reaching `rad` metres around it touches a gate panel on screen (call
+## after _gate_hold() returned true this frame).
+func _over_gate(p: Vector3, rad: float) -> bool:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or cam.is_position_behind(p):
+		return false
+	var s := cam.unproject_position(p)
+	var depth := maxf((p - cam.global_position).dot(-cam.global_basis.z), 0.1)
+	var px := rad * get_viewport().get_visible_rect().size.y / (2.0 * depth * tan(deg_to_rad(cam.fov) * 0.5))
+	for r: Rect2 in _panels:
+		if r.grow(px).has_point(s):
+			return true
+	return false
+
+
+## Gate labels v2: the alpha factor for a layer made now at `p` reaching `rad` m (GATE_CAP over a panel during an
+## ult, else 1). v1 callers never ask.
+func _gate_cap(p: Vector3, rad: float) -> float:
+	return GATE_CAP if _gate_hold() and _over_gate(p, rad) else 1.0
+
+
+## Gate labels v2: caps the first `n` instances of a streak (stride 16, length in the Z column) or glow sprite
+## (stride 20, size first) buffer that touch a gate panel at alpha (intensity) <= GATE_CAP.
+func _hold_back(b: PackedFloat32Array, n: int, stride: int) -> void:
+	for i in n:
+		var k := i * stride
+		var rad := 0.5 * (Vector3(b[k + 2], b[k + 6], b[k + 10]).length() if stride == 16 else b[k])
+		if _over_gate(Vector3(b[k + 3], b[k + 7], b[k + 11]), rad):
+			b[k + 15] = minf(b[k + 15], 1.0) * GATE_CAP
 
 
 # ------------------------------------------------------------------ projectiles
@@ -632,6 +720,9 @@ func shockwave(pos: Vector3, color: Color, radius: float) -> void:
 	mi.position = Vector3(pos.x, pos.y + 0.05, pos.z)
 	mi.scale = Vector3.ONE * radius * 2.0
 	(r["mat"] as ShaderMaterial).set_shader_parameter("color", color)
+	if Models.gate_labels_v2:
+		# Gate labels v2: an ult's ring over a gate panel at <= GATE_CAP (fx_ring's default energy is 2).
+		(r["mat"] as ShaderMaterial).set_shader_parameter("energy", 2.0 * _gate_cap(pos, radius))
 	r["t"] = 0.0
 	r["life"] = 0.42 + radius * 0.05
 	r["active"] = true
@@ -1181,6 +1272,8 @@ func _process_legacy(delta: float) -> void:
 		if k <= 0.0:
 			mi.queue_free()
 			_lightning.remove_at(i)
+		elif l.has("cap"):
+			(mi.material_override as StandardMaterial3D).albedo_color.a = k * float(l["cap"])
 		else:
 			(mi.material_override as StandardMaterial3D).albedo_color.a = k
 	for arr in [_rings, _flashes]:
@@ -1245,7 +1338,9 @@ func burst(pos: Vector3, color: Color, amount := 16, speed := 2.5, size := 0.08,
 	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.3
 	var g := Gradient.new()
-	g.set_color(0, Color(color.r, color.g, color.b, 1.0))
+	# Gate labels v2: an additive burst over a gate panel during an ult starts at <= GATE_CAP.
+	var a0 := _gate_cap(pos, speed * life * 0.5) if additive and Models.gate_labels_v2 else 1.0
+	g.set_color(0, Color(color.r, color.g, color.b, a0))
 	g.set_color(1, Color(color.r, color.g, color.b, 0.0))
 	p.color_ramp = g
 	p.position = pos
@@ -1262,7 +1357,12 @@ func ring(pos: Vector3, color: Color, radius := 1.0, life := 0.45) -> void:
 	mi.position = pos + Vector3(0, 0.05, 0)
 	mi.scale = Vector3.ONE * 0.1
 	add_child(mi)
-	_rings.append({"node": mi, "t": 0.0, "life": life, "from": 0.1, "to": radius, "alpha": 0.9})
+	var a := 0.9
+	if Models.gate_labels_v2:
+		# Gate labels v2: an ult's ring over a gate panel at <= GATE_CAP.
+		a *= _gate_cap(pos, radius)
+		(mi.material_override as StandardMaterial3D).albedo_color.a = a
+	_rings.append({"node": mi, "t": 0.0, "life": life, "from": 0.1, "to": radius, "alpha": a})
 
 
 ## Glowing crystal spikes bursting out of the ground at `points` (leaning away from
@@ -1373,10 +1473,26 @@ func lightning(points: Array[Vector3], color: Color, life := 0.18, width := 0.05
 	mi.material_override = _lightning_mat().duplicate()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
-	_lightning.append({"mesh": mi, "t": 0.0, "life": life})
+	var e := {"mesh": mi, "t": 0.0, "life": life}
+	if Models.gate_labels_v2 and _bolt_over_gate(points, width):
+		# Gate labels v2: a bolt over a gate panel during an ult at alpha <= GATE_CAP, without the 1.6x overdrive.
+		e["cap"] = GATE_CAP
+		(mi.material_override as StandardMaterial3D).albedo_color = Color(1.0, 1.0, 1.0, GATE_CAP)
+	_lightning.append(e)
 	if sparks:
 		for p in points:
 			burst(p, color, 5, 1.4, 0.06, 0.25, -2.0)
+
+
+## Gate labels v2: true when a bolt through `points` (sampled along each segment) crosses a gate panel during an ult.
+func _bolt_over_gate(points: Array[Vector3], width: float) -> bool:
+	if not _gate_hold():
+		return false
+	for i in points.size() - 1:
+		for s in 5:
+			if _over_gate(points[i].lerp(points[i + 1], float(s) / 4.0), width * 2.2):
+				return true
+	return false
 
 
 func _ribbon(im: ImmediateMesh, a: Vector3, b: Vector3, w: float, cam_pos: Vector3, col: Color) -> void:
@@ -1454,8 +1570,14 @@ func _step_rifts(delta: float) -> void:
 			continue
 		r["t"] = fmod(float(r["t"]) + delta, 1000.0)
 		r["k"] = move_toward(float(r["k"]), 0.0 if r["closing"] else 1.0, delta * (2.5 if r["closing"] else 3.0))
+		var k_draw := float(r["k"])
+		if Models.gate_labels_v2:
+			# Gate labels v2: the tear and its curtain ease down to GATE_CAP while a gate panel stands over them.
+			var want := _gate_cap(node.global_position + Vector3(0.0, 1.7, 0.0), float(r["w"]) * 0.5)
+			r["cap"] = move_toward(float(r.get("cap", 1.0)), want, delta * 4.0)
+			k_draw = minf(k_draw, float(r["cap"]))
 		for m: ShaderMaterial in r["mats"]:
-			m.set_shader_parameter("k", float(r["k"]))
+			m.set_shader_parameter("k", k_draw)
 			m.set_shader_parameter("t", float(r["t"]))
 		# Star dust drifting up out of the tear.
 		r["spark"] = float(r["spark"]) + delta * (40.0 if quality_high else 18.0) * float(r["k"])
