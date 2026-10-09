@@ -202,6 +202,7 @@ CHAMPS = {
     "nimb": dict(n=3, cls="guardian", el="volt", fac="celestial"),
     "dara": dict(n=3, cls="ranger", el="volt", fac="dawn"),
     "menhir": dict(n=3, cls="mage", el="rune", fac="stoneheart"),
+    "taras": dict(n=3, cls="mage", el="rune", fac="wildfang"),     # C23, added after launch (heroes_design.md §6.23a)
 }
 SCRIPTED_FIRST = {"bolt": "alba", "titan": "otto"}
 SCRIPTED_FIRST_DEFAULT = "otto"
@@ -2199,15 +2200,15 @@ def section_sinks():
     cr_c = CRAFT["champ_relic"][0] + sum(temper_cost("champ_relic", r)[0] for r in range(12))
     cr_m = CRAFT["champ_relic"][1] + sum(temper_cost("champ_relic", r)[1] for r in range(12))
     print("Workshop to +12: item %d coins / %d mats; hero relic %d / %d; champion relic %d / %d" % (it_c, it_m, hr_c, hr_m, cr_c, cr_m))
-    ws_c = 12 * it_c + 10 * hr_c + 12 * cr_c
-    ws_m = 12 * it_m + 10 * hr_m + 12 * cr_m
-    print("Workshop all (12 items + 22 relics): %d coins, %d materials" % (ws_c, ws_m))
+    ws_c = 12 * it_c + len(HEROES) * hr_c + len(CHAMPS) * cr_c
+    ws_m = 12 * it_m + len(HEROES) * hr_m + len(CHAMPS) * cr_m
+    print("Workshop all (12 items + %d relics): %d coins, %d materials" % (len(HEROES) + len(CHAMPS), ws_c, ws_m))
     print("Item stats by rank (wearer-independent):")
     for slot in SLOTS:
         print("  %-6s " % slot + " ".join("+%d:%s" % (r, ",".join("%s %.3f" % kv for kv in item_stats(slot, r).items())) for r in (0, 3, 4, 6, 8, 9, 12)))
     recut_all = 2 * sum(sum(RECUT_COINS[g] for g in range(n, 4)) for n in range(5))
-    recut_ch = 3 * sum(sum(RECUT_COINS[g] for g in range(n, 3)) for n in range(4))
-    hero_lv = 10 * sum(E.hero_cost(L) for L in range(1, 30))
+    recut_ch = sum(sum(RECUT_COINS[g] for g in range(d["n"], 3)) for d in CHAMPS.values())
+    hero_lv = len(HEROES) * sum(E.hero_cost(L) for L in range(1, 30))
     print("Coin sinks of the hero system (upper bounds): hero levels (10 heroes, no sync) %d; recut %d (heroes) + %d (champions); "
           "skills %d; Champion Level %d; Workshop %d -> total %d (Meta-1 Arsenal = 578270)" % (
               hero_lv, recut_all, recut_ch, c_all, cl_tot, ws_c, hero_lv + recut_all + recut_ch + c_all + cl_tot + ws_c))
@@ -2615,7 +2616,7 @@ MILESTONES = [("champions", "champions + Hero Chest (L14)"), ("portal", "Portal 
               ("first_awakening", "first Awakening"), ("full_team", "full team (hero + 3 champions)"),
               ("workshop", "Workshop (L32)"), ("skill_rank_7", "first skill rank 7"), ("skill_rank_9", "first skill rank 9"),
               ("skill_rank_11", "first skill rank 11 (Opal max)"), ("skill_native_max_L", "a Topaz hero at native max rank"),
-              ("first_item_12", "first item at +12"), ("all_heroes", "all 10 heroes"), ("all_champions", "all 12 champions"),
+              ("first_item_12", "first item at +12"), ("all_heroes", "all 10 heroes"), ("all_champions", "all %d champions" % len(CHAMPS)),
               ("hero_recut_to_M", "first hero recut to Opal"), ("hero_opal_f5", "first hero at Opal f5"),
               ("quartz_hero_opal_possible", "a Quartz hero has the fragments for Opal f5")]
 SNAP_DAYS = (1, 3, 7, 14, 30, 60, 90, 180)

@@ -83,6 +83,7 @@ CHAMPS = [
     ("nimb", "Німб", 3, "Guardian", "Volt", "Celestials", 60, 2, "Lightning Rod damage x3 targets (per Block)", 0.10, "clash losses -", 1.0, "front"),
     ("dara", "Дара", 3, "Ranger", "Volt", "Dawn", 26, 1.0, "shot damage (every 1.2 s; harpoon every 3rd)", 0.15, "army volleys +", 1.4, "rear"),
     ("menhir", "Менгір", 3, "Mage", "Rune", "Stoneheart", 26, 4, "rune-strike kills per squad (every 4 s)", 0.15, "volley status proc x", 1.2, "right"),
+    ("taras", "Тарас", 3, "Mage", "Rune", "Wildfang", 26, 4, "The Word kills per squad (every 4 s; pages cut on)", 0.15, "volley status proc x", 1.2, "rear"),
 ]
 AURA_SHARE = {"front": 0.35, "left": 0.30, "right": 0.30, "rear": 0.25}
 AURA_CAP = 0.40
