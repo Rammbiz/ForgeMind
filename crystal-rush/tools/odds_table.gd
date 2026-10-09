@@ -12,7 +12,8 @@ extends SceneTree
 ##             Focus share drifts from exactly 60%
 ##   --diff    exact tables vs the disclosed §7.2 / §7.5 rows (exit 1 on a difference > 0.005 pp), including
 ##             every champion's card odds; prints the odds changelog rows (ODDS_CHANGELOG, §9.3 «Змінено у»)
-##             and fails when a pool changed without a row
+##             and fails when a chest gem's champion pool differs from LAUNCH_POOLS without a changelog row
+##             whose `pool_after` equals the current pool, or when such a current row's `now` is not exact
 ## No flag = --portal --chest.
 
 const DISCLOSED_GEMS := {"C": 52.09, "R": 26.52, "E": 14.35, "L": 5.63, "M": 1.41}
@@ -27,11 +28,15 @@ const DISCLOSED_CHAMP := {
 	"E": {"pool": 3, "each": 3.00, "focus": 5.40, "other": 1.80},
 	"L": {"pool": 4, "each": 0.50, "focus": 1.20, "other": 0.27},
 }
-## Odds changelog (§9.3: the (i) sheet marks changed rows «Змінено у %s» for one version). One row per disclosed number
-## that a pool change moved; `now` must equal the exact table, `was` is the row it replaces.
+## Champions per chest gem at the launch of the Heroes system: a gem whose pool differs from this baseline must have an
+## ODDS_CHANGELOG row recording the current pool (`pool_after`).
+const LAUNCH_POOLS := {"C": 3, "R": 3, "E": 3, "L": 3}
+## Odds changelog (§9.3: the (i) sheet marks changed rows «Змінено у %s» for one version; `version` is the release string
+## the player sees). One row per disclosed number that a pool change moved; `was` is the row it replaces. Rows stay as
+## history: only the rows whose `pool_after` equals the current pool are checked against the exact table.
 const ODDS_CHANGELOG := [
-	{"version": "C23", "pool": "chest L", "why": "Тарас joins the Topaz champions (3 -> 4)", "row": "each", "was": 0.67, "now": 0.50},
-	{"version": "C23", "pool": "chest L", "why": "Тарас joins the Topaz champions (3 -> 4)", "row": "other", "was": 0.40, "now": 0.27},
+	{"version": "2.4.0", "pool": "chest L", "pool_after": 4, "why": "C23 Тарас joins the Topaz champions (3 -> 4)", "row": "each", "was": 0.67, "now": 0.50},
+	{"version": "2.4.0", "pool": "chest L", "pool_after": 4, "why": "C23 Тарас joins the Topaz champions (3 -> 4)", "row": "other", "was": 0.40, "now": 0.27},
 ]
 const STAGES := {
 	"A": {"own": ["bolt", "titan"], "focus": {}, "level": 21},
@@ -198,15 +203,27 @@ func _diff() -> void:
 		if r.is_empty() or d.is_empty():
 			_ok(r.is_empty() and d.is_empty(), "chest champion row %s disclosed" % g4)
 			continue
-		_ok(int(r["pool"]) == int(d["pool"]), "chest %s pool %d champions, disclosed %d (add an ODDS_CHANGELOG row)" % [g4, int(r["pool"]), int(d["pool"])])
+		_ok(int(r["pool"]) == int(d["pool"]), "chest %s pool %d champions, disclosed %d (update DISCLOSED_CHAMP and add an ODDS_CHANGELOG row)" % [g4, int(r["pool"]), int(d["pool"])])
 		for k3: String in ["each", "focus", "other"]:
 			_ok(absf(snappedf(float(r[k3]), 0.01) - float(d[k3])) <= 0.005, "chest %s %s %.4f%% vs disclosed %.2f%%" % [g4, k3, float(r[k3]), float(d[k3])])
 	print("\n## Odds changelog rows (§9.3 «Змінено у»)")
+	for g6: String in PortalData.CHEST_ODDS:
+		var pool_now := HeroChest.pool(g6).size()
+		if pool_now == int(LAUNCH_POOLS.get(g6, 0)):
+			continue
+		var logged := false
+		for row0: Dictionary in ODDS_CHANGELOG:
+			logged = logged or (str(row0["pool"]) == "chest " + g6 and int(row0.get("pool_after", -1)) == pool_now)
+		_ok(logged, "chest %s pool %d champions (launch %d) has no ODDS_CHANGELOG row with pool_after %d"
+				% [g6, pool_now, int(LAUNCH_POOLS.get(g6, 0)), pool_now])
 	for row: Dictionary in ODDS_CHANGELOG:
 		var g5 := str(row["pool"]).trim_prefix("chest ")
-		var now := snappedf(float(_champ_row(g5).get(str(row["row"]), -1.0)), 0.01)
-		_ok(absf(now - float(row["now"])) <= 0.005, "changelog %s %s: now %.2f%% vs exact %.2f%%" % [row["version"], row["row"], float(row["now"]), now])
-		print("- %s · %s · %s: %.2f%% -> %.2f%% (%s)" % [row["version"], row["pool"], row["row"], float(row["was"]), float(row["now"]), row["why"]])
+		var current := int(row.get("pool_after", -1)) == HeroChest.pool(g5).size()
+		if current:
+			var now := snappedf(float(_champ_row(g5).get(str(row["row"]), -1.0)), 0.01)
+			_ok(absf(now - float(row["now"])) <= 0.005, "changelog %s %s: now %.2f%% vs exact %.2f%%" % [row["version"], row["row"], float(row["now"]), now])
+		print("- %s · %s (%d champions) · %s: %.2f%% -> %.2f%% (%s)%s" % [row["version"], row["pool"], int(row.get("pool_after", -1)),
+				row["row"], float(row["was"]), float(row["now"]), row["why"], "" if current else " [history]"])
 
 
 static func _z(k: int, n: int, p: float) -> float:

@@ -1588,8 +1588,12 @@ against `DISCLOSED_CHAMP` and by `--check` per champion through `HeroChest.pick_
 
 | Version | Pool | Row | Was → now | Why |
 |---|---|---|---|---|
-| C23 | Hero Chest, Топаз card | each champion, no Focus | 0.67% → 0.50% | Тарас joins the Topaz champions (3 → 4) |
-| C23 | Hero Chest, Топаз card | each non-Focus champion | 0.40% → 0.27% | same; the Focus keeps exactly 60% of the gem (1.20%) |
+| 2.4.0 | Hero Chest, Топаз card (4 champions) | each champion, no Focus | 0.67% → 0.50% | C23 Тарас joins the Topaz champions (3 → 4) |
+| 2.4.0 | Hero Chest, Топаз card (4 champions) | each non-Focus champion | 0.40% → 0.27% | same; the Focus keeps exactly 60% of the gem (1.20%) |
+
+`version` is the release the player sees in «Змінено у %s». `--diff` fails when a chest gem's pool differs from the
+launch pools (`LAUNCH_POOLS`, 3 per gem) without a row whose `pool_after` is the current pool; only those current rows
+are checked against the exact table, so older rows stay as history.
 
 The gem odds of a card, the best-card tables, the chest pity and every Portal row are unchanged (Тарас is a champion:
 never in the Portal).
