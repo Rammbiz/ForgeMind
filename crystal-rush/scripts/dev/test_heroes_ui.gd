@@ -181,9 +181,13 @@ func _test_text() -> void:
 
 
 func _test_art() -> void:
-	_check(HeroArt.state("vesta") == "splash", "Веста has the placeholder splash")
+	_check(HeroArt.state("vesta") == "splash", "Веста has her splash")
 	_check(HeroArt.card_texture("vesta") != null, "Веста card crop")
-	_check(HeroArt.state("bolt") == "live3d", "Руді uses the live 3D bust")
+	# The starters fall back to their live 3D bust until their painted splash lands (all three have one now).
+	var bolt_want := "splash" if ResourceLoader.exists("res://assets/heroes/bolt/splash.png") else "live3d"
+	_check(HeroArt.state("bolt") == bolt_want, "Руді uses his splash, else the live 3D bust")
+	_check(HeroArt.splash_variant("seer", "eyes_closed") != null, "Мейра has the eyes-closed walkout splash")
+	_check(HeroArt.splash_variant("vesta", "eyes_closed") == null, "no variant means null, not a crash")
 	_check(HeroArt.state("pava") == "placeholder", "Пава falls back to the class emblem")
 	_check(HeroArt.state("no_such_hero") == "placeholder", "an unknown id never crashes")
 
