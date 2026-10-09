@@ -546,9 +546,9 @@ class _Stones extends Control:
 		var p0 := a + Vector2(64, 0)
 		var p1 := b - Vector2(86, 0)
 		var hl := UITokens.HAIRLINE
-		draw_line(p0, p1, hl, 2.0, true)
-		draw_line(p1, p1 + Vector2(-12, -9), hl, 2.0, true)
-		draw_line(p1, p1 + Vector2(-12, 9), hl, 2.0, true)
+		draw_line(p0, p1, hl, UIKit.line_px(1.0), true)
+		draw_line(p1, p1 + Vector2(-12, -9), hl, UIKit.line_px(1.0), true)
+		draw_line(p1, p1 + Vector2(-12, 9), hl, UIKit.line_px(1.0), true)
 		GemDraw.draw_keystone(self, (p0 + p1) * 0.5, 16.0)
 		var f := UIKit.font(true)
 		# Under the old stone (lower when it carries a native bezel); the new name clears the
