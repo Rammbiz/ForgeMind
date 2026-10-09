@@ -888,6 +888,25 @@ func _test_save_v3() -> void:
 	var once := var_to_str(s)
 	Save.sanitize(s)
 	_ok(var_to_str(s) == once, "sanitize is idempotent")
+	# §9.6 orphans come back: an older build that did not know a champion (Тарас) or a hero parked them in _orphans;
+	# this build knows the ids again, so they return to the roster, owned, and leave _orphans.
+	var older := ConfigFile.new()
+	older.set_value("meta", "version", 3)
+	older.set_value("progress", "level", 40)
+	older.set_value("champions", "roster", {"alba": {"owned": true, "gem": "C"}})
+	older.set_value("_orphans", "champions", {"taras": {"owned": true, "gem": "L", "facets": 2, "frags": 7}, "ghost": {"owned": true}, "otto": 5})
+	older.set_value("_orphans", "heroes", {"lumen": {"owned": true, "gem": "M", "lvl": 12}, "zorro": {"lvl": 4}})
+	var so := Save.account_from_cfg(older)
+	var rt: Dictionary = (so["champions"]["roster"] as Dictionary).get("taras", {})
+	_ok(Roster.owned(so, "taras") and str(rt.get("gem", "")) == "L" and int(rt.get("facets", -1)) == 2 and int(rt.get("frags", -1)) == 7
+			and not (so["_orphans"]["champions"] as Dictionary).has("taras"), "orphaned Тарас -> sanitize_v3 -> owned again, facets and fragments kept")
+	_ok(Roster.owned(so, "lumen") and int(so["heroes"]["lumen"]["lvl"]) == 12 and not (so["_orphans"]["heroes"] as Dictionary).has("lumen"), "orphaned known hero comes back")
+	_ok((so["_orphans"]["champions"] as Dictionary).has("ghost") and (so["_orphans"]["champions"] as Dictionary).has("otto")
+			and (so["_orphans"]["heroes"] as Dictionary).has("zorro") and not (so["champions"]["roster"] as Dictionary).has("otto"),
+			"unknown ids and broken entries stay parked in _orphans")
+	var once2 := var_to_str(so)
+	Save.sanitize(so)
+	_ok(var_to_str(so) == once2, "sanitize with restored orphans is idempotent")
 	# v3 round trip, orphans included.
 	DirAccess.make_dir_recursive_absolute(TMP_DIR)
 	(s["progress"] as Dictionary)["hero"] = "bolt"     # the legacy hero key is always written
