@@ -14,6 +14,11 @@ extends KindView
 ## The rules poll every step while a champion waits for a target, so the answers allocate nothing
 ## when nothing is there: army() refreshes one dictionary, an empty query returns `_none`, and an
 ## item's row dictionary is made once and refreshed in place ("kv" on the item).
+##
+## H2 verbs: a hold / grounding is stamped on the squad's item as the run time it ends ("hold_end",
+## "hold_k", "ground_end"; Run's clash / siege ticks and Hazards.step_squads read hold_k); tethers and
+## wards live here (Run.hurt passes a tether's share through tether_share); status_mult is the Run's
+## Statuses.vs (MARK). Nothing is stamped or stored unless a champion or hero-kind rule calls a verb.
 
 ## Hurt source of every champion hit (Run.hurt / Statuses: not a machine, chains like a hero hit).
 const SOURCE := "champion"
@@ -24,6 +29,11 @@ var _none: Array = []
 var _found: Array = []
 var _no_status := {}
 var _hz_lists: Array = []
+## [[item a, item b, share, end run time], ...] (tether).
+var _tethers: Array = []
+var _tethering := false
+## kind -> [charges, end run time] (grant_ward / absorb).
+var _wards := {}
 
 
 func _init(p_run: Run) -> void:
@@ -119,7 +129,8 @@ func hazards_in(d0: float, d1: float) -> Array:
 	return _answer()
 
 
-## One hit of `dmg` through Run.hurt; returns the squad soldiers removed (0 for structures).
+## One hit of `dmg` (on a squad x status_mult: MARK) through Run.hurt; returns the squad soldiers
+## removed (0 for structures).
 func hit(target_id: int, dmg: float, _tags := {}) -> int:
 	var it := run.kind_item(target_id)
 	if it.is_empty() or not it.get("alive", false) or dmg <= 0.0:
@@ -130,7 +141,7 @@ func hit(target_id: int, dmg: float, _tags := {}) -> int:
 	var t0 := Time.get_ticks_usec()
 	# Soldiers removed = the change of the squad's shown count ceil(hp), as SimKindView counts them.
 	var before := ceili(maxf(float(it["hp"]) - 0.001, 0.0))
-	run.hurt(it, dmg, SOURCE)
+	run.hurt(it, dmg * (_vs(it) if kind == "squad" else 1.0), SOURCE)
 	if run.champ_stepping:
 		run.champ_perf["hit_us"] = int(run.champ_perf["hit_us"]) + Time.get_ticks_usec() - t0
 	if kind != "squad":
@@ -157,6 +168,111 @@ func add_soldiers(n: float, _cause: StringName) -> void:
 	run.champion_mend(int(floor(n + 0.0001)))
 
 
+## The Run's Statuses.vs on squad `target_id` (MARK 1.25 while it runs), 1.0 when none.
+func status_mult(target_id: int) -> float:
+	return _vs(run.kind_item(target_id))
+
+
+func _vs(it: Dictionary) -> float:
+	if it.is_empty() or run.arsenal == null or run.arsenal.statuses == null or str(it.get("kind", "")) != "squad":
+		return 1.0
+	return run.arsenal.statuses.vs(it)
+
+
+## Holds squad `squad_id`: stamps the run time it ends and its strength on the item (a new hold keeps
+## the stronger strength and the longer time; an expired one is replaced).
+func hold(squad_id: int, sec: float, strength := 1.0) -> void:
+	var it := run.kind_item(squad_id)
+	if it.is_empty() or not it.get("alive", false) or str(it["kind"]) != "squad" or sec <= 0.0 or strength <= 0.0:
+		return
+	var k := clampf(strength, 0.0, 1.0)
+	var end := float(it.get("hold_end", 0.0))
+	if end > run.t:
+		k = maxf(k, float(it.get("hold_k", 0.0)))
+	it["hold_k"] = k
+	it["hold_end"] = maxf(end, run.t + sec)
+
+
+## The hold on squad item `it` now: its strength, 0 when none (Run's clash / siege ticks: a held foe
+## deals x (1 - this); Hazards.step_squads: its charge runs x (1 - this)).
+func hold_k(it: Dictionary) -> float:
+	if float(it.get("hold_end", 0.0)) <= run.t:
+		return 0.0
+	return float(it.get("hold_k", 0.0))
+
+
+## Grounds a Flying squad for `sec` s (its rows say flying false meanwhile); no-op on any other.
+func ground(squad_id: int, sec: float) -> void:
+	var it := run.kind_item(squad_id)
+	if it.is_empty() or not it.get("alive", false) or str(it["kind"]) != "squad" or sec <= 0.0:
+		return
+	var props: Variant = it.get("props")
+	if not (props is Array and (props as Array).has("flying")):
+		return
+	it["ground_end"] = maxf(float(it.get("ground_end", 0.0)), run.t + sec)
+
+
+## Tethers squads `a` and `b` for `sec` s: Run.hurt hands every damage either takes to tether_share.
+func tether(a: int, b: int, share: float, sec: float) -> void:
+	var ia := run.kind_item(a)
+	var ib := run.kind_item(b)
+	if a == b or ia.is_empty() or ib.is_empty() or share <= 0.0 or sec <= 0.0:
+		return
+	if not ia.get("alive", false) or not ib.get("alive", false) or str(ia["kind"]) != "squad" or str(ib["kind"]) != "squad":
+		return
+	for k in range(_tethers.size() - 1, -1, -1):
+		if float((_tethers[k] as Array)[3]) <= run.t:
+			_tethers.remove_at(k)
+	_tethers.append([ia, ib, share, run.t + sec])
+
+
+## True while any tether was made this run (Run.hurt's cheap test).
+func tethered() -> bool:
+	return not _tethers.is_empty()
+
+
+## Run.hurt: `dealt` landed on squad item `it`; each live tether hands its share to the partner (a
+## "tether" hit; one hop: the share never passes on).
+func tether_share(it: Dictionary, dealt: float) -> void:
+	if _tethering or dealt <= 0.0:
+		return
+	for tt: Array in _tethers:
+		if float(tt[3]) <= run.t:
+			continue
+		var other: Dictionary = {}
+		if is_same(tt[0], it):
+			other = tt[1]
+		elif is_same(tt[1], it):
+			other = tt[0]
+		if other.is_empty() or not other.get("alive", false):
+			continue
+		_tethering = true
+		run.hurt(other, dealt * float(tt[2]), "tether")
+		_tethering = false
+
+
+func grant_ward(kind: StringName, charges: int, sec: float) -> void:
+	if charges <= 0 or sec <= 0.0:
+		return
+	var w: Array = _wards.get(kind, [0.0, 0.0])
+	if float(w[1]) <= run.t:
+		w = [0.0, 0.0]
+	_wards[kind] = [float(w[0]) + float(charges), maxf(float(w[1]), run.t + sec)]
+
+
+## One ward charge a `kind` hit may spend (LevelSim.WARD_KINDS: a blade hit spends a blade ward, then a
+## contact ward); true = the hit is absorbed.
+func absorb(kind: StringName) -> bool:
+	if _wards.is_empty():
+		return false
+	for wk: StringName in LevelSim.WARD_KINDS.get(kind, [kind]):
+		var w: Array = _wards.get(wk, [])
+		if not w.is_empty() and float(w[1]) > run.t and float(w[0]) >= 1.0:
+			w[0] = float(w[0]) - 1.0
+			return true
+	return false
+
+
 func _answer() -> Array:
 	if _found.is_empty():
 		_none.clear()
@@ -175,6 +291,10 @@ func _squad_row(it: Dictionary) -> Dictionary:
 	r["x"] = float(it["x"])
 	r["n"] = float(it["hp"])
 	r["status"] = it.get("status", _no_status)
+	if it.has("ground_end"):
+		# A grounded Flying squad reads as a ground squad (ground).
+		var props: Array = it.get("props", []) if it.get("props") is Array else []
+		r["flying"] = props.has("flying") and float(it["ground_end"]) <= run.t
 	return r
 
 

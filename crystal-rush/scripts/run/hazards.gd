@@ -427,6 +427,10 @@ func step_squads(dt: float, d: float, foe: Dictionary, line_z: float, army_x: fl
 		var fighting := foe == it
 		sq.charging = fighting
 		var moving := false
+		# A held squad (KindView.hold, heroes design §10.4) charges x (1 - its hold strength).
+		var pace := SQUAD_CHARGE_SPEED * dt
+		if run.kind_view:
+			pace *= 1.0 - run.kind_view.hold_k(it)
 		for k in sq.shown:
 			var p := sq.pos[k]
 			var h := sq.home[k]
@@ -435,7 +439,7 @@ func step_squads(dt: float, d: float, foe: Dictionary, line_z: float, army_x: fl
 				var tx := lerpf(h.x, army_x + (h.x - float(it["x"])) * 0.8, 0.35)
 				var tz := line_z - rank * 0.3
 				p.x += (tx - p.x) * (1.0 - exp(-4.0 * dt))
-				p.z = move_toward(p.z, tz, SQUAD_CHARGE_SPEED * dt)
+				p.z = move_toward(p.z, tz, pace)
 				moving = moving or absf(p.z - tz) > 0.04
 			else:
 				p.x += (h.x - p.x) * (1.0 - exp(-3.0 * dt))

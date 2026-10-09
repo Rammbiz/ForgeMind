@@ -5,6 +5,10 @@ extends KindView
 ## or running, and each step that has champions), so LevelSim.State stays a plain copyable record.
 ## Target ids are LevelSim item indices. fx is a counter (per event in State.champ_fx while the
 ## state has champions).
+##
+## H2 verbs (hold, ground, status, status_mult, tether, grant_ward / absorb) keep their records in the
+## State (LevelSim.State.kv, kv_live, tethers, wards; LevelSim's "KindView records" section), so the
+## planner's copies branch them; the statuses are LevelSim's expected-value mirror of the Run's Statuses.
 
 ## The shared empty answers (read-only constants: the rules never change what they get).
 const _NONE: Array = []
@@ -95,8 +99,9 @@ func fx(event: StringName, _data := {}) -> void:
 # ------------------------------------------------------------------ H2: champions (§4.2, §10.4)
 
 ## Living squads with d in [d0, d1] whose span (x +- half width) overlaps [x0, x1]; n = soldiers
-## left (hp). flying / armored / phantom come from the item's `props` array, as in the Run; status is
-## an empty Dictionary (statuses are not simulated). An empty answer is a shared empty array.
+## left (hp). flying / armored / phantom come from the item's `props` array, as in the Run (a grounded
+## squad is not flying); status is an empty Dictionary (the rules never read it). An empty answer is a
+## shared empty array.
 func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 	var out: Array = _NONE
 	var lo := LevelSim._first_at(lv.d, lv.block, d0)
@@ -112,8 +117,9 @@ func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 		var props: Array = it["props"] if it.get("props") is Array else _NONE
 		if is_same(out, _NONE):
 			out = []
+		var flying := props.has("flying") and (s.kv.is_empty() or not LevelSim.grounded(s, i))
 		out.append({"id": i, "d": float(lv.d[i]), "x": float(lv.x[i]), "n": float(s.hp[i]),
-				"flying": props.has("flying"), "armored": props.has("armored"),
+				"flying": flying, "armored": props.has("armored"),
 				"phantom": props.has("phantom"), "status": _NO_STATUS})
 	return out
 
@@ -158,8 +164,9 @@ func champions() -> Array:
 	return s.champs.members
 
 
-## LevelSim's own hurt path (kills, ult charge, breaking pays out). Returns the whole soldiers a
-## squad lost (its shown count is ceil(hp)); 0 for structures.
+## LevelSim's own hurt path (kills, ult charge, breaking pays out; on a squad x status_mult, then a Jolt
+## chain and a tether's share, as Run.hurt). Returns the whole soldiers a squad lost (its shown count is
+## ceil(hp)); 0 for structures.
 func hit(target_id: int, dmg: float, _tags := {}) -> int:
 	if target_id < 0 or target_id >= s.alive.size() or s.alive[target_id] == 0:
 		return 0
@@ -167,14 +174,48 @@ func hit(target_id: int, dmg: float, _tags := {}) -> int:
 		LevelSim._hurt(lv, s, target_id, dmg)
 		return 0
 	var before := ceilf(maxf(s.hp[target_id] - 0.001, 0.0))
-	LevelSim._hurt(lv, s, target_id, dmg)
+	if s.kv.is_empty():
+		LevelSim._hurt(lv, s, target_id, dmg)
+	else:
+		LevelSim._hurt_vs(lv, s, target_id, dmg)
 	var after := ceilf(maxf(s.hp[target_id] - 0.001, 0.0)) if s.alive[target_id] == 1 else 0.0
 	return int(before - after)
 
 
-## Statuses are not simulated (LevelSim is an expected-value model).
-func status(_target_id: int, _st: StringName, _s: float) -> void:
-	pass
+## The expected-value mirror of the Run's Statuses (LevelSim.apply_status): MARK, BURN and JOLT act;
+## CHILL, SEAL and STAGGER run their timers and change nothing, as in the Run.
+func status(target_id: int, st: StringName, sec: float) -> void:
+	LevelSim.apply_status(lv, s, target_id, String(st), sec)
+
+
+## MARK's vs while it runs on the squad (1.25), else 1.0.
+func status_mult(target_id: int) -> float:
+	return 1.0 if s.kv.is_empty() else LevelSim.status_vs(s, target_id)
+
+
+func hold(squad_id: int, sec: float, strength := 1.0) -> void:
+	LevelSim.hold(lv, s, squad_id, sec, strength)
+
+
+func ground(squad_id: int, sec: float) -> void:
+	LevelSim.ground(lv, s, squad_id, sec)
+
+
+func tether(a: int, b: int, share: float, sec: float) -> void:
+	LevelSim.tether(lv, s, a, b, share, sec)
+
+
+func grant_ward(kind: StringName, charges: int, sec: float) -> void:
+	LevelSim.grant_ward(s, kind, float(charges), sec)
+
+
+## One whole ward charge a `kind` hit may spend (LevelSim.WARD_KINDS); LevelSim's own hazard and turret
+## losses spend fractions of charges (LevelSim.ward_spend).
+func absorb(kind: StringName) -> bool:
+	if s.wards.is_empty() or LevelSim.ward_left(s, kind) < 1.0:
+		return false
+	LevelSim.ward_spend(s, kind, 1.0)
+	return true
 
 
 ## Mend returns join the army (the Run spawns them at the blob front).

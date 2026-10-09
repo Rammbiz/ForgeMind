@@ -72,8 +72,13 @@ class_name LevelSim
 ##   Hazard bands lose x hazard_loss_mult, then a ready Guardian Blocks (a barricade only wears down
 ##   by the soldiers it really kills); turrets: Німб's tier IV catch (absorb_turret), then
 ##   x hazard_loss_mult, never Blocked. Volleys deal
-##   x volley_mult (statuses are not simulated). Every soldier lost (clash, siege, hazard, turret,
+##   x volley_mult. Every soldier lost (clash, siege, hazard, turret,
 ##   gate) feeds Mend; Mend returns join the army. result() carries team_report.
+## - KindView verbs (H2; only after a champion or hero-kind rule used one, see "KindView records"): a
+##   held squad deals x (1 - strength) in a clash; statuses are an expected-value mirror of the Run's
+##   Statuses (MARK x1.25 on hero, machine and champion hits; BURN 1 unit / s; JOLT chains 75%; CHILL,
+##   SEAL, STAGGER change nothing, as in the Run); a tether shares damage; wards spend per soldier. The
+##   Mage aura's volley procs are left out (every Mage is Rune: SEAL changes nothing).
 
 enum K { TILE, COIN, RECRUITS, GATE, BARRICADE, BLADE, TURRET, SQUAD, GEODE, CRATE, FORTRESS, STAIRS }
 enum Mode { RUN, CLASH, SIEGE, WON, LOST }
@@ -188,6 +193,15 @@ class State extends RefCounted:
 	var samples := PackedVector3Array()
 	var champs := Champions.new()       ## the run's champions (heroes design §4.2; empty while off)
 	var champ_fx := {}                  ## champion fx event -> count (SimKindView.fx; only with champions)
+	## KindView verbs (heroes design §10.4, H2; SimKindView): KV floats per item (holds, groundings, the
+	## status model), written only by champion / hero-kind rules. Empty until a verb first touches an
+	## item, so a run without them never reads, ticks or copies any of this (phase 0 stays bit for bit).
+	var kv := PackedFloat32Array()
+	var kv_live := PackedInt32Array()   ## items with a status running (ticked by _statuses)
+	var tethers: Array = []             ## [[a, b, share, end run time], ...] (KindView.tether)
+	var wards := {}                     ## kind -> [charges, end run time] (KindView.grant_ward / absorb)
+	var st_kills := 0.0                 ## squad hp the modelled statuses added (MARK's extra, BURN, JOLT chains)
+	var hold_saved := 0.0               ## soldiers holds spared in clashes (KindView.hold)
 
 	func copy() -> State:
 		var s := State.new()
@@ -214,6 +228,15 @@ class State extends RefCounted:
 		if champs.active():
 			s.champs = champs.copy()
 			s.champ_fx = champ_fx.duplicate()
+		if not kv.is_empty():
+			s.kv = kv.duplicate()
+			s.kv_live = kv_live.duplicate()
+			s.st_kills = st_kills
+			s.hold_saved = hold_saved
+		if not tethers.is_empty():
+			s.tethers = tethers.duplicate(true)
+		if not wards.is_empty():
+			s.wards = wards.duplicate(true)
 		return s
 
 
@@ -427,6 +450,10 @@ static func step(lv: Level, s: State, path: PackedFloat32Array, dt: float) -> vo
 		s.ult = float((def["ult"] as Dictionary)["charge"])
 	_hero_attack(lv, s, def, dt)
 	_machines(lv, s, dt)
+	if not s.kv_live.is_empty():
+		# The statuses champions / hero kinds applied decay and burn after the machines fired (the Run's
+		# Weapons.step -> Statuses.step).
+		_statuses(lv, s, dt)
 	_volleys(lv, s, dt)
 	_ult_step(lv, s, def, dt)
 	if s.champs.active():
@@ -820,7 +847,11 @@ static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> voi
 			_hit_gate(lv, s, i, float(dmg) * gk)
 		elif lv.kind[i] == K.SQUAD:
 			s.hit_t[i] = s.t
-			_hurt(lv, s, i, dmg + float(def["splash"]))
+			if s.kv.is_empty():
+				_hurt(lv, s, i, dmg + float(def["splash"]))
+			else:
+				# Hero shots land MARK's vs (Run._hero_attack x Statuses.vs).
+				_hurt_vs(lv, s, i, dmg + float(def["splash"]))
 		else:
 			_hurt(lv, s, i, float(dmg))
 
@@ -901,16 +932,23 @@ static func _hit_gate(lv: Level, s: State, g: int, dmg: float) -> void:
 		s.val[g] = v
 
 
-## Damages a hostile; for squads `n` is enemies killed. Breaking things pays out.
-static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
+## Damages a hostile; for squads `n` is enemies killed. Breaking things pays out. Returns the damage
+## dealt. `chain` false = a clash / siege tick, a Burn tick or a Jolt chain (the Run's sources that never
+## set off a Jolt chain, Statuses.on_hit); with the KindView records (H2 only): a Jolt chain, then a
+## tether's share (Run.hurt's order).
+static func _hurt(lv: Level, s: State, i: int, n: float, chain := true) -> float:
 	if s.alive[i] == 0 or n <= 0.0:
-		return
+		return 0.0
 	var dealt := minf(n, s.hp[i])
 	s.hp[i] -= dealt
 	var k := lv.kind[i]
 	if k == K.SQUAD:
 		s.kills += dealt
 		_charge(s, dealt)
+		if chain and not s.kv.is_empty():
+			_jolt(lv, s, i, dealt)
+		if not s.tethers.is_empty():
+			_tether_share(lv, s, i, dealt)
 	elif k == K.CRATE and s.val[i] >= 0.0 and s.hp[i] <= float(crate_bonus(lv.items[i])) + 0.001:
 		# OPEN emptied: the crate is open (its pair partner folds), the BONUS ring fills.
 		s.val[i] = -1.0
@@ -919,7 +957,7 @@ static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
 		if s.new_crate != "" and bool(ci.get("new", false)) and (str(ci.get("content", "")) == s.new_crate or str(ci.get("weapon", "")) == s.new_crate):
 			s.new_got = true        # planning: the NEW machine is claimed once its crate is open
 	if s.hp[i] > 0.001:
-		return
+		return dealt
 	s.hp[i] = 0.0
 	s.alive[i] = 0
 	var it := lv.items[i]
@@ -939,6 +977,321 @@ static func _hurt(lv: Level, s: State, i: int, n: float) -> void:
 			_log(s, "geode %s +%d" % [str(it.get("reward", "")), int(amount)])
 		K.FORTRESS:
 			_win(lv, s)
+	return dealt
+
+
+# ------------------------------------------------------------------ KindView records (heroes design §10.4, H2)
+# SimKindView's verbs keep their state in the State (kv, kv_live, tethers, wards), so a State stays one
+# copyable record. Only champion / hero-kind rules write it; while it is empty nothing below runs and no
+# Meta-1 path reads it. The statuses mirror the Run's Statuses (scripts/run/statuses.gd) as an expected
+# value: MARK (vs 1.25 on hero, machine and champion hits), BURN (1 unit / s for 3 s, one jump when the
+# squad is wiped) and JOLT (the next chainable hit chains 75% to the nearest squad within 2 u). CHILL, SEAL
+# and STAGGER are kept with their timers but change nothing, exactly as in the Run (Meta-1 Statuses tracks
+# and draws them; STAGGER's knock-back only moves the drawn formation).
+
+## Floats per item in State.kv.
+const KV := 13
+const KV_HOLD_END := 0          ## run time the hold ends
+const KV_HOLD_K := 1            ## hold strength (1 = a full stop)
+const KV_GROUND_END := 2        ## run time the grounding ends
+const KV_MARK := 3              ## seconds left of each status (Statuses "t") ...
+const KV_BURN := 4
+const KV_BURN_RATE := 5         ## BURN units / s (kept after it runs out, as Statuses keeps "rate")
+const KV_BURN_JUMPS := 6
+const KV_JOLT := 7
+const KV_JOLT_N := 8            ## JOLT stacks (kept after it runs out, as Statuses keeps "stacks")
+const KV_CHILL := 9
+const KV_CHILL_N := 10
+const KV_SEAL := 11
+const KV_STAGGER := 12
+## The timed status slots _statuses runs down.
+const KV_TIMED: Array[int] = [KV_MARK, KV_BURN, KV_JOLT, KV_CHILL, KV_SEAL, KV_STAGGER]
+## Ward kinds a hit of each kind may spend (KindView.absorb: a blade contact also spends a contact ward).
+const WARD_KINDS := {&"turret": [&"turret"], &"blade": [&"blade", &"contact"], &"contact": [&"contact"]}
+
+static var _tethering := false
+
+
+## Sizes State.kv to the level's items (zeroed). The first verb that touches an item calls it.
+static func kv_ready(lv: Level, s: State) -> void:
+	var n := lv.items.size() * KV
+	var old := s.kv.size()
+	if old >= n:
+		return
+	s.kv.resize(n)
+	for k in range(old, n):
+		s.kv[k] = 0.0
+
+
+## True when item `i` is a living squad (the only target of holds, groundings and statuses).
+static func _live_squad(lv: Level, s: State, i: int) -> bool:
+	return i >= 0 and i < s.alive.size() and s.alive[i] == 1 and lv.kind[i] == K.SQUAD
+
+
+## The hold on item `i` now: its strength (0 = none). The squad's clash losses dealt are x (1 - this).
+static func hold_k(s: State, i: int) -> float:
+	var o := i * KV
+	if i < 0 or o + KV > s.kv.size() or s.kv[o + KV_HOLD_END] <= s.t:
+		return 0.0
+	return s.kv[o + KV_HOLD_K]
+
+
+## KindView.hold: squad `i` held `sec` s at `strength`; a new hold keeps the stronger strength and the
+## longer time (an expired one is replaced).
+static func hold(lv: Level, s: State, i: int, sec: float, strength: float) -> void:
+	if not _live_squad(lv, s, i) or sec <= 0.0 or strength <= 0.0:
+		return
+	kv_ready(lv, s)
+	var o := i * KV
+	var k := clampf(strength, 0.0, 1.0)
+	if s.kv[o + KV_HOLD_END] > s.t:
+		k = maxf(k, s.kv[o + KV_HOLD_K])
+	s.kv[o + KV_HOLD_K] = k
+	s.kv[o + KV_HOLD_END] = maxf(s.kv[o + KV_HOLD_END], s.t + sec)
+
+
+## True while squad `i` is grounded (KindView.ground).
+static func grounded(s: State, i: int) -> bool:
+	var o := i * KV
+	return i >= 0 and o + KV <= s.kv.size() and s.kv[o + KV_GROUND_END] > s.t
+
+
+## KindView.ground: a Flying squad counts as ground for `sec` s (the longer time); no-op otherwise.
+static func ground(lv: Level, s: State, i: int, sec: float) -> void:
+	if not _live_squad(lv, s, i) or sec <= 0.0:
+		return
+	var props: Variant = lv.items[i].get("props")
+	if not (props is Array and (props as Array).has("flying")):
+		return
+	kv_ready(lv, s)
+	var o := i * KV
+	s.kv[o + KV_GROUND_END] = maxf(s.kv[o + KV_GROUND_END], s.t + sec)
+
+
+## MARK's vs on squad `i` now (Statuses.vs: the rule's 1.25 while it runs), 1.0 when none.
+static func status_vs(s: State, i: int) -> float:
+	var o := i * KV
+	if i < 0 or o + KV > s.kv.size() or s.kv[o + KV_MARK] <= 0.0:
+		return 1.0
+	return clampf(float((ArsenalData.STATUSES["mark"] as Dictionary).get("vs", 1.25)), ArsenalData.VS_CLAMP.x,
+			ArsenalData.VS_CLAMP.y)
+
+
+## A hit of `n` on squad `i` with MARK's vs (bucket 3: hero, machine and champion hits; never volleys,
+## ults or the clash, as in the Run). The extra is booked in st_kills. Returns the damage dealt.
+static func _hurt_vs(lv: Level, s: State, i: int, n: float) -> float:
+	var v := status_vs(s, i)
+	var dealt := _hurt(lv, s, i, n * v)
+	if v > 1.0:
+		s.st_kills += dealt * (1.0 - 1.0 / v)
+	return dealt
+
+
+## KindView.status on squad `i`: Statuses.apply with one stack from a champion source, then kept at least
+## `sec` s (RunKindView.status). MARK runs `sec` (its mark_s); BURN refreshes 3 s at 1 unit / s with one
+## jump; JOLT and CHILL add a stack (max 3; 2 / 1.5 s per stack); SEAL 4 s; STAGGER 0.4 s.
+static func apply_status(lv: Level, s: State, i: int, st: String, sec: float) -> void:
+	if not _live_squad(lv, s, i) or not bool(ArsenalData.FEATURES["statuses"]) or not ArsenalData.STATUSES.has(st):
+		return
+	kv_ready(lv, s)
+	var rule: Dictionary = ArsenalData.STATUSES[st]
+	var life := float(rule.get("decay_s", 1.0))
+	var o := i * KV
+	var slot := -1
+	match st:
+		"mark":
+			life = sec
+			slot = KV_MARK
+		"burn":
+			slot = KV_BURN
+			s.kv[o + KV_BURN_RATE] = maxf(s.kv[o + KV_BURN_RATE], float(rule.get("units_per_s", 1.0)))
+			s.kv[o + KV_BURN_JUMPS] = maxf(s.kv[o + KV_BURN_JUMPS], 1.0)
+		"jolt":
+			slot = KV_JOLT
+			s.kv[o + KV_JOLT_N] = minf(s.kv[o + KV_JOLT_N] + 1.0, float(rule.get("max_stacks", 1)))
+		"chill":
+			slot = KV_CHILL
+			s.kv[o + KV_CHILL_N] = minf(s.kv[o + KV_CHILL_N] + 1.0, float(rule.get("max_stacks", 1)))
+		"seal":
+			slot = KV_SEAL
+		"stagger":
+			slot = KV_STAGGER
+	if slot < 0:
+		return
+	s.kv[o + slot] = maxf(life, sec)
+	if not s.kv_live.has(i):
+		s.kv_live.append(i)
+
+
+## True while status `st` runs on item `i` (dev tools and tests).
+static func has_status(s: State, i: int, st: String) -> bool:
+	var slot: int = {"mark": KV_MARK, "burn": KV_BURN, "jolt": KV_JOLT, "chill": KV_CHILL, "seal": KV_SEAL,
+			"stagger": KV_STAGGER}.get(st, -1)
+	var o := i * KV
+	return slot >= 0 and i >= 0 and o + KV <= s.kv.size() and s.kv[o + slot] > 0.0
+
+
+## Statuses.step for the modelled statuses: the timers run down; a burning squad loses rate x the time
+## left in the step (the Run's whole-unit Burn ticks as an expected value; a Burn tick never chains);
+## Jolt and Chill lose one stack per period; a squad wiped while burning passes the Burn on.
+static func _statuses(lv: Level, s: State, dt: float) -> void:
+	for k in range(s.kv_live.size() - 1, -1, -1):
+		var i := s.kv_live[k]
+		var o := i * KV
+		if s.alive[i] == 0:
+			if s.kv[o + KV_BURN] > 0.0:
+				_burn_jump(lv, s, i)
+			s.kv_live.remove_at(k)
+			continue
+		var any := false
+		for slot in KV_TIMED:
+			var t := s.kv[o + slot]
+			if t <= 0.0:
+				continue
+			var t2 := t - dt
+			if slot == KV_BURN and s.alive[i] == 1:
+				s.st_kills += _hurt(lv, s, i, s.kv[o + KV_BURN_RATE] * minf(dt, t), false)
+			elif (slot == KV_JOLT or slot == KV_CHILL) and t2 <= 0.0 and s.kv[o + slot + 1] > 1.0:
+				s.kv[o + slot + 1] -= 1.0
+				t2 = float((ArsenalData.STATUSES["jolt" if slot == KV_JOLT else "chill"] as Dictionary)["decay_s"])
+			s.kv[o + slot] = maxf(t2, 0.0)
+			any = any or t2 > 0.0
+		if not any and s.alive[i] == 1:
+			s.kv_live.remove_at(k)
+
+
+## Centre of squad `i` as Statuses._center sees it: (x, d of the front + 0.1 + half its drawn ranks).
+static func _squad_centre(lv: Level, s: State, i: int) -> Vector2:
+	var it := lv.items[i]
+	var w := float(it.get("w", 2.4))
+	var per_row := maxi(3, int(w / Balance.SQUAD_DX))
+	var hp0 := float(it.get("value", s.hp[i]))
+	var shown := mini(ceili(maxf(s.hp[i], 0.0)), Balance.SQUAD_SHOWN) if s.alive[i] == 1 else 0
+	if hp0 > Balance.SQUAD_SHOWN and s.alive[i] == 1:
+		shown = ceili(float(Balance.SQUAD_SHOWN) * maxf(s.hp[i], 0.0) / hp0)
+	var rows := ceilf(float(shown) / float(per_row))
+	return Vector2(lv.x[i], lv.d[i] + 0.1 + rows * Balance.SQUAD_DZ * 0.5)
+
+
+## The living squad nearest squad `i` (centre distance less its half width, below `reach`), -1 when none
+## (Statuses._nearest_squad). Squads stand sorted by d, so only lv.block near `i` is searched (a centre
+## sits at most half a full squad's ranks, SQUAD_SHOWN / 3 x SQUAD_DZ / 2 ~ 12 u, behind its front).
+static func _nearest_squad(lv: Level, s: State, i: int, reach: float) -> int:
+	var p := _squad_centre(lv, s, i)
+	var best := -1
+	var bd := reach
+	var lo := _first_at(lv.d, lv.block, lv.d[i] - reach - 13.0)
+	for j in range(lo, lv.block.size()):
+		var q := lv.block[j]
+		if lv.d[q] > lv.d[i] + reach + 13.0:
+			break
+		if q == i or s.alive[q] == 0 or lv.kind[q] != K.SQUAD:
+			continue
+		var dist := (_squad_centre(lv, s, q) - p).length() - lv.hw[q]
+		if dist < bd:
+			bd = dist
+			best = q
+	return best
+
+
+## Statuses.on_hit: a chainable hit of `n` on a Jolted squad chains 75% to the nearest other squad within
+## the Jolt radius and spends a stack (no squad near: nothing spent).
+static func _jolt(lv: Level, s: State, i: int, n: float) -> void:
+	var o := i * KV
+	if n <= 0.0 or o + KV > s.kv.size() or s.kv[o + KV_JOLT] <= 0.0:
+		return
+	var j := _nearest_squad(lv, s, i, float((ArsenalData.STATUSES["jolt"] as Dictionary).get("chain_r", 2.0)))
+	if j < 0:
+		return
+	s.kv[o + KV_JOLT_N] -= 1.0
+	if s.kv[o + KV_JOLT_N] <= 0.0:
+		s.kv[o + KV_JOLT] = 0.0
+	s.st_kills += _hurt(lv, s, j, n * Statuses.CHAIN_SHARE, false)
+
+
+## Statuses._on_wiped: the Burn of wiped squad `i` jumps to the nearest squad within jump_r (3 u) with
+## one jump fewer, refreshed to its 3 s.
+static func _burn_jump(lv: Level, s: State, i: int) -> void:
+	var o := i * KV
+	var jumps := int(s.kv[o + KV_BURN_JUMPS])
+	if jumps <= 0:
+		return
+	var rule: Dictionary = ArsenalData.STATUSES["burn"]
+	var j := _nearest_squad(lv, s, i, float(rule.get("jump_r", 3.0)))
+	if j < 0:
+		return
+	var q := j * KV
+	s.kv[q + KV_BURN_RATE] = maxf(s.kv[q + KV_BURN_RATE], s.kv[o + KV_BURN_RATE])
+	s.kv[q + KV_BURN_JUMPS] = maxf(s.kv[q + KV_BURN_JUMPS], float(jumps - 1))
+	s.kv[q + KV_BURN] = float(rule.get("decay_s", 3.0))
+	if not s.kv_live.has(j):
+		s.kv_live.append(j)
+
+
+## KindView.tether: `share` of every damage either squad takes also hits the other for `sec` s.
+static func tether(lv: Level, s: State, a: int, b: int, share: float, sec: float) -> void:
+	if a == b or not _live_squad(lv, s, a) or not _live_squad(lv, s, b) or share <= 0.0 or sec <= 0.0:
+		return
+	for k in range(s.tethers.size() - 1, -1, -1):
+		if float((s.tethers[k] as Array)[3]) <= s.t:
+			s.tethers.remove_at(k)
+	s.tethers.append([a, b, share, s.t + sec])
+
+
+## The tethers' share of `dealt` on squad `i` goes to each partner (one hop: a share never passes on).
+static func _tether_share(lv: Level, s: State, i: int, dealt: float) -> void:
+	if _tethering or dealt <= 0.0:
+		return
+	for tt: Array in s.tethers:
+		if float(tt[3]) <= s.t:
+			continue
+		var other := -1
+		if int(tt[0]) == i:
+			other = int(tt[1])
+		elif int(tt[1]) == i:
+			other = int(tt[0])
+		if other < 0:
+			continue
+		_tethering = true
+		_hurt(lv, s, other, dealt * float(tt[2]))
+		_tethering = false
+
+
+## KindView.grant_ward: `charges` more wards against `kind` hits until `sec` s from now (charges add up,
+## the time keeps the longer; an expired ward starts over).
+static func grant_ward(s: State, kind: StringName, charges: float, sec: float) -> void:
+	if charges <= 0.0 or sec <= 0.0:
+		return
+	var w: Array = s.wards.get(kind, [0.0, 0.0])
+	if float(w[1]) <= s.t:
+		w = [0.0, 0.0]
+	s.wards[kind] = [float(w[0]) + charges, maxf(float(w[1]), s.t + sec)]
+
+
+## The ward charges a `kind` hit may spend now (WARD_KINDS).
+static func ward_left(s: State, kind: StringName) -> float:
+	var n := 0.0
+	for wk: StringName in WARD_KINDS.get(kind, [kind]):
+		var w: Array = s.wards.get(wk, [])
+		if not w.is_empty() and float(w[1]) > s.t:
+			n += float(w[0])
+	return n
+
+
+## Spends up to `want` ward charges a `kind` hit may use (WARD_KINDS); returns the charges spent. One
+## charge = one hit = one soldier (LevelSim's fractional losses spend fractions).
+static func ward_spend(s: State, kind: StringName, want: float) -> float:
+	var spent := 0.0
+	for wk: StringName in WARD_KINDS.get(kind, [kind]):
+		if spent >= want or not s.wards.has(wk):
+			continue
+		var w: Array = s.wards[wk]
+		if float(w[1]) <= s.t or float(w[0]) <= 0.0:
+			continue
+		var take := minf(float(w[0]), want - spent)
+		w[0] = float(w[0]) - take
+		spent += take
+	return spent
 
 
 ## Sim row of fielded machine `w` ([id, rank, timer, overflow]).
@@ -1002,7 +1355,11 @@ static func _machines(lv: Level, s: State, dt: float) -> void:
 			over += ArsenalData.overflow_bonus(k + 1)
 		var mult := (1.0 + over) * (1.0 + (amp if lane and str(w[0]) != "prism" else 0.0))
 		if lv.kind[i] == K.SQUAD:
-			_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
+			if s.kv.is_empty():
+				_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
+			else:
+				# Machine hits land MARK's vs (Weapons._vs).
+				_hurt_vs(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
 		else:
 			_hurt(lv, s, i, float(row["struct"]) * tick * mult)
 
@@ -1366,6 +1723,10 @@ static func _hazards(lv: Level, s: State) -> void:
 			if lv.kind[i] == K.BARRICADE:
 				s.hp[i] += spare
 				s.alive[i] = 1 if s.hp[i] > 0.001 else 0
+		if lost > 0.0 and not s.wards.is_empty():
+			# Hero ult wards (KindView.absorb, H2): each charge takes one soldier's contact; a barricade
+			# keeps the band's wear, as with a Block.
+			lost -= ward_spend(s, &"contact" if lv.kind[i] == K.BARRICADE else &"blade", lost)
 		if lost > 0.0 and s.champs.active():
 			lost = _champ_hazard(lv, s, i, lost)
 		if lost > 0.0:
@@ -1478,6 +1839,9 @@ static func _turrets(lv: Level, s: State, dt: float) -> void:
 		if Vector2(lv.x[i] - s.hx, dz).length() - r > reach:
 			continue
 		var lost := minf(float(it.get("rate", 2.0)) * dt * hazard_slow(s), s.army)
+		if not s.wards.is_empty():
+			# Hero ult wards (KindView.absorb, H2): a charge takes one shot (one soldier).
+			lost -= ward_spend(s, &"turret", lost)
 		if s.champs.active():
 			# Turrets never target champions and are never Blocked (§4.2); Німб's tier IV catches a
 			# shot (before the aura, as the Run catches a whole shot); then the Healer aura.
@@ -1523,9 +1887,11 @@ static func _clash(lv: Level, s: State, dt: float) -> void:
 				_champ_tick(lv, s, f, hit, hazard_slow(s), s.drill_k)
 			else:
 				var lost := hit * hazard_slow(s)
+				if not s.kv.is_empty():
+					lost = _held(s, f, lost)
 				s.army -= lost
 				s.clash_deaths += lost
-				_hurt(lv, s, f, hit * s.drill_k)
+				_hurt(lv, s, f, hit * s.drill_k, false)
 		else:
 			s.army = 0.0
 			if not (s.champs.active() and _champ_absorb(lv, s, f)):
@@ -1547,14 +1913,27 @@ static func _champ_tick(lv: Level, s: State, f: int, hit: float, slow: float, dr
 	var m := s.champs.members
 	var lost := 0.0
 	if not ChampionKinds.tick_free(m):
-		lost = minf(hit * slow * ChampionKinds.clash_loss_mult(m), s.army)
+		lost = hit * slow * ChampionKinds.clash_loss_mult(m)
+		if not s.kv.is_empty():
+			lost = _held(s, f, lost)
+		lost = minf(lost, s.army)
 	s.army -= lost
 	s.clash_deaths += lost
-	_hurt(lv, s, f, hit * drill_k * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m))
+	_hurt(lv, s, f, hit * drill_k * ChampionKinds.clash_kill_mult(m) + ChampionKinds.cleave(m), false)
 	# The tick that breaks the foe costs the front nothing (the Run's result is final at that hit).
 	if s.alive[f] == 1:
 		ChampionKinds.clash_hit(_view(lv, s), m, hit, s.champs.guardian_hero)
 	_fed(s, lost)
+
+
+## A clash / siege tick's loss `lost` against foe `f`, x (1 - its hold strength) while a hold runs
+## (KindView.hold: a held squad deals that much less); the spared soldiers are booked in hold_saved.
+static func _held(s: State, f: int, lost: float) -> float:
+	var hk := hold_k(s, f)
+	if hk <= 0.0:
+		return lost
+	s.hold_saved += lost * hk
+	return lost * (1.0 - hk)
 
 
 ## Army 0 in a clash: the first living champion (front -> left -> right -> rear) takes the tick, the
@@ -1571,7 +1950,7 @@ static func _champ_absorb(lv: Level, s: State, f: int) -> bool:
 	var hit2 := minf(_burst(minf(float(who["hp"]), s.hp[f])), s.hp[f])
 	if not ChampionKinds.absorb_tick(_view(lv, s), m, hit2):
 		return false
-	_hurt(lv, s, f, hit2)
+	_hurt(lv, s, f, hit2, false)
 	return true
 
 
@@ -1589,7 +1968,7 @@ static func _siege(lv: Level, s: State, dt: float) -> void:
 			continue
 		s.army -= hit
 		s.clash_deaths += hit
-		_hurt(lv, s, f, hit)
+		_hurt(lv, s, f, hit, false)
 	if s.mode != Mode.SIEGE:
 		return
 	if s.army < 0.5:
@@ -1829,6 +2208,8 @@ static func grow_state(lv: Level, s: State) -> void:
 		s.guard[i] = -1.0
 		s.hit_t[i] = -100.0
 		_init_item(lv, s, i)
+	if not s.kv.is_empty():
+		kv_ready(lv, s)
 
 
 ## Builds a Level from item dictionaries that are already in d order (e.g. a window of a live

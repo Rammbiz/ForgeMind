@@ -1562,6 +1562,9 @@ func hurt(it: Dictionary, n: float, source := "") -> float:
 			arsenal.statuses.on_hit(it, dealt, source)
 			if source == "volley" and champions.active():
 				_volley_procs(it)
+		if kind_view and kind_view.tethered():
+			# KindView.tether (H2): a share of what a tethered squad takes hits its partner.
+			kind_view.tether_share(it, dealt)
 	elif kind == "crate":
 		_crate_hit(it)
 	var at := aim_point(it)
@@ -2283,9 +2286,10 @@ func _clash(dt: float) -> void:
 			_champion_clash_tick(foes)
 		elif army >= 1:
 			var hit := mini(_burst(mini(army, ceili(foes))), mini(army, ceili(foes)))
-			# Slowed squads (Seer's rift) kill fewer of ours; Drill makes a hit squad lose more.
+			# Slowed squads (Seer's rift) kill fewer of ours; Drill makes a hit squad lose more. A held
+			# squad (KindView.hold, H2) deals x (1 - strength) too.
 			var lost := hit
-			var slow := hazard_slow()
+			var slow := hazard_slow() * (1.0 - kind_view.hold_k(_foe))
 			if slow < 1.0:
 				_slow_acc += float(hit) * slow
 				lost = int(floor(_slow_acc + 0.0001))
@@ -2394,14 +2398,15 @@ func _champions_step(dt: float) -> void:
 
 
 ## A clash tick with the army alive: a Guardian's shield makes it free, else the Guardian aura
-## trims our losses (with the rift's slow; fractions carry); the squad takes the hit x Drill x the
-## Warrior aura + Cleave; the front champion takes its share; then the Healers are fed.
+## trims our losses (with the rift's slow and a hold on the squad; fractions carry); the squad takes
+## the hit x Drill x the Warrior aura + Cleave; the front champion takes its share; then the Healers
+## are fed.
 func _champion_clash_tick(foes: float) -> void:
 	var m := champions.members
 	var hit := mini(_burst(mini(army, ceili(foes))), mini(army, ceili(foes)))
 	var lost := 0
 	if not ChampionKinds.tick_free(m):
-		_clash_acc += float(hit) * hazard_slow() * ChampionKinds.clash_loss_mult(m)
+		_clash_acc += float(hit) * hazard_slow() * (1.0 - kind_view.hold_k(_foe)) * ChampionKinds.clash_loss_mult(m)
 		lost = mini(int(floor(_clash_acc + 0.0001)), army)
 		# The whole soldiers due go, even past an army cap (no debt carried into later recruits).
 		_clash_acc -= floorf(_clash_acc + 0.0001)
@@ -2447,7 +2452,7 @@ func _champion_siege_tick(f: Dictionary, hit: int) -> void:
 	var m := champions.members
 	var lost := 0
 	if not ChampionKinds.tick_free(m):
-		_clash_acc += float(hit) * ChampionKinds.clash_loss_mult(m)
+		_clash_acc += float(hit) * (1.0 - kind_view.hold_k(f)) * ChampionKinds.clash_loss_mult(m)
 		lost = mini(int(floor(_clash_acc + 0.0001)), army)
 		# The whole soldiers due go, even past an army cap (no debt carried into later recruits).
 		_clash_acc -= floorf(_clash_acc + 0.0001)

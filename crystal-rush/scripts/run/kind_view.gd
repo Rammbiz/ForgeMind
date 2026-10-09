@@ -136,19 +136,28 @@ func hold(_squad_id: int, _s: float, _strength := 1.0) -> void:
 
 
 ## Takes one hit of `kind` (turret | blade | contact = a blade or barricade contact) off the army if
-## a shield / ward is up (hero ult wards: Пава, Вартан); true = absorbed (consumes one charge).
+## a shield / ward is up (hero ult wards: Пава, Вартан); true = absorbed (consumes one charge). A blade
+## hit spends a blade ward first, then a contact ward; a barricade hit (contact) only contact wards.
+## The owners ask at every hit (LevelSim._hazards / _turrets spend fractions per soldier lost).
 func absorb(_kind: StringName) -> bool:
 	return false
 
 
+## The per-run ward store absorb() spends: `charges` more wards against `kind` hits (turret | blade |
+## contact) for `s` seconds (a hero kind's ult grants them; charges add up, the time keeps the longer,
+## an expired ward starts over). No-op by default.
+func grant_ward(_kind: StringName, _charges: int, _s: float) -> void:
+	pass
+
+
 ## Tethers squads `a` and `b` for `s` seconds: `share` of every damage one takes (from any source)
-## also hits the other (Дара's harpoon, §6.21).
+## also hits the other (Дара's harpoon, §6.21); one hop (a share never passes on).
 func tether(_a: int, _b: int, _share: float, _s: float) -> void:
 	pass
 
 
-## Expected-value status model for LevelSim (the Run's Statuses do the real thing): the damage
-## multiplier a hit on `target_id` gets from its statuses now (MARK vulnerability, BRAND / SEAL ...),
-## 1.0 when none. The rules never need it; views use it inside hit().
+## The damage multiplier a hit on `target_id` gets from its statuses now: MARK's vs (1.25) while it
+## runs, 1.0 when none (SEAL, CHILL and STAGGER change no damage in the Run's Statuses). The Run reads
+## its Statuses, LevelSim its expected-value mirror. The rules never need it; views use it inside hit().
 func status_mult(_target_id: int) -> float:
 	return 1.0
