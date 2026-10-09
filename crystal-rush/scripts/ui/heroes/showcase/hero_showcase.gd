@@ -185,7 +185,7 @@ func _build_hero(entrance: bool) -> void:
 	_colbed = Panel.new()
 	_colbed.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_colbed.add_theme_stylebox_override("panel", UIKit.lux("text_bed"))
-	_colbed.self_modulate.a = clampf(0.2 + (va - 0.5) * 2.0, 0.2, 0.7) if st == "splash" else 0.0
+	_colbed.self_modulate.a = clampf(0.2 + (va - 0.5) * 2.6, 0.2, 0.84) if st == "splash" else 0.0
 	add_child(_colbed)
 	_ui = Control.new()
 	_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
