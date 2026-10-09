@@ -18,16 +18,17 @@ extends Node
 ##   removed, State.hold_saved = clash losses holds spared; the team has one champion, so they are its
 ##   own), per second of play (the aura is the same in every variant and left out; whole-run outcomes are
 ##   dominated by timing: a shorter clash moves the ult and the blade phases, see --probe). ratio =
-##   sum (c) / sum (a), the target 1 +- CHAMP_KIT_TOL. A twist whose column (c) equals (b) (within 1e-6)
-##   changed nothing LevelSim models (CHILL, SEAL and STAGGER change nothing in the Run's Statuses either;
-##   groundings and reveals need Flying / Phantom squads, Meta-2 properties; a tether needs two squads
-##   <= 4 u apart): it is UNMEASURED, counted apart (never a pass) and listed on the BUDGET_TABLE line.
+##   sum (c) / sum (a), the target 1 +- CHAMP_KIT_TOL. A twist whose columns (c), (b) and (a) are equal
+##   (within 1e-6) changed nothing LevelSim models (CHILL, SEAL and STAGGER change nothing in the Run's
+##   Statuses either; groundings and reveals need Flying / Phantom squads, Meta-2 properties; a tether needs
+##   two squads <= 4 u apart): it is UNMEASURED, counted apart (never a pass) and listed on the BUDGET_TABLE
+##   line. (c) = (b) != (a) is measured: the twist lives in the champion's own Action (Іво's barricade).
 ##
 ## godot --headless --path . res://scenes/dev/test_champion_twists.tscn -- --autotest [--verbose]
 ##     [--budget=0] [--from=15] [--to=112] [--step=4] [--hero=bolt,seer] [--only=ivo,otto]
 ##     (defaults: both heroes pooled, 50 runs; the planner paths take ~4 min without --paths)
 ##     [--sweep=otto:plant_cd=8,12,16]   (prints the ratio per value of one twist field; no verdict)
-##     [--set=field=v;field=v]   (with --sweep: fixed overrides of the same twist row)
+##     [--set=field=v;field=v]   (with --sweep: fixed overrides of the same twist row; "+" also separates)
 ##     [--paths=FILE]   (caches the planner's no-team paths as JSON between runs)
 ##     [--probe=L,L]   (per level: the no-team run and each champion's template / twist runs, in detail)
 ## Exit code = failures (a budget miss counts as one; an UNMEASURED twist is not a failure, not a pass).
@@ -59,6 +60,7 @@ func _ready() -> void:
 		_test_rangers()
 		_test_mages()
 		_test_turret_catch()
+		_test_sim_books()
 		_test_unchanged()
 		_test_cost()
 	if str(_args.get("budget", "1")) != "0":
@@ -84,7 +86,8 @@ func _ok(cond: bool, what: String) -> void:
 
 ## A test-local KindView: one army (blob centre d 0, x 0, r 2: the front slot 1.26 ahead, the hero
 ## 2.9 ahead, the clash contact 4.0 ahead), hand-placed squads {id, d, x, n, hw, flying, armored,
-## phantom} and hazards {id, d, x, kind, hp}; logs everything the rules do.
+## phantom} and hazards {id, d, x, kind, hp}; logs everything the rules do (a tether is logged, never
+## applied: its shares are the views' own, test_kind_parity checks them).
 class TwistView extends KindView:
 	var a := {"n": 100.0, "x": 0.0, "d": 0.0, "radius": 2.0, "reserves": 0.0, "revive_pool": 0.0}
 	var fight := false
@@ -94,6 +97,7 @@ class TwistView extends KindView:
 	var statuses: Array = []
 	var holds: Array = []
 	var grounds: Array = []
+	var tethers: Array = []
 	var added := 0.0
 	var events: Array = []
 
@@ -142,6 +146,9 @@ class TwistView extends KindView:
 
 	func ground(squad_id: int, sec: float) -> void:
 		grounds.append([squad_id, sec])
+
+	func tether(a_id: int, b_id: int, share: float, sec: float) -> void:
+		tethers.append([a_id, b_id, share, sec, hits.size()])
 
 	func add_soldiers(n: float, _cause: StringName) -> void:
 		added += n
@@ -217,8 +224,9 @@ func _test_healers() -> void:
 	var tonic := v.twists(&"tonic")
 	_ok(v.added == 3.0 and tonic.size() == 1 and int((tonic[0][1] as Dictionary)["target"]) == 2,
 			"Міла: a returning pulse throws the vial at the nearest squad ahead (%s)" % str(tonic))
-	_ok(v.status_of(2, &"mark").size() == 1 and is_equal_approx(float(v.status_of(2, &"mark")[0][2]), 3.0),
-			"Міла: the vial MARKs it for 3 s")
+	var tonic_s := float(ChampionKinds.twist("mila")["pulse_s"])
+	_ok(v.status_of(2, &"mark").size() == 1 and is_equal_approx(float(v.status_of(2, &"mark")[0][2]), tonic_s),
+			"Міла: the vial MARKs it for %.2f s (pulse_s)" % tonic_s)
 	var v0 := TwistView.new()
 	v0.squads = v.squads.duplicate(true)
 	var mila0 := _mem("mila", 1, 3.0, 30.0)
@@ -257,7 +265,7 @@ func _test_healers() -> void:
 
 func _test_guardians() -> void:
 	print("== Guardians: Іво, Отто, Снаряд, Німб")
-	# Іво: the barricade takes his Action (3) and burns; a blade Block kills 1 x mult behind.
+	# Іво: the barricade takes his Action (here 3) and burns; a blade Block kills 1 x mult behind.
 	var v := TwistView.new()
 	v.squads = [{"id": 5, "d": 4.0, "x": 0.0, "n": 30.0}]
 	var ivo := _mem("ivo", 1, 3.0, 60.0)
@@ -266,7 +274,7 @@ func _test_guardians() -> void:
 	var bh := v.hits_of(&"block")
 	_ok(bh.size() == 1 and int(bh[0][0]) == 11 and is_equal_approx(float(bh[0][1]), 3.0)
 			and v.twists(&"brazier").size() == 1,
-			"Іво: the blocked barricade takes 3 x power and burns (%s)" % str(bh))
+			"Іво: the blocked barricade takes his Action and burns (%s)" % str(bh))
 	_run_for(v, [ivo], 5.05)
 	ChampionKinds.absorb_hazard(v, [ivo], 12, &"blade", 5.0, 100.0, 2.0)
 	bh = v.hits_of(&"block")
@@ -279,30 +287,41 @@ func _test_guardians() -> void:
 	ChampionKinds.absorb_hazard(vt, [tpl], 11, &"barricade", 5.0, 100.0, 2.0)
 	_ok(is_equal_approx(float(vt.hits_of(&"block")[0][1]), 1.0) and vt.events.size() == 1,
 			"bare Guardian: the barricade takes the template Action, no twist fx")
-	# Іво: BURN on the clash squad at each clash start (contact = 4.0 ahead of the centre).
+	# A clash-start status (fight_every 0, the rule Іво's sheet had before the cut; contact = 4.0 ahead of the
+	# centre): once at the clash start, again for a new foe in contact. Іво's own row puts none.
 	var vf := TwistView.new()
 	vf.squads = [{"id": 7, "d": 4.0, "x": 0.0, "n": 30.0}]
 	vf.fight = true
-	var ivo2 := _mem("ivo", 1, 3.0, 60.0)
+	var start_row := {"fight_status": "burn", "fight_every": 0.0, "fight_s": 3.0, "fight_fx": &"brazier"}
+	var ivo2 := _mem("ivo", 1, 3.0, 60.0, start_row)
+	var ivo3 := _mem("ivo", 1, 3.0, 60.0)
 	_run_for(vf, [ivo2], 1.0)
 	_ok(vf.status_of(7, &"burn").size() == 1 and vf.twists(&"brazier").size() == 1,
-			"Іво: one BURN at the clash start (%d)" % vf.status_of(7, &"burn").size())
+			"clash-start status: one BURN at the clash start (%d)" % vf.status_of(7, &"burn").size())
 	vf.squads[0]["n"] = 0.0
 	vf.squads.append({"id": 8, "d": 4.2, "x": 0.0, "n": 30.0})
 	_run_for(vf, [ivo2], 0.1)
-	_ok(vf.status_of(8, &"burn").size() == 1, "Іво: a new foe in contact is a new clash start")
-	# Отто: the first 2 ticks of a clash are free; he takes them at x0.5; 8 s between plants.
+	_ok(vf.status_of(8, &"burn").size() == 1, "clash-start status: a new foe in contact is a new clash start")
+	var vf3 := TwistView.new()
+	vf3.squads = [{"id": 7, "d": 4.0, "x": 0.0, "n": 30.0}]
+	vf3.fight = true
+	_run_for(vf3, [ivo3], 1.0)
+	_ok(vf3.statuses.is_empty() and vf3.events.is_empty(), "Іво: no status on the clash squad (cut to the band)")
+	# Отто, the whole-tick plant (plant_cut 1): the first 2 ticks of a clash are free; he takes them at x0.5;
+	# 8 s between plants.
+	var whole: Dictionary = ChampionKinds.twist("otto").duplicate()
+	whole["plant_cut"] = 1.0
 	var vo := TwistView.new()
 	vo.squads = [{"id": 3, "d": 4.0, "x": 0.0, "n": 30.0}]
-	var otto := _mem("otto", 2, 1.0, 65.0)
+	var otto := _mem("otto", 2, 1.0, 65.0, whole)
 	ChampionKinds.step(vo, [otto], 0.05)
 	_ok(not ChampionKinds.tick_free([otto]), "Отто: no plant outside a clash")
 	vo.fight = true
 	ChampionKinds.step(vo, [otto], 0.05)
 	var free := [ChampionKinds.tick_free([otto]), ChampionKinds.tick_free([otto]), ChampionKinds.tick_free([otto])]
 	_ok(free == [true, true, false] and vo.twists(&"plant").size() == 1,
-			"Отто: 2 planted ticks cost the army 0 (%s)" % str(free))
-	var o2 := _mem("otto", 2, 1.0, 65.0)
+			"Отто (plant_cut 1): 2 planted ticks cost the army 0 (%s)" % str(free))
+	var o2 := _mem("otto", 2, 1.0, 65.0, whole)
 	vo.fight = false
 	ChampionKinds.step(vo, [o2], 0.05)
 	vo.fight = true
@@ -310,7 +329,7 @@ func _test_guardians() -> void:
 	ChampionKinds.tick_free([o2])
 	ChampionKinds.clash_hit(vo, [o2], 4.0, false)
 	_ok(is_equal_approx(float(o2["hp"]), 63.0) and is_equal_approx(float(o2["saved"]), 4.0),
-			"Отто: a planted tick of 4 costs him 4 x 0.5 = 2 HP (hp %.1f)" % float(o2["hp"]))
+			"Отто (plant_cut 1): a planted tick of 4 costs him 4 x 0.5 = 2 HP (hp %.1f)" % float(o2["hp"]))
 	vo.fight = false
 	_run_for(vo, [o2], 2.0)
 	vo.fight = true
@@ -321,6 +340,27 @@ func _test_guardians() -> void:
 	vo.fight = true
 	ChampionKinds.step(vo, [o2], 0.05)
 	_ok(int(o2["plant"]) == 2, "Отто: plants again after 8 s")
+	# Отто's row (plant_cut < 1): a planted tick is not free; it costs the army x (1 - plant_cut) (after the
+	# Guardian aura), he takes the spared share at x0.5, and the next tick is a plain one.
+	var cut := float(ChampionKinds.twist("otto")["plant_cut"])
+	var vp := TwistView.new()
+	vp.squads = [{"id": 3, "d": 4.0, "x": 0.0, "n": 30.0}]
+	vp.fight = true
+	var o3 := _mem("otto", 2, 1.0, 65.0)
+	ChampionKinds.step(vp, [o3], 0.05)
+	var aura := 1.0 - float(o3["aura_effect"])
+	var f1 := ChampionKinds.tick_free([o3])
+	var k1 := ChampionKinds.clash_loss_mult([o3])
+	ChampionKinds.clash_hit(vp, [o3], 40.0, false)
+	var hp1 := 65.0 - float(o3["hp"])
+	ChampionKinds.tick_free([o3])
+	ChampionKinds.tick_free([o3])
+	var k3 := ChampionKinds.clash_loss_mult([o3])
+	_ok(not f1 and is_equal_approx(k1, aura * (1.0 - cut)) and is_equal_approx(k3, aura)
+			and is_equal_approx(float(o3["saved"]), 40.0 * cut)
+			and is_equal_approx(hp1, floorf(40.0 * lerpf(0.25, 0.5, cut))),
+			"Отто: a planted tick costs the army x%.3f (aura x%.3f), books %.2f saved, costs him %.0f HP" % [k1, aura,
+			float(o3["saved"]), hp1])
 	# Снаряд: Block cd 6 s, the charge on the nearest squad <= 6 u (his Action + MARK 3 s), stamp «ЧИСТО!».
 	var vs := TwistView.new()
 	vs.squads = [{"id": 1, "d": 6.5, "x": 0.0, "n": 30.0}, {"id": 2, "d": 9.0, "x": 0.0, "n": 30.0}]
@@ -459,21 +499,25 @@ func _test_rangers() -> void:
 	_ok(vd.twists(&"harpoon").size() == 1 and th.size() == 1 and int(th[0][0]) == 2
 			and is_equal_approx(float(th[0][1]), 1.0),
 			"Дара: the 3rd shot (2 arrows) stitches the partner for 50%% (%s)" % str(th))
+	var tt: Array = vd.tethers[0] if vd.tethers.size() == 1 else []
+	_ok(tt.size() == 5 and int(tt[0]) == 1 and int(tt[1]) == 2 and is_equal_approx(float(tt[2]), 0.5)
+			and is_equal_approx(float(tt[3]), 3.0) and int(tt[4]) == vd.hits.size(),
+			"Дара: the harpoon tethers 1 to 2 (KindView.tether, 50%%, 3 s) after the partner's share (%s)" % str(
+			vd.tethers))
 	_ok(vd.grounds.size() == 1 and int(vd.grounds[0][0]) == 1 and is_equal_approx(float(vd.grounds[0][1]), 1.5),
 			"Дара: the harpooned Flying squad is grounded 1.5 s")
-	_shots(vd, da, 4)
-	th = vd.hits_of(&"tether")
-	_ok(th.size() == 2 and int(th[1][0]) == 2 and is_equal_approx(float(th[1][1]), 0.5),
-			"Дара: her next hit on a tethered squad lands on the other too (%s)" % str(th))
 	_shots(vd, da, 5)
-	_ok(vd.hits_of(&"tether").size() == 4, "Дара: the tether holds 3 s (shot 5 at +2.4 s pierces both: 2 more)")
+	_ok(vd.hits_of(&"tether").size() == 1 and vd.tethers.size() == 1,
+			"Дара: her later hits are never mirrored by the rule (the view's tether shares them; %d)" %
+			vd.hits_of(&"tether").size())
 	var short: Dictionary = ChampionKinds.twist("dara").duplicate()
 	short["tether_s"] = 1.0
 	var vl := TwistView.new()
 	vl.squads = vd.squads.duplicate(true)
 	var dl := _mem("dara", 4, 1.0, 33.0, short)
-	_shots(vl, dl, 4)
-	_ok(vl.hits_of(&"tether").size() == 1, "Дара: a lapsed tether (tether_s 1 < the 1.2 s shot) mirrors nothing")
+	_shots(vl, dl, 3)
+	_ok(vl.tethers.size() == 1 and is_equal_approx(float((vl.tethers[0] as Array)[3]), 1.0),
+			"Дара: the tether lasts tether_s (%s)" % str(vl.tethers))
 
 
 # ------------------------------------------------------------------ mages
@@ -483,10 +527,15 @@ func _test_mages() -> void:
 	var v := TwistView.new()
 	v.squads = [{"id": 1, "d": 5.0, "x": 0.0, "n": 99.0}, {"id": 2, "d": 6.8, "x": 0.0, "n": 99.0}]
 	ChampionKinds.step(v, [_mem("taya", 2, 4.0, 28.0)], 0.05)
-	_ok(v.holds.size() == 2 and v.holds.all(func(h: Array) -> bool: return is_equal_approx(float(h[1]), 1.5))
-			and v.twists(&"lull").size() == 1 and v.events[0][0] == &"champ_spell",
-			"Тая: every squad of the dust burst is lulled 1.5 s (hold) (%s)" % str(v.holds))
-	# Менгір (tier IV, right slot): the circle Brands the squads in it; the foe in it costs -25%.
+	var lk := float(ChampionKinds.twist("taya")["lull_strength"])
+	var lulled := 0
+	for h: Array in v.holds:
+		if is_equal_approx(float(h[1]), 1.5) and is_equal_approx(float(h[2]), lk):
+			lulled += 1
+	_ok(v.holds.size() == 2 and lulled == 2 and v.twists(&"lull").size() == 1 and v.events[0][0] == &"champ_spell",
+			"Тая: every squad of the dust burst is lulled 1.5 s at strength %.3f (hold) (%s)" % [lk, str(v.holds)])
+	# Менгір (tier IV, right slot): the circle Brands the squads in it; the foe in it costs x (1 - circle_cut).
+	var cc := float(ChampionKinds.twist("menhir")["circle_cut"])
 	var vm := TwistView.new()
 	vm.squads = [{"id": 1, "d": 4.0, "x": 0.0, "n": 99.0}, {"id": 2, "d": 9.0, "x": 0.0, "n": 99.0}]
 	var me := _mem("menhir", 4, 5.0, 33.0)
@@ -496,8 +545,8 @@ func _test_mages() -> void:
 	_ok(is_equal_approx(ChampionKinds.clash_loss_mult([me]), 1.0), "Менгір: no cut outside a clash")
 	vm.fight = true
 	ChampionKinds.step(vm, [me], 0.05)
-	_ok(is_equal_approx(ChampionKinds.clash_loss_mult([me]), 0.75),
-			"Менгір: the foe in the circle deals -25% clash damage")
+	_ok(is_equal_approx(ChampionKinds.clash_loss_mult([me]), 1.0 - cc) and cc > 0.0,
+			"Менгір: the foe in the circle deals -%.1f%% clash damage" % (100.0 * cc))
 	vm.fight = false
 	_run_for(vm, [me], 8.5)
 	vm.fight = true
@@ -542,10 +591,13 @@ func _test_turret_catch() -> void:
 			and v.twists(&"catch").size() == 1 and ChampionKinds.catcher([nimb], 9) == nimb,
 			"Німб: a shot aimed near him is caught (one Block)")
 	_ok(is_equal_approx(ChampionKinds.absorb_turret(v, [nimb], 9, 1.0), 1.0), "Німб: one shot per catch")
-	_ok(is_equal_approx(float(nimb["catch_cd"]), 5.0) and float(nimb["cd"]) == 0.0,
-			"Німб: the catch has its own 5 s timer")
+	_ok(is_equal_approx(float(nimb["cd"]), 5.0) and is_zero_approx(float(nimb["catch_cd"])),
+			"Німб: the catch shares the Block cooldown (5 s)")
 	ChampionKinds.absorb_hazard(v, [nimb], 30, &"blade", 4.0, 100.0, 2.0)
-	_ok(int(nimb["blocks"]) == 2, "Німб: a hazard Block right after a catch")
+	_ok(int(nimb["blocks"]) == 1, "Німб: no hazard Block right after a catch (the shared cd)")
+	_run_for(v, [nimb], 5.05)
+	ChampionKinds.absorb_hazard(v, [nimb], 31, &"blade", 4.0, 100.0, 2.0)
+	_ok(int(nimb["blocks"]) == 2, "Німб: a hazard Block once the cd ran out")
 	_run_for(v, [nimb], 5.05)
 	_ok(is_equal_approx(ChampionKinds.absorb_turret(v, [nimb], 10, 1.0), 1.0),
 			"Німб: a shot at the far flank (beyond the catch radius) is not caught")
@@ -556,10 +608,11 @@ func _test_turret_catch() -> void:
 			"a Guardian without the catch never takes a shot")
 	var vs := TwistView.new()
 	vs.hazards = v.hazards.duplicate(true)
-	var shared := _mem("nimb", 4, 2.0, 76.0, {"catch_r": 1.6, "catch_tier": 4})
-	ChampionKinds.step(vs, [shared], 0.05)
-	ChampionKinds.absorb_turret(vs, [shared], 9, 1.0)
-	_ok(is_equal_approx(float(shared["cd"]), 5.0), "without catch_cd the catch shares the Block cooldown")
+	var own := _mem("nimb", 4, 2.0, 76.0, {"catch_r": 1.6, "catch_cd": 5.0, "catch_tier": 4})
+	ChampionKinds.step(vs, [own], 0.05)
+	ChampionKinds.absorb_turret(vs, [own], 9, 1.0)
+	_ok(is_equal_approx(float(own["catch_cd"]), 5.0) and float(own["cd"]) == 0.0,
+			"with catch_cd the catch keeps its own timer")
 	# LevelSim: a turret by the road; Німб catches some shots (fewer turret deaths than his bare self).
 	var items := [{"kind": "turret", "d": 30.0, "x": 1.6, "value": 40, "range": 7.0, "rate": 2.0},
 			{"kind": "turret", "d": 60.0, "x": -1.6, "value": 40, "range": 7.0, "rate": 2.0}]
@@ -574,6 +627,43 @@ func _test_turret_catch() -> void:
 	_ok(int(m1["blocks"]) >= 2 and s1.hazard_deaths < s0.hazard_deaths - 1.5,
 			"LevelSim: Німб catches turret shots (%d catches, turret losses %.1f vs %.1f)" % [int(m1["blocks"]),
 			s1.hazard_deaths, s0.hazard_deaths])
+
+
+# ------------------------------------------------------------------ SimKindView books (the budget's inputs)
+
+## What the budget table adds up is booked once: a champion's own hit on a MARKed squad returns the whole
+## drop (MARK's extra included) and leaves State.st_kills alone; a hero / machine hit books the extra there;
+## a tether's share is booked there; a ward absorbs only with one whole charge of one kind.
+func _test_sim_books() -> void:
+	print("== SimKindView books: MARK once, tether shares, wards")
+	var lv := _level([{"kind": "squad", "d": 30.0, "x": 0.0, "value": 50, "w": 2.4},
+			{"kind": "squad", "d": 32.0, "x": 1.0, "value": 50, "w": 2.4}], 90.0)
+	var s := LevelSim.start_state(lv, "bolt", 60, {"profile": _prof([])})
+	var ids: Array[int] = []
+	for i in lv.items.size():
+		if lv.kind[i] == LevelSim.K.SQUAD:
+			ids.append(i)
+	var v := SimKindView.new(lv, s)
+	v.status(ids[0], &"mark", 3.0)
+	var got := v.hit(ids[0], 4.0)
+	_ok(got == 5 and is_zero_approx(s.st_kills),
+			"a champion hit of 4 on a MARKed squad: drop %d (want 5), st_kills %.2f (want 0)" % [got, s.st_kills])
+	LevelSim._hurt_vs(lv, s, ids[0], 4.0)
+	_ok(is_equal_approx(s.st_kills, 1.0), "a hero / machine hit of 4 books MARK's extra 1 (%.2f)" % s.st_kills)
+	var hp1 := s.hp[ids[1]]
+	v.tether(ids[0], ids[1], 0.5, 3.0)
+	v.hit(ids[0], 4.0)
+	_ok(is_equal_approx(hp1 - s.hp[ids[1]], 2.5) and is_equal_approx(s.st_kills, 3.5),
+			"a tether passes 50%% of the 5 on (%.2f) and books it (st_kills %.2f, want 3.5)" % [hp1 - s.hp[ids[1]],
+			s.st_kills])
+	LevelSim.grant_ward(s, &"blade", 0.5, 5.0)
+	LevelSim.grant_ward(s, &"contact", 0.5, 5.0)
+	var split := v.absorb(&"blade")
+	LevelSim.grant_ward(s, &"contact", 0.5, 5.0)
+	var whole := v.absorb(&"blade")
+	_ok(not split and whole and is_equal_approx(LevelSim.ward_left(s, &"blade"), 0.5),
+			"wards: half a blade + half a contact charge absorb nothing, a whole contact charge does (%s %s, %.2f)" %
+			[split, whole, LevelSim.ward_left(s, &"blade")])
 
 
 ## A short hand-built level: `items` + a 1-hp fortress at `fort` and its stairs, sorted by d.
@@ -730,7 +820,7 @@ func _budget() -> void:
 	if not sweep_vals.is_empty():
 		# --set=field=v;field=v: fixed overrides of the same twist row under the sweep.
 		var tw0: Dictionary = ChampionKinds.twist(sweep_id).duplicate()
-		for pair in str(_args.get("set", "")).split(";", false):
+		for pair in str(_args.get("set", "")).replace("+", ";").split(";", false):
 			var fv := pair.split("=", true, 1)
 			if fv.size() == 2:
 				tw0[fv[0]] = str_to_var(fv[1])
@@ -756,8 +846,11 @@ func _budget() -> void:
 		var row: Dictionary = ChampionData.CHAMPIONS[id]
 		var ratio := float(r["ratio"])
 		var ok := absf(ratio - 1.0) <= tol + 1e-9
-		# The twist changed nothing LevelSim models: not measured, so never a pass (see the header).
-		var same := absf(float(r["twist"]) - float(r["plain"])) <= 1e-6 * maxf(absf(float(r["plain"])), 1.0)
+		# The twist changed nothing LevelSim models: not measured, so never a pass (see the header). A twist
+		# carried by the champion's own Action (Іво's barricade damage) shows in the no-twist column instead.
+		var eps := 1e-6 * maxf(absf(float(r["plain"])), 1.0)
+		var same := absf(float(r["twist"]) - float(r["plain"])) <= eps \
+				and absf(float(r["plain"]) - float(r["tpl"])) <= eps
 		var verdict := "UNMEASURED" if same else ("" if ok else "MISS")
 		if same:
 			unmeasured.append(id)

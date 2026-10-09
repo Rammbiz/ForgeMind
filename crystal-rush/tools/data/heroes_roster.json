@@ -524,7 +524,7 @@
    "slot": "front",
    "kit": {
     "hp": 60,
-    "action": 3,
+    "action": 1.4,
     "aura": 0.1,
     "radius": 1.0
    },

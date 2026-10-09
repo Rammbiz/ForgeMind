@@ -200,7 +200,7 @@ class State extends RefCounted:
 	var kv_live := PackedInt32Array()   ## items with a status running (ticked by _statuses)
 	var tethers: Array = []             ## [[a, b, share, end run time], ...] (KindView.tether)
 	var wards := {}                     ## kind -> [charges, end run time] (KindView.grant_ward / absorb)
-	var st_kills := 0.0                 ## squad hp the modelled statuses added (MARK's extra, BURN, JOLT chains)
+	var st_kills := 0.0                 ## squad hp statuses and tethers added (MARK's extra, BURN, JOLT, tethers)
 	var hold_saved := 0.0               ## soldiers holds spared in clashes (KindView.hold)
 
 	func copy() -> State:
@@ -1078,11 +1078,13 @@ static func status_vs(s: State, i: int) -> float:
 
 
 ## A hit of `n` on squad `i` with MARK's vs (bucket 3: hero, machine and champion hits; never volleys,
-## ults or the clash, as in the Run). The extra is booked in st_kills. Returns the damage dealt.
-static func _hurt_vs(lv: Level, s: State, i: int, n: float) -> float:
+## ults or the clash, as in the Run). `book` = the extra is booked in st_kills (false for a champion's own
+## hit: SimKindView.hit returns the whole drop, the extra included, into that member's kills; booking it
+## here too would count it twice in the budget table). Returns the damage dealt.
+static func _hurt_vs(lv: Level, s: State, i: int, n: float, book := true) -> float:
 	var v := status_vs(s, i)
 	var dealt := _hurt(lv, s, i, n * v)
-	if v > 1.0:
+	if book and v > 1.0:
 		s.st_kills += dealt * (1.0 - 1.0 / v)
 	return dealt
 
@@ -1238,7 +1240,8 @@ static func tether(lv: Level, s: State, a: int, b: int, share: float, sec: float
 	s.tethers.append([a, b, share, s.t + sec])
 
 
-## The tethers' share of `dealt` on squad `i` goes to each partner (one hop: a share never passes on).
+## The tethers' share of `dealt` on squad `i` goes to each partner (one hop: a share never passes on); what
+## it removes is booked in st_kills (the tether's own value: no source's hit counts it).
 static func _tether_share(lv: Level, s: State, i: int, dealt: float) -> void:
 	if _tethering or dealt <= 0.0:
 		return
@@ -1253,7 +1256,7 @@ static func _tether_share(lv: Level, s: State, i: int, dealt: float) -> void:
 		if other < 0:
 			continue
 		_tethering = true
-		_hurt(lv, s, other, dealt * float(tt[2]))
+		s.st_kills += _hurt(lv, s, other, dealt * float(tt[2]))
 		_tethering = false
 
 
@@ -1358,8 +1361,12 @@ static func _machines(lv: Level, s: State, dt: float) -> void:
 			if s.kv.is_empty():
 				_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
 			else:
-				# Machine hits land MARK's vs (Weapons._vs).
-				_hurt_vs(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
+				# Machine hits land MARK's vs (Weapons._vs); the machine's Burn ticks do not (the Run's Burn ticks
+				# go through Statuses, never x vs, and never set off a Jolt chain).
+				_hurt_vs(lv, s, i, float(row["crowd"]) * tick * mult)
+				var burn := float(row.get("burn", 0.0)) * tick * mult
+				if burn > 0.0:
+					_hurt(lv, s, i, burn, false)
 		else:
 			_hurt(lv, s, i, float(row["struct"]) * tick * mult)
 

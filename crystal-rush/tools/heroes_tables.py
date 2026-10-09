@@ -80,7 +80,7 @@ RALLY = {
 # (id, uk, native, class, element, faction, hp, action number, action label, aura value, aura label, radius, slot)
 CHAMPS = [
     ("mila", "Міла", 0, "Healer", "Tech", "Dawn", 30, 3, "soldiers returned per pulse (every 3 s)", 0.12, "hazard losses -", 1.3, "left"),
-    ("ivo", "Іво", 0, "Guardian", "Plasma", "Dawn", 60, 3, "blocked-barricade damage (Block every 5 s)", 0.10, "clash losses -", 1.0, "front"),
+    ("ivo", "Іво", 0, "Guardian", "Plasma", "Dawn", 60, 1.4, "blocked-barricade damage (Block every 5 s)", 0.10, "clash losses -", 1.0, "front"),
     ("borko", "Борко", 0, "Warrior", "Kinetic", "Wildfang", 48, 3, "Undermine kills (every 5 s)", 0.10, "squad clash loss +", 1.1, "front"),
     ("alba", "Альба", 1, "Ranger", "Frost", "Wildfang", 26, 1.0, "shot damage (every 1.2 s; x1.5 vs Flying)", 0.15, "army volleys +", 1.4, "rear"),
     ("otto", "Отто", 1, "Guardian", "Kinetic", "Stoneheart", 60, 1, "kills per Block (Block every 5 s)", 0.10, "clash losses -", 1.0, "front"),

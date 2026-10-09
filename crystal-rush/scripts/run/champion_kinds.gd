@@ -47,7 +47,7 @@ const FX: Array[StringName] = [&"champ_leap", &"champ_shot", &"champ_spell", &"c
 ## champ_twist `twist` values and their data keys (the views draw them; the rules only report):
 ## undermine {target, d, x, burrow_s} (Борко: the dirt ridge, then the eruption at the target) ·
 ## cross {target, d, x, r} (Брант: the burning cross) · blades {target} (Брант: BURN on the clash squad) ·
-## brazier {target | hazard} (Іво: the barricade burns / BURN at the clash start) · bartka {target, d, x,
+## brazier {hazard} (Іво: the blocked barricade burns) · bartka {target, d, x,
 ## targets} (Довбуш: the throw and the return) · probe {target, d, x, reveal [ids]} (Тео) · harpoon
 ## {target, partner, d, x, s} (Дара: the tether) · lull {target, n, s} (Тая) · circle {d, x, r, s} (Менгір) ·
 ## pages {target, d, x} (Тарас) · plant {ticks} (Отто) · rod {targets [ids], d, x} (Німб) · charge {target,
@@ -89,11 +89,15 @@ const CLASS := {
 ## Per-champion twists (§6.11-6.27): fields the class rules read; a champion without a row (or a
 ## stats row passing `twist: {}`, the dev tools' bare template) runs the class template alone.
 ## Fields marked "knob" were tuned in LevelSim (scripts/dev/test_champion_twists.gd: the budget table,
-## §4.1 / §4.3 "twists are tuned inside +-3%" of the bare class template); the measured ratio follows
-## (Руді + Мейра, levels 15-112 step 4, pooled, unless a hero is named).
-## Counts, radii and durations never scale. Statuses, holds, groundings, reveals and Дара's tether are
-## not simulated (or never met: squads stand > 4 u apart in LevelGen levels), so those twists measure
-## 1.000; Іво, Отто and Менгір cannot reach the band through their own fields (kept at the sheet).
+## §4.1 / §4.3 "twists are tuned inside +-3%" of the bare class template; owner decision 2026-10-09: a
+## twist over the band is cut to it); the ratio follows, then the sheet's value measured the same way
+## (Руді + Мейра pooled, levels 15-112 step 4, 50 runs).
+## Counts, radii and durations never scale. LevelSim measures what its KindView records model: MARK, BURN
+## and JOLT (expected values), holds (clash damage), tethers. CHILL, SEAL and STAGGER change nothing (as in
+## the Run's Statuses); groundings and reveals need Flying / Phantom squads and a tether two squads <= 4 u
+## apart, which LevelGen levels do not have: Борко, Альба, Дара and Тарас measure UNMEASURED (twist = no
+## twist). The class templates measure far below §4.3's ~1.0 / s (owner decision: kept; the budget is
+## re-computed from measured values later), so the twists that move clash losses keep only a small share.
 ##
 ## Every class: status (replaces the element status) · status_at [tiers] (the sheet's tiers that add
 ## the status before the template's tier III) · fight_status / fight_every / fight_s (a status on the
@@ -104,60 +108,70 @@ const CLASS := {
 ## of the path) · splash_r (the leap's status also on squads <= r of the target) · burrow_s (fx only).
 ## Ranger: flying_mult · flying_range · prefer_flying · homing (fx only) · probe_every / probe_status /
 ## probe_s / probe_reach · harpoon_every / tether_r / tether_share / tether_s / ground_s.
-## Mage: target (&"nearest" | densest) · page_share / page_reach · lull_s (KindView.hold) ·
+## Mage: target (&"nearest" | densest) · page_share / page_reach · lull_s / lull_strength (KindView.hold) ·
 ## circle_s / circle_s_iv / circle_cut / brand_s.
 ## Guardian: cd · bar / behind (x mult: the blocked barricade's damage / the kills on the squad behind;
 ## absent = action) · bar_fx · stamp · charge_reach / charge_status / charge_s (the Block's strike goes to
 ## the nearest squad instead) · charge_bar (x Action into a blocked barricade when no squad is near) ·
-## rod_targets / rod_reach / rod_status (x action each) · plant_ticks /
-## plant_cd / plant_share · catch_r / catch_cd / catch_tier (absorb_turret; no catch_cd = shares the Block cd).
+## rod_targets / rod_reach / rod_status (x action each) · plant_ticks / plant_cd / plant_share /
+## plant_cut (the share of a planted tick the army is spared; absent = 1, the whole tick) ·
+## catch_r / catch_cd / catch_tier (absorb_turret; no catch_cd = shares the Block cd).
 ## Healer (after a pulse that returned >= 1): pulse_status / pulse_s / pulse_reach / pulse_back /
 ## pulse_all · rime_cap / rime_per.
 const TWISTS := {
-	# §6.11 Міла — Тонік: a returning pulse MARKs the nearest squad <= 12 u for 3 s (reveals Phantom).
-	"mila": {"pulse_status": "mark", "pulse_s": 3.0, "pulse_reach": 12.0, "pulse_fx": &"tonic"},
-	# §6.12 Іво — Жар: the blocked barricade takes 3 x power (his Action) and burns; BURN at each clash start.
-	# Budget 1.109 (miss): the barricade damage is his generated Action; ~1.5 x power lands 1.029 (bolt).
-	"ivo": {"behind": 1.0, "bar_fx": &"brazier", "fight_status": "burn", "fight_every": 0.0, "fight_s": 3.0,
-			"fight_fx": &"brazier"},
+	# §6.11 Міла — Тонік: a returning pulse MARKs the nearest squad <= 12 u (reveals Phantom). Knob pulse_s
+	# 3 -> 0.15 s: 1.025 (3 s: 1.111; 0.5 s: 1.050; even one 0.05 s step: 1.016: the vial follows losses, so
+	# it lands on the clash squad under the hero's fire).
+	"mila": {"pulse_status": "mark", "pulse_s": 0.15, "pulse_reach": 12.0, "pulse_fx": &"tonic"},
+	# §6.12 Іво — Жар: the blocked barricade takes his Action (1.4 x power, generated: knob 3 -> 1.4 through
+	# heroes_tables.py) and burns (fx). 1.022 (Action 3: 1.109; the sheet's clash-start BURN alone is +38%,
+	# and a BURN lasts at least its own 3 s, so it was cut; Action 3 + BURN: 1.489).
+	"ivo": {"behind": 1.0, "bar_fx": &"brazier"},
 	# §6.13 Борко — Підкоп: the leap is a burrow (never Flying) that erupts with STAGGER.
 	"borko": {"verb": &"undermine", "no_flying": true, "status_at": [1], "burrow_s": 0.4},
 	# §6.14 Альба — Крижана стріла: x1.5 vs Flying, 16 u vs Flying, prefers Flying, CHILL (proc 0.5) at II.
 	"alba": {"flying_mult": 1.5, "flying_range": 16.0, "prefer_flying": true, "status_at": [2]},
-	# §6.15 Отто — Панцир-фортеця: at a clash start the first 2 ticks cost the army 0 (he takes them x0.5).
-	# Budget 10.71 (miss): one planted tick spares ceil(min(army, foe) / 14) soldiers (5-11 late), the
-	# template Block ~0.13 soldiers / s; 1 tick per 8 s is still x6.2, per 60 s x2.6 (bolt).
-	"otto": {"plant_ticks": 2, "plant_cd": 8.0, "plant_share": 0.5},
-	# §6.16 Тая — Пилок снів: squads hit are lulled 1.5 s (50% speed and clash damage; KindView.hold).
-	"taya": {"lull_s": 1.5, "lull_strength": 0.5},
+	# §6.15 Отто — Панцир-фортеця: at a clash start (8 s apart) he plants: the first 2 ticks cost the army
+	# plant_cut less (he takes that share x0.5). Knob plant_cut 1 -> 0.002: 1.020 (1, the whole tick: 10.71;
+	# 0.01: 1.100; one whole tick once per level: 2.72). A tick costs ceil(min(army, foe) / 14) soldiers,
+	# the template Block ~0.13 soldiers / s.
+	"otto": {"plant_ticks": 2, "plant_cd": 8.0, "plant_share": 0.5, "plant_cut": 0.002},
+	# §6.16 Тая — Пилок снів: squads hit are lulled 1.5 s (KindView.hold). Knob lull_strength 0.5 -> 0.004:
+	# 1.023 (0.5: 3.877; 0.02: 1.115). The lull pays only when it lasts until the squad reaches the army
+	# (lull_s <= 0.9 s: no effect, 1.0 s: 1.671 at 0.5), so the length stays and the strength is cut.
+	"taya": {"lull_s": 1.5, "lull_strength": 0.004},
 	# §6.17 Брант — Розжарені клинки: BURN on the clash squad; the leap's status also burns <= 1.5 u.
 	"brant": {"fight_status": "burn", "fight_every": 1.0, "fight_s": 3.0, "fight_fx": &"blades", "splash_r": 1.5},
 	# §6.18 Тео — Зоряний зонд: homing; every 4th shot is a probe (MARK 3 s, reveals Phantom <= 14 u).
 	"teo": {"homing": true, "probe_every": 4, "probe_status": "mark", "probe_s": 3.0, "probe_reach": 14.0},
 	# §6.19 Олена — Морозний бальзам: a pulse CHILLs squads <= 2 u of the army front; returns are rimed.
+	# Knob rime_cap 3 -> 1: 1.024 (3: 1.051).
 	"olena": {"pulse_status": "chill", "pulse_s": 1.5, "pulse_reach": 2.0, "pulse_back": 2.0, "pulse_all": true,
-			"pulse_fx": &"balm", "rime_cap": 1.0, "rime_per": 1.0},  # knob rime_cap 3 -> 1: 1.024 (3: 1.050 bolt)
-	# §6.20 Німб — Громовідвід: every Block chains 3 hostiles <= 5 u (his Action each + JOLT); IV catch.
+			"pulse_fx": &"balm", "rime_cap": 1.0, "rime_per": 1.0},
+	# §6.20 Німб — Громовідвід: every Block chains 3 hostiles <= 5 u (his Action each + JOLT); IV a Block can
+	# instead catch a turret shot (no catch_cd: it shares the Block cd, as the sheet). Knob catch_r 1.6 -> 1.3:
+	# 1.011 (1.6: 1.042; with an own 5 s timer 1.014, at 1.6 1.048).
 	"nimb": {"behind": 1.0, "bar": 1.0, "rod_targets": 3, "rod_reach": 5.0, "rod_status": "jolt",
-			"catch_r": 1.3, "catch_cd": 5.0, "catch_tier": 4},  # knob catch_r 1.6 -> 1.3: 1.014 (1.6: 1.053 bolt)
-	# §6.21 Дара — Гарпун-блискавка: every 3rd shot tethers its squad to the nearest other <= 4 u.
+			"catch_r": 1.3, "catch_tier": 4},
+	# §6.21 Дара — Гарпун-блискавка: every 3rd shot tethers its squad to the nearest other <= 4 u
+	# (KindView.tether: 50% of what either takes also hits the other).
 	"dara": {"harpoon_every": 3, "tether_r": 4.0, "tether_share": 0.5, "tether_s": 3.0, "ground_s": 1.5},
-	# §6.22 Менгір — Рунне коло: the strike carves a circle; squads in it are Branded, -25% clash damage.
-	# Budget 2.571 (miss): the circle's squad is usually the next clash; even a 1% cut measures 1.056 (bolt).
-	"menhir": {"circle_s": 3.0, "circle_s_iv": 5.0, "circle_cut": 0.25, "brand_s": 3.0},
+	# §6.22 Менгір — Рунне коло: the strike carves a circle; squads in it are Branded and deal less clash
+	# damage. Knob circle_cut 0.25 -> 0.003: 1.019 (0.25: 2.571; 0.01: 1.063): the circle's squad is
+	# usually the next clash and every tick of it is cut (the circle's length and brand_s barely move it).
+	"menhir": {"circle_s": 3.0, "circle_s_iv": 5.0, "circle_cut": 0.003, "brand_s": 3.0},
 	# §6.25 Тарас — Слово: the book hits the NEAREST squad; its pages cut on into the next squad <= 3 u.
 	"taras": {"target": &"nearest", "page_share": 0.5, "page_reach": 3.0},
 	# §6.26 Снаряд — Нюх сапера: Block cd 6 s (knob); the defused charge (his Action) + MARK 3 s on the
 	# nearest squad <= 6 u, instead of the template's +1 kill; the stamp reads «ЧИСТО!». Knob charge_bar 0.5
-	# (no squad near: half the charge into the blocked barricade): 1.000 (none: 0.960, all: 1.040); the cd
-	# does not move it (hazards stand > 8 s apart).
+	# (no squad near: half the charge into the blocked barricade): 1.000 (none: 0.962, all: 1.038); the cd
+	# does not move it (hazards stand > 8 s apart), and no squad stands <= 6 u of a Block in LevelGen levels.
 	"snaryad": {"cd": 6.0, "charge_reach": 6.0, "charge_status": "mark", "charge_s": 3.0, "charge_bar": 0.5,
 			"stamp": &"clear"},
 	# §6.27 Довбуш — Бартка: instead of the leap, through the first 2 squads <= 6 u (his Action each +
 	# STAGGER), the most armoured first; it spins back to his hand (one squad in range: the return strikes it
 	# again, so a throw is always 2 x his Action, the sheet's budget); II + add_ii per squad and 7 u; III
-	# STAGGER <= 1 u of the path. Knob add_ii 0.5 -> 0.15: 1.007 (bolt 0.981, seer 1.033; 0.5: bolt 1.069;
-	# no return: bolt 0.793).
+	# STAGGER <= 1 u of the path. Knob add_ii 0.5 -> 0.15: 1.007 (0.5: 1.102; no return: 0.757).
 	"dovbush": {"verb": &"bartka", "leap_targets": 2, "return": true, "reach": 6.0, "reach_ii": 7.0, "add_ii": 0.15,
 			"armored_first": true, "path_r_iii": 1.0},
 }
@@ -510,8 +524,6 @@ static func _ranger(view: KindView, m: Dictionary, dt: float) -> void:
 		count = int(c["pierce"])
 	var arrows := 2 if tier >= 2 and shot % int(c["extra_every"]) == 0 else 1
 	var with_status := _status_on(m, tier)
-	var share := float(tw.get("tether_share", 0.0))
-	var tethered := float(m["teth_left"]) > 0.0
 	var first: Dictionary = targets[0]
 	var first_dmg := 0.0
 	for a in arrows:
@@ -526,10 +538,6 @@ static func _ranger(view: KindView, m: Dictionary, dt: float) -> void:
 				first_dmg += dmg
 			if with_status and t.has("n"):
 				view.status(tid, StringName(str(m["status"])), float(c["status_s"]) * float(c["proc_iii"]))
-			if tethered and (tid == int(m["teth_a"]) or tid == int(m["teth_b"])):
-				# Дара's tether: her hits on one tethered squad also land on the other (share).
-				var other := int(m["teth_b"]) if tid == int(m["teth_a"]) else int(m["teth_a"])
-				m["kills"] = float(m["kills"]) + view.hit(other, dmg * share, {"src": m["id"], "kind": &"tether"})
 	var fid := int(first["id"])
 	var probe := int(tw.get("probe_every", 0))
 	if probe > 0 and shot % probe == 0 and first.has("n"):
@@ -554,9 +562,11 @@ static func _probe(view: KindView, m: Dictionary, tw: Dictionary, t: Dictionary)
 			"reveal": reveal})
 
 
-## Дара's harpoon: the hit squad is tethered to the nearest other squad <= tether_r for tether_s (the
-## partner takes tether_share of this shot at once, and of her later hits on either); a Flying target
-## is grounded for ground_s (KindView.ground).
+## Дара's harpoon: the hit squad is tethered to the nearest other squad <= tether_r for tether_s
+## (KindView.tether: tether_share of every damage either takes, from any source, also hits the other; the
+## view applies it, so her later hits are never mirrored here). The harpoon shot itself landed before the
+## tether: the partner takes tether_share of it at once, before the tether is made (else that share would
+## bounce back). A Flying target is grounded for ground_s (KindView.ground).
 static func _harpoon(view: KindView, m: Dictionary, tw: Dictionary, t: Dictionary, dmg: float) -> void:
 	var tid := int(t["id"])
 	var td := float(t["d"])
@@ -576,11 +586,12 @@ static func _harpoon(view: KindView, m: Dictionary, tw: Dictionary, t: Dictionar
 	if partner.is_empty():
 		return
 	var pid := int(partner["id"])
+	var share := float(tw.get("tether_share", 0.0))
 	m["teth_a"] = tid
 	m["teth_b"] = pid
 	m["teth_left"] = float(tw.get("tether_s", 3.0))
-	m["kills"] = float(m["kills"]) + view.hit(pid, dmg * float(tw.get("tether_share", 0.0)),
-			{"src": m["id"], "kind": &"tether"})
+	m["kills"] = float(m["kills"]) + view.hit(pid, dmg * share, {"src": m["id"], "kind": &"tether"})
+	view.tether(tid, pid, share, float(m["teth_left"]))
 	view.fx(TWIST_FX, {"id": m["id"], "twist": &"harpoon", "target": tid, "partner": pid, "d": td, "x": tx,
 			"s": float(m["teth_left"])})
 
@@ -804,12 +815,18 @@ static func clash_kill_mult(members: Array) -> float:
 
 
 ## x the army's clash losses: Guardian aura "clash losses -x%"; x (1 - circle_cut) while the foe stands
-## in a Менгір circle (or left it less than brand_s ago).
+## in a Менгір circle (or left it less than brand_s ago); x (1 - plant_cut) on Отто's planted tick (a
+## partial plant: tick_free flagged it and returned false). Called right after tick_free, as the Run and
+## LevelSim do.
 static func clash_loss_mult(members: Array) -> float:
 	var k := maxf(0.0, 1.0 - _aura_sum(members, "guardian"))
 	for m: Dictionary in members:
-		if bool(m["alive"]) and float(m["cut"]) > 0.0:
+		if not bool(m["alive"]):
+			continue
+		if float(m["cut"]) > 0.0:
 			k *= 1.0 - float(m["cut"])
+		if bool(m.get("plant_hit", false)):
+			k *= 1.0 - _plant_cut(m)
 	return k
 
 
@@ -1065,7 +1082,9 @@ static func catcher(members: Array, turret_id: int) -> Dictionary:
 # ------------------------------------------------------------------ clash
 
 ## True when this clash tick costs the army nothing: a Guardian's tier III shield after a Block, else
-## one of Отто's planted ticks (he then takes the tick at plant_share in clash_hit). Consumes it.
+## one of Отто's planted ticks with plant_cut 1 (absent = 1). Consumes it. A planted tick with plant_cut
+## < 1 is not free: it is flagged (plant_hit) and costs the army x (1 - plant_cut) through clash_loss_mult;
+## either way he takes the spared share at plant_share in clash_hit.
 static func tick_free(members: Array) -> bool:
 	var f := in_slot(members, FRONT)
 	if f.is_empty():
@@ -1077,8 +1096,13 @@ static func tick_free(members: Array) -> bool:
 	if int(f["plant"]) > 0:
 		f["plant"] = int(f["plant"]) - 1
 		f["plant_hit"] = true
-		return true
+		return _plant_cut(f) >= 1.0
 	return false
+
+
+## The share of a planted tick the army is spared (Отто's plant_cut, 1 = the whole tick).
+static func _plant_cut(m: Dictionary) -> float:
+	return clampf(float((m["tw"] as Dictionary).get("plant_cut", 1.0)), 0.0, 1.0)
 
 
 ## Extra foe kills this clash tick (Warrior Cleave, 0.07 x mult per FIGHT_TICK; fractions carry;
@@ -1098,8 +1122,9 @@ static func cleave(members: Array) -> float:
 
 
 ## The front champion in contact takes its share of a clash tick of `hit` soldiers:
-## acc += hit x CLASH_SHARE (x CLASH_SHARE_GUARDIAN_HERO with a Guardian hero), loses floor(acc); a
-## planted tick (tick_free) costs it hit x plant_share instead. A fall ends its contributions at once
+## acc += hit x CLASH_SHARE (x CLASH_SHARE_GUARDIAN_HERO with a Guardian hero), loses floor(acc); on a
+## planted tick (tick_free) the share the army was spared (plant_cut) costs it plant_share instead of
+## CLASH_SHARE (a whole planted tick: hit x plant_share). A fall ends its contributions at once
 ## (fx champ_down).
 static func clash_hit(view: KindView, members: Array, hit: float, guardian_hero: bool) -> void:
 	for mc: Dictionary in members:
@@ -1112,8 +1137,9 @@ static func clash_hit(view: KindView, members: Array, hit: float, guardian_hero:
 	var share := ChampionData.CLASH_SHARE
 	if bool(f["plant_hit"]):
 		f["plant_hit"] = false
-		share = float((f["tw"] as Dictionary).get("plant_share", share))
-		f["saved"] = float(f["saved"]) + hit
+		var pc := _plant_cut(f)
+		share = lerpf(share, float((f["tw"] as Dictionary).get("plant_share", share)), pc)
+		f["saved"] = float(f["saved"]) + hit * pc
 	share *= ChampionData.CLASH_SHARE_GUARDIAN_HERO if guardian_hero else 1.0
 	var acc := float(f["acc"]) + hit * share
 	var dmg := floorf(acc)

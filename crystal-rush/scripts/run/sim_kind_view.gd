@@ -166,7 +166,7 @@ func champions() -> Array:
 
 ## LevelSim's own hurt path (kills, ult charge, breaking pays out; on a squad x status_mult, then a Jolt
 ## chain and a tether's share, as Run.hurt). Returns the whole soldiers a squad lost (its shown count is
-## ceil(hp)); 0 for structures.
+## ceil(hp)), MARK's extra included, so the caller books it; 0 for structures.
 func hit(target_id: int, dmg: float, _tags := {}) -> int:
 	if target_id < 0 or target_id >= s.alive.size() or s.alive[target_id] == 0:
 		return 0
@@ -177,7 +177,8 @@ func hit(target_id: int, dmg: float, _tags := {}) -> int:
 	if s.kv.is_empty():
 		LevelSim._hurt(lv, s, target_id, dmg)
 	else:
-		LevelSim._hurt_vs(lv, s, target_id, dmg)
+		# MARK's extra stays out of State.st_kills: it is in the returned drop (the member's kills).
+		LevelSim._hurt_vs(lv, s, target_id, dmg, false)
 	var after := ceilf(maxf(s.hp[target_id] - 0.001, 0.0)) if s.alive[target_id] == 1 else 0.0
 	return int(before - after)
 
@@ -209,13 +210,18 @@ func grant_ward(kind: StringName, charges: int, sec: float) -> void:
 	LevelSim.grant_ward(s, kind, float(charges), sec)
 
 
-## One whole ward charge a `kind` hit may spend (LevelSim.WARD_KINDS); LevelSim's own hazard and turret
-## losses spend fractions of charges (LevelSim.ward_spend).
+## One whole ward charge a `kind` hit may spend (LevelSim.WARD_KINDS, in that order): as RunKindView.absorb,
+## one ward kind must hold >= 1 whole charge (two half charges of two kinds absorb nothing). LevelSim's own
+## hazard and turret losses spend fractions of charges (LevelSim.ward_spend).
 func absorb(kind: StringName) -> bool:
-	if s.wards.is_empty() or LevelSim.ward_left(s, kind) < 1.0:
+	if s.wards.is_empty():
 		return false
-	LevelSim.ward_spend(s, kind, 1.0)
-	return true
+	for wk: StringName in LevelSim.WARD_KINDS.get(kind, [kind]):
+		var w: Array = s.wards.get(wk, _NONE)
+		if not w.is_empty() and float(w[1]) > s.t and float(w[0]) >= 1.0:
+			w[0] = float(w[0]) - 1.0
+			return true
+	return false
 
 
 ## Mend returns join the army (the Run spawns them at the blob front).
