@@ -17,6 +17,11 @@ Usage
   python3 tools/gen_save_v3_data.py                       # regenerate the .gd from the two json files
   python3 tools/gen_save_v3_data.py --check               # exit 1 when the .gd is out of date (CI / tests)
   python3 tools/gen_save_v3_data.py --sim <heroes_sim.py> # recompute heroes_migration.json, then the .gd
+  python3 tools/gen_save_v3_data.py --sim <heroes_sim.py> --roster-only
+      # a roster addition: refresh only the ids (heroes / champions / starters) from the sim and keep the published
+      # EXPECTED Champion Level table and grant literals (the 12-seed median of that table sits on x.5 boundaries at
+      # several frontiers, so a new id that only shifts the RNG stream must not move the §12.3 anchors); the kept
+      # table is still checked against the anchors
 """
 from __future__ import annotations
 
@@ -50,8 +55,9 @@ def _consts_path(arg: str | None) -> str:
     sys.exit("heroes_consts.json not found (pass --consts)")
 
 
-def refresh_migration_json(sim_path: str, consts: dict) -> dict:
-    """Recomputes heroes_migration.json from heroes_sim.py (read-only use of the sim)."""
+def refresh_migration_json(sim_path: str, consts: dict, roster_only: bool = False) -> dict:
+    """Recomputes heroes_migration.json from heroes_sim.py (read-only use of the sim). `roster_only` refreshes the ids
+    and keeps the published table and grant of the current json (see --roster-only)."""
     sim_dir = os.path.dirname(os.path.abspath(sim_path))
     sys.path.insert(0, sim_dir)
     sys.dont_write_bytecode = True
@@ -67,8 +73,11 @@ def refresh_migration_json(sim_path: str, consts: dict) -> dict:
             and "n_grand = after(UNLOCK_AT[\"champions\"])" in body and "L = level - 1" in body):
         sys.exit("heroes_sim.migrate_grant changed shape: update gen_save_v3_data.py")
     tf = {int(k): v for k, v in consts["team_demand"].items()}
-    runs = [H.simulate("casual", 7000 + s, 112, tf=tf, expected_only=True) for s in range(12)]
-    cl = [1] + [int(statistics.median(r[0].cl_at.get(L, 1) for r in runs)) for L in range(1, 113)]
+    if roster_only:
+        cl = json.load(open(MIGRATION_JSON, encoding="utf-8"))["expected_champion_level"]
+    else:
+        runs = [H.simulate("casual", 7000 + s, 112, tf=tf, expected_only=True) for s in range(12)]
+        cl = [1] + [int(statistics.median(r[0].cl_at.get(L, 1) for r in runs)) for L in range(1, 113)]
     bad = {L: (cl[L], v) for L, v in CL_ANCHORS.items() if cl[L] != v}
     if bad:
         sys.exit("EXPECTED Champion Level differs from heroes_design.md §12.3: %s" % bad)
@@ -175,13 +184,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--consts")
     ap.add_argument("--sim")
+    ap.add_argument("--roster-only", action="store_true")
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
+    if a.roster_only and not a.sim:
+        sys.exit("--roster-only needs --sim <heroes_sim.py>")
     cpath = _consts_path(a.consts)
     craw = open(cpath, "rb").read()
     consts = json.loads(craw)
     if a.sim:
-        refresh_migration_json(a.sim, consts)
+        refresh_migration_json(a.sim, consts, a.roster_only)
     mraw = open(MIGRATION_JSON, "rb").read()
     text = render(consts, json.loads(mraw), hashlib.sha256(craw).hexdigest(), hashlib.sha256(mraw).hexdigest())
     if a.check:

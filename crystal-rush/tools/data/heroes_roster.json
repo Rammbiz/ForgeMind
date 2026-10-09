@@ -55,7 +55,8 @@
   "nimb",
   "dara",
   "menhir",
-  "taras"
+  "taras",
+  "snaryad"
  ],
  "starters": [
   "titan",
@@ -634,6 +635,22 @@
    },
    "action_note": "The Word kills per squad (every 4 s; pages cut on)",
    "aura_note": "volley status proc x"
+  },
+  "snaryad": {
+   "no": 24,
+   "native": "E",
+   "class": "guardian",
+   "element": "tech",
+   "faction": "dawn",
+   "slot": "front",
+   "kit": {
+    "hp": 60,
+    "action": 2,
+    "aura": 0.1,
+    "radius": 1.0
+   },
+   "action_note": "Sapper's Nose charge kills (per Block, every 6 s; + MARK)",
+   "aura_note": "clash losses -"
   }
  },
  "index_terms": {
