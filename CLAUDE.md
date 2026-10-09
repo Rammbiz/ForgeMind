@@ -73,7 +73,7 @@ All paths below are from the repo root.
 ## Checks (run before pushing; commands from the repo root)
 - Windows: `godot` is usually not on PATH. Try `where.exe godot*`; else ask the owner ONCE for the full path of the Godot 4.7
   `..._console.exe` (console build, so output reaches the shell) and use it wherever this says `godot`. Python is `py` or `python`,
-  not `python3`. `xvfb-run` is Linux-only. The clone path has a space (`FiberForm CNC`): quote paths.
+  not `python3`. `xvfb-run` is Linux-only. The working clone is `C:\ForgeMind` (its local `main` holds owner-only commits; work on this branch). Quote paths that contain spaces.
 - Import: `godot --headless --path crystal-rush --import` (~35 s).
 - Tests (exit code = failures): `godot --headless --path crystal-rush res://scenes/dev/<scene>.tscn -- --autotest` for test_meta,
   test_kinds, test_heroes, test_heroes_ui, test_loc, test_juice. `-- --autotest` is REQUIRED: it makes Save read-only so the owner's
