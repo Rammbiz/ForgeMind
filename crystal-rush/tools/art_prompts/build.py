@@ -88,6 +88,7 @@ RECEIVED = {  # hero id -> [(file, caption)], the owner's finished art (newest f
     'snaryad': [('snaryad/snaryad_card_src.jpg', 'Картка (4K)')],
     'dovbush': [('dovbush/dovbush_card_src.jpg', 'Картка (4K)')],
     'sirko': [('sirko/sirko_splash_src.jpg', 'Сплеш (4K)')],
+    'olha': [('olha/olha_splash_src.jpg', 'Сплеш (4K)')],
 }
 _uri_cache = {}
 
