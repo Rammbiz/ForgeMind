@@ -1,6 +1,6 @@
 class_name KitCTA
 extends Button
-## The amber key action (UI v3.1, spec §7.6; graft of B's vector cut gem onto A): an elongated
+## The key action (UI v3.1, spec §7.6; graft of B's vector cut gem onto A): an elongated
 ## CUT-GEM body drawn as a vector polygon (45-degree cuts of clamp(h * 0.3, 10, 26), flat-lit
 ## amber in 3 stops, a 1 dpx table light under the top edge and ONE 1 dpx rim; no sheen, no
 ## streak, no brown drop: a soft warm glow underneath), at most BODY_MAX px tall and centred in
@@ -13,25 +13,21 @@ extends Button
 ## Bitmap overrides: assets/ui/kit/primary*.png (then the painted body is used), cta_topaz.png.
 ## `text` / `icon` work like a normal Button (the Button's own text is hidden and redrawn);
 ## `gem_icon` = an Icons kind ("coin") drawn in place of the topaz (price buttons).
-## CTA STUDY (owner: «жовті головні кнопки ... дуже віддає ШІ»): `KitCTA.style` picks the body
-## (UITokens.CTA_STYLE, default "amber" = the shipped one above; galleries take --cta=<name>).
-## The study styles share the metrics, cut, gem slot and touch rect, and have NO glow, NO sweep,
-## NO gloss: "porcelain" (ivory enamel, 1.5 dpx gold rim + 1 dpx inner hairline, ink label,
-## the context gem), "ink" (ink-navy enamel, 1 dpx gold rim, ivory label, gold-set gem),
-## "sapphire" (translucent sapphire glass, 1 dpx pale-gold rim, one facet line, white label),
-## "champagne" (muted champagne-gold, 1 dpx bronze rim, bronze-ink label).
-## `ctx_gem` = the screen's gem (a GEMS key or rarity letter) for the small gem; "" = clear quartz.
-## REFINED (critic pass): "ink" and "porcelain" follow one rule set: ONE gold hairline (no inner
-## line, no glaze, no glow), a crisp slate contact shadow, a gem ONLY where it means something
-## (`ctx_gem` = the hero / recut gem, `gem_icon` = the price coin; otherwise the label is centred),
-## 30 % less tracking on caps, a flat one-step-darker press with a 2 dpx inner top shadow, and a
-## disabled state that is plainly not a button yet (0.55 glass, slate hairline, a lock).
-## "ink": ink enamel #2C3158 -> #252A4D, 1 dpx muted gold #C9AE78 (+ a cream outer hairline when
-## `on_dark`), ivory label; the gem sits in a 1 dpx gold bezel.
+## KEY BUTTON = PORCELAIN (owner's pick, answering «жовті головні кнопки ... дуже віддає ШІ»):
+## `KitCTA.style` forwards to UITokens.cta_style (default UITokens.CTA_STYLE = "porcelain"; dev
+## galleries take --cta=porcelain|ink|amber for comparisons; the amber text above describes the
+## old "amber" path, kept only for that switch). "porcelain" and "ink" follow one rule set: ONE
+## gold hairline (no inner line, no glaze, no glow, no sweep), a crisp slate contact shadow, a gem
+## ONLY where it means something (`ctx_gem` = the hero / recut gem, `gem_icon` = the price coin;
+## otherwise the label is centred), 30 % less tracking on caps, a flat one-step-darker press with
+## a 2 dpx inner top shadow, and a disabled state that is plainly not a button yet (0.55 glass,
+## slate hairline, a lock).
 ## "porcelain": white enamel #FFFDF8 -> #F6EEDF, 1 dpx deep gold #9A7436 (2 dpx at 1080+), ink
 ## Bold caps; the gem sits in a gold-rimmed ink octagon (the Genshin confirm idiom). The secondary
-## cream buttons turn ghost glass in this style (UIKit "button"), so porcelain is the one filled
+## cream buttons are ghost glass in this style (UIKit "button"), so porcelain is the one filled
 ## enamel in an action row.
+## "ink" (dev comparison): ink enamel #2C3158 -> #252A4D, 1 dpx muted gold #C9AE78 (+ a cream
+## outer hairline when `on_dark`), ivory label; the gem sits in a 1 dpx gold bezel.
 
 var sub := "":
 	set(v):
@@ -53,7 +49,7 @@ var gem_icon := "":
 		gem_icon = v
 		queue_redraw()
 var sweep := true
-## Context gem of the screen (hero / recut target); "" = clear quartz. Study styles only.
+## Context gem of the screen (hero / recut target); "" = no gem (the label is centred).
 var ctx_gem := "":
 	set(v):
 		ctx_gem = v
@@ -72,7 +68,7 @@ static var style: String:
 	get:
 		return UITokens.cta_style
 	set(v):
-		UITokens.cta_style = v
+		UITokens.cta_style = v if v in UITokens.CTA_STYLES else UITokens.CTA_STYLE
 const BODY_MAX := 96.0
 const MAX_BODY_H := BODY_MAX
 const MAX_LABEL := 38
@@ -254,8 +250,6 @@ func _draw() -> void:
 			_draw_refined_gem(gc, gs, down, dis)
 		elif gem_icon != "":
 			Icons.draw_icon(self, gem_icon, Rect2(gc - Vector2(gs, gs) * 0.5, Vector2(gs, gs)), Color(1, 1, 1, 0.55 if dis else 1.0))
-		elif style != "amber":
-			_draw_ctx_gem(gc, gs, dis)
 		else:
 			var tex := UIKit.kit_texture("cta_topaz")
 			if tex:
@@ -323,9 +317,6 @@ func _draw_body(br: Rect2, ch: float, down: bool, dis: bool) -> void:
 	if refined():
 		_draw_refined_body(br, ch, down, dis)
 		return
-	if style != "amber":
-		_draw_study_body(br, ch, down, dis)
-		return
 	var pts := GemDraw.chamfer_rect(br, ch)
 	var h := br.size.y
 	if not dis:
@@ -362,107 +353,22 @@ func _draw_body(br: Rect2, ch: float, down: bool, dis: bool) -> void:
 	GemDraw.outline(self, _inset(pts, w1 * 0.5), rim, UIKit.line_px(1.0))
 
 
-## CTA study: the colours and lines of each study style (see the header).
+## The calm key-button styles (porcelain = the game's key button; ink = the dev comparison),
+## drawn by _draw_refined_body / _draw_refined_gem.
 const STUDY := {
-	# Refined (critic pass): drawn by _draw_refined_body / _draw_refined_gem.
 	"porcelain": {"top": Color("#FFFDF8"), "mid": Color("#FBF6EC"), "bot": Color("#F6EEDF"),
-			"ptop": Color("#EFE5D2"), "pmid": Color("#ECE2CE"), "pbot": Color("#E9DECA"), "alpha": 1.0,
-			"rim": Color("#9A7436"), "rim_w": 1.0, "inner": Color(0, 0, 0, 0),
-			"label": UITokens.KEY_LABEL_DARK, "sub": Color("#4A4258"), "shadow": true, "shadow_a": 0.14, "facet": false,
-			"gem_edge": Color("#C9AE78"), "gem_scale": 0.62},
+			"ptop": Color("#EFE5D2"), "pmid": Color("#ECE2CE"), "pbot": Color("#E9DECA"),
+			"rim": Color("#9A7436"), "label": UITokens.KEY_LABEL_DARK, "sub": Color("#4A4258"),
+			"shadow_a": 0.14, "gem_scale": 0.62},
 	"ink": {"top": UITokens.KEY_INK, "mid": Color("#282D52"), "bot": UITokens.KEY_INK_LO,
-			"ptop": Color("#1F2342"), "pmid": Color("#1E2240"), "pbot": Color("#1C203D"), "alpha": 1.0,
-			"rim": UITokens.KEY_GOLD, "rim_w": 1.0, "inner": Color(0, 0, 0, 0),
-			"label": Color("#F7F1E6"), "sub": Color(0.914, 0.875, 0.788, 0.85), "shadow": true, "shadow_a": 0.18, "facet": false,
-			"gem_edge": UITokens.KEY_GOLD, "gem_scale": 0.8},
-	"sapphire": {"top": Color("#2C55B8"), "mid": Color("#264AA5"), "bot": Color("#1F3C8F"),
-			"ptop": Color("#24489F"), "pmid": Color("#203F92"), "pbot": Color("#1A3378"), "alpha": 0.88,
-			"rim": Color(0.91, 0.84, 0.643, 0.92), "rim_w": 1.0, "inner": Color(0, 0, 0, 0),
-			"label": Color("#FFFFFF"), "sub": Color("#DCE6FF"), "shadow": false, "facet": true,
-			"gem_edge": Color(0.91, 0.84, 0.643, 0.95), "gem_scale": 0.8},
-	"champagne": {"top": Color("#DDCDA7"), "mid": Color("#D8C79F"), "bot": Color("#C3AE7E"),
-			"ptop": Color("#D0BF96"), "pmid": Color("#CAB88E"), "pbot": Color("#B5A06F"), "alpha": 1.0,
-			"rim": Color(0.549, 0.416, 0.22, 0.9), "rim_w": 1.0, "inner": Color(0, 0, 0, 0),
-			"label": Color("#3A2E1E"), "sub": Color("#4A3B26"), "shadow": true, "facet": false,
-			"gem_edge": Color(0.549, 0.416, 0.22, 0.85), "gem_scale": 0.8},
+			"ptop": Color("#1F2342"), "pmid": Color("#1E2240"), "pbot": Color("#1C203D"),
+			"rim": UITokens.KEY_GOLD, "label": Color("#F7F1E6"), "sub": Color(0.914, 0.875, 0.788, 0.85),
+			"shadow_a": 0.18, "gem_scale": 0.8},
 }
 
 
 static func _spec() -> Dictionary:
 	return STUDY.get(style, STUDY["porcelain"])
-
-
-## Study body: flat enamel / glass in a faint top-to-bottom step, a crisp 1-2 px contact shadow
-## under the light bodies (never a glow), the rim, an optional inner hairline and facet line.
-func _draw_study_body(br: Rect2, ch: float, down: bool, dis: bool) -> void:
-	var sp := _spec()
-	var pts := GemDraw.chamfer_rect(br, ch)
-	var h := br.size.y
-	var w1 := UIKit.px(1.0)
-	if dis:
-		var dt := Color(0.988, 0.976, 0.949, 0.9)
-		var dm := Color(0.969, 0.949, 0.91, 0.89)
-		var db := Color(0.925, 0.898, 0.847, 0.88)
-		_fill(pts, br, dt, dm, db)
-		GemDraw.outline(self, _inset(pts, w1 * 0.5), Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8), UIKit.line_px(1.0))
-		return
-	if bool(sp["shadow"]) and not down:
-		draw_colored_polygon(_shift(pts, Vector2(0, UIKit.px(2.0))), Color(0.12, 0.10, 0.16, 0.07))
-		draw_colored_polygon(_shift(pts, Vector2(0, UIKit.px(1.0))), Color(0.12, 0.10, 0.16, 0.10))
-	var a := float(sp["alpha"])
-	var top: Color = sp["ptop"] if down else sp["top"]
-	var mid: Color = sp["pmid"] if down else sp["mid"]
-	var bot: Color = sp["pbot"] if down else sp["bot"]
-	top.a = a
-	mid.a = a
-	bot.a = a
-	_fill(pts, br, top, mid, bot)
-	if bool(sp["facet"]):
-		# One cut-crystal facet toward the right end: a slightly lighter plane behind a 1 dpx line.
-		var xt := br.end.x - ch - h * 0.3
-		var xb := xt - h * 0.6
-		var plane := PackedVector2Array([Vector2(xt, br.position.y), Vector2(br.end.x - ch, br.position.y), Vector2(br.end.x, br.position.y + ch),
-				Vector2(br.end.x, br.end.y - ch), Vector2(br.end.x - ch, br.end.y), Vector2(xb, br.end.y)])
-		draw_colored_polygon(plane, Color(1, 1, 1, 0.05))
-		draw_line(Vector2(xt, br.position.y + w1), Vector2(xb, br.end.y - w1), Color(1, 1, 1, 0.2), w1, true)
-	var inner: Color = sp["inner"]
-	if inner.a > 0.0:
-		# 3 canvas px in, snapped to whole device px so the 1 dpx line stays crisp at 1080.
-		var d := UIKit.px(roundf(3.0 * UIKit.ui_scale()))
-		GemDraw.outline(self, GemDraw.chamfer_rect(br.grow(-d), maxf(2.0, ch - d * 0.4142)), inner, UIKit.line_px(1.0))
-	var rw := UIKit.line_px(float(sp["rim_w"]))
-	GemDraw.outline(self, _inset(pts, rw * 0.5), sp["rim"], rw)
-
-
-## Study styles: the small left gem in the screen's gem colour (clear quartz when unknown; an ice
-## crystal on sapphire glass), cut as the CTA cushion, no glint, set in a 1 dpx metal edge.
-func _draw_ctx_gem(gc: Vector2, gs: float, dis: bool) -> void:
-	var sp := _spec()
-	var s := roundf(gs * float(sp["gem_scale"]))
-	var base := Color("#A9B6C4")
-	var light := Color("#F2F5F8")
-	var deep := Color("#5C6672")
-	if dis:
-		base = Color("#D9CDB8")
-		light = Color("#F2EDE4")
-		deep = Color("#AFA28B")
-	elif style == "sapphire":
-		base = Color("#DCE7F4")
-		light = Color("#FFFFFF")
-		deep = Color("#7F97B8")
-	elif ctx_gem != "":
-		var key := UITokens.gem_of(ctx_gem)
-		var g: Dictionary = UITokens.gem(key)
-		light = g["light"]
-		deep = g["deep"]
-		base = g["rim"]
-		if key == "quartz":
-			base = Color("#A9B6C4")
-		elif key == "opal":
-			base = Color("#3A2D63")
-	GemDraw.draw_gem(self, "cushion", gc, s, base, light, deep, false)
-	var edge: Color = sp["gem_edge"] if not dis else Color(UITokens.HAIRLINE.r, UITokens.HAIRLINE.g, UITokens.HAIRLINE.b, 0.8)
-	GemDraw.outline(self, GemDraw.cut_points("cushion", gc, s + UIKit.px(4.0)), edge, UIKit.line_px(1.0))
 
 
 ## Refined: `r` with its edges on whole DEVICE px (so the straight rim runs are one crisp row).

@@ -135,15 +135,16 @@ const CTA := Color("#F5AE45")
 const CTA_LO := Color("#D9822E")
 const CTA_RIM := Color("#9C5A1F")
 const TOPAZ := Color("#FFB52E")
-## CTA study (owner: the amber reads as AI): the KitCTA body style. "amber" (shipped) |
-## "porcelain" | "ink" | "sapphire" | "champagne". Dev galleries override with --cta=<name>.
-const CTA_STYLE := "amber"
-const CTA_STYLES: Array[String] = ["amber", "porcelain", "ink", "sapphire", "champagne"]
+## The key button (owner's pick «порцеляна»; the amber read as AI): the KitCTA body style.
+## "porcelain" is the game. "ink" (the runner-up) and "amber" (the old CTA) stay only for dev
+## comparisons: any scene takes --cta=<name> on the command line.
+const CTA_STYLE := "porcelain"
+const CTA_STYLES: Array[String] = ["porcelain", "ink", "amber"]
 ## The live CTA style (KitCTA.style forwards here). Read from `--cta=<name>` on the command line
 ## at load, so the theme and every painted style see it before the first screen is built.
 static var cta_style: String = _boot_cta_style()
-## Refined calm study styles ("ink", "porcelain"): the key-action path loses its amber too (nav
-## Play crystal, hub progress diamonds, Victory band, multiplier glow, toggle fill, lux primary).
+## The calm key styles ("porcelain", "ink"): the key-action path has no amber either (nav Play
+## crystal, hub progress diamonds, Victory band, multiplier glow, toggle fill, lux primary).
 const KEY_INK := Color("#2C3158")      ## ink enamel, top
 const KEY_INK_LO := Color("#252A4D")   ## ink enamel, bottom (a ~3 % step, nearly flat)
 const KEY_GOLD := Color("#C9AE78")     ## the one muted gold hairline of the calm key button
@@ -199,10 +200,9 @@ const READY := PLUS
 const CLAIM := CTA
 
 
-## Gem key ("quartz".."opal") of a rarity letter ("C".."M") or a gem key passed through.
 static func _boot_cta_style() -> String:
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--cta="):
+		if a.begins_with("--cta=") and a.trim_prefix("--cta=") in CTA_STYLES:
 			return a.trim_prefix("--cta=")
 	return CTA_STYLE
 
@@ -212,11 +212,12 @@ static func calm_cta() -> bool:
 	return cta_style == "ink" or cta_style == "porcelain"
 
 
-## The accent of the key-action path: amber (shipped) or the calm deep gold line.
+## The accent of the key-action path: the calm deep gold line (amber only under --cta=amber).
 static func key_line() -> Color:
 	return LINE_GOLD_DEEP if calm_cta() else CTA_LO
 
 
+## Gem key ("quartz".."opal") of a rarity letter ("C".."M") or a gem key passed through.
 static func gem_of(r: String) -> String:
 	if GEMS.has(r):
 		return r

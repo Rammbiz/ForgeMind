@@ -6,7 +6,7 @@ extends Node
 ## Args: --out=DIR · --tag=720 (file suffix) · --state=fresh|mid|late|welcome · --shots=a,b,c (names in
 ## HeroesGalleryShots.SHOTS; "showcase" alone uses --hero) · --t=SECONDS (into a ceremony) ·
 ## --hero=vesta · --lang=uk|en · --hold (keep the window open after the shots) ·
-## --cta=amber|porcelain|ink|sapphire|champagne (KitCTA study style).
+## --cta=porcelain|ink|amber (KitCTA key style; porcelain is the game).
 ## Files: <out>/<shot>[_<tag>].png. Headless runs build everything and save nothing.
 
 var out_dir := "/tmp/claude-0/-home-user-ForgeMind/aefe1e02-146d-51a2-95d9-fb60d101a978/scratchpad/h3ui/shots"
