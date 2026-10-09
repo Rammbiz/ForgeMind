@@ -543,7 +543,7 @@ slot share (value capped 0.40; right column with relic +12):
 | Champion | Gem · class · slot | HP | Action (main number) | Aura value → effect | Tier |
 |---|---|---|---|---|---|
 | Міла `mila` | Кварц · Healer · left | 30 / 55 / 61 | returned per pulse 3.00 / 5.47 / 6.09 | hazard −0.120 → 3.6% / 0.252 → 7.6% | I |
-| Іво `ivo` | Кварц · Guardian · front | 60 / 109 / 122 | blocked-barricade damage 3.00 / 5.47 / 6.09 | clash −0.100 → 3.5% / 0.210 → 7.3% | I |
+| Іво `ivo` | Кварц · Guardian · front | 60 / 109 / 122 | blocked-barricade damage 1.40 / 2.55 / 2.84 | clash −0.100 → 3.5% / 0.210 → 7.3% | I |
 | Борко `borko` | Кварц · Warrior · front | 48 / 88 / 98 | Undermine kills 3.00 / 5.47 / 6.09 | squad clash loss +0.100 → 3.5% / 0.210 → 7.3% | I |
 | Альба `alba` | Сапфір · Ranger · rear | 28 / 51 / 55 | shot dmg (×1.5 vs Flying) 1.08 / 1.97 / 2.12 | volleys +0.162 → 4.0% / 0.340 → 8.5% | II |
 | Отто `otto` | Сапфір · Guardian · front | 65 / 118 / 127 | kills per Block 1.08 / 1.97 / 2.12 (+ planted ticks 2) | clash −0.108 → 3.8% / 0.227 → 7.9% | II |
@@ -560,6 +560,16 @@ slot share (value capped 0.40; right column with relic +12):
 
 Max-investment ratio of a recut champion to the weakest native Topaz of any class (rule #3, cross-class): ≤ 0.983 with
 every kit at ±3% (§2.3). The Champion Showcase prints the ceiling: «Ярус IV — лише для корінних Топазів».
+
+Twist budget, measured 2026-10-09 (`test_champion_twists`: each champion's kills + heals + soldiers saved + structure
+damage + what its statuses and holds did, per second of play, against its bare class template of the same gem, tier
+and slot; Руді + Мейра pooled, levels 15–112 step 4, EXPECTED profile, 50 runs): the templates measure far below the
+≈ 1.0 / s of §4.3 (Guardian 0.08–0.15, Warrior 0.08–0.26, Ranger 0.21–0.44, Mage 0.20–0.39, Healer 0.39–0.48). Owner
+decision: the class strength stays (budget and difficulty are re-computed from measured values later), and every twist
+over the band is cut to it (§6.11–6.27 carry the old value and its ratio): Міла ×1.03, Іво ×1.02 (Action 3 → 1.4, the
+only generated number that moved), Отто ×1.02, Тая ×1.02, Тео ×1.02, Брант ×1.02, Олена ×1.02, Німб ×1.01, Менгір
+×1.02, Снаряд ×1.00, Довбуш ×1.01. Борко, Альба, Дара and Тарас are not measured yet: STAGGER and CHILL change nothing
+in the run's statuses, and their other effects need Flying squads or squads ≤ 4 u apart that LevelGen does not build.
 
 ## 5. Classes, elements, factions, synergies
 
@@ -1133,10 +1143,10 @@ These rules cover C23 Тарас, C24 Снаряд and C25 Довбуш too (the
 |---|---|---|
 | HP | — | 30 / 55 / 61 |
 | Action — Mend | 30% of soldiers lost feed the pool (cap 30 × power per level); every 3 s returns up to 3 × power | 3.00 / 5.47 / 6.09 per pulse |
-| Twist — Тонік / Tonic | a pulse that returns ≥ 1 soldier throws a flare vial: MARK on the nearest squad ≤ 12 u for 3 s (reveals Phantom) | — |
+| Twist — Тонік / Tonic | a pulse that returns ≥ 1 soldier throws a flare vial: MARK on the nearest squad ≤ 12 u for 0.15 s *(knob)* (reveals Phantom) *(tuned 2026-10-09: MARK 3 s measured ×1.11 → 0.15 s ×1.03, owner decision; the vial follows losses, so it lands on the clash squad under the hero's fire: 0.5 s still ×1.05)* | — |
 | Aura (r 1.3) | hazard losses − value × 0.30 (left) | 0.120 → 3.6% / 0.252 → 7.6% (relic +12) |
 | Tier | I (a recut keeps I) | — |
-| Relic Ліхтар наставниці / Mentor's Lantern | +4 pool cap +5 · +8 pulse −0.25 s · +12 Tonic MARK +1 s | — |
+| Relic Ліхтар наставниці / Mentor's Lantern | +4 pool cap +5 · +8 pulse −0.25 s · +12 Tonic MARK +0.05 s | — |
 
 **Fall:** the lantern drops and gutters out; she reaches for it. **Visual:** a slight young woman (≈ 1.60 m, realistic),
 big satchel on the hip, **brass lantern** raised high (signature), short wavy chestnut hair with a green ribbon; cream
@@ -1155,7 +1165,7 @@ kneel-and-raise (big pulse).
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 60 / 109 / 122 |
 | Action — Block | absorbs one blade / spike / barricade contact within 1.0 u (0 losses, «БЛОК») + 1 kill on the squad behind; cd 5 s | — |
-| Twist — Жар / Brazier Heat | a blocked barricade takes 3 × power and burns; at each clash start the squad in contact gets BURN | 3.00 / 5.47 / 6.09 damage |
+| Twist — Жар / Brazier Heat | a blocked barricade takes 1.4 × power *(knob)* and burns *(tuned 2026-10-09: 3 × power + BURN on the squad in contact at each clash start measured ×1.49 → 1.4 × power, no clash BURN ×1.02, owner decision; a BURN lasts at least its own 3 s and alone measured +38%, so it was cut)* | 1.40 / 2.55 / 2.84 damage |
 | Aura (r 1.0) | clash losses − value × 0.35 (front) | 0.100 → 3.5% / 0.210 → 7.3% |
 | Tier | I | — |
 | Relic Решітка жаровні / Brazier Grate | +4 block radius +0.1 u · +8 barricade burn +50% · +12 Block cd −0.5 s | — |
@@ -1219,7 +1229,7 @@ the quiver strap; no turquoise). Idle: the 120° head swivel. **Special:** wing-
 |---|---|---|
 | HP | — | 65 / 118 / 127 |
 | Action — Block | template (1.0 u, cd 5 s) + 1 × power kills on the squad behind | 1.08 / 1.97 / 2.12 kills |
-| Twist — Панцир-фортеця / Shell Fortress | at each clash start he plants: the first 2 clash ticks cost the army 0 (he takes them at ×0.5); 8 s between plants | 2 ticks (a count, never scales) |
+| Twist — Панцир-фортеця / Shell Fortress | at each clash start he plants: the first 2 clash ticks cost the army 0.2% less *(knob)* (he takes that share at ×0.5); 8 s between plants *(tuned 2026-10-09: the whole ticks free measured ×10.7 → 0.2% ×1.02, owner decision; a tick costs ⌈min(army, foe) / 14⌉ soldiers, so even one whole tick once per level measured ×2.7)* | 2 ticks (a count, never scales) |
 | Aura (r 1.0) | clash losses − value × 0.35 | 0.108 → 3.8% / 0.227 → 7.9% |
 | Tier | II: block radius 1.4 u | — |
 | Relic Перший камінчик / First Pebble | +4 aura radius +0.1 u · +8 plant cooldown −1 s · +12 plant absorbs 3 ticks | — |
@@ -1241,10 +1251,10 @@ little spooky; whispers. **Voice:** pick «Тсс... вони вже засин�
 |---|---|---|
 | HP | — | 28 / 51 / 55 |
 | Action — Spell | every 4 s a dust burst r 1.5 on the densest squad ≤ 12 u: 4 × power kills per squad + BRAND | 4.32 / 7.88 / 8.47 kills |
-| Twist — Пилок снів / Dream Dust | squads hit are lulled 1.5 s (50% speed and clash damage) | — |
+| Twist — Пилок снів / Dream Dust | squads hit are lulled 1.5 s (−0.4% speed and clash damage *(knob)*) *(tuned 2026-10-09: −50% measured ×3.88 → −0.4% ×1.02, owner decision; the lull pays only when it lasts until the squad reaches the army, so the 1.5 s stay: ≤ 0.9 s measured nothing, 1.0 s at −50% ×1.67)* | — |
 | Aura (r 1.2) | soldiers in the ring apply BRAND with their volleys at proc value × 0.25 | 0.162 → 4.0% / 0.340 → 8.5% |
 | Tier | II: radius 2.0 | — |
-| Relic Колискова / Lullaby Chime | +4 lull +0.25 s · +8 spell radius +0.2 u · +12 lulled squads at 40% instead of 50% | — |
+| Relic Колискова / Lullaby Chime | +4 lull +0.25 s · +8 spell radius +0.2 u · +12 lull −0.4% → −0.48% | — |
 
 **Fall:** wings fold; she drifts down like a leaf and dims. **Visual:** a small hovering moth-sprite (the one non-humanoid
 scale exception: body ≈ 0.9 m, wingspan 1.8 m) with a smooth oval mask-face and large dark eyes, fluffy moonsilver
@@ -1306,10 +1316,10 @@ warmth for the heart." · action «Дзень — і легше.» / "A chime �
 |---|---|---|
 | HP | — | 35 / 64 / 66 |
 | Action — Mend | template (30% → pool, every 3 s) | 3.50 / 6.38 / 6.62 per pulse |
-| Twist — Морозний бальзам / Frost Balm | each pulse applies 1 CHILL to squads ≤ 2 u of the army front; returned soldiers are *rimed*: the next hazard contact spares 1 extra per rimed soldier (cap 3) | — |
+| Twist — Морозний бальзам / Frost Balm | each pulse applies 1 CHILL to squads ≤ 2 u of the army front; returned soldiers are *rimed*: the next hazard contact spares 1 extra per rimed soldier (cap 1 *(knob)*) *(tuned 2026-10-09: cap 3 measured ×1.05 → cap 1 ×1.02, owner decision)* | — |
 | Aura (r 1.3) | hazard losses − value × 0.30 | 0.140 → 4.2% / 0.294 → 8.8% |
 | Tier | III: II +1 per pulse, returns land at the blob front · III every 15 s cleanses a curse lane / DoT and heals the front champion 10% | — |
-| Relic Рогові дзвоники / Antler Bells | +4 pulse −0.25 s · +8 Frost Balm radius +0.5 u · +12 rimed cap 3 → 4 | — |
+| Relic Рогові дзвоники / Antler Bells | +4 pulse −0.25 s · +8 Frost Balm radius +0.5 u · +12 rimed cap 1 → 2 | — |
 
 **Fall:** the bells ring once, discordant; she kneels, antlers lowered. **Visual:** a tall reindeer-kin woman (≈ 1.75 m +
 **wide antlers** hung with tiny crystal bells — signature), thick winter fur collar, felt robe in deep red-brown
@@ -1329,7 +1339,7 @@ warmth for the heart." · action «Дзень — і легше.» / "A chime �
 | Action — Block | template (1.0 u, cd 5 s, +1 kill) | — |
 | Twist — Громовідвід / Lightning Rod | every Block discharges a chain: 3 hostiles ≤ 5 u take 2 × power and 1 JOLT | 2.52 / 4.60 per target |
 | Aura (r 1.0) | clash losses − value × 0.35 | 0.126 → 4.4% / 0.264 → 9.2% |
-| Tier | IV (native only): II block radius 1.4 u · III 1.5 s front shield after a Block · IV the blocked barricade takes 5 × power, and a Block can instead catch one turret shot aimed at soldiers within 1.6 u (shares the cd; turrets never target champions) | — |
+| Tier | IV (native only): II block radius 1.4 u · III 1.5 s front shield after a Block · IV the blocked barricade takes 5 × power, and a Block can instead catch one turret shot aimed at soldiers within 1.3 u *(knob)* (shares the Block cd; turrets never target champions) *(tuned 2026-10-09: 1.6 u measured ×1.04 → 1.3 u ×1.01, owner decision; a catch on its own 5 s timer measured ×1.01 too, the shared cd keeps the sheet's rule)* | — |
 | Relic Гроза в пляшці / Bottled Storm | +4 Lightning Rod +1 target · +8 block radius +0.1 u · +12 turret catch range +0.4 u | — |
 
 **Fall:** the cloud rains out, the empty armour clatters down, the halo flickers off. **Visual:** a knight's white-enamel
@@ -1370,10 +1380,10 @@ every name." · action «Хай буде коло.» / "Let there be a circle."
 |---|---|---|
 | HP | — | 33 / 60 |
 | Action — Spell | every 4 s a rune strike r 1.5 on the densest squad ≤ 12 u: kills per squad + BRAND | 5.04 / 9.19 kills |
-| Twist — Рунне коло / Rune Circle | the strike carves a circle for 3 s: squads crossing it are Branded and deal −25% clash damage for 3 s | — |
+| Twist — Рунне коло / Rune Circle | the strike carves a circle for 3 s: squads crossing it are Branded and deal −0.3% *(knob)* clash damage for 3 s *(tuned 2026-10-09: −25% measured ×2.57 → −0.3% ×1.02, owner decision; the circle's squad is usually the next clash and every tick of it is cut, so the circle's length barely moves it)* | — |
 | Aura (r 1.2) | soldiers in the ring apply BRAND with their volleys at proc value × 0.30 | 0.189 → 5.7% / 0.396 → 11.9% |
 | Tier | IV: II radius 2.0 · III structures ×1.5 · IV cd 3.5 s, circle 5 s + a 2 s field (1 kill / 0.5 s) | — |
-| Relic Найдавніша руна / Eldest Rune | +4 circle +0.5 s · +8 circle clash cut −25% → −30% · +12 circle radius +0.25 u | — |
+| Relic Найдавніша руна / Eldest Rune | +4 circle +0.5 s · +8 circle clash cut −0.3% → −0.36% · +12 circle radius +0.25 u | — |
 
 **Fall:** topples forward like a felled tree, runes going dark one by one. **Visual:** a tall narrow **standing-stone
 slab** body (≈ 2.2 m, the tallest champion silhouette; still 1.10 u in the run by scale), short thick stone legs, long
@@ -1522,7 +1532,7 @@ sapper? Me!"
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 70 / 128 / 132 |
 | Action — Block | the template, but the Block **reaches ahead**: he dashes up to 3 u ahead of the crowd and defuses the first blade / spike / barricade contact before the soldiers touch it (0 losses; the stamp reads «ЧИСТО!» / "ALL CLEAR!" instead of «БЛОК»), then trots back to his slot; cd 5 s → **6 s** *(knob)* | — |
-| Twist — Нюх сапера / Sapper's Nose | the defused charge is carried and dropped on the nearest enemy squad ≤ 6 u ("Гав — бум!"): 2 × power kills *(knob)* + MARK 3 s; this replaces the template's +1 kill | 2.33 / 4.26 / 4.41 kills |
+| Twist — Нюх сапера / Sapper's Nose | the defused charge is carried and dropped on the nearest enemy squad ≤ 6 u ("Гав — бум!"): 2 × power kills *(knob)* + MARK 3 s; this replaces the template's +1 kill; with no squad that near, half the charge *(knob)* goes off in the blocked barricade *(tuned 2026-10-09: no charge there measured ×0.96, the whole charge ×1.04 → half ×1.00, owner decision)* | 2.33 / 4.26 / 4.41 kills |
 | Aura (r 1.0) | clash losses − value × 0.35 (front) | 0.117 → 4.1% / 0.245 → 8.6% |
 | Tier | III: II block radius 1.4 u · III after a Block a 1.5 s front shield (the next clash tick costs 0) | — |
 | Relic Перше кільце / The First Ring | +4 dash reach +1 u · +8 MARK +1 s · +12 Block cd −0.5 s | — |
@@ -1563,9 +1573,9 @@ cruel. **Voice:** pick «Гори — мої!» / "The mountains are mine!" · a
 |---|---|---|
 | HP | — | 60 / 110 |
 | Action — Cleave | the template: +0.07 kills per FIGHT_TICK in his clash | — |
-| Twist — Бартка / The Bartka | instead of the leap, every 5 s *(knob)* he hurls the bartka down the lane: it flies through the first two squads ≤ 6 u ahead, 1.5 × power kills in each *(knob)* + STAGGER, and spins back to his hand; "Robin Hood": its first target is always the most armoured squad in range | 1.89 / 3.45 kills per squad |
+| Twist — Бартка / The Bartka | instead of the leap, every 5 s *(knob)* he hurls the bartka down the lane: it flies through the first two squads ≤ 6 u ahead, 1.5 × power kills in each *(knob)* + STAGGER, and spins back to his hand; with one squad in range the return strikes it again, so a throw always lands two strikes; "Robin Hood": its first target is always the most armoured squad in range | 1.89 / 3.45 kills per squad |
 | Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.126 → 4.4% / 0.264 → 9.2% |
-| Tier | IV (native only): II +0.5 kills per squad, reach 7 u · III the STAGGER also catches squads ≤ 1 u of the bartka's path · IV cleave hits 2 squads in contact; bartka cd 4 s | — |
+| Tier | IV (native only): II +0.15 kills per squad *(knob)*, reach 7 u · III the STAGGER also catches squads ≤ 1 u of the bartka's path · IV cleave hits 2 squads in contact; bartka cd 4 s *(tuned 2026-10-09: tier II +0.5 measured ×1.10 → +0.15 ×1.01 with the return strike, owner decision; without the return ×0.76)* | — |
 | Relic Зачарований черес / The Charmed Belt | +4 the first clash hit on him each level costs 0 HP · +8 bartka reach +1 u · +12 bartka cd −0.5 s | — |
 
 Budget: 2 squads × 1.5 kills per 5 s = the template leap's 3 kills per 5 s, at a longer reach; STAGGER is the twist (the
