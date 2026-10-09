@@ -34,6 +34,7 @@ const META := {
 	"eira": {"crop": Rect2(0.34, 0.20, 0.60, 0.41), "eye": Vector2(0.64, 0.30), "focus_x": 0.62},
 	"iskar": {"crop": Rect2(0.38, 0.12, 0.60, 0.44), "eye": Vector2(0.69, 0.30), "focus_x": 0.66, "veil": 0.62},
 	"vartan": {"crop": Rect2(0.36, 0.16, 0.60, 0.41), "eye": Vector2(0.65, 0.31), "focus_x": 0.66, "eye_x": 0.70},
+	"pava": {"crop": Rect2(0.25, 0.14, 0.60, 0.41), "eye": Vector2(0.55, 0.30), "focus_x": 0.6, "veil": 0.6},
 }
 
 static var _tex: Dictionary = {}          ## path -> Texture2D (or null when missing)
