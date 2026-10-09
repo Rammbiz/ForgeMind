@@ -92,6 +92,7 @@ var _tethers: Array = []
 var _stamp: Label3D
 var _stamp_t := -1.0
 var _stamp_at := Vector3.ZERO
+var _stamp_on := -1
 var _stamp_w := 1.0
 
 
@@ -370,12 +371,14 @@ func _build_stamp() -> void:
 	add_child(_stamp)
 
 
-## Shows `text` on the porcelain plate at `at` (a new stamp replaces the one showing).
-func stamp(text: String, at: Vector3) -> void:
+## Shows `text` on the porcelain plate at `at`, or riding over champion `on` (its model index; the run
+## carries it forward) when on >= 0 (a new stamp replaces the one showing).
+func stamp(text: String, at: Vector3, on := -1) -> void:
 	_stamp.text = text
 	var w := _stamp.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, STAMP_PX).x * STAMP_PIXEL
 	_stamp_w = w + STAMP_PAD
 	_stamp_at = at
+	_stamp_on = on if on < models.size() else -1
 	_stamp_t = 0.0
 	_stamp.visible = true
 
@@ -392,7 +395,11 @@ func _draw_stamp(dt: float, n: int) -> int:
 		return n
 	var pop := 0.82 + 0.24 * smoothstep(0.0, 0.09, _stamp_t) - 0.06 * smoothstep(0.09, 0.14, _stamp_t)
 	var a := 1.0 - smoothstep(0.72, 1.0, k)
-	var at := _stamp_at + Vector3(0.0, STAMP_RISE * (1.0 - (1.0 - k) * (1.0 - k)), 0.0)
+	var at := _stamp_at
+	if _stamp_on >= 0:
+		var p := models[_stamp_on].pos
+		at = Vector3(p.x, STAMP_Y, p.z - 0.2)
+	at.y += STAMP_RISE * (1.0 - (1.0 - k) * (1.0 - k))
 	_stamp.position = at
 	_stamp.scale = Vector3.ONE * pop
 	_stamp.modulate = Color(STAMP_INK.r, STAMP_INK.g, STAMP_INK.b, a)
@@ -533,7 +540,7 @@ func on_fx(event: StringName, data: Dictionary) -> void:
 					hp = Vector3(float(it.get("x0", it["x"])), 0.0, -float(it["d"]))
 				c.act(&"block", hp)
 				var key := str(STAMPS.get(StringName(str(data.get("stamp", "block"))), STAMPS[&"block"]))
-				stamp(Loc.t(key), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2))
+				stamp(Loc.t(key), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2), i)
 				_burst(c.root + Vector3(-0.15, 0.6, -0.35), 6, 1.6, MARK, 0.08, 0.05, 1.0, 3.0)
 				Audio.play("upgrade", -12.0, 0.15)
 		&"champ_mend":
