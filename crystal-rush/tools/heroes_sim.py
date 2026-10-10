@@ -21,7 +21,8 @@ Run:  PYTHONHASHSEED=0 python3 heroes_sim.py      full (~25 min; seeded, reprodu
       python3 heroes_sim.py --section ladder|portal|chest|campaign|long|all
       python3 heroes_sim.py ... --export PATH   also write the constants (export_consts) to PATH
 Repo copy (tools/, WS-A): identical to the design sim except that it imports economy_sim.py from its own folder and
-writes the constants only with --export (tools/data/heroes_consts.json is refreshed by tools/gen_heroes_data.py).
+writes the constants only with --export (tools/data/heroes_consts.json is refreshed by tools/gen_heroes_data.py);
+since H2 the exported "team_demand" is LEVELSIM_TEAM_DEMAND (the LevelSim re-bake), not this model's calibrate_tf.
 Exit code 1 if any invariant fails.
 """
 from __future__ import annotations
@@ -2381,6 +2382,13 @@ def meta1_power_by_level(kind, seeds, levels):
 INV_DEMAND_MU = 0.98   # v2 final: Invasion re-bake at 98% of the capped EXPECTED ratio (full-run casual loss streak p90 4 -> 3,
                        # max attempts p90 5 -> 4; Meta-1's own Invasion curve already falls to 53% casual boss win at Inv W7)
 
+# H2 re-bake (heroes_design.md §8.2, §15 R5): the game's TEAM_DEMAND, measured in LevelSim with the real kits by
+# scripts/dev/demand_bake.gd (the EXPECTED profile at phase 2 matched to the Meta-1 EXPECTED account's win margin,
+# every 2nd level, Bolt + Titan, 3-world pooled medians, Invasion with --inv_fix). export_consts writes it as
+# "team_demand"; calibrate_tf stays this model's own ratio (the campaign sections here play with it). None = the model.
+LEVELSIM_TEAM_DEMAND = {1: 1.031, 2: 1.026, 3: 1.045, 4: 1.043, 5: 1.049, 6: 1.04, 7: 1.046,
+                        8: 1.015, 9: 1.016, 10: 1.027, 11: 1.046, 12: 1.094, 13: 1.074, 14: 1.074}
+
 
 def calibrate_tf(seeds, levels=112):
     """TEAM_DEMAND base: the EXPECTED profile = a casual player who only ever fields the best STARTER and the two
@@ -2835,7 +2843,7 @@ def export_consts(path, tf=None):
                  "MAT_PER_WIN": {"campaign": [mat_per_win(w, "campaign") for w in range(1, 8)],
                                  "invasion": [mat_per_win(w, "invasion") for w in range(1, 8)], "replay_share": REPLAY_MAT_SHARE}},
         "ceremony": CER, "feats": {k: {"counter": v[0], "tiers": v[1], "reward": v[2]} for k, v in HERO_FEATS.items()},
-        "unlocks": UNLOCK_AT, "team_demand": tf or {}}
+        "unlocks": UNLOCK_AT, "team_demand": LEVELSIM_TEAM_DEMAND or tf or {}}
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(d, fh, indent=1, ensure_ascii=False, default=str)
     print("constants exported to %s" % os.path.basename(path))

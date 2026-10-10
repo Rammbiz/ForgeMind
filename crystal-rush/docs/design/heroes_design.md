@@ -1957,6 +1957,34 @@ floor at ≥ 67% campaign / ≥ 62% Invasion, so μ = 1.00; Invasion inherits th
 `TEAM_DEMAND` is versioned with the data and re-baked (LevelSim, real kits) in phase H2 and whenever Meta-2 machines
 switch Affinity on (§15 R5).
 
+**H2 re-bake (LevelSim, real kits; 2026-10-10). Replaces the model row above.** The game reads `TeamData.TEAM_DEMAND`
+(`heroes_consts.json` `team_demand`, exported from `heroes_sim.LEVELSIM_TEAM_DEMAND`; the model's own ratio stays in
+`calibrate_tf` for the sim's campaign sections). `LevelGen.team_demand` applies it only while the heroes system is on
+for the run (phase ≥ 2 with a team block); it multiplies what each enemy costs the army: squad size, barricade hp,
+turret fire rate, fortress hp. Measured by `scripts/dev/demand_bake.gd`: every 2nd level (2, 4, 6, 8 of each world),
+Bolt and Titan, the same planner (`LevelSim.best_path`) plays the Meta-1 EXPECTED account (phase 0) on the level as
+built and the EXPECTED profile with the heroes system on (phase 2: the hero's v3 kit and the two scripted champions)
+on the level × m; m is where the win margin (survivors / fortress hp) is equal, by bisection. One world's 8 samples
+spread ±0.04 (90% interval of the median), so the adopted value pools the world with its neighbours (16–24
+samples). The synthetic EXPECTED account has no welcome Topaz (P4 lists one), and on Invasion levels it restarts
+its world caps at 1 (hero Lv9 at L60); the Invasion bake lifts those caps (`--inv_fix`, world reached 7).
+
+| World | W1 | W2 | W3 | W4 | W5 | W6 | W7 | Inv W1 | Inv W2 | Inv W3 | Inv W4 | Inv W5 | Inv W6 | Inv W7 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| model value (row above) | 1.028 | 1.030 | 1.054 | 1.070 | 1.111 | 1.123 | 1.158 | 1.133 | 1.124 | 1.135 | 1.135 | 1.131 | 1.132 | 1.122 |
+| LevelSim, this world only (8 samples) | 1.019 | 1.038 | 1.024 | 1.091 | 1.027 | 1.046 | 1.050 | 1.054 | 1.008 | 1.022 | 1.114 | 1.074 | 1.074 | 1.069 |
+| **ADOPTED `TEAM_DEMAND` (H2, 3-world pooled)** | **1.031** | **1.026** | **1.045** | **1.043** | **1.049** | **1.040** | **1.046** | **1.015** | **1.016** | **1.027** | **1.046** | **1.094** | **1.074** | **1.074** |
+| random paths: m for Meta-1's win rate | 1.13 | 1.07 | 1.28 | 1.43 | 1.36 | 1.30 | 1.35 | 1.19 | 1.17 | 1.28 | 1.36 | 1.29 | 1.32 | 1.30 |
+
+Why the bake sits below the model from W5 on: in LevelSim the heroes system adds about 4% of win margin for a good
+player (from L15: Titan's v3 kit +10%, Bolt's ±0, the two scripted champions +3–5% on top), while the model's power
+index gave +11–16% (champion classes measure 0.1–0.5 soldier/s in the sim, not the design's ~1). The adopted row
+pools both starters: Titan-led teams alone would give 1.02–1.16, Bolt-led ones 1.00–1.07. Sloppy play gains far
+more from the team (the last row: random paths need m 1.07–1.43 to fall back to Meta-1's win rate), and in soldiers
+left after the siege the good player keeps 0–14% more than in Meta-1, so at the adopted values a good EXPECTED
+player meets Meta-1's difficulty and a weaker one has it easier: the floor holds (P4). With the welcome Topaz in
+the EXPECTED profile the values from W3 on would rise; re-run the bake once the synthetic account carries it.
+
 ### 8.3 Campaign + Invasion, 112 levels (80 seeds per row)
 
 | Archetype / policy | Win | Boss min campaign · Invasion | Loss streak p90 | Max tries p90 | Ceremony mean (p90) | Machines share L60 · L112 | Machine Lv L112 |
@@ -2633,7 +2661,7 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 | R2 | Art is the long pole (≈ 220 images, 19 Meshy characters, Meshy credits already short) | waves + `HeroArt.state`; release waits for every character `complete` |
 | R3 | Scope (4 hub systems, 25 characters, save v3) | phased gates H0–H5; Workshop may slip to release 2 losslessly |
 | R4 | The Meta-1 integration is adding Мейра at L5 right now | Q7; the guest level keeps her at L5 either way |
-| R5 | `TEAM_DEMAND` is a model (sim) value | LevelSim re-bake on the EXPECTED profile in H2 with real kits; re-bake again when Meta-2 Frost / Rune machines switch Affinity on |
+| R5 | `TEAM_DEMAND` is a model (sim) value | LevelSim re-bake on the EXPECTED profile in H2 with real kits (done 2026-10-10, §8.2, `scripts/dev/demand_bake.gd`); re-bake again when Meta-2 Frost / Rune machines switch Affinity on |
 | R6 | Casual win rate 84% sits near the 85% ceiling; EXPECTED-only Invasion floor is 57% (no invariant; Meta-1's own was 53%) | watch telemetry; the Invasion margin `INV_DEMAND_MU` is one knob |
 | R7 | Kit budgets are designed, not yet measured | `test_kit_budget` / `test_rule3_kits` in LevelSim close every *(knob)* value before release |
 
