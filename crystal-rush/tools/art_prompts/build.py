@@ -95,6 +95,12 @@ RECEIVED = {  # hero id -> [(file, caption)], the owner's finished art (newest f
     'menhir': [('menhir/menhir_card_src.jpg', 'Картка')],
     'sirko': [('sirko/sirko_splash_src.jpg', 'Сплеш (4K)')],
     'olha': [('olha/olha_splash_src.jpg', 'Сплеш (4K)')],
+    'franko': [('franko/franko_card_src.jpg', 'Картка')],
+    'rukavychka': [('rukavychka/rukavychka_card_src.jpg', 'Картка')],
+    'odarka': [('odarka/odarka_card_src.jpg', 'Картка')],
+    'hohotun': [('hohotun/hohotun_card_src.jpg', 'Картка')],
+    'skovoroda': [('skovoroda/skovoroda_card_src.jpg', 'Картка')],
+    'motyvator': [('motyvator/motyvator_card_src.jpg', 'Картка')],
 }
 _uri_cache = {}
 

@@ -12,9 +12,9 @@
 - Фон завжди рівний сірий `#BFBFBF`; лівий верх кадру порожній під емблему та ім'я.
 - Імен персонажів у промтах НЕМАЄ (щоб генератор не малював текст і не тягнув асоціацій з чужими персонажами). Нічого не схоже на ваші референси з іншої гри, на відомих персонажів, прапори чи релігійні символи.
 
-Зміст: §1 Біблія стилю · §2 Порядок генерації і чекліст · §3 Герої (12) · §4 Чемпіони (15) · §5 Емблеми, значки, валюти, Портал, скрині, Майстерня, фони, спорядження, реліквії · §6 Відкриті питання.
+Зміст: §1 Біблія стилю · §2 Порядок генерації і чекліст · §3 Герої (12) · §4 Чемпіони (21) · §5 Емблеми, значки, валюти, Портал, скрині, Майстерня, фони, спорядження, реліквії · §6 Відкриті питання.
 
-## 1. Біблія стилю (одна на всіх 27 персонажів)
+## 1. Біблія стилю (одна на всіх 33 персонажів)
 
 ### 1.1 Еталон стилю
 
@@ -85,12 +85,12 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 
 | Поза | Опис | Хто |
 |---|---|---|
-| P1 «Варта / Guard» | зброя впирається в землю, вага на задній нозі | Арін, Пава · Олена, Менгір |
-| P2 «Крок / Advance» | крок/випад на глядача, удар у лівий нижній кут | Горан, Веста, Сірко · Брант, Тарас, Довбуш |
-| P3 «Чари / Cast» | рука до глядача (магію додає гра) | Ейра, Мейра, Люмен · Міла, Тая |
+| P1 «Варта / Guard» | зброя впирається в землю, вага на задній нозі | Арін, Пава · Олена, Менгір, Сковорода |
+| P2 «Крок / Advance» | крок/випад на глядача, удар у лівий нижній кут | Горан, Веста, Сірко · Брант, Тарас, Довбуш, Франко, Одарка, Мотиватор |
+| P3 «Чари / Cast» | рука до глядача (магію додає гра) | Ейра, Мейра, Люмен · Міла, Тая, Рукавичка |
 | P4 «Приціл / Aim» | лук/арбалет по діагоналі на лівий низ | Іскар, Ольга · Альба, Тео, Дара |
 | P5 «Щит / Bulwark» | низька стійка, щит уперед | Вартан · Іво, Отто, Німб, Снаряд |
-| P6 «Звір / Prowl» | низький присід/стрибок на глядача | Руді · Борко |
+| P6 «Звір / Prowl» | низький присід/стрибок на глядача | Руді · Борко, Гоготун |
 
 Два герої одного самоцвіту ніколи не мають однакової пози чи класу (перевірено). **Композиція героя (9:16, 2160×3840):** персонаж у правих 2/3; лівий верх (40% ширини × 40% висоти) порожній; очі на ≈ 30% висоти; від верху голови до колін, фігура йде за нижній край; корпус повернутий ≈ 30° ліворуч; камера трохи нижче грудей. **Чемпіон (3:4, 1536×2048):** до середини стегна, центр фігури ≈ 60% ширини, лівий верх 33% × 35% порожній, очі на ≈ 24%.
 
@@ -143,7 +143,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 5. **Анімації з бібліотеки** — за таблицею кліпів персонажа. Назви пресетів у Meshy можуть відрізнятися — беріть найближчий; тривалість і цикли я підріжу в Godot. Перейменовувати не треба — напишіть у повідомленні, який пресет на який кліп.
 6. **Download**: GLB з усіма анімаціями (або FBX). Пропи — окремі моделі без ригу.
 7. **Спроби**: до 3 на модель. Якщо «попливли» руки чи обличчя — краще перегенерувати лист, ніж модель.
-8. **Кредити**: перед хвилею 1 порахуйте — 22 персонажі (кожен: генерація + remesh + rig + 8–10 кліпів) + 16 пропів + 4 об'єкти (хвиля 4 додає ще 5 персонажів і 10 пропів), до 3 спроб кожне. Ціни Meshy змінюються, тому множте на поточну ціну в кабінеті.
+8. **Кредити**: перед хвилею 1 порахуйте — 22 персонажі (кожен: генерація + remesh + rig + 8–10 кліпів) + 16 пропів + 4 об'єкти (хвиля 4 додає ще 5 персонажів і 10 пропів, хвиля 9 — ще 6 персонажів і 6 пропів), до 3 спроб кожне. Ціни Meshy змінюються, тому множте на поточну ціну в кабінеті.
 
 | Тип | Трикутники | Текстура в грі | Кістки | Примітка |
 |---|---|---|---|---|
@@ -167,6 +167,7 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | 7 | **Хвиля 2:** Вартан, Пава · Тая, Брант, Тео, Олена · Майстерня (станок) · 12 іконок спорядження | Топаз/Опал-пул; фаза H4 (Майстерня, L32) |
 | 8 | **Хвиля 3:** Німб, Дара, Менгір · Велика скриня · 22 реліквії · 5 аур · (опційно) 5 текстур самоцвітів | рідкісні скрині, полірування |
 | 9 | **Хвиля 4 (ваші запити 2026-10-09, після запуску):** Сірко, Ольга · Тарас, Снаряд, Довбуш — 2 сплеші й 3 картки вже ГОТОВІ; далі листи → пропи → Meshy → риг → кліпи → іконки · 5 реліквій | Сірко й Ольга в Порталі (Опал), троє чемпіонів у Скрині героїв |
+| 10 | **Хвиля 9 (затверджено 2026-10-10):** Франко, Рукавичка, Одарка, Гоготун, Сковорода, Мотиватор — 6 карток уже ГОТОВІ (Gemini, 1792×2400; 4K — апскейлом у тому ж чаті); далі листи → пропи → Meshy → риг → кліпи → іконки · 6 реліквій | шестеро чемпіонів у Скрині героїв (C28–C33) |
 
 ### 2.1 Чекліст — герої
 
@@ -204,6 +205,12 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | 9 | 23 | Тарас `taras` | ✓ | ✓ (A-поза) | ☐ | ✓ книга для кидка · ☐ розгорнута книга | ✓ 8k | ✓ 6 кліпів | ✓ | ✓ 2026-10-10 (борідку прибрано з текстури; іконка «Слово» з Gemini) |
 | 9 | 24 | Снаряд `snaryad` | ✓ | ☐ | ☐ | ☐ щит-диск · ☐ щуп | ☐ | ☐ | ☐ | ☐ |
 | 9 | 25 | Довбуш `dovbush` | ✓ | ☐ | ☐ | ☐ бартка | ☐ | ☐ | ☐ | ☐ |
+| 10 | 28 | Франко `franko` | ✓ (Gemini, 2026-10-10) | ☐ | ☐ | ☐ гранітний молот | ☐ | ☐ | ☐ | ☐ |
+| 10 | 29 | Рукавичка `rukavychka` | ✓ (Gemini, 2026-10-10) | ☐ | ☐ | ☐ рукавичка-хатка | ☐ | ☐ | ☐ | ☐ |
+| 10 | 30 | Баба Одарка `odarka` | ✓ (Gemini, 2026-10-10) | ☐ | ☐ | ☐ каструля борщу · ☐ банка перцю | ☐ | ☐ | ☐ | ☐ |
+| 10 | 31 | Гоготун `hohotun` | ✓ (Gemini, 2026-10-10) | ☐ | ☐ | — | ☐ | ☐ | ☐ | ☐ |
+| 10 | 32 | Сковорода `skovoroda` | ✓ (Gemini, 2026-10-10; сітку перевирізати) | ☐ | ☐ | ☐ ціпок з аметистом | ☐ | ☐ | ☐ | ☐ |
+| 10 | 33 | Мотиватор `motyvator` | ✓ (Gemini, 2026-10-10) | ☐ | ☐ | ☐ дубовий кийок | ☐ | ☐ | ☐ | ☐ |
 
 ### 2.3 Чекліст — спільне
 
@@ -218,13 +225,15 @@ Blurry or low resolution, text, letters, numbers, watermark, signature, logo, fr
 | 7 | Майстерня: концепт + `workshop.glb` | 1 | ☐ ☐ |
 | 7 | Спорядження `gear_*.png` | 12 | ☐☐☐☐☐☐☐☐☐☐☐☐ |
 | 8 | Велика скриня: концепт + `grand_hero_chest.glb` | 1 | ☐ ☐ |
-| 8/9 | Реліквії `relic_*.png` | 27 | ☐×27 |
+| 8/9/10 | Реліквії `relic_*.png` | 33 | ☐×33 |
 | 8 | Аури класів `aura_*.png` | 5 | ☐☐☐☐☐ |
 | 8 | (опційно) Текстури самоцвітів `gemtex_*.png` | 5 | ☐☐☐☐☐ |
 
 Разом: 10 сплешів (+1 «очі закриті» Мейри; для Вести — один із двох варіантів) · 12 карток · 22 фронт-листи (Вестин v1, можливо, вже годиться) · 22 «бік+спина» (кожен дає 2 кадри) · 16 листів пропів · 52 іконки навичок/дій · 5 аур · 4 герби · 5 ескізів класів · 4 валюти · 12 спорядження · 22 реліквії · 4 фони · 4 концепти об'єктів = **≈ 195 зображень** (+5 опційних текстур самоцвітів). Meshy: **22 персонажі** (19 нових + 3 ремейки стартерів) + **16 пропів** + **4 об'єкти**; глефа Вести вже є; спис Іво, спис Німба, призму Люмена, підвіску Таї й таблички Менгіра роблю сам.
 
 Хвиля 4 (Сірко, Ольга, Тарас, Снаряд, Довбуш) додає: 2 сплеші + 3 картки (уже ГОТОВІ) · 5 фронт-листів · 5 «бік+спина» · 10 листів пропів · 11 іконок (8 навичок Сірка й Ольги + 3 дії) · 5 реліквій = ще 41 зображення, з них 5 уже є. Meshy: +5 персонажів, +10 пропів.
+
+Хвиля 9 (Франко, Рукавичка, Одарка, Гоготун, Сковорода, Мотиватор) додає: 6 карток (уже ГОТОВІ) · 6 фронт-листів · 6 «бік+спина» · 6 листів пропів (у Гоготуна пропів немає, в Одарки два) · 6 іконок дій · 6 реліквій = ще 36 зображень, з них 6 уже є. Meshy: +6 персонажів, +6 пропів.
 
 ## 3. Герої (12)
 
@@ -3856,9 +3865,9 @@ Text, letters, numbers, frame, border, ring, badge plate, background scene, face
 
 ---
 
-## 4. Чемпіони (15)
+## 4. Чемпіони (21)
 
-Картка 3:4 до середини стегна (вона ж — бюст у камео й на медальйоні). Далі як у героїв, але одна іконка — Дія чемпіона. Реалістичні пропорції (додаток 5 скасовує «трохи чібі» з партії 1). Порядок — за §2: Отто → Альба → Міла → Іво → Борко → Тая → Брант → Тео → Олена → Німб → Дара → Менгір → Тарас → Снаряд → Довбуш (хвиля 4).
+Картка 3:4 до середини стегна (вона ж — бюст у камео й на медальйоні). Далі як у героїв, але одна іконка — Дія чемпіона. Реалістичні пропорції (додаток 5 скасовує «трохи чібі» з партії 1). Порядок — за §2: Отто → Альба → Міла → Іво → Борко → Тая → Брант → Тео → Олена → Німб → Дара → Менгір → Тарас → Снаряд → Довбуш (хвиля 4) → Франко → Рукавичка → Одарка → Гоготун → Сковорода → Мотиватор (хвиля 9).
 
 ### C15 `otto` — Отто — Ходяча фортеця / Otto — Walking Fortress
 
@@ -6917,6 +6926,1218 @@ Text, letters, numbers, frame, border, ring, badge plate, background scene, face
 
 ---
 
+### C28 `franko` — Франко — Каменяр / Franko — the Stonebreaker
+
+НОВИЙ (хвиля 9, затверджено власником 2026-10-10). Шанобливий героїчний образ — данина Іванові Франку (1856–1916) і його віршу «Каменярі» (1878): каменяр, що лупає скелю разом із усіма. Гідно, тепло, ніколи не карикатура, без гасел; портрет із купюри не копіюємо. Роль: a stonebreaker champion whose hammer always goes for stone: barricades, walls, geodes and the fortress gate.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Топаз / Topaz | Воїн | Кінетика | Кам'яне Серце | людина, ч. (≈1.82 м) | P2 Advance (замах молотом) | golden amber topaz (#FFB52E) | cushion cut (не зірка — так на картці), set into the granite hammer head between two brass bands |
+
+**(a) Картка чемпіона (3:4, до середини стегна)** — `franko_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/franko/franko_card_src.jpg`, 1792×2400; у грі — `assets/heroes/franko/card.png`).
+
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Перегенеровувати не треба. Хочете 4K — у тому ж чаті Gemini: `Upscale this image to 4K without changing anything`. Ваш промт до цієї картки в репо не потрапив, тому нижче — промт, що описує картку такою, як вона вийшла (для скінів або якщо чат загубився).
+
+```
+Create ONE vertical champion card illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 3:4 (portrait). Resolution 1536x2048 px or higher; never below 1152x1536.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas. No gradient, no vignette, no scenery, no rocks, no floor, no ground shadow.
+- One single character. No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; refined face with clean features; soft luminous painterly rendering with crisp clean edges; delicate gold and brass detail; rich but controlled colour.
+- Proportions: realistic adult anatomy, about 7.5 heads tall, a broad-shouldered, strong man in his late thirties. No chibi or cartoon proportions, no oversized head, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. Crystals look like real cut gemstones with sharp facets, but they do not glow and cast no light.
+- Effects: none in the image (no glow, sparks, flying stone chips, dust clouds, particles, smoke or motion trails); the game adds every effect itself.
+- Rarity look (fourth tier): rich layered materials, fine hand-made embroidery, polished brass fittings, a very dynamic silhouette.
+
+CHARACTER - a stonebreaker hero of the mountain quarries, a poet who breaks the rock beside the workers; a respectful heroic image inspired by the Ukrainian writer Ivan Franko and his poem about the stonebreakers, not copied from any banknote, painting or photograph
+- Face: a strong, serious man in his late thirties; swept-back reddish-brown hair; heavy brows over steady grey-blue eyes; a full reddish moustache with slightly upturned tips and a short trimmed beard; determined, honest and kind, never a caricature.
+- Shirt: a white Galician linen shirt with red-and-black cross-stitch embroidery at the collar, on the shoulders and at the cuffs; the sleeves rolled up to the elbows, forearms strong and dusted with stone powder.
+- Gear: a brown leather quarryman's harness with brass buckles crossing the chest; a heavy brown leather apron over the shirt; a wide leather belt with a stonemason's chisel and a small hammer-pick hanging from it; dark work trousers.
+- Wrists: a heavy iron shackle cuff on each wrist with two or three broken chain links hanging from it; the shackles are broken, never closed or joined.
+- Weapon: a big two-handed hammer whose head is a rough block of grey granite bound by two polished brass bands, on a long wooden haft with a brass collar and a brass butt cap.
+- Heart gem: one faceted cushion cut of golden amber topaz (#FFB52E), about 4% of the figure height, set into the granite face of the hammer head between the two brass bands, clearly visible from the front.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is golden amber imperial topaz (body colour #FFB52E, deeper amber #E07B12 in the shadows). No teal, cyan, green, blue, violet, clear-white or rainbow crystals or gems.
+- Palette: white linen; red and black embroidery; warm brown leather; brass; grey granite; dark iron; amber topaz.
+
+POSE & COMPOSITION
+- Pose: a powerful two-handed wind-up: the granite hammer raised high over his left shoulder (the hammer head on the right side of the image), both hands on the haft, about to strike down; feet planted wide; the broken chains swinging from his wrists; the gaze locked on the target in the lower left, jaw set.
+- Camera slightly below chest height looking up about 10 degrees, long lens, little perspective distortion; the body is turned about 30 degrees toward the viewer's left so the gaze leads into the empty upper-left area.
+- Framing: from the top of the hammer head down to mid-thigh; the figure continues off the bottom edge. The whole head and the hammer head stay inside the frame with a margin of at least 4% of the image height above them.
+- The character stands slightly right of centre (body centre line at about 60% of the width). Keep the upper-left area (left 33% of the width, top 35% of the height) as empty flat background: it is reserved for the game's emblem. Never the face, hands or hammer inside it.
+- The eyes are at about 24-30% of the image height from the top.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, watermark, signature, logo, frame, border, UI, extra characters, extra fingers, extra limbs, fused or deformed hands, a hand merged into the haft, cropped head, background objects, rocks, floor, cast shadow, gradient or vignette background, glow, sparks, particles, smoke, light rays, motion blur, thick outlines, chibi or cartoon proportions, caricature, likeness copied from a banknote or photograph, closed or joined shackles, a prison uniform, blood, flags, political symbols, crosses or religious symbols, brand marks, modern clothing, any resemblance to a character from an existing game, film, comic or anime.
+```
+
+**(b) Листи для Meshy** (руки порожні; зброя — окрема модель).
+
+*b1 Фронт* — `franko_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджена картка цього чемпіона + `style_anchor.png`. Перевірте: ступні видно, руки порожні, обличчя й кольори як на картці.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved card): the broad-shouldered man in his late thirties with swept-back reddish-brown hair, a full reddish moustache and a short trimmed beard, grey-blue eyes; a white Galician linen shirt with red-and-black cross-stitch at the collar, shoulders and cuffs, the sleeves rolled up to the elbows; a brown leather quarryman's harness with brass buckles across the chest; a heavy brown leather apron; a wide leather belt with a chisel and a small hammer-pick hanging at the hips; dark work trousers; brown leather work boots; a heavy iron shackle cuff on each wrist with two short broken chain links hanging from it.
+- Same face, costume, colours and materials as the reference; nothing added, nothing removed. The granite hammer is NOT in this image (it is made as a separate model); the topaz heart gem sits in the hammer, so the body itself carries no crystal.
+- COLOR LOCK: every crystal and gemstone is golden amber topaz (#FFB52E). No teal, cyan, green, blue, violet, clear-white or rainbow crystals or gems.
+
+POSE & VIEW
+- Full body from head to toe, both feet fully visible, centred; the figure fills about 88% of the image height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart; feet pointing forward.
+- Hands open and EMPTY, palms facing down, fingers together, clearly separated from the body.
+- The broken chain links hang short and straight down from the cuffs, touching nothing; the apron hangs straight; the belt tools sit flat against the hips.
+- Neutral calm expression, mouth closed, eyes open looking forward.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; realistic adult anatomy, about 7.5 heads tall, a broad-shouldered, strong man in his late thirties; clean readable shapes.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, a held weapon or object, cropped feet, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, floating parts, long chains, closed or joined shackles, extra fingers, background objects, text, watermark, caricature.
+```
+
+*b2 Бік + спина* — `franko_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `franko_sheet_front.png` + картка. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `franko_sheet_side.png`, права → `franko_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from head to toe with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the broad-shouldered man with reddish-brown hair, a reddish moustache and short beard, a white linen shirt with red-and-black cross-stitch and rolled-up sleeves, a brown leather harness crossing the back with brass buckles, a heavy leather apron tied at the back, a wide belt with a chisel and a small hammer-pick, dark work trousers, brown work boots and broken iron shackle cuffs on both wrists.
+- COLOR LOCK: every crystal and gemstone is golden amber topaz (#FFB52E). No teal, cyan, green, blue, violet, clear-white or rainbow crystals or gems.
+
+POSE & VIEW
+- The same A-pose as the front reference: arms straight, about 40 degrees down and away from the body; legs straight and slightly apart; hands open and empty.
+- The harness straps cross on the back; the apron strings tie in a knot at the small of the back; the belt tools show on the hip in the profile view.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; realistic adult anatomy, about 7.5 heads tall, a broad-shouldered, strong man in his late thirties.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, held weapons, cropped feet, perspective distortion, dramatic light, glow, text, watermark.
+```
+
+*b3 Проп «granite hammer»* — `franko_prop_hammer.png` → Meshy Image to 3D → `franko_prop_hammer.glb` (~1 500 трикутників, без ригу).
+Налаштування: формат **1:1** · якість **2K+** · референс: картка (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same hammer as in the attached reference image (the character's approved card): a big two-handed hammer whose head is a rough rectangular block of grey granite bound by two polished brass bands, on a long straight wooden haft with a brass collar under the head and a brass butt cap; one faceted cushion cut of golden amber topaz (#FFB52E) set into the granite face between the two bands, the heart gem.
+- COLOR LOCK: the stone in the hammer head is golden amber topaz (#FFB52E). No teal, cyan, green, blue, violet, clear-white or rainbow crystals or gems.
+
+VIEW
+- The whole object alone, shown once, standing upright, head up, straight side view with the topaz face toward the camera, centred, filling about 85% of the image height; both ends fully inside the frame.
+- No hands, no character, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no sparks, no particles, no motion blur. Every part physically connected.
+
+AVOID
+Hands, a character, a second object, perspective distortion, cropped ends, dramatic light, glow, text, watermark.
+```
+
+Запасний Meshy Text to 3D для «granite hammer»:
+
+```
+Big two-handed war hammer, the head a rough block of grey granite bound by two polished brass bands, a faceted golden amber topaz set into the stone face, a long wooden haft with a brass collar and a brass butt cap. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **8 000 трикутників** (Triangle) · текстура в грі 512² (чемпіон) — завантажуйте як дає Meshy, я зменшу · Symmetry: **Auto (інструменти на поясі, ланцюжки)**.
+
+```
+Broad-shouldered strong man in his late thirties, reddish-brown swept-back hair, full reddish moustache and short beard, white linen shirt with red and black cross-stitch and rolled-up sleeves, brown leather harness with brass buckles, heavy leather apron, wide belt with a chisel and a small pick, iron shackle cuffs with short broken chain links on both wrists, dark work trousers, brown boots. Stylized hand-painted 3D game character, realistic adult proportions, clean readable silhouette, A-pose, empty hands, full body, front view, plain light grey background, soft even lighting, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid, ≤ 30 кісток, БЕЗ додаткових кісток: обірвані ланцюжки — частина меша кайданів (гойдання — вершинним шейдером). Молот на `hand_l` (як на картці: над лівим плечем); праву руку на держак ставлю кодом (дворучний хват).
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle | 2.0 с | так | спирається на молот, витирає чоло передпліччям, ланцюжки дзенькають |
+| `run` | Running / Run Forward | цикл 0.6–0.7 с | так | важкий рішучий біг, молот на плечі |
+| `action` | Hammer Attack / Overhead Strike | 0.6–0.8 с | ні | верхня частина тіла (я відфільтрую на хребет/руки): короткий удар молотом у сутичці («Рубка») |
+| `special` | Jump Attack / Ground Slam | 1.0–1.4 с | ні | усе тіло: стрибок із молотом над головою й удар у камінь («Лупайте сю скалу!»), уламки — ефект |
+| `hit` | Hit Reaction | 0.4 с | ні | короткий відсахнувся |
+| `fall` | Kneel Down / Dying | 1.2–1.6 с | ні | опускається на одне коліно, спирається на молот, голова схилена |
+| `victory` | Victory / Cheering | 2.0 с | ні | підносить молот над головою, розбиті кайдани видно |
+| `flourish` | Weapon Twirl / Showing Off | 1.5 с | ні | реакція на дотик у «Деталях»: перехоплює молот і закидає на плече |
+
+Після `fall` тримаю останній кадр (він на коліні, спирається на молот); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
+
+**(e) Іконка дії** — Лупайте сю скалу! / Break This Rock! — `franko_action.png` (колір — стихія Кінетика).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with pale copper (#D9B8A6) and warm bronze as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Break This Rock! (champion action)
+- a heavy stone-headed hammer striking down on a big rough boulder that splits in two along one bold zigzag crack, with two or three chunky stone shards flying apart
+
+COLOUR
+- Main colours: pale copper (#D9B8A6) and warm bronze, ivory white and gold; the darkest shading in deep bronze-brown (#4A3426) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, hands, chains, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark.
+```
+
+---
+
+### C29 `rukavychka` — Рукавичка — Мишка-шкряботушка / The Mitten — Scrabble-Mouse
+
+НОВИЙ (хвиля 9, затверджено власником 2026-10-10). Українська народна казка «Рукавичка»: дід загубив рукавичку, і в неї по черзі вселяються мишка-шкряботушка, жабка, зайчик, лисичка, вовчик, кабан і ведмідь, аж поки не загавкає собака. Наша мишка — та, що пускає всіх. Ілюстрацій Джен Бретт і Ярослави Мілз не копіюємо; написання — «шкряботушка». Тон: теплий, казковий, трохи смішний. Роль: a little mouse healer who carries her mitten-house on her back and lets every wounded soldier in, until the dog barks and they all jump back out.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Кварц / Quartz | Цілитель | Мороз | Дикі Ікла | звір (мишка), ж. (≈1.30 м) | P3 Cast (махає лапкою, рукавичка за спиною) | clear colourless quartz | round faceted cut in a silver bezel, the medallion on her chest (у грі на ньому лічильник гостей) |
+
+**(a) Картка чемпіона (3:4, до середини стегна)** — `rukavychka_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/rukavychka/rukavychka_card_src.jpg`, 1792×2400; у грі — `assets/heroes/rukavychka/card.png`).
+
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Перегенеровувати не треба. Хочете 4K — у тому ж чаті Gemini: `Upscale this image to 4K without changing anything`. Ваш промт до цієї картки в репо не потрапив, тому нижче — промт, що описує картку такою, як вона вийшла (для скінів або якщо чат загубився).
+
+```
+Create ONE vertical champion card illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 3:4 (portrait). Resolution 1536x2048 px or higher; never below 1152x1536.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas. No gradient, no vignette, no scenery, no snow, no floor, no ground shadow.
+- One single character. No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; soft luminous painterly rendering with crisp clean edges; fine embroidery and knit texture; rich but controlled colour.
+- Proportions: an anthropomorphic mouse-kin girl standing upright, plausible anatomy, about 5 heads tall: a slender body, a slightly large head with big round ears, small expressive paws with four fingers and a thumb, a thin tail. Not chibi, not a plush toy, no oversized baby head, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. Crystals look like real cut gemstones with sharp facets, but they do not glow and cast no light.
+- Effects: none in the image (no glow, steam, snowflakes, sparkles, particles or magic); the game adds every effect itself.
+- Rarity look (lowest tier): practical, sturdy village clothes with modest trim; charming but simple, clearly less ornate than higher-rarity characters.
+
+CHARACTER - the little mouse from a Ukrainian folk tale who lives in a lost mitten and lets everyone in, however tight it gets; kind, brave, chatty and a little cheeky
+- Head: soft grey-brown fur, big round ears with pink insides, large shining dark eyes, a small pink nose, long fine whiskers, a warm open smile showing two little front teeth.
+- Headscarf: a red cotton headscarf with small white flower dots, tied in a knot under the chin, its ends fluttering over the chest.
+- Clothes: a white linen blouse with red-and-black cross-stitch on the sleeves and a thin snow-ivory (#F4F8DF) edging at the cuffs; a cream sheepskin vest with curly fleece edges and a narrow gold-and-red woven border down the front; a long dark-red skirt with a simple woven belt; a thin grey tail curling out from under the skirt.
+- The mitten-house: on her back, carried on brown leather straps, a huge knitted cream wool mitten with red zigzag and heart patterns, as tall as her torso; a small wooden window with open shutters on its side and a tiny chimney with a pointed roof at the top of the thumb; from its cuff opening a hare's long ears, a little green frog and a fox cub's pointed ears peek out (no other animals).
+- Heart gem: one round faceted clear quartz, about 4% of the figure height, in a polished silver bezel medallion pinned at the centre of her chest where the vest meets, clearly visible from the front.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is clear colourless rock quartz, water-clear with a faint cool silver-grey tint. No coloured crystals or gems of any kind: no blue, green, violet, pink, gold or amber stones.
+- Palette: grey-brown fur, pink ears and nose, red headscarf with white dots, white linen with red-and-black embroidery, snow-ivory #F4F8DF edging, cream fleece, dark red skirt, cream-and-red knit mitten, warm brown wood and leather, silver, clear quartz.
+
+POSE & COMPOSITION
+- Pose: a friendly welcome: she turns toward the viewer with her free paw raised high in a cheerful wave, the other paw holding the mitten strap at her chest; the mitten-house rides on her back and shows on the left side of the image; the little guests peek out over its cuff.
+- Camera at chest height, long lens, little perspective distortion; the body is turned about 20 degrees toward the viewer's right so the mitten on her back reads clearly.
+- Framing: from the tips of her ears down to mid-thigh; the figure continues off the bottom edge. The whole head and ears stay inside the frame with a margin of at least 4% of the image height above them.
+- The mouse stands right of centre (body centre line at about 62% of the width); the mitten fills the lower left. Keep the upper-left area (left 30% of the width, top 25% of the height) as empty flat background: it is reserved for the game's emblem. Only the hare's ear tips may touch its edge.
+- The eyes are at about 30-34% of the image height from the top.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, watermark, signature, logo, frame, border, UI, extra characters beyond the three small guests in the mitten, extra fingers, extra limbs, fused or deformed paws, cropped head or ears, background objects, snow, floor, cast shadow, gradient or vignette background, glow, steam, sparkles, particles, motion blur, thick outlines, chibi or cartoon proportions, a plush toy look, a realistic mouse photo, copying any published picture-book illustration, flags, crosses or religious symbols, brand marks, any resemblance to a character from an existing game, film, comic or anime.
+```
+
+**(b) Листи для Meshy** (лапи порожні; рукавичка-хатка — окрема модель).
+
+*b1 Фронт* — `rukavychka_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджена картка цього чемпіона + `style_anchor.png`. Перевірте: ступні видно, лапи порожні, мордочка й кольори як на картці.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved card): the upright mouse-kin girl with soft grey-brown fur, big round ears with pink insides, large dark eyes, a small pink nose and fine whiskers; a red headscarf with small white flower dots tied under the chin; a white linen blouse with red-and-black cross-stitch on the sleeves and snow-ivory edging at the cuffs; a cream sheepskin vest with curly fleece edges and a gold-and-red woven border; a round faceted clear quartz in a silver bezel medallion at the centre of her chest; a long dark-red skirt with a woven belt; small bare mouse feet with pink toes; a thin grey tail; two brown leather backpack straps over her shoulders.
+- Same face, costume, colours, materials and heart gem as the reference; nothing added, nothing removed. The knitted mitten-house is NOT in this image (it is made as a separate model); only its two empty shoulder straps remain.
+- COLOR LOCK: every crystal and gemstone is clear colourless rock quartz with a faint cool silver-grey tint. No coloured crystals or gems of any kind.
+
+POSE & VIEW
+- Full body from the ear tips to the toes, both feet fully visible, centred; the figure fills about 88% of the image height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart under the skirt; feet pointing forward.
+- Paws open and EMPTY, palms facing down, fingers together, clearly separated from the body.
+- The headscarf ends lie flat on the chest; the tail hangs down behind one foot and touches the ground, clearly separated from the legs.
+- Calm friendly expression, mouth closed, eyes open looking forward.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; plausible mouse-kin anatomy, about 5 heads tall; clean readable shapes.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, a held object, the mitten, cropped feet or ears, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, floating parts, extra fingers, background objects, text, watermark, a plush toy look.
+```
+
+*b2 Бік + спина* — `rukavychka_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `rukavychka_sheet_front.png` + картка. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `rukavychka_sheet_side.png`, права → `rukavychka_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from the ear tips to the toes with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the upright grey-brown mouse-kin girl with big round ears, a red dotted headscarf knotted under the chin, a white embroidered blouse, a cream sheepskin vest, a long dark-red skirt, two brown leather backpack straps and a thin grey tail.
+- COLOR LOCK: every crystal and gemstone is clear colourless rock quartz. No coloured crystals or gems of any kind.
+
+POSE & VIEW
+- The same A-pose as the front reference: arms straight, about 40 degrees down and away from the body; legs straight and slightly apart; paws open and empty.
+- In profile the long whiskers, the pointed muzzle and the round ear read clearly; on the back the two empty straps cross at the shoulder blades (the mitten is a separate model), the headscarf knot shows at the nape and the tail comes out from under the skirt and reaches the ground.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; plausible mouse-kin anatomy, about 5 heads tall.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, the mitten, held objects, cropped feet, perspective distortion, dramatic light, glow, text, watermark.
+```
+
+*b3 Проп «mitten-house»* — `rukavychka_prop_mitten.png` → Meshy Image to 3D → `rukavychka_prop_mitten.glb` (~2 000 трикутників, без ригу).
+Налаштування: формат **1:1** · якість **2K+** · референс: картка (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same mitten-house as in the attached reference image (the character's approved card): a huge knitted cream wool mitten with red zigzag and heart patterns, standing upright on its fingertips with the cuff opening at the top; a small wooden window with open shutters on its side; a tiny chimney with a pointed roof on top of the thumb; two short brown leather straps sewn to its back; from the cuff opening a hare's long ears, a little green frog's head and a fox cub's pointed ears peek out, simple and chunky.
+- COLOR LOCK: there is no crystal or gemstone on this object.
+
+VIEW
+- The whole object alone, shown once, upright, a three-quarter front view so the window, the chimney and the cuff opening all read, centred, filling about 85% of the image height; fully inside the frame.
+- No hands, no character carrying it, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean chunky shapes for a 3D artist; a clear knit texture without tiny loose threads.
+- Soft even studio lighting from the front. No glow, no smoke from the chimney, no particles. Every part physically connected.
+
+AVOID
+Hands, a character carrying it, a second object, perspective distortion, cropped parts, smoke, steam, dramatic light, glow, text, watermark, loose threads.
+```
+
+Запасний Meshy Text to 3D для «mitten-house»:
+
+```
+Huge knitted cream wool mitten standing upright with red zigzag and heart patterns, a small wooden window with open shutters on its side, a tiny chimney on top of the thumb, two leather straps on its back, a hare's ears, a small frog and a fox cub's ears peeking from the cuff opening. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **8 000 трикутників** (Triangle) · текстура в грі 512² (чемпіон) — завантажуйте як дає Meshy, я зменшу · Symmetry: **Auto (вузол хустки, хвіст)**.
+
+```
+Upright mouse-kin girl with soft grey-brown fur, big round ears with pink insides, large dark eyes, pink nose and whiskers, red headscarf with white dots tied under the chin, white embroidered blouse, cream sheepskin vest with fleece edges, round clear crystal medallion on the chest, long dark-red skirt, thin grey tail, two leather backpack straps. Stylized hand-painted 3D game character, plausible creature anatomy, clean readable silhouette, A-pose, empty hands, full body, front view, plain light grey background, soft even lighting, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid (пропорції мишки: велика голова з вухами, тонкий хвіст), ≤ 30 кісток, БЕЗ додаткових кісток: вуха жорсткі на кістці голови, хвіст і кінці хустки — частини меша (хвіст на кістці таза; гойдання — вершинним шейдером). Рукавичка-хатка — жорстка модель на кістці хребта (`spine` / `chest`); віконце відчиняю кодом (заміна текстури), гості в рукавичці — частина її меша.
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle / Look Around | 2.0 с | так | поправляє хустку, вуха смикаються, озирається на рукавичку |
+| `run` | Running / Run Forward | цикл 0.5–0.6 с | так | дрібний швидкий біг, рукавичка підстрибує за спиною |
+| `action` | Wave / Spell Cast | 0.6–0.8 с | ні | верхня частина тіла (я відфільтрую на хребет/руки): махає лапкою — Зцілення, тепла пара з рукавички (ефект) |
+| `special` | Turn Around → Cheer (склею з пресетів) | 1.0–1.4 с | ні | усе тіло: розвертається спиною, відчиняє віконце, гості вискакують (ефект), гавкіт «ГАВ!» — подвійне повернення |
+| `hit` | Hit Reaction | 0.4 с | ні | короткий відсахнувся, вуха притиснуті |
+| `fall` | Sit Down / Dying | 1.2–1.6 с | ні | сідає, закриває мордочку кінцями хустки, вуха опускаються |
+| `victory` | Cheering / Jump | 2.0 с | ні | підстрибує й махає обома лапками |
+| `flourish` | Bow / Showing Off | 1.5 с | ні | реакція на дотик у «Деталях»: кумедний уклін, з рукавички визирають гості |
+
+Після `fall` чемпіон сидить (останній кадр тримаю); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
+
+**(e) Іконка дії** — Хто в рукавичці живе? / Who Lives in the Mitten? — `rukavychka_action.png` (колір — стихія Мороз).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with snow ivory (#F8FFD8) and frost white as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Who Lives in the Mitten? (champion action)
+- a plump knitted mitten seen from the side with one small arched window, three pairs of small rounded ears peeking over its cuff (only the ears, no faces)
+
+COLOUR
+- Main colours: snow ivory (#F8FFD8) and frost white, ivory white and gold; the darkest shading in cool slate grey-blue (#46566B) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, knit texture noise, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark.
+```
+
+---
+
+### C30 `odarka` — Баба Одарка — Берегиня борщу / Granny Odarka — Keeper of the Borscht
+
+НОВИЙ (хвиля 9, затверджено власником 2026-10-10). Вигадана бабуся — збірний образ української бабусі («Ти щось схуд. Їж!», борщ, погріб закруток); НЕ реальна людина, не Баба Параска й не жінки з воєнних відео. Банка летить лише у фантастичних летунів Жаророгих, ніколи не в дрони. Жарти ніколи не про старість. Роль: a warm, fierce village granny who feeds the fallen back to their feet and knocks enemy fliers out of the sky with jars of pickled peppers.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Сапфір / Sapphire | Цілитель | Плазма | Орден Світанку | людина, ж. (≈1.62 м) | P2 Advance (замах банкою) | vivid blue sapphire (#3FA9FF) | oval cut (не Asscher — так на картці), the engraved silver brooch pinning her headscarf |
+
+**(a) Картка чемпіона (3:4, до середини стегна)** — `odarka_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/odarka/odarka_card_src.jpg`, 1792×2400; у грі — `assets/heroes/odarka/card.png`).
+
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Перегенеровувати не треба. Хочете 4K — у тому ж чаті Gemini: `Upscale this image to 4K without changing anything`. Ваш промт до цієї картки в репо не потрапив, тому нижче — промт, що описує картку такою, як вона вийшла (для скінів або якщо чат загубився).
+
+```
+Create ONE vertical champion card illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 3:4 (portrait). Resolution 1536x2048 px or higher; never below 1152x1536.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas. No gradient, no vignette, no scenery, no kitchen, no floor, no ground shadow.
+- One single character. No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; refined face with clean features; soft luminous painterly rendering with crisp clean edges; fine embroidery and enamel detail; rich but controlled colour.
+- Proportions: realistic adult anatomy, about 7 heads tall, a sturdy, strong woman of about sixty. No chibi or cartoon proportions, no oversized head, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. Crystals look like real cut gemstones with sharp facets, but they do not glow and cast no light.
+- Effects: none in the image (no steam, glow, sparks, splashes, particles or motion trails); the game adds every effect itself.
+- Rarity look (second tier): refined village clothes with fine embroidery and a few elegant details.
+
+CHARACTER - a fictional Ukrainian village granny, the keeper of the borscht, who feeds every fallen soldier back to their feet and pelts the enemy's flying monsters with jars of pickled peppers; warm, fierce and very sure of herself
+- Face: an invented face (not a real person): a sturdy woman of about sixty with rosy round cheeks, sharp grey-blue eyes under strong grey brows, a knowing, slightly stern half-smile; dignified and lively, never a caricature, no jokes about age.
+- Headscarf: a cream headscarf printed with big red roses and green leaves, tied at the nape, its ends over the shoulders; grey hair showing at the forehead.
+- Clothes: a white linen blouse with dense red-and-black cross-stitch embroidery on the sleeves and down the chest; a long white apron with a front pocket over a darker skirt; a polished steel ladle hanging from the apron string at her hip.
+- Pot: in the crook of her right arm a white enamel pot with a dark rim, full of deep red borscht with a dollop of sour cream and a sprig of dill on top.
+- Jar: in her raised left hand a glass preserving jar of pickled red and yellow peppers, held up ready to throw.
+- Heart gem: one faceted oval of vivid blue sapphire (#3FA9FF), about 4% of the figure height, in an engraved silver brooch pinning her headscarf at the collarbone, clearly visible from the front.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is vivid royal-to-cornflower blue sapphire (body colour #3FA9FF, deep blue #1F6FD6 in the shadows). No turquoise, teal, cyan-green, violet, pink, clear-white or amber crystals or gems.
+- Palette: cream headscarf with red roses and green leaves, white linen with red-and-black embroidery, white apron, white enamel, polished steel, deep crimson borscht, red and yellow peppers, silver, blue sapphire.
+
+POSE & COMPOSITION
+- Pose: a confident wind-up: she steps toward the viewer with the borscht pot hugged safely in her right arm and the pepper jar raised high in her left hand, ready to throw at a flier above; chin up, eyes narrowed at the target.
+- Camera slightly below chest height looking up about 10 degrees, long lens, little perspective distortion; the body is turned about 20 degrees toward the viewer's left.
+- Framing: from the top of the headscarf down to mid-thigh; the figure continues off the bottom edge. The whole head stays inside the frame with a margin of at least 4% of the image height above it.
+- The character stands slightly right of centre (body centre line at about 55% of the width). Keep the upper-left area (left 33% of the width, top 30% of the height) as empty flat background: it is reserved for the game's emblem. Never the face, hands, pot or jar inside it.
+- The eyes are at about 24-28% of the image height from the top.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, labels on the jar, watermark, signature, logo, frame, border, UI, extra characters, extra fingers, extra limbs, fused or deformed hands, a hand merged into the jar, cropped head, background objects, kitchen, floor, cast shadow, gradient or vignette background, steam, glow, sparks, splashes, particles, motion blur, thick outlines, chibi or cartoon proportions, caricature, likeness of any real person, military clothing, drones, weapons, flags, crosses or religious symbols, brand marks, any resemblance to a character from an existing game, film, comic or anime.
+```
+
+**(b) Листи для Meshy** (руки порожні; каструля й банка — окремі моделі).
+
+*b1 Фронт* — `odarka_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджена картка цього чемпіона + `style_anchor.png`. Перевірте: ступні видно, руки порожні, обличчя й кольори як на картці.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved card): the sturdy woman of about sixty with rosy cheeks, sharp grey-blue eyes and grey hair; a cream headscarf with big red roses and green leaves tied at the nape, pinned at the collarbone by an engraved silver brooch with an oval blue sapphire; a white linen blouse with red-and-black cross-stitch on the sleeves and chest; a long white apron with a front pocket over a darker ankle-length skirt; a polished steel ladle hanging from the apron string at her hip; soft dark leather shoes.
+- Same face, costume, colours, materials and heart gem as the reference; nothing added, nothing removed. The borscht pot and the pepper jar are NOT in this image (they are made as separate models).
+- COLOR LOCK: every crystal and gemstone is vivid blue sapphire (#3FA9FF). No turquoise, teal, cyan-green, violet, pink, clear-white or amber crystals or gems.
+
+POSE & VIEW
+- Full body from head to toe, both feet fully visible, centred; the figure fills about 88% of the image height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart under the skirt; feet pointing forward.
+- Hands open and EMPTY, palms facing down, fingers together, clearly separated from the body.
+- The headscarf ends lie on the shoulders; the apron and skirt hang straight; the ladle hangs flat against the apron, clear of the arm.
+- Calm kind expression, mouth closed, eyes open looking forward.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; realistic adult anatomy, about 7 heads tall, a sturdy woman of about sixty; clean readable shapes.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, a held object, cropped feet, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, floating parts, extra fingers, background objects, text, watermark, caricature.
+```
+
+*b2 Бік + спина* — `odarka_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `odarka_sheet_front.png` + картка. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `odarka_sheet_side.png`, права → `odarka_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from head to toe with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the sturdy woman of about sixty with a cream rose-print headscarf tied at the nape, a white embroidered linen blouse, a long white apron over a darker skirt, a steel ladle at her hip and soft dark shoes.
+- COLOR LOCK: every crystal and gemstone is vivid blue sapphire (#3FA9FF). No turquoise, teal, cyan-green, violet, pink, clear-white or amber crystals or gems.
+
+POSE & VIEW
+- The same A-pose as the front reference: arms straight, about 40 degrees down and away from the body; legs straight and slightly apart; hands open and empty.
+- On the back the headscarf knot and its rose-printed ends show at the nape; the apron strings tie in a bow at the small of the back; the ladle shows at the hip in the profile view.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; realistic adult anatomy, about 7 heads tall, a sturdy woman of about sixty.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, held objects, cropped feet, perspective distortion, dramatic light, glow, text, watermark.
+```
+
+*b3 Проп «borscht pot»* — `odarka_prop_pot.png` → Meshy Image to 3D → `odarka_prop_pot.glb` (~1 200 трикутників, без ригу).
+Налаштування: формат **1:1** · якість **2K+** · референс: картка (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same pot as in the attached reference image (the character's approved card): a round white enamel cooking pot with a dark rim and two small side handles, full to the brim with deep red borscht, a dollop of white sour cream and a sprig of green dill on top.
+- COLOR LOCK: there is no crystal or gemstone on this object.
+
+VIEW
+- The whole object alone, shown once, standing upright, seen from slightly above so the borscht surface reads, centred, filling about 80% of the image width; fully inside the frame.
+- No hands, no character, no ladle, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no steam, no splashes, no particles. Every part physically connected.
+
+AVOID
+Hands, a character, a second object, perspective distortion, cropped parts, steam, splashes, dramatic light, glow, text, watermark.
+```
+
+Запасний Meshy Text to 3D для «borscht pot»:
+
+```
+Round white enamel cooking pot with a dark rim and two small side handles, full of deep red borscht with a dollop of sour cream and a sprig of dill on top. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no steam, no particles, no floating parts, all parts physically connected.
+```
+
+*b3 Проп «pepper jar»* — `odarka_prop_jar.png` → Meshy Image to 3D → `odarka_prop_jar.glb` (~600 трикутників, без ригу).
+Налаштування: формат **1:1** · якість **2K+** · референс: картка (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same jar as in the attached reference image (the character's approved card): a clear glass preserving jar with a metal clamp lid, packed with whole pickled red and yellow peppers in brine; no label.
+- COLOR LOCK: there is no crystal or gemstone on this object.
+
+VIEW
+- The whole object alone, shown once, standing upright, straight side view, centred, filling about 80% of the image height; fully inside the frame.
+- No hands, no character, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist; the glass reads clearly with simple highlights.
+- Soft even studio lighting from the front. No glow, no splashes, no particles. Every part physically connected.
+
+AVOID
+Hands, a character, a second object, a label, writing, perspective distortion, cropped parts, dramatic light, glow, text, watermark.
+```
+
+Запасний Meshy Text to 3D для «pepper jar»:
+
+```
+Clear glass preserving jar with a metal clamp lid, packed with whole pickled red and yellow peppers, no label. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **8 000 трикутників** (Triangle) · текстура в грі 512² (чемпіон) — завантажуйте як дає Meshy, я зменшу · Symmetry: **Auto (половник на одному стегні)**.
+
+```
+Sturdy village grandmother of about sixty with rosy cheeks and grey hair, cream headscarf with big red roses tied at the nape, a silver brooch with a blue gem, white linen blouse with red and black cross-stitch, long white apron over a darker skirt, a steel ladle hanging at the hip, soft dark shoes. Stylized hand-painted 3D game character, realistic adult proportions, clean readable silhouette, A-pose, empty hands, full body, front view, plain light grey background, soft even lighting, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid, ≤ 30 кісток, БЕЗ додаткових кісток: кінці хустки, фартух і спідниця — частини меша (ноги під спідницею). Каструля на `hand_r` (у згині руки, як на картці), банка на `hand_l` (у польоті — її копія, кодом; бризки й Опік — ефекти).
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle | 2.0 с | так | помішує борщ, куштує, задоволено киває |
+| `run` | Running / Run Forward | цикл 0.6–0.7 с | так | рішучий швидкий крок, каструля притиснута, ні краплі не розлито |
+| `action` | Wave / Offer | 0.6–0.8 с | ні | верхня частина тіла (я відфільтрую на хребет/руки): простягає миску («Їж!») — Зцілення |
+| `special` | Throw / Overhand Throw | 1.0–1.4 с | ні | усе тіло: широкий замах і кидок банки високою дугою вгору — «Банка» |
+| `hit` | Hit Reaction | 0.4 с | ні | короткий відсахнувся, каструлю тримає рівно |
+| `fall` | Sit Down / Dying | 1.2–1.6 с | ні | важко сідає на землю, каструля на колінах, ні краплі не розлито |
+| `victory` | Victory / Nod | 2.0 с | ні | підносить каструлю, задоволено киває |
+| `flourish` | Showing Off | 1.5 с | ні | реакція на дотик у «Деталях»: грозить половником, потім усміхається |
+
+Після `fall` чемпіон сидить (останній кадр тримаю); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
+
+**(e) Іконка дії** — Банка / The Jar — `odarka_action.png` (колір — стихія Плазма).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with plasma rose (#D80A71) and hot pink-white as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - The Jar (champion action)
+- a round glass preserving jar with a clamp lid tumbling through the air on a short curved arc toward the upper right, three chunky pepper shapes visible inside
+
+COLOUR
+- Main colours: plasma rose (#D80A71) and hot pink-white, ivory white and gold; the darkest shading in deep wine (#4A0F2C) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, a label, frame, border, ring, badge plate, background scene, faces, hands, splashes, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, a grenade, a bomb, a drone.
+```
+
+---
+
+### C31 `hohotun` — Гоготун — Бойовий гусак / Honker — the Battle Goose
+
+НОВИЙ (хвиля 9, затверджено власником 2026-10-10). Улюблений мем про бойового гусака: розлючений сільський гусак смішний будь-де у світі. Слова «біолабораторія» не вживаємо ніде (ні в грі, ні в магазині); жодних прапорів, емблем, нашивок, камуфляжу чи воєнних символів; для магазинів поза Україною війну в описі не згадуємо. Гусак СІРИЙ і без дзвіночка (не схожий на гусака з відомої гри). Роль: a furious grey farm goose in a steel helmet who honks, marks his target and drops on it with spread wings, even on fliers.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Сапфір / Sapphire | Воїн | Техно | Дикі Ікла | звір (сірий гусак), ч. (≈1.50 м із шиєю) | P6 Prowl (крила розкинуті, шия вперед, гелгоче) | vivid blue sapphire (#3FA9FF) | lozenge (rhombus) cut in a gold setting on the brow of his helmet (не Asscher — так на картці) |
+
+**(a) Картка чемпіона (3:4, до середини стегна)** — `hohotun_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/hohotun/hohotun_card_src.jpg`, 1792×2400; у грі — `assets/heroes/hohotun/card.png`). Кільце на лапі на картці має нечитабельний «напис»; чисте «№ 001» — у реліквії (§5.8).
+
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Перегенеровувати не треба. Хочете 4K — у тому ж чаті Gemini: `Upscale this image to 4K without changing anything`. Ваш промт до цієї картки в репо не потрапив, тому нижче — промт, що описує картку такою, як вона вийшла (для скінів або якщо чат загубився).
+
+```
+Create ONE vertical champion card illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 3:4 (portrait). Resolution 1536x2048 px or higher; never below 1152x1536.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas. No gradient, no vignette, no scenery, no farmyard, no floor, no ground shadow.
+- One single character. No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; soft luminous painterly rendering with crisp clean edges; finely layered feathers; rich but controlled colour.
+- Proportions: a big grey farmyard goose standing upright like a warrior, plausible bird anatomy: a long strong neck, a deep chest, wings that act like arms with long spread flight feathers, orange legs and webbed feet. Heroic, not chibi, not a plush toy, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. Crystals look like real cut gemstones with sharp facets, but they do not glow and cast no light.
+- Effects: none in the image (no glow, sparks, flying feathers, sound marks, particles or motion trails); the game adds every effect itself.
+- Rarity look (second tier): refined gear with fine trim and a few elegant details.
+
+CHARACTER - the legendary battle goose of the beast-kin, the angriest and bravest goose on the shore; funny in his fury and absolutely serious about it
+- Head: a grey goose head with an open bright orange beak mid-honk, a pink tongue, a fierce dark amber eye under a frowning brow line; smooth grey-brown feathers on the neck.
+- Helmet: a riveted steel kettle helmet with a round dome and a narrow brim, a brown leather chin strap with a steel buckle under the beak.
+- Jacket: a sage-green quilted padded jacket with a small stand collar and four brass buttons, slightly worn and frayed at the shoulders; no badges, no patches, no insignia.
+- Plumage: layered grey-brown wing and tail feathers with pale edges, a pale grey breast, white under the tail.
+- Leg ring: a plain aluminium bird ring on one orange leg.
+- Heart gem: one faceted lozenge (rhombus) cut of vivid blue sapphire (#3FA9FF), about 4% of the figure height, in a polished gold setting on the brow of the helmet, clearly visible from the front.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is vivid royal-to-cornflower blue sapphire (body colour #3FA9FF, deep blue #1F6FD6 in the shadows). No turquoise, teal, cyan-green, violet, pink, clear-white or amber crystals or gems.
+- Palette: grey-brown and pale grey feathers, white under-tail, bright orange beak and legs, steel grey, warm brown leather, sage-green quilt, brass, blue sapphire.
+
+POSE & COMPOSITION
+- Pose: a furious charge toward the viewer: both wings spread wide like a cloak, the neck stretched forward and low, the beak wide open in a honk, one webbed foot stepping forward; ridiculous and heroic at once.
+- Camera slightly below chest height looking up about 10 degrees, long lens, little perspective distortion; the head turned toward the viewer's left so the honk leads into the empty upper-left area.
+- Framing: from the top of the helmet down to the feet; the spread wingtips may run off the left and right edges. The whole helmet stays inside the frame with a margin of at least 4% of the image height above it.
+- The body centre line sits at about 55% of the width. Keep the upper-left area (left 33% of the width, top 25% of the height) as empty flat background: it is reserved for the game's emblem. Only wing tips may touch its edge; never the head or beak.
+- The eye is at about 22% of the image height from the top.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, writing on the leg ring, watermark, signature, logo, frame, border, UI, extra characters, extra wings, extra legs, cropped head, background objects, farmyard, floor, cast shadow, gradient or vignette background, glow, sparks, flying feathers, particles, motion blur, thick outlines, chibi or cartoon proportions, a plush toy or cute mascot look, a white goose, a bell, a scarf, flags, emblems, patches, insignia, camouflage, real uniforms, guns, war symbols, laboratory equipment, crosses or religious symbols, brand marks, any resemblance to a character from an existing game, film, comic or anime.
+```
+
+**(b) Листи для Meshy** (зброї й пропів немає: б'ється крилами й дзьобом).
+
+*b1 Фронт* — `hohotun_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджена картка цього чемпіона + `style_anchor.png`. Перевірте: обидві лапи видно повністю, крила відведені від тіла, кольори як на картці.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved card): the big grey farmyard goose standing upright; a riveted steel kettle helmet with a leather chin strap and a gold-set rhombus sapphire on its brow; a sage-green quilted padded jacket with a stand collar and four brass buttons; grey-brown layered wing feathers, a pale grey breast, white under the tail; an orange beak, orange legs and webbed feet; a plain aluminium ring on one leg.
+- Same head, costume, colours, materials and heart gem as the reference; nothing added, nothing removed.
+- COLOR LOCK: every crystal and gemstone is vivid blue sapphire (#3FA9FF). No turquoise, teal, cyan-green, violet, pink, clear-white or amber crystals or gems.
+
+POSE & VIEW
+- Full body from the top of the helmet to the webbed feet, both feet fully visible, centred; the figure with its wings fills about 88% of the image width and height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose for a bird: both wings held out from the body and angled about 40 degrees down, half open, the flight feathers fanned and clearly separated from the jacket; legs straight and slightly apart; webbed feet pointing forward.
+- The neck upright and straight, the head facing forward, the beak closed.
+- Calm alert expression.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; plausible bird anatomy, heroic and upright; clean readable shapes, feathers grouped into large clear masses.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, an open beak, folded wings hiding the jacket, cropped feet, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, floating feathers, extra wings, background objects, text, watermark, a white goose, a bell, insignia.
+```
+
+*b2 Бік + спина* — `hohotun_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `hohotun_sheet_front.png` + картка. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `hohotun_sheet_side.png`, права → `hohotun_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from the top of the helmet to the feet with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the big grey goose standing upright in a riveted steel kettle helmet with a chin strap, a sage-green quilted jacket with brass buttons, grey-brown wings, a pale grey breast, a white under-tail, an orange beak, orange legs and webbed feet and an aluminium leg ring.
+- COLOR LOCK: every crystal and gemstone is vivid blue sapphire (#3FA9FF). No turquoise, teal, cyan-green, violet, pink, clear-white or amber crystals or gems.
+
+POSE & VIEW
+- The same pose as the front reference: wings held out and angled about 40 degrees down, half open; legs straight and slightly apart; the neck upright, the beak closed.
+- In profile the long neck, the beak, the helmet brim and the short pointed tail read clearly; on the back the quilted jacket covers the back between the wings and the layered tail feathers show below it.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; plausible bird anatomy, heroic and upright.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, an open beak, cropped feet, perspective distortion, dramatic light, glow, text, watermark.
+```
+
+*b3 Пропи* — немає: крила й дзьоб — частина тіла; Мітку, гелгіт і стрибок роблю ефектами.
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **8 000 трикутників** (Triangle) · текстура в грі 512² (чемпіон) — завантажуйте як дає Meshy, я зменшу · Symmetry: **On (крила дзеркальні)**.
+
+```
+Big grey farmyard goose standing upright like a warrior, riveted steel kettle helmet with a leather chin strap and a blue rhombus gem on the brow, sage-green quilted padded jacket with brass buttons, grey-brown wings held out half open, pale grey breast, orange beak, orange legs and webbed feet, an aluminium ring on one leg. Stylized hand-painted 3D game character, plausible bird anatomy, clean readable silhouette, wings spread down and away from the body, full body, front view, plain light grey background, soft even lighting, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid з пташиними пропорціями, ≤ 30 кісток, БЕЗ додаткових скінованих кісток: крила = руки (кисть = кінчик крила), шия = кістки `neck` + `head` (довгу шию я перерозподілю ваги в Blender), хвіст — частина меша на кістці таза. Якщо авто-риг Meshy не проходить через крила чи шию — надішліть модель без ригу, ригую сам.
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle / Look Around | 2.0 с | так | чистить пір'я під крилом, підозріло озирається |
+| `run` | Running / Run Forward | цикл 0.5–0.6 с | так | перевалюючись, швидкий біг, крила трохи розкриті |
+| `action` | Punch / Swipe | 0.6–0.8 с | ні | верхня частина тіла (я відфільтрую на хребет/руки): удар крилом у сутичці («Рубка») |
+| `special` | Jump Attack | 1.0–1.4 с | ні | усе тіло: шия вперед — «Га-га-га!» (Мітка), підскок із крилами вгору й падіння крилами на ціль; дістає й летунів |
+| `hit` | Hit Reaction | 0.4 с | ні | шипить і відсахується |
+| `fall` | Sit Down / Dying | 1.2–1.6 с | ні | сідає, ховає голову під крило, шолом з'їжджає набік |
+| `victory` | Cheering / Victory | 2.0 с | ні | б'є крилами, гордо гелгоче |
+| `flourish` | Showing Off | 1.5 с | ні | реакція на дотик у «Деталях»: шипить на глядача «Ш-ш-ш!», потім гордо випинає груди |
+
+Після `fall` чемпіон сидить (останній кадр тримаю); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
+
+**(e) Іконка дії** — Га-га-га! / Honk-Honk-Honk! — `hohotun_action.png` (колір — стихія Техно).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with signal lime (#49FF0C) and graphite grey (#3A3F47) as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Honk-Honk-Honk! (champion action)
+- a wide-open goose beak in profile at the left (only the beak, no eye, no face) with three short curved sound arcs flying from it toward a small target ring at the right
+
+COLOUR
+- Main colours: signal lime (#49FF0C) and graphite grey (#3A3F47), ivory white and gold; the darkest shading in graphite (#24282E) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring plate, badge plate, background scene, faces, eyes, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, crosshairs of a gun, military symbols.
+```
+
+---
+
+### C32 `skovoroda` — Сковорода — Невловимий / Skovoroda — the Uncaught
+
+НОВИЙ (хвиля 9, затверджено власником 2026-10-10). Шанобливий образ — данина Григорію Сковороді (1722–1794), мандрівному філософові й поетові, що сам обрав собі слова «Світ ловив мене, та не спіймав». Це про свободу духу; фразу НІКОЛИ не пов'язуємо з мобілізацією, ТЦК чи ухилянням. Портрет із купюри не копіюємо. Роль: a wandering philosopher-guardian whom no blade and no net can catch; the net meant for him falls on the enemy instead.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Аметист / Amethyst | Страж | Кінетика | Орден Світанку | людина, ч. (≈1.85 м) | P1 Guard (ціпок упертий у землю) | deep violet amethyst (#7A35D6) | long pointed crystal (не trillion — так на картці), held by the carved wooden claws at the top of his staff |
+
+**(a) Картка чемпіона (3:4, до середини стегна)** — `skovoroda_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/skovoroda/skovoroda_card_src.jpg`, 1792×2400; у грі — `assets/heroes/skovoroda/card.png`). Вирізка ще має ваду: у вічках золотої сітки праворуч лишився сірий фон (видно на темному) — перевирізати з `hole_regions`.
+
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Перегенеровувати не треба. Хочете 4K — у тому ж чаті Gemini: `Upscale this image to 4K without changing anything`. Ваш промт до цієї картки в репо не потрапив, тому нижче — промт, що описує картку такою, як вона вийшла (для скінів або якщо чат загубився).
+
+```
+Create ONE vertical champion card illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 3:4 (portrait). Resolution 1536x2048 px or higher; never below 1152x1536.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas, also inside every mesh hole of the net. No gradient, no vignette, no scenery, no road, no floor, no ground shadow.
+- One single character. No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; refined face with clean features; soft luminous painterly rendering with crisp clean edges; delicate gold baroque embroidery; rich but controlled colour.
+- Proportions: realistic adult anatomy, about 8 heads tall, a tall, lean man of about fifty. No chibi or cartoon proportions, no oversized head, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. Crystals look like real cut gemstones with sharp facets, but they do not glow and cast no light.
+- Effects: none in the image (no glow, sparks, wind lines, particles, smoke or motion trails); the game adds every effect itself.
+- Rarity look (third tier): rich ornament, engraved details and flowing secondary cloth.
+
+CHARACTER - a wandering philosopher and poet whom the world tried to catch and never did; calm, free, quietly amused; a respectful image inspired by the Ukrainian philosopher Hryhorii Skovoroda, not copied from any banknote, painting or photograph
+- Face: a long, lean, kind face of a man about fifty; short dark-brown hair; clean-shaven; warm hazel eyes; a calm knowing half-smile; never a caricature.
+- Cloak: a long dust-cream travelling cloak with a wide shoulder cape, its hem sweeping in a wide curve as if he has just turned, its edges embroidered with flowing gold Cossack-baroque scrollwork.
+- Clothes: a cream linen tunic with a laced collar and simple stitching; a woven cream sash belt; dark trousers; soft leather boots.
+- Gear: a worn leather satchel on a strap across the body; a wooden sopilka (a simple shepherd's flute) tucked into the sash.
+- Staff: a long pale wooden walking staff in his left hand, its top carved into wooden claws that hold a long pointed amethyst crystal.
+- The net: behind him on the right side of the image a large golden fishing net slips off his shoulder and falls away with a short fringe at its edge, as if it had just failed to catch him; its mesh holes are open and show the flat grey background.
+- Heart gem: one long pointed faceted crystal of deep violet amethyst (#7A35D6), about 5% of the figure height, held in the carved claws at the top of the staff, clearly visible.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is deep royal violet amethyst (body colour #7A35D6, lighter #B06CFF in the highlights). No blue or sapphire-blue, teal, pink-magenta, clear-white or amber crystals or gems.
+- Palette: dust-cream cloak (close to pale copper #D0BBAF), cream linen, gold embroidery and a gold net, warm brown leather, pale wood, dark trousers, violet amethyst.
+
+POSE & COMPOSITION
+- Pose: a calm guard: he stands upright with the staff planted beside him in his left hand, his right hand raised open at shoulder height in a light, welcoming gesture; the cloak swirls around his legs; the golden net slides off behind him, empty.
+- Camera at chest height, long lens, little perspective distortion; the body faces the viewer, the head turned slightly toward the viewer's left.
+- Framing: from the tip of the staff crystal down to mid-thigh; the figure continues off the bottom edge. The whole head and the staff crystal stay inside the frame with a margin of at least 4% of the image height above them.
+- The character stands slightly right of centre (body centre line at about 55% of the width). Keep the upper-left area (left 33% of the width, top 30% of the height) as empty flat background: it is reserved for the game's emblem. Only the raised fingertips may touch its edge.
+- The eyes are at about 22-24% of the image height from the top.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, writing, watermark, signature, logo, frame, border, UI, extra characters, extra fingers, extra limbs, fused or deformed hands, a hand merged into the staff, cropped head, background objects, road, floor, cast shadow, gradient or vignette background, grey or white fill inside the net holes, glow, sparks, particles, smoke, light rays, motion blur, thick outlines, chibi or cartoon proportions, caricature, likeness copied from a banknote or painting, a priest's robe, crosses or religious symbols, uniforms, flags, brand marks, modern clothing, any resemblance to a character from an existing game, film, comic or anime.
+```
+
+**(b) Листи для Meshy** (руки порожні; ціпок — окрема модель; сітка — ефект).
+
+*b1 Фронт* — `skovoroda_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджена картка цього чемпіона + `style_anchor.png`. Перевірте: ступні видно, руки порожні, обличчя й кольори як на картці.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved card): the tall, lean man of about fifty with a long kind face, short dark-brown hair, clean-shaven, warm hazel eyes; a long dust-cream travelling cloak with a wide shoulder cape and gold Cossack-baroque scroll embroidery along its edges; a cream linen tunic with a laced collar; a woven cream sash belt with a wooden sopilka tucked into it; a worn leather satchel on a strap across the body; dark trousers; soft leather boots.
+- Same face, costume, colours and materials as the reference; nothing added, nothing removed. The staff with the amethyst is NOT in this image (it is made as a separate model) and neither is the golden net (the game draws it); the body itself carries no crystal.
+- COLOR LOCK: every crystal and gemstone is deep violet amethyst (#7A35D6). No blue or sapphire-blue, teal, pink-magenta, clear-white or amber crystals or gems.
+
+POSE & VIEW
+- Full body from head to toe, both feet fully visible, centred; the figure fills about 88% of the image height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart; feet pointing forward.
+- Hands open and EMPTY, palms facing down, fingers together, clearly separated from the body.
+- The cloak hangs straight from the shoulder cape to mid-calf, open at the front and clear of the arms; the satchel hangs at the hip, clear of the hand.
+- Calm expression with a slight smile, mouth closed, eyes open looking forward.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; realistic adult anatomy, about 8 heads tall, a tall, lean man of about fifty; clean readable shapes.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, a held staff or object, the net, cropped feet, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, floating parts, a cloak covering the arms, extra fingers, background objects, text, watermark, caricature.
+```
+
+*b2 Бік + спина* — `skovoroda_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `skovoroda_sheet_front.png` + картка. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `skovoroda_sheet_side.png`, права → `skovoroda_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from head to toe with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the tall, lean man of about fifty with short dark-brown hair, a long dust-cream travelling cloak with a shoulder cape and gold baroque scroll embroidery, a cream linen tunic, a woven sash with a wooden sopilka, a leather satchel on a cross strap, dark trousers and soft leather boots.
+- COLOR LOCK: every crystal and gemstone is deep violet amethyst (#7A35D6). No blue or sapphire-blue, teal, pink-magenta, clear-white or amber crystals or gems.
+
+POSE & VIEW
+- The same A-pose as the front reference: arms straight, about 40 degrees down and away from the body; legs straight and slightly apart; hands open and empty.
+- On the back the shoulder cape and the long cloak hang to mid-calf with the gold embroidery along the hem; in profile the satchel and the sopilka in the sash read clearly.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; realistic adult anatomy, about 8 heads tall, a tall, lean man of about fifty.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, held objects, the net, cropped feet, perspective distortion, dramatic light, glow, text, watermark.
+```
+
+*b3 Проп «wanderer's staff»* — `skovoroda_prop_staff.png` → Meshy Image to 3D → `skovoroda_prop_staff.glb` (~1 200 трикутників, без ригу).
+Налаштування: формат **1:1** · якість **2K+** · референс: картка (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same staff as in the attached reference image (the character's approved card): a long pale wooden walking staff, slightly knotted and worn smooth by the hand, its top carved into three wooden claws that hold one long pointed faceted amethyst crystal (#7A35D6), the heart gem.
+- COLOR LOCK: the crystal is deep violet amethyst (#7A35D6). No blue or sapphire-blue, teal, pink-magenta, clear-white or amber crystals or gems.
+
+VIEW
+- The whole object alone, shown once, standing upright, crystal up, straight side view with its most readable outline toward the camera, centred, filling about 85% of the image height; both ends fully inside the frame.
+- No hands, no character, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no sparks, no particles, no motion blur. Every part physically connected.
+
+AVOID
+Hands, a character, a second object, perspective distortion, cropped ends, dramatic light, glow, text, watermark.
+```
+
+Запасний Meshy Text to 3D для «wanderer's staff»:
+
+```
+Long pale wooden walking staff, slightly knotted, its top carved into three wooden claws holding one long pointed faceted violet amethyst crystal. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **8 000 трикутників** (Triangle) · текстура в грі 512² (чемпіон) — завантажуйте як дає Meshy, я зменшу · Symmetry: **Auto (торба, сопілка)**.
+
+```
+Tall lean man of about fifty with a long kind face, short dark-brown hair, clean-shaven, long dust-cream travelling cloak with a shoulder cape and gold baroque embroidery, cream linen tunic, woven sash with a wooden flute, leather satchel on a cross strap, dark trousers, soft leather boots. Stylized hand-painted 3D game character, realistic adult proportions, clean readable silhouette, A-pose, empty hands, full body, front view, plain light grey background, soft even lighting, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid, ≤ 30 кісток, БЕЗ додаткових кісток: плащ — частина меша (вихор плаща в `action` і `special` — вершинним шейдером), сопілка й торба — частини меша. Ціпок на `hand_l` (як на картці). Золоту сітку (кожен третій блок) і «МИМО!» / «НЕ СПІЙМАВ!» роблю ефектами.
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle | 2.0 с | так | спирається на ціпок, тихо всміхається, озирає дорогу |
+| `run` | Walking (fast) / Run Forward | цикл 0.6–0.7 с | так | довгий легкий крок мандрівника, ціпок у такт |
+| `action` | Dodge / Side Step | 0.6–0.8 с | ні | верхня частина тіла (я відфільтрую на хребет/руки): ухил із вихором плаща — лезо йде мимо («МИМО!») |
+| `special` | Spin / Turn Around | 1.0–1.4 с | ні | усе тіло: обертається, плащ здіймається вихором, сітка злітає з плечей і падає на загін позаду («НЕ СПІЙМАВ!») |
+| `hit` | Hit Reaction | 0.4 с | ні | ледь відхилився, усмішка не зникає |
+| `fall` | Sit Down | 1.2–1.6 с | ні | кладе торбу, сідає на неї й підносить сопілку до губ (три ноти — звук); далі гра м'яко ховає його, ніби пішов за кадр |
+| `victory` | Bow / Victory | 2.0 с | ні | легкий уклін, ціпок угору |
+| `flourish` | Showing Off | 1.5 с | ні | реакція на дотик у «Деталях»: підкидає ціпок і ловить його, не дивлячись |
+
+Після `fall` чемпіон сидить із сопілкою (останній кадр тримаю); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
+
+**(e) Іконка дії** — Світ ловив мене… / The World Tried to Catch Me… — `skovoroda_action.png` (колір — стихія Кінетика).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with pale copper (#D9B8A6) and warm bronze as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - The World Tried to Catch Me (champion action)
+- a wide net with large square meshes thrown in a curved arc, empty, and one swift curved line slipping out through a gap in its middle toward the upper right
+
+COLOUR
+- Main colours: pale copper (#D9B8A6) and warm bronze, ivory white and gold; the darkest shading in deep bronze-brown (#4A3426) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas; the net has at most twelve large meshes.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, hands, a fish, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark.
+```
+
+---
+
+### C33 `motyvator` — Мотиватор — Сила лісу / The Motivator — Power of the Forest
+
+НОВИЙ (хвиля 9, запит власника, затверджено 2026-10-10). ВЛАСНИЙ персонаж: лише дух «сили лісу» — ліс, мох, кора, жолуді й радісний вигук. Жодного імені, прізвища чи схожості обличчя реальної людини — ні в промтах, ні в описах, ні в магазині; не пишемо, «за мотивами» кого він зроблений. Роль: a joyful wild forest man whose shout after every leap gives the whole army a second wind.
+
+| Самоцвіт | Клас | Стихія | Фракція | Вид | Поза | COLOR LOCK (усі кристали) | Камінь-серце |
+|---|---|---|---|---|---|---|---|
+| Кварц / Quartz | Воїн | Руна | Дикі Ікла | людина (лісовик), ч. (≈1.80 м) | P2 Advance (кулак угору, кийок напоготові) | clear colourless quartz | round brilliant cut (не rose-cut — так на картці), set into a knot of his oak club |
+
+**(a) Картка чемпіона (3:4, до середини стегна)** — `motyvator_card.png` · **ГОТОВО — арт отримано** (оригінал `art_src/heroes/motyvator/motyvator_card_src.jpg`, 1792×2400; у грі — `assets/heroes/motyvator/card.png`).
+
+Налаштування: формат **3:4** · якість **2K–4K** (мінімум 1536×2048) · 2–4 варіанти · референс: `style_anchor.png` · оригінал PNG. Перегенеровувати не треба. Хочете 4K — у тому ж чаті Gemini: `Upscale this image to 4K without changing anything`. Ваш промт до цієї картки в репо не потрапив, тому нижче — промт, що описує картку такою, як вона вийшла (для скінів або якщо чат загубився); у ньому немає жодного імені.
+
+```
+Create ONE vertical champion card illustration for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 3:4 (portrait). Resolution 1536x2048 px or higher; never below 1152x1536.
+- Background: perfectly flat, uniform light grey #BFBFBF across the whole canvas. No gradient, no vignette, no scenery, no forest, no floor, no ground shadow.
+- One single character. No text, no letters, no numbers, no logo, no watermark, no signature, no frame, no border, no UI elements.
+
+ART STYLE
+- Same art style as the attached style reference image: elegant semi-realistic painterly fantasy key art for a premium mobile game; expressive face with clean features; soft luminous painterly rendering with crisp clean edges; rich but controlled colour.
+- Proportions: realistic adult anatomy, about 7.5 heads tall, a wiry, strong man of about sixty. No chibi or cartoon proportions, no oversized head, no thick outlines.
+- Lighting: warm white key light from the upper left front; a thin neutral cool-white rim light from behind on the right; soft neutral ambient fill. Crystals look like real cut gemstones with sharp facets, but they do not glow and cast no light.
+- Effects: none in the image (no glow, sparks, flying leaves, sound marks, particles or motion trails); the game adds every effect itself.
+- Rarity look (lowest tier): practical, sturdy homespun clothes with modest trim; striking but simple, clearly less ornate than higher-rarity characters.
+
+CHARACTER - an original wild forest man, the joyful spirit of the deep woods whose shout gives tired warriors a second wind; an invented character who does not resemble any real person
+- Face: an ORIGINAL face that does not resemble any real person: a weathered man of about sixty with wild shoulder-length grey hair, a long grey beard with small twigs and green leaves caught in it, bushy brows, wide bright eyes, the mouth wide open in a joyful, fierce shout.
+- Clothes: a vest of living green moss and white birch-bark panels over a white linen shirt with red-and-black embroidery at the collar and the cuffs; a thick braided rope belt with long tasselled ends; loose undyed linen trousers.
+- Necklace: a string of acorns on a cord around his neck.
+- Weapon: a short gnarled oak club with a thick knotted head.
+- Heart gem: one round brilliant-cut clear quartz, about 4% of the figure height, set into a knot of the oak club, clearly visible from the front.
+
+COLOR LOCK
+- Every crystal and gemstone on the character is clear colourless rock quartz, water-clear with a faint cool silver-grey tint. No coloured crystals or gems of any kind: no blue, green, violet, pink, gold or amber stones.
+- Palette: grey hair and beard, moss green, white birch bark with dark marks, white linen with red-and-black embroidery, natural rope, undyed linen, oak brown, clear quartz.
+
+POSE & COMPOSITION
+- Pose: a triumphant battle cry: he leans toward the viewer, his left fist raised high to the sky, his right hand holding the oak club low across his body; mouth wide open in a shout, eyes blazing with joy.
+- Camera slightly below chest height looking up about 10 degrees, long lens, little perspective distortion; the body faces the viewer, turned slightly toward the viewer's left.
+- Framing: from the top of the raised fist down to mid-thigh; the figure continues off the bottom edge. The whole head and the fist stay inside the frame with a margin of at least 4% of the image height above them.
+- The character stands slightly right of centre (body centre line at about 55% of the width). Keep the upper-left area (left 33% of the width, top 30% of the height) as empty flat background: it is reserved for the game's emblem. Only loose hair tips may touch its edge.
+- The eyes are at about 24-28% of the image height from the top.
+
+AVOID
+Blurry or low resolution, text, letters, numbers, watermark, signature, logo, frame, border, UI, extra characters, extra fingers, extra limbs, fused or deformed hands, a hand merged into the club, cropped head, background objects, trees, floor, cast shadow, gradient or vignette background, glow, sparks, flying leaves, particles, smoke, light rays, motion blur, thick outlines, chibi or cartoon proportions, caricature, the likeness of any real person, celebrity or internet personality, a photo-real face, modern clothing, sunglasses, flags, crosses or religious symbols, brand marks, any resemblance to a character from an existing game, film, comic or anime.
+```
+
+**(b) Листи для Meshy** (руки порожні; кийок — окрема модель).
+
+*b1 Фронт* — `motyvator_sheet_front.png`
+
+Налаштування: формат **1:1** · якість **2K+** (≥ 2048×2048) · 2 варіанти · референси: затверджена картка цього чемпіона + `style_anchor.png`. Перевірте: ступні видно, руки порожні, обличчя й кольори як на картці.
+
+```
+Create ONE character reference image for image-to-3D conversion (front view).
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery.
+- No text, no logo, no watermark, no frame.
+
+CHARACTER
+- Exactly the same character as in the attached reference image (the approved card): the wiry, strong man of about sixty with an original face (not resembling any real person), wild shoulder-length grey hair and a long grey beard with small twigs and leaves; a vest of green moss and white birch-bark panels over a white linen shirt with red-and-black embroidery at the collar and cuffs; a string of acorns around the neck; a thick braided rope belt with tasselled ends; loose undyed linen trousers; simple bark-and-leather foot wraps.
+- Same face, costume, colours and materials as the reference; nothing added, nothing removed. The oak club with the quartz is NOT in this image (it is made as a separate model); the body itself carries no crystal.
+- COLOR LOCK: every crystal and gemstone is clear colourless rock quartz with a faint cool silver-grey tint. No coloured crystals or gems of any kind.
+
+POSE & VIEW
+- Full body from head to toe, both feet fully visible, centred; the figure fills about 88% of the image height with small even margins.
+- Straight front view, camera at chest height, no perspective distortion (like an orthographic turnaround).
+- Symmetrical A-pose: arms straight, angled about 40 degrees down from horizontal and away from the body; legs straight and slightly apart; feet pointing forward.
+- Hands open and EMPTY, palms facing down, fingers together, clearly separated from the body.
+- The beard falls straight onto the chest in one clear mass; the hair falls behind the shoulders; the belt tassels hang straight.
+- Calm, kind expression, mouth closed, eyes open looking forward.
+
+RENDER
+- The same painterly game-art style as the reference, presented as a clean character turnaround for a 3D artist; realistic adult anatomy, about 7.5 heads tall, a wiry, strong man of about sixty; clean readable shapes, hair and beard grouped into large clear masses.
+- Soft even studio lighting from the front. No rim light, no dramatic shadows, no glow, no particles, no motion blur.
+- Every part physically connected to the body; nothing floating.
+
+AVOID
+Action pose, an open mouth, a held club or object, cropped feet, side or three-quarter view, perspective distortion, dramatic lighting, glowing effects, floating parts, loose flying hair strands, extra fingers, background objects, text, watermark, caricature, the likeness of any real person.
+```
+
+*b2 Бік + спина* — `motyvator_sheet_sideback.png`
+
+Налаштування: формат **16:9** · якість **4K** (≥ 3840×2160) · референси: `motyvator_sheet_front.png` + картка. Потім розріжте навпіл (будь-який редактор, «Обрізати»): ліва половина → `motyvator_sheet_side.png`, права → `motyvator_sheet_back.png`.
+
+```
+Create ONE character turnaround image that shows exactly two views of the same character, for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 16:9 (landscape). Resolution 3840x2160 px; never below 2560x1440.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no scenery. No text, no logo, no watermark, no frame.
+- Two full-body figures side by side at exactly the same scale and height, both from head to toe with both feet visible: the LEFT half of the image shows the character's LEFT side in strict profile (facing the left edge of the image); the RIGHT half shows the character's BACK. A clear empty gap between them; nothing crosses the vertical centre line of the image.
+
+CHARACTER
+- Exactly the same character, costume, colours and proportions as in the attached front reference image: the wiry man of about sixty with wild grey hair and a long grey beard with twigs and leaves, a moss-and-birch-bark vest over a white embroidered linen shirt, an acorn necklace, a braided rope belt with tassels, loose undyed linen trousers and bark-and-leather foot wraps.
+- COLOR LOCK: every crystal and gemstone is clear colourless rock quartz. No coloured crystals or gems of any kind.
+
+POSE & VIEW
+- The same A-pose as the front reference: arms straight, about 40 degrees down and away from the body; legs straight and slightly apart; hands open and empty.
+- On the back the moss vest with birch-bark panels covers the back and the wild hair falls over the shoulders; in profile the beard and the belt tassels read clearly.
+- Each figure fills about 88% of the image height. Camera at chest height, no perspective distortion.
+
+RENDER
+- The same painterly game-art style as the reference, a clean turnaround for a 3D artist; realistic adult anatomy, about 7.5 heads tall, a wiry, strong man of about sixty.
+- Soft even studio lighting. No rim light, no dramatic shadows, no glow, no particles. Every part physically connected.
+
+AVOID
+A front view, more or fewer than two figures, different scales, three-quarter views, action poses, held objects, cropped feet, perspective distortion, dramatic light, glow, text, watermark.
+```
+
+*b3 Проп «oak club»* — `motyvator_prop_club.png` → Meshy Image to 3D → `motyvator_prop_club.glb` (~1 200 трикутників, без ригу).
+Налаштування: формат **1:1** · якість **2K+** · референс: картка (+ фронт-лист).
+
+```
+Create ONE prop reference image for image-to-3D conversion.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 2048x2048 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No floor, no shadow, no stand. No text, no logo, no watermark, no frame.
+
+OBJECT
+- Exactly the same club as in the attached reference image (the character's approved card): a short gnarled oak club with a thick knotted head and deep bark grain, a smooth worn grip; one round brilliant-cut clear quartz set into a knot of the head, the heart gem.
+- COLOR LOCK: the crystal is clear colourless rock quartz. No coloured crystals or gems of any kind.
+
+VIEW
+- The whole object alone, shown once, standing upright, head up, straight side view with the quartz toward the camera, centred, filling about 85% of the image height; both ends fully inside the frame.
+- No hands, no character, no stand, no second copy.
+
+RENDER
+- The same painterly game-art style as the reference, clean shapes for a 3D artist.
+- Soft even studio lighting from the front. No glow, no sparks, no particles, no motion blur. Every part physically connected.
+
+AVOID
+Hands, a character, a second object, perspective distortion, cropped ends, spikes, nails, dramatic light, glow, text, watermark.
+```
+
+Запасний Meshy Text to 3D для «oak club»:
+
+```
+Short gnarled oak club with a thick knotted head and deep bark grain, a smooth worn grip, one round clear crystal set into a knot of the head. Stylized hand-painted 3D game prop, premium mobile quality, single object centered, whole object visible, plain light grey background, soft studio lighting, no hands, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(c) Meshy — текстовий промт (запасний; основний шлях — Multi-image to 3D з листів b1 + b2).** Remesh: **8 000 трикутників** (Triangle) · текстура в грі 512² (чемпіон) — завантажуйте як дає Meshy, я зменшу · Symmetry: **Auto (кінці пояса, волосся)**.
+
+```
+Wiry strong man of about sixty with wild grey hair and a long grey beard with small twigs and leaves, a vest of green moss and white birch bark over a white embroidered linen shirt, an acorn necklace, a braided rope belt with tassels, loose undyed linen trousers, bark-and-leather foot wraps. Stylized hand-painted 3D game character, realistic adult proportions, clean readable silhouette, A-pose, empty hands, full body, front view, plain light grey background, soft even lighting, no glow, no particles, no floating parts, all parts physically connected.
+```
+
+**(d) Риг і кліпи.** Humanoid, ≤ 30 кісток, БЕЗ додаткових кісток: борода, волосся й кінці пояса — частини меша (гойдання — вершинним шейдером). Кийок на `hand_r` (як на картці); ліва рука вільна для кулака.
+
+| Кліп (назва для Godot) | Пресет Meshy (найближчий) | Тривалість | Цикл | Що відбувається |
+|---|---|---|---|---|
+| `idle` | Idle / Breathing | 2.0 с | так | глибоко вдихає лісове повітря, розправляє плечі, усміхається |
+| `run` | Running / Run Forward | цикл 0.6–0.7 с | так | широкий радісний біг, кийок на плечі |
+| `action` | Melee Attack / Club Swing | 0.6–0.8 с | ні | верхня частина тіла (я відфільтрую на хребет/руки): удар кийком у сутичці («Рубка») |
+| `special` | Jump Attack → Cheer (склею з пресетів) | 1.2–1.6 с | ні | усе тіло: стрибок із кийком на загін, приземлення й кулак угору з вигуком «Сила лісу!» (хвиля для армії — ефект) |
+| `hit` | Hit Reaction | 0.4 с | ні | короткий відсахнувся, одразу знову всміхається |
+| `fall` | Sit Down / Dying | 1.2–1.6 с | ні | сідає, ніби спиною до дерева, кулак ще піднятий |
+| `victory` | Cheering / Victory | 2.0 с | ні | обидва кулаки вгору, регоче |
+| `flourish` | Showing Off | 1.5 с | ні | реакція на дотик у «Деталях»: б'є себе кулаком у груди й гукає до неба |
+
+Після `fall` чемпіон сидить (останній кадр тримаю); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
+
+**(e) Іконка дії** — Сила лісу! / Power of the Forest! — `motyvator_action.png` (колір — стихія Руна).
+
+Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
+
+```
+Create ONE square skill icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no ring, no plate, no badge shape, no vignette (the game adds the frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-icon style matching the attached style reference image: one bold, simple, emblem-like motif with soft painterly shading and crisp clean edges; it reads as a clear solid silhouette at 64 px and stays crisp at 96 px.
+- Materials: carved ivory-white porcelain highlights and thin polished gold edges, with rune indigo (#2E2EB4) with ivory carved lines as the main colour.
+- Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
+
+MOTIF - Power of the Forest! (champion action)
+- a raised clenched fist wrapped in a sleeve of oak bark with a few tufts of moss, rising out of three oak leaves, with two short curved shout arcs above it
+
+COLOUR
+- Main colours: rune indigo (#2E2EB4) with ivory carved lines, ivory white and gold; the darkest shading in ink navy (#141448) so the motif separates clearly from the grey background.
+- No gemstone colours: no blue sapphire, violet amethyst, amber topaz or rainbow opal crystals anywhere (the game frame shows the rarity).
+
+COMPOSITION
+- The motif is centred and fits inside a central circle of 76% of the canvas width, with at least 12% empty margin on every side; nothing touches the edges.
+- At most three main shapes; no detail smaller than 3% of the canvas.
+
+AVOID
+Text, letters, numbers, frame, border, ring, badge plate, background scene, faces, tiny details, photorealism, glow halo, emoji or clip-art look, thick black outlines, gradient background, watermark, political or protest symbols.
+```
+
+---
+
 ## 5. Емблеми, значки, валюти, Портал, скрині, Майстерня, фони, спорядження, реліквії
 
 ### 5.1 Емблеми самоцвітів — НЕ генеруємо
@@ -8053,7 +9274,7 @@ AVOID
 Text, letters, frame, border, hands, characters, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
 ```
 
-### 5.8 Реліквії (27, по одній на персонажа)
+### 5.8 Реліквії (33, по одній на персонажа)
 
 Налаштування: 1:1 · 1K–2K · референси: `style_anchor.png` + сплеш/картка власника реліквії.
 
@@ -8757,6 +9978,162 @@ COMPOSITION
 
 AVOID
 Text, letters, frame, border, hands, characters, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
+```
+
+*Франко: Розбиті кайдани / The Broken Shackles* — `relic_franko.png`
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - The Broken Shackles
+- a pair of heavy dark-iron shackle cuffs, both snapped wide open at the hinge, joined by a short chain whose middle link is split in two; a small chip of grey granite still caught in one link and a thin brass band around one cuff
+- Material language: basalt, granite, brass, moss and frost.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side.
+
+AVOID
+Text, letters, frame, border, hands, wrists, characters, a second object, closed or locked shackles, background scene, cast shadow, glow, sparks, coloured gemstones, blood, photorealism, emoji or clip-art look, watermark.
+```
+
+*Рукавичка: Дідова рукавичка / Grandpa's Mitten* — `relic_rukavychka.png`
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - Grandpa's Mitten
+- one old, well-worn sheepskin-and-wool mitten with a thick fur cuff, two neat leather patches on its palm, a coral bead tied to the cuff on a leather thong, lying slightly curled as if it had just been dropped in the snow
+- Material language: heartwood leather, woven hide, fur, feathers, carved bone and coral beads.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side.
+
+AVOID
+Text, letters, frame, border, hands, characters, animals, a second mitten, background scene, snow, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
+```
+
+*Одарка: Половник / The Ladle* — `relic_odarka.png`
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - The Ladle
+- a long deep kitchen ladle of polished white enamel with a gold rim, a small gold sunburst engraved on the end of its handle and a short navy-and-white ribbon tied in a bow below it; one drop of deep red borscht on the lip of the bowl
+- Material language: white enamel, polished gold, navy cloth, sunburst motifs, sky-harbour rope and brass.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side.
+
+AVOID
+Text, letters, frame, border, hands, characters, a pot, a second object, background scene, splashes, steam, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
+```
+
+*Гоготун: Кільце № 001 / Ring No. 001* — `relic_hohotun.png` (єдиний предмет, де на іконці дозволено напис: цифри «001» на кільці)
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- The only writing in the image is the number 001 engraved on the ring; no other text, letters, logo or watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - Ring No. 001
+- a small, slightly scratched aluminium bird-leg ring standing on its edge, the number 001 engraved on its outer face in three large, simple, perfectly clear digits; a grey goose feather and a coral bead tied to it with a thin leather thong
+- Material language: heartwood leather, woven hide, fur, feathers, carved bone and coral beads.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side; the digits face the viewer.
+
+AVOID
+Any writing other than the digits 001, garbled or extra digits, frame, border, hands, a bird, characters, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, flags, insignia, photorealism, emoji or clip-art look, watermark.
+```
+
+*Сковорода: Сопілка мандрівника / The Wanderer's Pipe* — `relic_skovoroda.png`
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - The Wanderer's Pipe
+- a simple wooden shepherd's flute (sopilka) of polished pale wood with six finger holes, two thin gold bands near its ends and a short navy-and-white tasselled cord tied below the mouthpiece
+- Material language: white enamel, polished gold, navy cloth, sunburst motifs, sky-harbour rope and brass.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side.
+
+AVOID
+Text, letters, frame, border, hands, characters, a second object, music notes, background scene, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
+```
+
+*Мотиватор: Жолудь сили / The Acorn of Strength* — `relic_motyvator.png`
+
+```
+Create ONE square item icon for a premium fantasy mobile game.
+
+FORMAT
+- Aspect ratio 1:1 (square). Resolution 1024x1024 px.
+- Background: perfectly flat, uniform light grey #BFBFBF. No frame, no border, no plate, no shadow on the ground, no vignette (the game adds the rarity frame).
+- No text, no letters, no numbers, no logo, no watermark.
+
+ART STYLE
+- Painted game-item style matching the attached style reference image: one object, soft painterly rendering with crisp clean edges, rich materials, readable at 96 px.
+- Soft key light from the upper left, a thin neutral cool-white rim light from behind on the right. No glow, no sparks, no particles.
+
+OBJECT - The Acorn of Strength
+- one large polished oak acorn with a carved bone cap, a small green oak leaf and a tuft of moss tied to its stem with a leather thong and a coral bead
+- Material language: heartwood leather, woven hide, fur, feathers, carved bone and coral beads.
+- Any crystal on the object is clear colourless crystal (the game frame shows the rarity colour); no coloured gemstones.
+
+COMPOSITION
+- The object alone, in a three-quarter view tilted about 30 degrees on a lower-left to upper-right diagonal, centred, filling about 75% of the canvas; at least 10% empty margin on every side.
+
+AVOID
+Text, letters, frame, border, hands, characters, faces, a second object, background scene, cast shadow, glow, sparks, coloured gemstones, photorealism, emoji or clip-art look, watermark.
 ```
 
 ## 6. Відкриті питання (за замовчуванням уже вшито в промти)
