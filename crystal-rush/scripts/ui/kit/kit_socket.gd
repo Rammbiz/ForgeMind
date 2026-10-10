@@ -57,7 +57,7 @@ func _draw() -> void:
 		var col := icon_color
 		if col.a <= 0.0:
 			col = UITokens.GOLD_HI if slate else UITokens.INK
-		var isz := r * 1.18
+		var isz := r * (1.5 if Icons.painted_bitmap(icon) else 1.18)
 		Icons.draw_icon(self, icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), col)
 
 

@@ -569,5 +569,38 @@
  },
  "icon_chest": {
   "painted": true
+ },
+ "icon_team": {
+  "painted": true
+ },
+ "icon_helmet": {
+  "painted": true
+ },
+ "icon_target": {
+  "painted": true
+ },
+ "icon_cls_warrior": {
+  "painted": true
+ },
+ "icon_cls_ranger": {
+  "painted": true
+ },
+ "icon_cls_mage": {
+  "painted": true
+ },
+ "icon_cls_guardian": {
+  "painted": true
+ },
+ "icon_cls_healer": {
+  "painted": true
+ },
+ "icon_odds": {
+  "painted": true
+ },
+ "icon_settings": {
+  "painted": true
+ },
+ "icon_trophy": {
+  "painted": true
  }
 }

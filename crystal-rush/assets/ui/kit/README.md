@@ -98,6 +98,9 @@ A coloured, painted PNG in place of a **line** kind keeps its colours when kit.j
 (the game then dims it by alpha only and gives it a larger rect in round buttons). Batch 1 (2026-10-10, Gemini, source
 `art_src/ui/icons_sheet1_src.jpg`): `icon_tab_shop/arsenal/heroes/barracks`, `icon_coin`, `icon_gem`, `icon_blueprint`,
 `icon_crown`, and painted `icon_events`, `icon_mail`, `icon_quests`, `icon_chest`.
+Batch 2 (`art_src/ui/icons_sheet2_src.jpg`, cut at tolerance 40 so the lantern loses its halo): painted `icon_events`
+(one pennant, replacing batch 1's garland), `icon_team`, `icon_helmet`, `icon_target`, `icon_cls_warrior/ranger/mage/guardian/
+healer`, `icon_odds`, `icon_settings`, `icon_trophy`. KitSocket gives painted bitmaps 75 % of its disc too.
 
 ## D. Priority order for the owner (the biggest visual win first)
 
