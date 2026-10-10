@@ -4,7 +4,7 @@ import sys, os
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-sys.path.insert(0, r"C:\ForgeMind\crystal-rush\tools\art")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cutlib import cutout
 src, out, tol = sys.argv[1], sys.argv[2], float(sys.argv[3])
 os.makedirs(out, exist_ok=True)

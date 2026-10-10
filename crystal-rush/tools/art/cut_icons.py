@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-sys.path.insert(0, r"C:\ForgeMind\crystal-rush\tools\art")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cutlib import cutout, clean  # noqa: E402
 
 PAD = 0.06
