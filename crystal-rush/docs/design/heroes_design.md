@@ -1911,7 +1911,7 @@ us!" · action «Лупайте сю скалу!» / "Break this rock!"
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 67 / 122 |
 | Action — Cleave + leap | the template: +0.07 kills per FIGHT_TICK in his clash; every 5 s a leap at a squad ≤ 3 u ahead: 3 × power kills | 3.78 / 6.89 leap kills |
-| Twist — Лупайте сю скалу! / Break This Rock! | the leap **prefers stone**: when a barricade, wall, geode or the fortress gate is in leap reach he leaps at it instead of a squad: the stone takes the leap's 3 × power as structure damage ×1.0 *(knob)*, and the debris STAGGERs the nearest squad ≤ 2 u behind it for 1 s; «ЛУПАЙТЕ!» flashes over the stone. With no stone in reach, the template leap. In the siege every leap hits the fortress gate | 3.78 / 6.89 stone damage |
+| Twist — Лупайте сю скалу! / Break This Rock! | the leap **prefers stone**: when a barricade, wall, geode or the fortress gate is in leap reach he leaps at it instead of a squad: the stone takes the leap's 3 × power as structure damage ×0.05 *(knob; tuned 2026-10-10: ×1.0 measured 1.489, ×0.5 1.242, ×0.05 1.017; a stone leap is an extra leap, not a traded one)*, and the debris STAGGERs the nearest squad ≤ 2 u behind it for 1 s; «ЛУПАЙТЕ!» flashes over the stone. With no stone in reach, the template leap. In the siege every leap hits the fortress gate | 3.78 / 6.89 stone damage |
 | Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.126 → 4.4% / 0.264 → 9.2% |
 | Tier | IV (native only): II leap 4 kills, reach 4 u · III the leap applies STAGGER (Kinetic) · IV cleave hits 2 squads in contact; leap cd 4 s | — |
 | Relic Розбиті кайдани / The Broken Shackles | +4 leap reach +0.5 u · +8 debris STAGGER +0.5 s · +12 leap cd −0.5 s | — |
@@ -1955,7 +1955,7 @@ room!" · action «Хто, хто в рукавичці живе?» / "Who, who 
 |---|---|---|
 | HP | — | 30 / 55 / 61 |
 | Action — Mend | the template: 30% of soldiers lost feed the pool (cap 30 × power per level); every 3 s returns up to 3 × power | 3.00 / 5.47 / 6.09 per pulse |
-| Twist — Хто в рукавичці живе? / Who Lives in the Mitten? | each Mend that returns ≥ 1 soldier lets a guest into her mitten (mouse, frog, hare, fox, wolf, boar, bear: **7 slots** on her medallion); the Mend that fills the 7th slot makes the dog bark: that Mend returns ×2 *(knob)*, the guests jump out, the mitten empties, and her **next Mend beat is skipped**. Over one cycle (8 beats) she returns 7 × 3 = 24, the template's 8 × 3 = 24: the same total in a rhythm the player can see | 6.00 / 10.94 / 12.18 on the bark |
+| Twist — Хто в рукавичці живе? / Who Lives in the Mitten? | each Mend that returns ≥ 1 soldier lets a guest into her mitten (mouse, frog, hare, fox, wolf, boar, bear: **7 slots** on her medallion); the Mend that fills the 7th slot makes the dog bark: that Mend returns ×2 *(knob; measured 1.013, kept)*, the guests jump out, the mitten empties, and her **next Mend beat is skipped**. Over one cycle (8 beats) she returns 7 × 3 = 24, the template's 8 × 3 = 24: the same total in a rhythm the player can see | 6.00 / 10.94 / 12.18 on the bark |
 | Aura (r 1.3) | hazard losses − value × 0.30 (left) | 0.120 → 3.6% / 0.252 → 7.6% |
 | Tier | I (a recut keeps I) | — |
 | Relic Дідова рукавичка / Grandpa's Mitten | +4 pool cap +5 · +8 pulse −0.25 s · +12 the dog barks at 6 guests (the cycle is one beat shorter, the total per beat the same) | — |
@@ -1994,7 +1994,7 @@ lost weight. Eat!" · action «Ще борщику? Я не питаю.» / "Mor
 |---|---|---|
 | HP | — | 32 / 59 / 63 |
 | Action — Mend | the template: 30% of soldiers lost feed the pool (cap 30 × power per level); every 3 s returns up to 3 × power | 3.24 / 5.91 / 6.35 per pulse |
-| Twist — Банка / The Jar | a Mend that returns ≥ 1 soldier also throws a jar of pickled peppers on a high arc at the nearest **Flying** squad ≤ 12 u: 1 × power damage *(knob)* + BURN 3 s; no flier in range, no jar (she never throws at ground squads, so she does not repeat Міла's vial) | 1.08 / 1.97 / 2.12 jar damage |
+| Twist — Банка / The Jar | a Mend that returns ≥ 1 soldier also throws a jar of pickled peppers on a high arc at the nearest **Flying** squad ≤ 12 u: 1 × power damage *(knob; UNMEASURED: LevelGen builds no fliers, kept)* + BURN 3 s; no flier in range, no jar (she never throws at ground squads, so she does not repeat Міла's vial) | 1.08 / 1.97 / 2.12 jar damage |
 | Aura (r 1.3) | hazard losses − value × 0.30 (right) | 0.130 → 3.9% / 0.272 → 8.2% |
 | Tier | II: +1 per pulse; returns land at the blob front (a recut keeps II) | — |
 | Relic Половник / The Ladle | +4 pool cap +5 · +8 the jar's BURN +1 s · +12 the jar splashes every Flying squad ≤ 1 u of its target | — |
@@ -2032,7 +2032,7 @@ very proud of his helmet. **Voice:** pick «Га-га-га! В атаку!» / "
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 57 / 104 / 112 |
 | Action — Cleave + leap | the template: +0.07 kills per FIGHT_TICK in his clash; every 5 s a leap at a squad ≤ 3 u ahead: 3 × power kills | 3.24 / 5.91 / 6.35 leap kills |
-| Twist — Га-га-га! / Honk-Honk-Honk! | before each leap he honks (0.4 s, «ГА-ГА-ГА!») and MARKs the target squad for 1 s *(knob)*; then he flies up and drops on it with his wings spread. His leap may pick a **Flying** squad ≤ 3 u (the only Warrior leap that reaches fliers) | — |
+| Twist — Га-га-га! / Honk-Honk-Honk! | before each leap he honks (0.4 s, «ГА-ГА-ГА!») and MARKs the target squad for 0.04 s after the strike *(knob; tuned 2026-10-10: 1 s measured 1.443, 0.1 s 1.054, 0.04 s 1.024; a MARK before the strike would make every leap ×1.25)*; then he flies up and drops on it with his wings spread. His leap picks a **Flying** squad in reach first (the Warrior template's leap can already reach fliers; he prefers them) | — |
 | Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.108 → 3.8% / 0.227 → 7.9% |
 | Tier | II: leap 4 kills, reach 4 u (a recut keeps II) | — |
 | Relic Кільце № 001 / Ring No. 001 | +4 MARK +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
@@ -2072,7 +2072,7 @@ me, and missed." · action «Мимо!» / "Missed!"
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 77 / 140 / 146 |
 | Action — Block | the template: absorbs one blade / spike / barricade contact on soldiers within 1.0 u (0 losses) + 1 × power kills on the squad behind; cd 5 s; the stamp reads «МИМО!» / "MISSED!" instead of «БЛОК» (the blade passes through his cloak) | 1.17 / 2.13 / 2.21 kills |
-| Twist — Світ ловив мене, та не спіймав / The World Never Caught Me | every 3rd Block the golden net that was meant for him falls on the squad behind instead of that Block's kill: the squad is held 0.5 s *(knob)* and «НЕ СПІЙМАВ!» / "NOT CAUGHT!" flashes over it | — |
+| Twist — Світ ловив мене, та не спіймав / The World Never Caught Me | every 3rd Block the golden net that was meant for him falls on the squad behind instead of that Block's kill: the squad is held 0.5 s *(knob; UNMEASURED: no squad stands ≤ 6 u behind a Block in LevelGen levels, kept)* and «НЕ СПІЙМАВ!» / "CAN’T CATCH ME!" flashes over it | — |
 | Aura (r 1.0) | clash losses − value × 0.35 (front) | 0.117 → 4.1% / 0.245 → 8.6% |
 | Tier | III: II block radius 1.4 u · III after a Block a 1.5 s front shield (the next clash tick costs 0) (a recut keeps III) | — |
 | Relic Сопілка мандрівника / The Wanderer's Pipe | +4 block radius +0.1 u · +8 the net's hold +0.2 s · +12 Block cd −0.5 s | — |
@@ -2112,7 +2112,7 @@ action «Сила лісу!» / "Power of the forest!"
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 53 / 97 / 108 |
 | Action — Cleave + leap | the template: +0.07 kills per FIGHT_TICK in his clash; every 5 s a leap at a squad ≤ 3 u ahead: 3 × power kills | 3.00 / 5.47 / 6.09 leap kills |
-| Twist — Сила лісу! / Power of the Forest! | each leap ends with his shout: for 1.5 s the army loses 5% *(knob)* fewer soldiers in clashes (leaves and moss swirl over the crowd); the twist adds no kills | — |
+| Twist — Сила лісу! / Power of the Forest! | each leap ends with his shout: for 1.5 s the army loses 0.3% *(knob; tuned 2026-10-10: 5% measured 1.386, 1% 1.077, 0.3% 1.023)* fewer soldiers in clashes (leaves and moss swirl over the crowd); the twist adds no kills | — |
 | Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.100 → 3.5% / 0.210 → 7.3% |
 | Tier | I (a recut keeps I) | — |
 | Relic Жолудь сили / The Acorn of Strength | +4 shout +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
