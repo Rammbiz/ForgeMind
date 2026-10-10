@@ -5,6 +5,10 @@
   `preview(o, path, k)`. Typical use: scale the owner's 4K art to 1152 px wide, `cutout(im, tol=10)`, `clean(..., hole_std=3.0,
   hole_d=8)`, look at the preview on dark, then install as `assets/heroes/<id>/splash.png` / `card.png` with framing in
   `scripts/ui/heroes/hero_art.gd` (`META`). Sources go to `art_src/heroes/<id>/` (JPEG q88).
+- `net_holes.py` — clears the background seen through a net or lattice in an installed cut-out: `py net_holes.py src.jpg
+  card.png out.png y0 y1 x0 x1 [tol]` (region as fractions). A hole is a small neutral-grey patch close to the sheet's
+  background (tried at several tolerances) whose 3-px ring is mostly gold strand or already clear, so pale fabric next to
+  the net stays. Used for Сковорода's golden net (`0.30 0.86 0.62 1.0 28`); check the zoomed edges on dark afterwards.
 - `../art_prompts/build.py` — builds the owner's prompt page from `docs/design/heroes_prompts.md`: `python3 build.py --repo` writes
   `docs/art_prompts/index.html` (opened in a browser via htmlpreview); without `--repo` it writes the self-contained page with
   embedded images to `out/` (or `$ART_PROMPTS_OUT`). Add finished art to `RECEIVED` in build.py.

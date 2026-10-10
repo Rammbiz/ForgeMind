@@ -6,7 +6,7 @@
   with a calm half-smile, a dust-cream travelling cloak and shirt with gold baroque embroidery, a satchel, a wooden sopilka
   at the belt, a long wooden staff whose carved claws hold a long pointed violet amethyst (the heart gem), a golden net
   slipping off behind him.
-  Known cut-out flaw: the mesh holes of the golden net (right of the staff, about x 0.75-0.98, y 0.52-0.85 of the card)
-  still hold the source's grey background; only three holes are clear. Needs a `hole_regions` pass in cutlib.
+  The golden net's mesh (right of the staff) was cleared afterwards with `tools/art/net_holes.py` (region
+  `0.30 0.86 0.62 1.0`, tol 28): about 200 cells see through; a few tiny grey slivers stay where strands cross.
 - `splash.png` — the same art (cameos and walkouts use the splash slot).
 - Framing: `HeroArt.META["skovoroda"]` (eyes at x 0.525, y 0.23 of the card).
