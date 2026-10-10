@@ -49,8 +49,8 @@ All paths below are from the repo root.
   shared line in joining order (sirko = 26, olha = 27).
 - Painted art: `assets/heroes/<id>/splash.png` (heroes); champions `card.png` + `splash.png` in the same folder (NOT
   `assets/champions/` as heroes_prompts.md §1.6 says). 4K sources: `art_src/heroes/<id>/<id>_<kind>_src.jpg` (JPEG q88; Godot
-  ignores art_src). Framing per character: `HeroArt.META` in `scripts/ui/heroes/hero_art.gd`. Missing: champion cards for brant, teo,
-  olena, nimb, dara, menhir.
+  ignores art_src). Framing per character: `HeroArt.META` in `scripts/ui/heroes/hero_art.gd`. Every champion has its card now
+  (brant, teo, olena, nimb, dara, menhir from Gemini, 2026-10-10).
 
 ## Art pipeline (crystal-rush/tools/art/, crystal-rush/tools/art_prompts/)
 - Install routine for new art: source -> `art_src/...`, cut-out, `assets/heroes/<id>/splash.png` or `card.png`, `HeroArt.META` line,

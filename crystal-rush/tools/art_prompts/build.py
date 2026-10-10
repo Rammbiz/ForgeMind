@@ -87,6 +87,12 @@ RECEIVED = {  # hero id -> [(file, caption)], the owner's finished art (newest f
     'taras': [('taras/taras_card_src.jpg', 'Картка (4K)')],
     'snaryad': [('snaryad/snaryad_card_src.jpg', 'Картка (4K)')],
     'dovbush': [('dovbush/dovbush_card_src.jpg', 'Картка (4K)')],
+    'brant': [('brant/brant_card_src.jpg', 'Картка')],
+    'teo': [('teo/teo_card_src.jpg', 'Картка')],
+    'olena': [('olena/olena_card_src.jpg', 'Картка')],
+    'nimb': [('nimb/nimb_card_src.jpg', 'Картка')],
+    'dara': [('dara/dara_card_src.jpg', 'Картка')],
+    'menhir': [('menhir/menhir_card_src.jpg', 'Картка')],
     'sirko': [('sirko/sirko_splash_src.jpg', 'Сплеш (4K)')],
     'olha': [('olha/olha_splash_src.jpg', 'Сплеш (4K)')],
 }
@@ -342,5 +348,5 @@ if REPO_MODE:
             '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
             'body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>\n</head>\n<body>\n'
             + page + '\n</body>\n</html>\n')
-open(OUT, 'w', encoding='utf-8').write(page)
+open(OUT, 'w', encoding='utf-8', newline=chr(10)).write(page)
 print('written', OUT, len(page), file=sys.stderr)

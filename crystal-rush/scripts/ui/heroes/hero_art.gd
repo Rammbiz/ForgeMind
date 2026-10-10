@@ -47,6 +47,12 @@ const META := {
 	"taras": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.58, 0.25), "focus_x": 0.56},
 	"snaryad": {"crop": Rect2(0.116, 0.027, 0.866, 0.862), "eye": Vector2(0.50, 0.22), "focus_x": 0.55},
 	"dovbush": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.52, 0.21), "focus_x": 0.5},
+	"brant": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.58, 0.21), "focus_x": 0.56},
+	"teo": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.52, 0.30), "focus_x": 0.52},
+	"olena": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.49, 0.29), "focus_x": 0.5},
+	"nimb": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.57, 0.27), "focus_x": 0.55},
+	"dara": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.55, 0.31), "focus_x": 0.55},
+	"menhir": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.50, 0.27), "focus_x": 0.52},
 }
 
 static var _tex: Dictionary = {}          ## path -> Texture2D (or null when missing)
