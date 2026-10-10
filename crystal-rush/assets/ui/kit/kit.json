@@ -128,39 +128,41 @@
  },
  "pill": {
   "margins": [
-   24,
-   24,
-   24,
-   24
+   22,
+   16,
+   22,
+   16
   ],
   "pad": [
    16,
    6
   ],
   "expand": [
-   8,
-   8,
-   8,
-   10
-  ]
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
  },
  "plate": {
   "margins": [
-   24,
-   24,
-   24,
-   24
+   22,
+   16,
+   22,
+   16
   ],
   "pad": [
    16,
    6
   ],
   "expand": [
-   8,
-   8,
-   8,
-   10
-  ]
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
  },
  "chip": {
   "margins": [
@@ -182,21 +184,22 @@
  },
  "ribbon": {
   "margins": [
-   28,
-   22,
-   28,
-   22
+   39,
+   14,
+   39,
+   14
   ],
   "pad": [
    30,
    6
   ],
   "expand": [
-   8,
-   8,
-   8,
-   10
-  ]
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
  },
  "toast": {
   "margins": [
@@ -531,21 +534,22 @@
  },
  "tag_new": {
   "margins": [
-   12,
-   12,
-   12,
-   12
+   18,
+   8,
+   18,
+   8
   ],
   "pad": [
    8,
    1
   ],
   "expand": [
-   3,
-   3,
-   3,
-   4
-  ]
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
  },
  "card_frame": {
   "margins": [
@@ -650,6 +654,126 @@
   "scale": 2
  },
  "cta_topaz": {
+  "scale": 2
+ },
+ "icon_portal": {
+  "painted": true
+ },
+ "icon_beacon": {
+  "painted": true
+ },
+ "icon_tome": {
+  "painted": true
+ },
+ "icon_fragment": {
+  "painted": true
+ },
+ "icon_lock": {
+  "painted": true
+ },
+ "icon_unlock": {
+  "painted": true
+ },
+ "icon_gift": {
+  "painted": true
+ },
+ "icon_calendar": {
+  "painted": true
+ },
+ "icon_map": {
+  "painted": true
+ },
+ "icon_globe": {
+  "painted": true
+ },
+ "icon_sound": {
+  "painted": true
+ },
+ "icon_music": {
+  "painted": true
+ },
+ "icon_vibrate": {
+  "painted": true
+ },
+ "icon_home": {
+  "painted": true
+ },
+ "icon_restart": {
+  "painted": true
+ },
+ "icon_help": {
+  "painted": true
+ },
+ "icon_fortress": {
+  "painted": true
+ },
+ "icon_gate": {
+  "painted": true
+ },
+ "icon_spikes": {
+  "painted": true
+ },
+ "icon_blade": {
+  "painted": true
+ },
+ "icon_cache_stone": {
+  "painted": true
+ },
+ "icon_cache_world": {
+  "painted": true
+ },
+ "icon_cache_royal": {
+  "painted": true
+ },
+ "icon_cache_xray": {
+  "painted": true
+ },
+ "icon_auto": {
+  "painted": true
+ },
+ "icon_fast": {
+  "painted": true
+ },
+ "icon_swap": {
+  "painted": true
+ },
+ "icon_sort": {
+  "painted": true
+ },
+ "icon_search": {
+  "painted": true
+ },
+ "icon_edit": {
+  "painted": true
+ },
+ "icon_soldier": {
+  "painted": true
+ },
+ "icon_star": {
+  "painted": true
+ },
+ "card_quartz": {
+  "scale": 2
+ },
+ "card_sapphire": {
+  "scale": 2
+ },
+ "card_amethyst": {
+  "scale": 2
+ },
+ "card_topaz": {
+  "scale": 2
+ },
+ "card_opal": {
+  "scale": 2
+ },
+ "socket_cream": {
+  "scale": 2
+ },
+ "socket_slate": {
+  "scale": 2
+ },
+ "badge_gem": {
   "scale": 2
  }
 }
