@@ -133,7 +133,7 @@ const T := {
 	"ACT_ODARKA_DESC": ["Коли зцілення повертає солдатів, банка з перцем летить у найближчих летунів: Опік", "When a Mend returns soldiers, a jar of peppers hits the nearest fliers: Burn"],
 	"ACT_HOHOTUN": ["Га-га-га!", "Honk-Honk-Honk!"],
 	"ACT_HOHOTUN_DESC": ["Перед стрибком гелгоче й ставить ціль під Мітку; його стрибок дістає й летунів", "He honks and Marks his target before each leap; his leap reaches fliers too"],
-	"ACT_SKOVORODA": ["Світ ловив мене…", "The World Tried to Catch Me…"],
+	"ACT_SKOVORODA": ["Світ ловив мене, та не спіймав", "The World Never Caught Me"],
 	"ACT_SKOVORODA_DESC": ["Блок пише «МИМО!», а кожен третій кидає золоту сітку: загін позаду ненадовго спиняється", "His Block reads MISSED!; every third drops a golden net that holds the squad behind"],
 	"ACT_MOTYVATOR": ["Сила лісу!", "Power of the Forest!"],
 	"ACT_MOTYVATOR_DESC": ["Після стрибка гукає: армія ненадовго втрачає менше в сутичках", "After each leap he shouts: the army briefly loses less in clashes"],

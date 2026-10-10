@@ -7903,7 +7903,7 @@ Tall lean man of about fifty with a long kind face, short dark-brown hair, clean
 
 Після `fall` чемпіон сидить із сопілкою (останній кадр тримаю); підйом при воскресінні — 0.4 с, зроблю з `fall` у зворотному порядку.
 
-**(e) Іконка дії** — Світ ловив мене… / The World Tried to Catch Me… — `skovoroda_action.png` (колір — стихія Кінетика).
+**(e) Іконка дії** — Світ ловив мене, та не спіймав / The World Never Caught Me — `skovoroda_action.png` (колір — стихія Кінетика).
 
 Налаштування: формат **1:1** · якість **1K–2K** (≥ 1024×1024) · 2–3 варіанти · референси: `style_anchor.png` + картка · робіть усі іконки персонажа в одному чаті, щоб вони вийшли однією серією.
 
@@ -7920,7 +7920,7 @@ ART STYLE
 - Materials: carved ivory-white porcelain highlights and thin polished gold edges, with pale copper (#D9B8A6) and warm bronze as the main colour.
 - Soft key light from the upper left. No glow halo, no sparks, no particles, no light rays.
 
-MOTIF - The World Tried to Catch Me (champion action)
+MOTIF - The World Never Caught Me (champion action)
 - a wide net with large square meshes thrown in a curved arc, empty, and one swift curved line slipping out through a gap in its middle toward the upper right
 
 COLOUR

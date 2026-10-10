@@ -1076,7 +1076,7 @@ const STRINGS := {
 	"RELIC_HOHOTUN": ["Кільце № 001", "Ring No. 001"],
 	"RELIC_HOHOTUN_DESC": ["Мітка довша, стрибок дістає далі й приходить частіше", "A longer Mark, a longer leap reach, more frequent leaps"],
 	"CHAMP_SKOVORODA_LORE": ["Сковорода сходив пішки сотні доріг між Небесною гаванню й Рунічним лісом — із ціпком, сопілкою й торбою книжок.\nВін учив, що вільної душі не зловить жодна сітка, і Жаророгі, хоч скільки її закидали, щоразу ловили порожнечу.\nСлова, якими його пам’ятатимуть, він обрав сам: «Світ ловив мене, та не спіймав», — і кожен бій доводить, що це правда.", "Skovoroda walked hundreds of roads between the Sky Harbour and the Rune Forest with a staff, a reed pipe and a satchel of books.\nHe taught that no net can catch a free soul, and however often the Emberhorn cast theirs, they caught only empty air.\nHe chose his own words to be remembered by: the world tried to catch me, but it never did. Every battle proves them true."],
-	"ACT_SKOVORODA": ["Світ ловив мене…", "The World Tried to Catch Me…"],
+	"ACT_SKOVORODA": ["Світ ловив мене, та не спіймав", "The World Never Caught Me"],
 	"ACT_SKOVORODA_DESC": ["Блок пише «МИМО!», а кожен третій кидає золоту сітку: загін позаду ненадовго спиняється", "His Block reads MISSED!; every third drops a golden net that holds the squad behind"],
 	"ACT_SKOVORODA_VALUE": ["%s вбивств за блок", "%s kills per Block"],
 	"RELIC_SKOVORODA": ["Сопілка мандрівника", "The Wanderer’s Pipe"],
