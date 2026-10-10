@@ -1,21 +1,22 @@
 {
  "_doc": "UI v2 bitmap override table. A PNG named <key>.png in this folder replaces the procedural element of the same name. margins = nine-patch [left, top, right, bottom] in source px; pad = content margin [x, y]; expand = how far the art extends past the control rect (shadows) [l, t, r, b]. See scratchpad uiv2/kit_asset_names.md (copied in README.md).",
  "panel": {
+  "scale": 2,
   "margins": [
-   40,
-   40,
-   40,
-   40
+   48,
+   48,
+   48,
+   48
   ],
   "pad": [
    36,
    30
   ],
   "expand": [
-   16,
-   16,
-   16,
-   20
+   0,
+   0,
+   0,
+   0
   ]
  },
  "modal": {
@@ -202,39 +203,41 @@
   "scale": 2
  },
  "toast": {
+  "scale": 2,
   "margins": [
-   32,
-   32,
-   32,
-   32
+   27,
+   20,
+   27,
+   20
   ],
   "pad": [
    26,
    14
   ],
   "expand": [
-   14,
-   14,
-   14,
-   18
+   0,
+   0,
+   0,
+   0
   ]
  },
  "banner": {
+  "scale": 2,
   "margins": [
-   32,
-   32,
-   32,
-   32
+   27,
+   20,
+   27,
+   20
   ],
   "pad": [
    26,
    14
   ],
   "expand": [
-   14,
-   14,
-   14,
-   18
+   0,
+   0,
+   0,
+   0
   ]
  },
  "button": {
@@ -389,11 +392,12 @@
   ]
  },
  "seg": {
+  "scale": 2,
   "margins": [
-   20,
-   20,
-   20,
-   20
+   24,
+   18,
+   24,
+   18
   ],
   "pad": [
    4,

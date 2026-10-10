@@ -36,6 +36,29 @@ def body(im, h1, cap_k, mid=8, fade=16):
     return Image.fromarray(np.clip(o, 0, 255).astype(np.uint8), "RGBA"), cap // SC
 
 
+def panel9(im, corner_src_frac, corner_1x, mid=8):
+    """A 2D nine-patch from a painted panel: scaled so its corner block (corner_src_frac of the height) becomes
+    corner_1x px at 1x (x SC), then [corner | averaged edge | corner] in both directions with a flat centre."""
+    c2 = corner_1x * SC
+    k = c2 / (corner_src_frac * im.height)
+    a = np.asarray(im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)).astype(np.float32)
+    h, w = a.shape[:2]
+    mx0, mx1, my0, my1 = int(w * 0.35), int(w * 0.65), int(h * 0.35), int(h * 0.65)
+    top = np.median(a[:c2, mx0:mx1], axis=1)[:, None, :].repeat(mid, 1)
+    bot = np.median(a[h - c2:, mx0:mx1], axis=1)[:, None, :].repeat(mid, 1)
+    lef = np.median(a[my0:my1, :c2], axis=0)[None, :, :].repeat(mid, 0)
+    rig = np.median(a[my0:my1, w - c2:], axis=0)[None, :, :].repeat(mid, 0)
+    cen = np.median(a[my0:my1, mx0:mx1].reshape(-1, 4), axis=0)
+    n = 2 * c2 + mid
+    o = np.zeros((n, n, 4), np.float32)
+    o[:c2, :c2], o[:c2, c2 + mid:] = a[:c2, :c2], a[:c2, w - c2:]
+    o[c2 + mid:, :c2], o[c2 + mid:, c2 + mid:] = a[h - c2:, :c2], a[h - c2:, w - c2:]
+    o[:c2, c2:c2 + mid], o[c2 + mid:, c2:c2 + mid] = top, bot
+    o[c2:c2 + mid, :c2], o[c2:c2 + mid, c2 + mid:] = lef, rig
+    o[c2:c2 + mid, c2:c2 + mid] = cen
+    return Image.fromarray(np.clip(o, 0, 255).astype(np.uint8), "RGBA")
+
+
 def save(name, im, entry):
     im.save(os.path.join(out, name + ".png"))
     spec[name] = dict(entry, scale=SC)
