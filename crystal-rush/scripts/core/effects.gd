@@ -62,9 +62,14 @@ const ARCANE := Color(0.66, 0.32, 1.0)
 const RIFT_SHADER := preload("res://shaders/fx_rift.gdshader")
 ## Machine vfx kinds (design §2.8 table) -> projectile looks above.
 const ALIAS := {"orb": "plasma", "missile_trail": "rocket", "tracer_dot": "drone", "shell_arc": "shell", "tracer_stream": "tracer"}
-## Gate labels v2 (Models.gate_labels_v2, dev only): an additive ult layer over a gate panel draws at alpha <= this
+## Gate labels v2 (Models.gate_labels_v2, every run): an additive ult layer over a gate panel draws at alpha <= this
 ## (heroes design §10.2 rule 3; see _gate_hold).
 const GATE_CAP := 0.35
+## Gate labels v2: the ult's own last VFX outlive its clock (the quake's crystal spikes stand 1.0 s after its last
+## wave, HeroFx shapes fade out over 0.3-0.5 s, sparks and glows die out): the labels keep their ult draw and the
+## ult layers stay held back this long after Run.ult_clock stops (hud_lab --compare: without it the quake's spikes
+## hide a power gate's forecast, 2.3 : 1).
+const ULT_TAIL := 1.2
 
 var quality_high := true
 var _lightning: Array = []   # [{mesh: MeshInstance3D, t: float, life: float}]
@@ -96,11 +101,15 @@ var _status := {}                    # id -> {node, mat, seen, k, kind}
 var _rail_id := -1000000
 var _time := 0.0
 var _rifts: Array[Dictionary] = []     # {node, mats, k, t, closing}
-## Gate labels v2 (Models.gate_labels_v2, dev only): the gate panels on screen this frame (Rect2 px) while an ult
-## runs, and whether that holds the ult layers back (see _gate_hold).
+## Gate labels v2 (Models.gate_labels_v2): the gate panels on screen this frame (Rect2 px) while an ult runs, and
+## whether that holds the ult layers back (see _gate_hold).
 var _panels: Array[Rect2] = []
 var _panels_frame := -1
 var _hold := false
+## Gate labels v2: whether the labels are in their ult draw (_labels_over_step sets Models.labels_over when it
+## changes), and the seconds of ULT_TAIL left since the ult clock stopped.
+var _ult_on := false
+var _ult_tail := 0.0
 
 
 ## A set of simple particles in packed arrays (removal swaps with the last one).
@@ -177,6 +186,13 @@ func _ready() -> void:
 	_ensure_pools()
 
 
+func _exit_tree() -> void:
+	# A run left mid-ult: the next run's gates start in the calm draw.
+	if _ult_on:
+		_ult_on = false
+		Models.labels_over = false
+
+
 func _ensure_pools() -> void:
 	if _ready_pools:
 		return
@@ -231,6 +247,8 @@ func _pool_mm(n: String, mesh: Mesh, shader: Shader, count: int, custom: bool) -
 
 func _process(delta: float) -> void:
 	_ensure_pools()
+	if Models.gate_labels_v2:
+		_labels_over_step(delta)
 	_time += delta
 	_frame_streaks.clear()
 	_frame_glows.clear()
@@ -361,12 +379,13 @@ static func _put_sprite(b: PackedFloat32Array, i: int, p: Vector3, s: float, c: 
 
 # ------------------------------------------------------------------ gate labels v2: ult layers held back over gates
 
-## Gate labels v2 (Models.gate_labels_v2, dev only; owner decision 10.10 "hold the ult flashes back over the gates"):
-## while the run's ult clock runs, every additive layer whose screen footprint touches a gate panel draws at alpha
-## <= GATE_CAP (heroes design §10.2 rule 3): the pooled streaks and glow sprites each frame (sparks, flashes,
-## flares, projectile trails), and lightning, shockwave rings, rings and particle bursts when they are made; the
-## Seer's rift eases down to it while a panel stands over it. The gate labels draw above all of it (Models, §10.2
-## rule 2). Under v1 none of this runs. Returns whether this frame holds anything back (panels cached per frame).
+## Gate labels v2 (Models.gate_labels_v2; owner decisions 10.10 "hold the ult flashes back over the gates", v2 for
+## everyone): while the run's ult runs (its clock and ULT_TAIL after), every additive layer whose screen footprint
+## touches a gate panel draws at alpha <= GATE_CAP (heroes design §10.2 rule 3): the pooled streaks and glow sprites
+## each frame (sparks, flashes, flares, projectile trails), and lightning, shockwave rings, rings and particle bursts
+## when they are made; the Seer's rift eases down to it while a panel stands over it. The gate labels draw above all
+## of it meanwhile (Models.labels_over, §10.2 rule 2). Under v1 none of this runs. Returns whether this frame holds
+## anything back (panels cached per frame).
 func _gate_hold() -> bool:
 	var f := Engine.get_process_frames()
 	if f == _panels_frame:
@@ -374,10 +393,8 @@ func _gate_hold() -> bool:
 	_panels_frame = f
 	_panels.clear()
 	_hold = false
-	var run := get_parent()
-	var clock: Variant = run.get("ult_clock") if run else null
 	var cam := get_viewport().get_camera_3d()
-	if not (clock is Object and bool((clock as Object).call("active"))) or cam == null:
+	if not _ult_running() or cam == null:
 		return false
 	var vp := get_viewport().get_visible_rect()
 	for n: Node in get_tree().get_nodes_in_group(Models.GATE_PANEL_GROUP):
@@ -434,6 +451,29 @@ func _hold_back(b: PackedFloat32Array, n: int, stride: int) -> void:
 		var rad := 0.5 * (Vector3(b[k + 2], b[k + 6], b[k + 10]).length() if stride == 16 else b[k])
 		if _over_gate(Vector3(b[k + 3], b[k + 7], b[k + 11]), rad):
 			b[k + 15] = minf(b[k + 15], 1.0) * GATE_CAP
+
+
+## True while the run's ult clock runs (Run.ult_clock.active(); false outside a Run).
+func _clock_active() -> bool:
+	var run := get_parent()
+	var clock: Variant = run.get("ult_clock") if run else null
+	return clock is Object and bool((clock as Object).call("active"))
+
+
+## True while the run's ult runs: its clock, and ULT_TAIL s after it stops (the ult's last VFX).
+func _ult_running() -> bool:
+	return _ult_tail > 0.0 or _clock_active()
+
+
+## Gate labels v2, §10.2 rule 2: Models.labels_over follows the run's ult, set on the frame its clock starts and
+## cleared ULT_TAIL s after it stops (each gate's plate switches its labels on the change, not per frame).
+func _labels_over_step(delta: float) -> void:
+	var active := _clock_active()
+	_ult_tail = ULT_TAIL if active else maxf(_ult_tail - delta, 0.0)
+	var on := active or _ult_tail > 0.0
+	if on != _ult_on:
+		_ult_on = on
+		Models.labels_over = on
 
 
 # ------------------------------------------------------------------ projectiles

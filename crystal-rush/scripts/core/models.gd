@@ -48,29 +48,56 @@ const REWARD_COLORS := {"army": Color(0.35, 0.8, 1.0), "coins": Color(1.0, 0.76,
 const STAIRS_COLORS: Array[Color] = [Color(0.18, 0.5, 1.0), Color(0.58, 0.28, 1.0), Color(1.0, 0.62, 0.1)]
 
 const GATE_H := 2.2
-## Gate labels v2 (gate_labels_v2, owner decision 10.10, dev only): the gates' group, which Effects reads to hold the
-## ult layers back over their panels (heroes design §10.2 rule 3).
+## Gate labels v2 (gate_labels_v2, owner decisions 10.10): the gates' group, which Effects reads to hold the ult
+## layers back over their panels (heroes design §10.2 rule 3).
 const GATE_PANEL_GROUP := &"gate_panel"
-## v2 render priorities: plate, glyph outline (none drawn), glyphs, forecast arrow; every ult VFX draws at 0..4, so
-## the labels land above all of them (§10.2 rule 2; Label3D and Material priorities reach 127).
+## v2 render priorities while an ult runs (labels_over): plate, glyph outline (none drawn), glyphs, forecast arrow;
+## every ult VFX draws at 0..4, so the labels land above all of them (§10.2 rule 2; Label3D and Material priorities
+## reach 127).
 const PLATE_PRIORITY := 120
+## The same four outside ults: v1's own (pill 1, outline 2, glyphs 3, arrow 4), so a squad's counter or the hero's
+## VFX in front of a gate still draw over its labels as they always did.
+const PLATE_PRIORITY_IDLE := 1
 ## v2 plate: deep ink (UI v3 BAR_INK_LO) tinted this far toward the gate's own colour, at this opacity (UI v3 plates
-## 0.82-0.86), a 1 device-px gold line (LINE_GOLD) with a faint light line inside it, 45-degree corners cut at
-## PLATE_CUT of its height. Never a pill, no glow, no gradient, no outline on the text.
+## 0.82-0.86; a little denser here: a bright ult behind a tablet shows through at most 10 %, hud_lab --compare), a 1
+## device-px gold line (LINE_GOLD) with a faint light line inside it, 45-degree corners cut at
+## PLATE_CUT of the number's cap height (inside the pads plus the glyphs' side bearings, so no glyph corner pokes
+## through a cut). Never a pill, no glow, no gradient, no outline on the text.
 const PLATE_TINT := 0.06
-const PLATE_ALPHA := 0.86
-const PLATE_CUT := 0.2
-## v2 plate padding around the glyphs, as shares of the glyph (cap) height: x on each side, y above and below.
-const PLATE_PAD := Vector2(0.3, 0.24)
+const PLATE_ALPHA := 0.9
+const PLATE_CUT := 0.26
+## v2 plate padding around the glyphs, as shares of the glyph (cap) height: x on each side (past the glyphs' own
+## side bearings), y above and below. Trimmed (owner decision 10.10: "digits a little bigger") so the number keeps
+## v1's size on LevelGen's 1.7 u and 2.1 u gates (hud_lab --fit: within 5 %).
+const PLATE_PAD := Vector2(0.1, 0.14)
+## v2: the tablet's margin under the forecast line, at least this share of the forecast's own ink height (the
+## number's PLATE_PAD.y of a small number would set the forecast's descenders on the gold line).
+const PLATE_PAD_FORECAST := 0.3
+## v2 tablet room on the panel: from PLATE_BOTTOM m (over the base rail) up to PLATE_TOP of the field's height
+## (PLATE_TOP_ICON under a power gate's emblem; a charge gate's bar takes its share off the top); the forecast's ink
+## sits PLATE_GAP of its own height under the number's.
+const PLATE_BOTTOM := 0.2
+const PLATE_TOP := 0.86
+const PLATE_TOP_ICON := 0.62
+const PLATE_GAP := 0.45
+## v2: a power gate's emblem a little higher than v1's (0.77 of the field's height), so the sword's hilt clears the
+## tablet under it.
+const PLATE_ICON_Y := 0.82
+## The gate number's label is at most w - LABEL_MARGIN wide on a gate `w` wide (v1, gate_style); a v2 tablet may be
+## as wide (or the field's width when that is wider): on the owner's gate model it then reaches 7 cm past the field
+## onto the pylons' inner faces, which stay behind the tablet's plane there.
+const LABEL_MARGIN := 0.36
 ## Cap height of the label font (M PLUS Rounded 1c Bold) as a share of its font size: the digits' height (sizing).
 const PLATE_CAP := 0.72
 ## v2: a closed gate's number, a soft grey kept at this alpha on its plate (v1 dims it to 0.35 over the bare
-## field), so a passed row still reads (>= 4.5 : 1) while its field folds away.
-const PLATE_CLOSED_A := 0.82
-const PLATE_CLOSED_INK := Color(0.86, 0.88, 0.92, PLATE_CLOSED_A)
+## field), so a passed row still reads (>= 4.5 : 1, also with an ult's glare behind the tablet) while its field
+## folds away.
+const PLATE_CLOSED_A := 0.9
+const PLATE_CLOSED_INK := Color(0.9, 0.91, 0.94, PLATE_CLOSED_A)
+## The plate's shader; DEPTH_MODE is "depth_test_disabled, " in its variant for ults (plate_shader(true)), else "".
 const PLATE_SHADER_CODE := """
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_test_disabled, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
+render_mode unshaded, blend_mix, DEPTH_MODEdepth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 uniform vec2 size = vec2(1.0, 0.5);
 uniform float cut = 0.1;
@@ -119,24 +146,31 @@ static var _mats := {}
 static var _stripes: Texture2D
 ## World whose "models" map `asset()` reads; empty = the first world.
 static var world: Dictionary = {}
-## Gate labels v2 (owner decision 10.10: "a calm dark porcelain backing under the number + hold the ult flashes
-## back over the gates", shown before anything ships): gates built while this is on carry their number and
-## forecast on an ink plate drawn above every ult VFX, and Effects holds the ult layers back over their panels
-## (heroes design §10.2 rules 2-3). OFF by default (v1: today's labels, unchanged). The one place the dev flag is
-## read: `--gate_labels=v2` in a dev run (--autotest / --shot); hud_lab --compare switches it per run.
+## Gate labels v2 (owner decisions 10.10: "a calm dark porcelain backing under the number + hold the ult flashes
+## back over the gates", then "v2 for everyone"): gates built while this is on carry their number and forecast
+## on an ink plate, drawn above every ult VFX while an ult runs (labels_over), and Effects holds the ult layers
+## back over their panels (heroes design §10.2 rules 2-3). ON for every run; v1 (the old labels: an outlined
+## number over the bare field, the forecast on a round pill) only for a dev comparison: `--gate_labels=v1` in a
+## dev run (--autotest / --shot), the one place the flag is read; hud_lab --compare switches it per run.
 static var gate_labels_v2 := _boot_gate_labels()
-static var _plate_shader: Shader
+## §10.2 rule 2: true while an ult runs (Effects sets it when Run.ult_clock starts and clears it Effects.ULT_TAIL s
+## after it stops, when the ult's last VFX are gone).
+## Each v2 gate's plate switches its labels on the change (_GatePlate.over): plate, glyphs and arrow without depth
+## test at PLATE_PRIORITY while it is true, else depth-tested at PLATE_PRIORITY_IDLE like v1, so a squad, the
+## hero or a nearer crossbar in front of a gate hides its labels as before.
+static var labels_over := false
+static var _plate_shaders: Array[Shader] = [null, null]
 
 
 static func _boot_gate_labels() -> bool:
 	var dev := false
-	var v2 := false
+	var v1 := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--autotest") or a.begins_with("--shot"):
 			dev = true
-		elif a == "--gate_labels=v2":
-			v2 = true
-	return dev and v2
+		elif a == "--gate_labels=v1":
+			v1 = true
+	return not (dev and v1)
 
 
 # ================================================================== asset overrides
@@ -696,17 +730,23 @@ static func soft_outline(l: Label3D, tint: Color, glow := 0.32) -> Label3D:
 ## Shrinks a label's pixel size so its text fits `max_w` x `max_h` metres (never grows it past
 ## `base_px_size`).
 static func _fit_label(l: Label3D, max_w: float, max_h: float, base_px_size := 0.006) -> void:
+	l.pixel_size = _fit_px(l, max_w, max_h, base_px_size)
+
+
+## The pixel size _fit_label gives `l` (its text as it is now, with `outline` px of outline; -1 = its own), without
+## setting it.
+static func _fit_px(l: Label3D, max_w: float, max_h: float, base_px_size := 0.006, outline := -1) -> float:
 	if l.text == "" or l.font == null:
-		l.pixel_size = base_px_size
-		return
+		return base_px_size
 	var sz := l.font.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.font_size)
-	sz += Vector2(l.outline_size, l.outline_size) * 2.0
+	var o := float(l.outline_size if outline < 0 else outline)
+	sz += Vector2(o, o) * 2.0
 	var ps := base_px_size
 	if sz.x * ps > max_w:
 		ps = max_w / sz.x
 	if sz.y * 0.72 * ps > max_h:
 		ps = max_h / (sz.y * 0.72)
-	l.pixel_size = ps
+	return ps
 
 
 ## Gate labels v2: fits a label's text with its plate around it (PLATE_PAD of the glyph height on each side) into
@@ -883,54 +923,62 @@ static func gate(width: float) -> Node3D:
 
 ## Gate labels v2 (gate_labels_v2): one calm ink tablet per gate (_GatePlate, a child of the number's label)
 ## holding the number and, under it in the same plane, the forecast line (its round pill hidden); the glyphs with
-## no outline; tablet, glyphs and arrow drawn without depth test at render priorities above every ult VFX (heroes
-## design §10.2 rule 2). The gate joins GATE_PANEL_GROUP, so Effects holds the ult layers back over its panel
-## (§10.2 rule 3). Meta "v2" on the gate.
+## no outline; tablet, glyphs and arrow drawn without depth test at render priorities above every ult VFX while an
+## ult runs, else depth-tested like v1 (labels_over, heroes design §10.2 rule 2). The gate joins
+## GATE_PANEL_GROUP, so Effects holds the ult layers back over its panel (§10.2 rule 3). Meta "v2" on the gate.
 static func _gate_labels_v2(root: Node3D, l: Label3D, pill: Node3D, sub: Label3D, arrow: MeshInstance3D) -> void:
 	root.set_meta("v2", true)
 	root.add_to_group(GATE_PANEL_GROUP)
 	for lab: Label3D in [l, sub]:
-		lab.no_depth_test = true
 		lab.outline_size = 0
-		lab.outline_render_priority = PLATE_PRIORITY + 1
-		lab.render_priority = PLATE_PRIORITY + 2
 	(pill.get_meta("bg") as MeshInstance3D).visible = false
-	# The gate's own arrow material, so the tablet can fade it with the number.
-	arrow.material_override = _arrow_mat(Color.WHITE, true).duplicate()
+	# The gate's own arrow material, so the tablet can fade it (and switch its depth test) with the number.
+	arrow.material_override = _arrow_mat(Color.WHITE).duplicate()
 	var plate := _GatePlate.new()
 	plate.setup(l, sub, arrow.material_override as StandardMaterial3D)
 	l.add_child(plate)
 	l.set_meta("plate", plate)
 
 
-## Gate labels v2: lays out a gate's tablet. The forecast keeps its v1 size (the decision, readable two rows
-## ahead); the number takes the rest of the room (with PLATE_PAD around its glyphs, no taller than v1's); the
-## forecast line sits under it (a gap of half its height) in the number's plane; the tablet wraps both, centred
-## on the panel between the base rail and the crossbar (the charge bar or the emblem), its width at most the
-## field's.
+## Gate labels v2: lays out a gate's tablet. The number is v1's size (the pixel size _fit_label gives v1's outlined
+## label: owner decision 10.10, "digits a little bigger"), smaller only where its tablet would not fit: PLATE_PAD
+## around its glyphs, at most v1's label width (or the field's), the forecast under it, all in the room between the
+## base rail and the crossbar (the charge bar or the emblem: PLATE_BOTTOM .. PLATE_TOP). The forecast keeps its v1
+## size (the decision, readable two rows ahead) and sits PLATE_GAP of its height under the number in the number's
+## plane; the tablet wraps both, centred in the room.
 static func _tablet_v2(node: Node3D, kind: String, col: Color, has_icon: bool, top_used: float, text_h: float) -> void:
+	var gw := float(node.get_meta("width", 2.0))
 	var fh := float(node.get_meta("field_h", GATE_H))
 	var fw := ((node.get_meta("field") as MeshInstance3D).mesh as QuadMesh).size.x + 0.02
+	var max_w := maxf(fw, gw - LABEL_MARGIN)
 	var l := node.get_meta("label") as Label3D
 	var pill := node.get_meta("pill") as Node3D
 	var s := node.get_meta("sub") as Label3D
 	var arrow := pill.get_meta("arrow") as MeshInstance3D
 	var plate := l.get_meta("plate") as _GatePlate
 	plate.full = PLATE_CLOSED_A if kind == "closed" else 1.0
-	var y_top := (fh * 0.62 if has_icon else fh * 0.86) - top_used * 0.6
-	var y_bot := 0.3
+	var y_top := fh * (PLATE_TOP_ICON if has_icon else PLATE_TOP) - top_used * 0.6
+	var y_bot := PLATE_BOTTOM
 	# The forecast line: its inked height (in its own label's space) and width (text and arrow).
 	var ink_f := _ink(s) if pill.visible else Vector2.ZERO
 	var hf := ink_f.x - ink_f.y
-	var gap := hf * 0.45
+	var gap := hf * PLATE_GAP
 	var wf := 0.0
 	if pill.visible:
 		wf = s.font.get_string_size(s.text, HORIZONTAL_ALIGNMENT_LEFT, -1, s.font_size).x * s.pixel_size
 		wf += 0.4 if arrow.visible else 0.0
-	# v1 holds the number's line box (its glyphs ~0.72 of it) to text_h: the same cap here.
-	var sz := _fit_plated(l, fw, minf(y_top - y_bot - gap - hf, text_h * 0.72 * (1.0 + PLATE_PAD.y * 2.0)))
+	# v1's pixel size for this text (its label as label() makes it: the outline counts in v1's fit).
+	var ps1 := _fit_px(l, gw - LABEL_MARGIN, text_h, 0.006, clampi(l.font_size / 26, 3, 12))
+	# The number's tallest cap height in the room: its pads above and below, or above it and the forecast's own
+	# margin under the forecast when that is the larger.
+	var room := y_top - y_bot - gap - hf
+	var pad_f := hf * PLATE_PAD_FORECAST
+	var cap_max := room / (1.0 + PLATE_PAD.y * 2.0)
+	if cap_max * PLATE_PAD.y < pad_f:
+		cap_max = (room - pad_f) / (1.0 + PLATE_PAD.y)
+	var sz := _fit_plated(l, max_w, cap_max * (1.0 + PLATE_PAD.y * 2.0), ps1)
 	if sz == Vector2.ZERO:
-		plate.style(Vector2.ZERO, 0.0, col)
+		plate.style(Vector2.ZERO, 0.0, col, 0.0)
 		return
 	var cap := float(l.font_size) * PLATE_CAP * l.pixel_size
 	var pad_y := cap * PLATE_PAD.y
@@ -941,11 +989,11 @@ static func _tablet_v2(node: Node3D, kind: String, col: Color, has_icon: bool, t
 	var bottom := ink_n.y - pad_y
 	var dy := ink_n.y - gap - ink_f.x
 	if pill.visible:
-		bottom = dy + ink_f.y - pad_y
-	var w := minf(maxf(sz.x, wf + cap * PLATE_PAD.x * 2.0), fw)
+		bottom = dy + ink_f.y - maxf(pad_y, pad_f)
+	var w := minf(maxf(sz.x, wf + cap * PLATE_PAD.x * 2.0), max_w)
 	# Centred in the room (the plane's 14-degree lean is ignored: under 3 % of the height).
 	l.position.y = (y_top + y_bot - top - bottom) * 0.5
-	plate.style(Vector2(w, top - bottom), (top + bottom) * 0.5, col)
+	plate.style(Vector2(w, top - bottom), (top + bottom) * 0.5, col, cap * PLATE_CUT)
 	if pill.visible:
 		# The forecast in the number's plane, never its punch scale.
 		pill.transform = Transform3D(Basis.from_euler(l.rotation), l.position) \
@@ -955,7 +1003,8 @@ static func _tablet_v2(node: Node3D, kind: String, col: Color, has_icon: bool, t
 ## Gate labels v2: the calm ink tablet behind a gate's number and forecast (shader PLATE_SHADER_CODE: a chamfered
 ## rectangle in metres, its 1 device-px gold line from screen derivatives, so it stays 1 px at any distance). It
 ## fades with the number's label (the run fades the number while the army passes it; closed dims it), and takes
-## the forecast text and arrow with it.
+## the forecast text and arrow with it. It also switches the three (and itself) between the ult draw and the calm
+## one when Models.labels_over changes (over(): heroes design §10.2 rule 2), once per change, never per frame.
 class _GatePlate extends MeshInstance3D:
 	## The number's label (the plate's parent), the forecast label and the gate's arrow material.
 	var follow: Label3D
@@ -964,6 +1013,8 @@ class _GatePlate extends MeshInstance3D:
 	## The number's alpha that means a full tablet (PLATE_CLOSED_A while closed).
 	var full := 1.0
 	var _seen := -1.0
+	## The draw the labels are in (Models.labels_over when it was last applied).
+	var _over := false
 
 	func setup(l: Label3D, forecast: Label3D, arrow: StandardMaterial3D) -> void:
 		name = "Plate"
@@ -973,27 +1024,45 @@ class _GatePlate extends MeshInstance3D:
 		var q := QuadMesh.new()
 		q.size = Vector2.ONE
 		mesh = q
-		var m := ShaderMaterial.new()
-		m.shader = Models.plate_shader()
-		m.render_priority = Models.PLATE_PRIORITY
-		material_override = m
+		material_override = ShaderMaterial.new()
 		cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		over(Models.labels_over)
 
-	## Sizes the tablet (metres, in the label's plane) centred at `y`, ink tinted toward `tint`.
-	func style(sz: Vector2, y: float, tint: Color) -> void:
+	## Sizes the tablet (metres, in the label's plane) centred at `y`, its corners cut `cut` m, ink tinted toward
+	## `tint`.
+	func style(sz: Vector2, y: float, tint: Color, cut: float) -> void:
 		visible = sz.x > 0.0
 		scale = Vector3(maxf(sz.x, 0.01), maxf(sz.y, 0.01), 1.0)
 		position = Vector3(0.0, y, -0.004)
 		var m := material_override as ShaderMaterial
 		var ink := UITokens.BAR_INK_LO.lerp(Color(tint.r, tint.g, tint.b), Models.PLATE_TINT)
 		m.set_shader_parameter("size", sz)
-		m.set_shader_parameter("cut", sz.y * Models.PLATE_CUT)
+		m.set_shader_parameter("cut", minf(cut, minf(sz.x, sz.y) * 0.5))
 		m.set_shader_parameter("fill", Color(ink.r, ink.g, ink.b, Models.PLATE_ALPHA))
 		m.set_shader_parameter("line", Color(UITokens.LINE_GOLD, 0.9))
 		_seen = -1.0
 		_process(0.0)
 
+	## The ult draw (`on`: plate, glyphs and arrow without depth test at PLATE_PRIORITY + 0..3, above every ult VFX)
+	## or the calm one (depth-tested at PLATE_PRIORITY_IDLE + 0..3: v1's own priorities, so what stands in front of
+	## the gate hides its labels).
+	func over(on: bool) -> void:
+		_over = on
+		var p := Models.PLATE_PRIORITY if on else Models.PLATE_PRIORITY_IDLE
+		var m := material_override as ShaderMaterial
+		# The plate's parameters live on the material: they carry over to the other shader variant.
+		m.shader = Models.plate_shader(on)
+		m.render_priority = p
+		for lab: Label3D in [follow, sub]:
+			lab.no_depth_test = on
+			lab.outline_render_priority = p + 1
+			lab.render_priority = p + 2
+		arrow_mat.no_depth_test = on
+		arrow_mat.render_priority = p + 3
+
 	func _process(_delta: float) -> void:
+		if _over != Models.labels_over:
+			over(Models.labels_over)
 		var a := clampf(follow.modulate.a / maxf(full, 0.01), 0.0, 1.0)
 		# gate_style resets the forecast's colour (alpha 1): put the tablet's fade back on it too.
 		if a == _seen and is_equal_approx(sub.modulate.a, a):
@@ -1004,11 +1073,14 @@ class _GatePlate extends MeshInstance3D:
 		arrow_mat.albedo_color.a = a
 
 
-static func plate_shader() -> Shader:
-	if _plate_shader == null:
-		_plate_shader = Shader.new()
-		_plate_shader.code = PLATE_SHADER_CODE
-	return _plate_shader
+## The v2 plate's shader: `over` = its ult variant (no depth test), else the depth-tested one (both cached).
+static func plate_shader(over := true) -> Shader:
+	var i := 1 if over else 0
+	if _plate_shaders[i] == null:
+		var sh := Shader.new()
+		sh.code = PLATE_SHADER_CODE.replace("DEPTH_MODE", "depth_test_disabled, " if over else "")
+		_plate_shaders[i] = sh
+	return _plate_shaders[i]
 
 
 ## The owner's gate GLB fitted to a gate `w` wide: the pylons keep their own thickness and stand
@@ -1211,9 +1283,9 @@ static func _arrow_mesh() -> MeshInstance3D:
 	return mi
 
 
-## The forecast arrow's material in `c`; `v2` (gate labels v2): no depth test, above the plate and the glyphs.
-static func _arrow_mat(c: Color, v2 := false) -> StandardMaterial3D:
-	var key := "arrow%s%s" % [c.to_html(), "v2" if v2 else ""]
+## The forecast arrow's material in `c` (gate labels v2 duplicate it per gate: _GatePlate fades and switches it).
+static func _arrow_mat(c: Color) -> StandardMaterial3D:
+	var key := "arrow%s" % c.to_html()
 	if _mats.has(key):
 		return _mats[key]
 	var m := StandardMaterial3D.new()
@@ -1222,9 +1294,6 @@ static func _arrow_mat(c: Color, v2 := false) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.render_priority = 4
-	if v2:
-		m.no_depth_test = true
-		m.render_priority = PLATE_PRIORITY + 3
 	_mats[key] = m
 	return m
 
@@ -1287,8 +1356,8 @@ static func gate_style(node: Node3D, text: String, sub: String, kind: String, ic
 	l.position.y = fh * (0.44 if has_icon else 0.58) - top_used * 0.4
 	# Gate labels v2: the number is fitted with the forecast on one tablet below (_tablet_v2).
 	if not v2:
-		_fit_label(l, w - 0.36, text_h)
-	icon_root.position.y = fh * 0.77 - top_used * 0.5
+		_fit_label(l, w - LABEL_MARGIN, text_h)
+	icon_root.position.y = fh * (PLATE_ICON_Y if v2 else 0.77) - top_used * 0.5
 	icon_root.visible = has_icon
 	# Forecast pill.
 	var pill := node.get_meta("pill") as Node3D
