@@ -94,7 +94,7 @@ const T := {
 	"CHAMP_UI_RUN_SOON": ["Живе демо — разом із моделлю чемпіона", "The live demo arrives with the champion’s model"],
 	"CHAMP_UI_TO_TEAM": ["До команди", "To the team"],
 	"CHAMP_UI_TWIST": ["Особливість", "Twist"],
-	# Twist names (ACT_<ID>, §6.11-§6.22, §6.25-§6.27) and their one-line rule (no numbers; the sheets hold them).
+	# Twist names (ACT_<ID>, §6.11-§6.22, §6.25-§6.27, §6.30-§6.35) and their one-line rule (no numbers; the sheets hold them).
 	"ACT_MILA": ["Тонік", "Tonic"],
 	"ACT_MILA_DESC": ["Імпульс, що повернув солдата, кидає флакон: МІТКА на найближчий загін, видно Фантомів", "A pulse that returns a soldier throws a flare vial: MARK on the nearest squad, Phantoms revealed"],
 	"ACT_IVO": ["Жар", "Brazier Heat"],
@@ -125,6 +125,18 @@ const T := {
 	"ACT_SNARYAD_DESC": ["Знешкоджує пастку попереду армії й кидає її заряд на найближчий загін: Мітка", "Defuses the trap ahead of the army and drops its charge on the nearest squad: Mark"],
 	"ACT_DOVBUSH": ["Бартка", "The Bartka"],
 	"ACT_DOVBUSH_DESC": ["Бартка летить крізь два загони, першим — найбронованіший: Відкидання", "The bartka flies through two squads, the best-armoured first: Stagger"],
+	"ACT_FRANKO": ["Лупайте сю скалу!", "Break This Rock!"],
+	"ACT_FRANKO_DESC": ["Стрибок обирає камінь: барикаду, стіну чи ворота; уламки відкидають загін за ним", "His leap picks stone: a barricade, wall or the gate; debris Staggers the squad behind"],
+	"ACT_RUKAVYCHKA": ["Хто в рукавичці живе?", "Who Lives in the Mitten?"],
+	"ACT_RUKAVYCHKA_DESC": ["Кожне зцілення селить гостя; повна рукавичка — гавкіт: подвійне повернення, потім пауза", "Each Mend adds a guest; a full mitten means a bark: a double return, then a pause"],
+	"ACT_ODARKA": ["Банка", "The Jar"],
+	"ACT_ODARKA_DESC": ["Коли зцілення повертає солдатів, банка з перцем летить у найближчих летунів: Опік", "When a Mend returns soldiers, a jar of peppers hits the nearest fliers: Burn"],
+	"ACT_HOHOTUN": ["Га-га-га!", "Honk-Honk-Honk!"],
+	"ACT_HOHOTUN_DESC": ["Перед стрибком гелгоче й ставить ціль під Мітку; його стрибок дістає й летунів", "He honks and Marks his target before each leap; his leap reaches fliers too"],
+	"ACT_SKOVORODA": ["Світ ловив мене…", "The World Tried to Catch Me…"],
+	"ACT_SKOVORODA_DESC": ["Блок пише «МИМО!», а кожен третій кидає золоту сітку: загін позаду ненадовго спиняється", "His Block reads MISSED!; every third drops a golden net that holds the squad behind"],
+	"ACT_MOTYVATOR": ["Сила лісу!", "Power of the Forest!"],
+	"ACT_MOTYVATOR_DESC": ["Після стрибка гукає: армія ненадовго втрачає менше в сутичках", "After each leap he shouts: the army briefly loses less in clashes"],
 	# The Action's main number (kit x ladder x Champion Level), one template per champion.
 	"CHAMP_MILA_ACTVAL": ["Повертає до %s солдатів за імпульс", "Returns up to %s soldiers per pulse"],
 	"CHAMP_IVO_ACTVAL": ["Блок: %s шкоди загороді", "Block: %s damage to the barricade"],
@@ -141,7 +153,13 @@ const T := {
 	"CHAMP_TARAS_ACTVAL": ["Слово: %s вбивств на загін", "The Word: %s kills per squad"],
 	"CHAMP_SNARYAD_ACTVAL": ["Нюх сапера: %s вбивств за заряд", "Sapper’s Nose: %s kills per charge"],
 	"CHAMP_DOVBUSH_ACTVAL": ["Бартка: %s вбивств на загін", "The Bartka: %s kills per squad"],
-	# Champion relics (§6.11-§6.22, §6.25-§6.27; RELIC_<ID>).
+	"CHAMP_FRANKO_ACTVAL": ["Стрибок: %s вбивств або руйнувань", "Leap: %s kills or breaks"],
+	"CHAMP_RUKAVYCHKA_ACTVAL": ["Повертає до %s солдатів за імпульс", "Returns up to %s soldiers per pulse"],
+	"CHAMP_ODARKA_ACTVAL": ["Повертає до %s солдатів за імпульс", "Returns up to %s soldiers per pulse"],
+	"CHAMP_HOHOTUN_ACTVAL": ["Стрибок: %s вбивств", "Leap: %s kills"],
+	"CHAMP_SKOVORODA_ACTVAL": ["Блок: %s вбивств", "Block: %s kills"],
+	"CHAMP_MOTYVATOR_ACTVAL": ["Стрибок: %s вбивств", "Leap: %s kills"],
+	# Champion relics (§6.11-§6.22, §6.25-§6.27, §6.30-§6.35; RELIC_<ID>).
 	"RELIC_MILA": ["Ліхтар наставниці", "Mentor’s Lantern"],
 	"RELIC_IVO": ["Решітка жаровні", "Brazier Grate"],
 	"RELIC_BORKO": ["Дідова лопата", "Grandsire’s Spade"],
@@ -157,4 +175,10 @@ const T := {
 	"RELIC_TARAS": ["Перо поета", "The Poet’s Quill"],
 	"RELIC_SNARYAD": ["Перше кільце", "The First Ring"],
 	"RELIC_DOVBUSH": ["Зачарований черес", "The Charmed Belt"],
+	"RELIC_FRANKO": ["Розбиті кайдани", "The Broken Shackles"],
+	"RELIC_RUKAVYCHKA": ["Дідова рукавичка", "Grandpa’s Mitten"],
+	"RELIC_ODARKA": ["Половник", "The Ladle"],
+	"RELIC_HOHOTUN": ["Кільце № 001", "Ring No. 001"],
+	"RELIC_SKOVORODA": ["Сопілка мандрівника", "The Wanderer’s Pipe"],
+	"RELIC_MOTYVATOR": ["Жолудь сили", "The Acorn of Strength"],
 }

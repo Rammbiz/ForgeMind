@@ -125,6 +125,9 @@ GLOSSARY_KEYS = {
 #   where = "heroes" (heroes block + overlay, both tables) | "live" (the whole LIVE table) | "all" (heroes keys of
 #           SHIPPED + the whole LIVE table)
 #   allowed = a set of keys, or None = only heroes-block keys may use the term
+# C33 Мотиватор's owner-approved names (2026-10-10) are proper names, not the power index: his title «Сила лісу /
+# Power of the Forest», his twist (the same battle cry) and his relic «Жолудь сили».
+MOTYVATOR_NAMES = {"CHAMP_MOTYVATOR_TITLE", "ACT_MOTYVATOR", "RELIC_MOTYVATOR"}
 FORBIDDEN = [
     ("rarity-gem", r"[Сс]амоцвіт", "uk", "heroes", None, set(), "rarity is «Рідкість»; «Самоцвіти» = the Gems currency"),
     ("rarity-gem-en", r"\b[Gg]ems?\b", "en", "heroes", None, set(), "rarity is «Rarity» in en; Gems = the currency"),
@@ -132,9 +135,9 @@ FORBIDDEN = [
     ("full-facets", r"[Пп]овн\w* огранк|[Ff]ull cut", "both", "all", None, set(), "«Повні грані / Full facets» (never «Повна огранка»)"),
     ("workshop-forge", r"[Кк]узн[яіеюиь]", "uk", "all", None, set(), "«Майстерня / Workshop» (your Forge; «кувати» stays a verb)"),
     ("workshop-forge-en", r"\bForge\b", "en", "heroes", r"^(WORKSHOP_|UNL_WORKSHOP|UNF_WORKSHOP|TUT_WORKSHOP)", set(), "«Workshop», never «Forge»"),
-    ("might-sila", r"(?<![\w’])[Сс]ил[аиуі](?![\w])(?!\s+(ульти|героя|кличу|удару))", "uk", "heroes", None, set(),
+    ("might-sila", r"(?<![\w’])[Сс]ил[аиуі](?![\w])(?!\s+(ульти|героя|кличу|удару))", "uk", "heroes", None, MOTYVATOR_NAMES,
      "the power index is «Міць» (Сила = the in-run «Сила героя» gates)"),
-    ("might-power", r"(?<![Uu]lt )(?<![Hh]ero )\bPower\b", "en", "heroes", None, set(), "the power index is «Might» in en"),
+    ("might-power", r"(?<![Uu]lt )(?<![Hh]ero )\bPower\b", "en", "heroes", None, MOTYVATOR_NAMES, "the power index is «Might» in en"),
     ("recut-ascend", r"[Пп]іднесен|[Вв]ознесін|(?<![\w’])[Сс]ходжен|[Aa]scen", "both", "heroes", None, set(), "a gem promotion is «Огранка / Recut» (Піднесення = machine Ascension)"),
     ("facets-stars", r"[Зз]ірк[аиоу]|\bStars?\b", "both", "heroes", r"^(FACET_|RECUT_|TUT_FACETS|CER_FULL)", set(), "facets are «Грані», stars stay reserved for star-shards"),
     ("tome-book", r"[Кк]ниг[аиу]|\bBooks?\b", "both", "heroes", r"^(CUR_TOME|SKL_|REWRITE_|TUT_SKILLS)", set(), "Tomes are «Томи / Tomes»"),
@@ -174,7 +177,8 @@ LEGACY_PCT = {
     "ODDS_FOCUS",
 }
 # Heroes-block keys that may hold a literal digit (fixed UI labels, never a balance number).
-DIGIT_OK = {"PORTAL_X1", "PORTAL_X10", "PORTAL_WELCOME", "PORTAL_ODDS_ONE_IN", "SHOW_3D", "SUMMON_X1", "SUMMON_X10"}
+DIGIT_OK = {"PORTAL_X1", "PORTAL_X10", "PORTAL_WELCOME", "PORTAL_ODDS_ONE_IN", "SHOW_3D", "SUMMON_X1", "SUMMON_X10",
+            "RELIC_HOHOTUN"}  # «Кільце № 001 / Ring No. 001»: the goose's leg-ring number is part of the name
 
 # Emoji: anything >= U+1F000, joiners / selectors, and the U+2600-27BF block except these text symbols.
 TEXT_SYMBOLS = set("★◆▲▶◎✓→←↑↓·…×−–—≤≥«»№")
@@ -225,6 +229,7 @@ NAME_ALIASES = [
 # Individual key pairs allowed to share a name (same thing, two keys).
 NAME_SAME = [
     {"ATK_SEER", "ASP_FORESIGHT"},
+    {"CHAMP_MOTYVATOR_TITLE", "ACT_MOTYVATOR"},   # his title is his battle cry, and the twist is that cry
 ]
 
 # Unlock / bundle line keys the heroes rows print (a missing one is an error; other rows' lines only warn).
