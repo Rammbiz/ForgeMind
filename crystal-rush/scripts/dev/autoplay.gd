@@ -151,7 +151,10 @@ func _on_finished(won: bool, coins: int, reason: String) -> void:
 	r["kills_by_machine"] = st.get("kills_by_machine", {})
 	r["statuses"] = st.get("statuses", {})
 	if args.has("compare"):
-		var def := LevelGen.build(_level, Balance.START_ARMY)
+		# The level the run played (with the heroes system on, x LevelGen.team_demand).
+		var rp: Variant = _run.get("profile")
+		var dem := LevelGen.team_demand(_level, rp if rp is Dictionary else {})
+		var def := LevelGen.build(_level, Balance.START_ARMY, dem)
 		var lv := LevelSim.make_level(def, _level)
 		var army := Balance.start_army(int(args.get("army", "0")))
 		var sim: Dictionary = LevelSim.best_path(lv, str(_run.get("hero_type")), army, {"power": int(args.get("power", "0"))})["result"]

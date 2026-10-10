@@ -353,8 +353,9 @@ func _ready() -> void:
 	Audio.reset_laser()
 	quality_high = Save.quality == "high"
 	_max_shown = Balance.MAX_SHOWN if quality_high else Balance.MAX_SHOWN_LOW
-	# Levels are laid out for the base army: upgrades are a real advantage (review bug).
-	_gen = LevelGen.build(level, Balance.START_ARMY)
+	# Levels are laid out for the base army: upgrades are a real advantage (review bug). A run with
+	# the heroes system on meets its enemy budget (LevelGen.team_demand, heroes design §8.2).
+	_gen = LevelGen.build(level, Balance.START_ARMY, LevelGen.team_demand(level, profile))
 	length = float(_gen["length"])
 	expected = float(_gen["expected"])
 	_hints = _gen.get("hints", [])

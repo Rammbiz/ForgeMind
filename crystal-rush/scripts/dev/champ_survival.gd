@@ -11,8 +11,10 @@ extends Node
 ##
 ## The team is the synthetic account's (Meta.synthetic_account: the two scripted champions from
 ## L > UNLOCK_AT.champions, the first one picked by the team hero: Bolt -> Альба, Titan / Seer -> Отто,
-## then Міла) built into the run's team block by Meta.team_block_of. Phase 2 is forced for the
-## measurement (EconData.phase_override, restored at the end). `--autotest` keeps the save read-only.
+## then Міла) built into the run's team block by Meta.team_block_of. The run with the team plays the
+## level with the heroes-phase enemy budget (LevelGen.team_demand, as the Run builds it), the run without
+## it the level as built. Phase 2 is forced for the measurement (EconData.phase_override, restored at
+## the end). `--autotest` keeps the save read-only.
 ##
 ## Final line: CHAMP_SURVIVAL front_campaign=..% front_boss=..% side_rear=..% levels=N wins=W
 ## (+ the win rate without the team and the delta), after one CHAMP_SURVIVAL_HERO line per hero
@@ -63,7 +65,10 @@ func _ready() -> void:
 			var team := Meta.team_block_of(acc, hero)
 			var prof_t := prof.duplicate()
 			prof_t["team"] = team
-			var res_t: Dictionary = LevelSim.best_path(lv, hero, army, {"profile": prof_t})
+			# The team's run meets the heroes-phase enemy budget (LevelGen.team_demand), as the Run builds it.
+			var dem := LevelGen.team_demand(level, prof_t)
+			var lv_t := LevelSim.make_level(LevelGen.build(level, Balance.START_ARMY, dem), level)
+			var res_t: Dictionary = LevelSim.best_path(lv_t, hero, army, {"profile": prof_t})
 			var res_0: Dictionary = LevelSim.best_path(lv, hero, army, {"profile": prof})
 			var r: Dictionary = res_t["result"]
 			var r0: Dictionary = res_0["result"]

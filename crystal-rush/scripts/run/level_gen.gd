@@ -19,6 +19,11 @@ class_name LevelGen
 ## Output: {"items": Array[Dictionary] sorted by d, "length": fortress distance,
 ##          "expected": e at the fortress, "hints": [{"d", "key"}], "script": {"ult_ready_at"},
 ##          "etrace": [[d, e, chunk], ...] (debug)}
+##
+## Heroes phase (heroes design §8.2, P4): a run with the heroes system on (its profile carries a
+## team block) gets the same level with its enemy side x TeamData.TEAM_DEMAND of the level's world
+## (team_demand, scale_enemies); every other run, the shipped game (phase 0) included, gets the
+## level exactly as built.
 
 const START_D := 10.0
 const ROW2_X := 1.65            # two gates: centres at +-ROW2_X, a gap in the middle
@@ -107,11 +112,45 @@ class Gen extends RefCounted:
 static var _cache := {}
 
 
-static func build(level: int, base_army: int) -> Dictionary:
+## `demand` scales the enemy side of the built level (scale_enemies); the Run passes
+## team_demand(level, profile). 1.0 returns the level exactly as built.
+static func build(level: int, base_army: int, demand := 1.0) -> Dictionary:
 	var key := "%d:%d" % [level, base_army]
 	if not _cache.has(key):
 		_cache[key] = _build(level, base_army)
-	return (_cache[key] as Dictionary).duplicate(true)
+	var def := (_cache[key] as Dictionary).duplicate(true)
+	if demand != 1.0:
+		scale_enemies(def, demand)
+	return def
+
+
+## The enemy budget multiplier of `level` for a run with profile `prof` (the Meta.run_profile shape),
+## heroes design §8.2: TeamData.TEAM_DEMAND of the level's world (campaign W1-W7 = "1".."7", Invasion
+## W1-W7 = "8".."14") while the heroes system is on for that run, else 1.0. On = the heroes phase
+## reached HEROES_RUN_PHASE and the profile carries a team block, which Meta.run_profile adds exactly
+## when Meta._v3_run() holds (a real account from HEROES_LIVE_PHASE, a dev run from HEROES_RUN_PHASE);
+## LevelSim fields champions on the same condition. The shipped game (phase 0) always gets 1.0.
+static func team_demand(level: int, prof: Dictionary) -> float:
+	if not EconData.heroes_run() or not prof.get("team") is Dictionary:
+		return 1.0
+	var w := ArsenalData.world_of(level) + (7 if level > ArsenalData.CAMPAIGN_LEVELS else 0)
+	return float(TeamData.TEAM_DEMAND.get(str(w), 1.0))
+
+
+## Multiplies the enemy side of a built level `def` by `m` in place: what each enemy costs the army
+## (squad soldiers, barricade hp = the soldiers it can kill, turret shots per second, fortress hp).
+## Layout, rewards (gates, recruits, crates, geodes), blades, turret hp and the stairs stay as built.
+static func scale_enemies(def: Dictionary, m: float) -> void:
+	for it: Dictionary in def["items"]:
+		match str(it["kind"]):
+			"squad":
+				it["value"] = maxi(int(round(float(it["value"]) * m)), 2)
+			"barricade":
+				it["value"] = maxi(int(round(float(it["value"]) * m)), 3)
+			"fortress":
+				it["value"] = maxi(int(round(float(it["value"]) * m)), 1)
+			"turret":
+				it["rate"] = float(it["rate"]) * m
 
 
 static func _build(level: int, base_army: int) -> Dictionary:

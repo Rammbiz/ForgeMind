@@ -205,7 +205,7 @@ func _verbs() -> void:
 	add_child(run)
 	run.set_process(false)
 	await get_tree().process_frame
-	var lv := level_of(VERB_LEVEL)
+	var lv := level_of(VERB_LEVEL, run.profile)
 	var s := LevelSim.start_state(lv, "bolt", Balance.START_ARMY, {"profile": run.profile})
 	var rv := run.kind_view
 	var sv := SimKindView.new(lv, s)
@@ -576,14 +576,15 @@ static func swap_out(keep: Array) -> void:
 	Save.hero = str(keep[1])
 
 
-static func level_of(level: int) -> LevelSim.Level:
-	return LevelSim.make_level(LevelGen.build(level, Balance.START_ARMY), level)
+## The level a run with profile `prof` plays (the Run builds it with LevelGen.team_demand).
+static func level_of(level: int, prof: Dictionary) -> LevelSim.Level:
+	return LevelSim.make_level(LevelGen.build(level, Balance.START_ARMY, LevelGen.team_demand(level, prof)), level)
 
 
 ## The fixed input of every setup of (level, hero): the planner's path with the EXPECTED team.
 static func _plan(level: int, hero: String) -> PackedFloat32Array:
 	var prof := profile_of(account(level, hero, "expected"), level, hero)
-	var bp: Dictionary = LevelSim.best_path(level_of(level), hero, Balance.START_ARMY, {"profile": prof,
+	var bp: Dictionary = LevelSim.best_path(level_of(level, prof), hero, Balance.START_ARMY, {"profile": prof,
 			"candidates": PLAN_CANDIDATES})
 	return bp["path"]
 
@@ -607,19 +608,19 @@ func _case(seed_k: int, level: int, hero: String, setup: String, path: PackedFlo
 	# RNG streams, Run._pick_rng vs LevelSim._pick's per-crate seed).
 	var own_samples: Array = []
 	var own_marks := {}
-	var lv_own := level_of(level)
+	var lv_own := level_of(level, prof)
 	var own := simulate(lv_own, hero, path, prof, CHECK_EVERY, own_samples, own_marks)
 	if not _checked_sim:
 		# Once: the sampled stepping here is LevelSim.simulate exactly.
 		_checked_sim = true
-		var ref := LevelSim.simulate(level_of(level), hero, Balance.START_ARMY, path, {"profile": prof})
+		var ref := LevelSim.simulate(level_of(level, prof), hero, Balance.START_ARMY, path, {"profile": prof})
 		if ref.kills != own.kills or ref.t != own.t or ref.army != own.army:
 			_fails += 1
 			print("  FAIL the sampled sim differs from LevelSim.simulate (kills %.2f vs %.2f)" % [own.kills, ref.kills])
 	var sim_samples: Array = []
 	var sim_marks := {}
 	var crates := run_crates(run)
-	var s := simulate(level_of(level), hero, path, prof, CHECK_EVERY, sim_samples, sim_marks, crates)
+	var s := simulate(level_of(level, prof), hero, path, prof, CHECK_EVERY, sim_samples, sim_marks, crates)
 	var team: PackedStringArray = PackedStringArray()
 	for m: Dictionary in run.champions.members:
 		team.append("%s:%s" % [str(m["id"]), str(m["slot"])])
