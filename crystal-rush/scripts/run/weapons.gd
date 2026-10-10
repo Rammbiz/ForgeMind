@@ -352,7 +352,9 @@ func prism_pos() -> Vector3:
 
 # ------------------------------------------------------------------ damage
 
-## Bucket 2 of machine `m` (plus the Prism amp when `amp`).
+## Bucket 2 of machine `m` (plus the Prism amp when `amp`). A hero kind's machine buff (KindView.buff
+## &"machines": Люмен form V) adds inside it, within the team's TEAM_B2_CAP (LevelSim._machines sums it the
+## same way; 0 without one).
 func _b2(m: Dictionary, amp := false) -> float:
 	var e: Dictionary = m["e"]
 	var b := 1.0 + float(e.get("add", 0.0)) + float(m["over_add"])
@@ -360,6 +362,8 @@ func _b2(m: Dictionary, amp := false) -> float:
 	b += float(assist.get("dmg_add", 0.0))
 	if amp:
 		b += prism_amp()
+	if run.kind_view:
+		b += minf(run.kind_view.buff_value(&"machines"), TeamData.TEAM_B2_CAP)
 	return b
 
 

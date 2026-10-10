@@ -554,13 +554,18 @@ func rating() -> int:
 # ======================================================================== heroes
 
 ## The hero picked for the next run (Save.hero while the legacy menu exists; live phase: the team
-## hero, team.hero, which Save.hero mirrors).
+## hero, team.hero, which Save.hero mirrors). The dev route (EconData.heroes_run(), --hero=<id>) fields any
+## hero of HeroData.HEROES, so its run reads that hero's own v3 block; the shipped game (phase 0) only ever
+## names a starter.
 func hero() -> String:
 	if heroes_on():
 		var t := Team.hero(account)
 		if Roster.owned(account, t):
 			return t
-	return str(Save.hero) if Balance.HEROES.has(str(Save.hero)) else "bolt"
+	var h := str(Save.hero)
+	if Balance.HEROES.has(h) or (EconData.heroes_run() and HeroData.HEROES.has(h)):
+		return h
+	return "bolt"
 
 
 func set_hero(id: String) -> void:
@@ -1591,9 +1596,36 @@ func run_profile(lvl: int) -> Dictionary:
 		"features": ArsenalData.FEATURES,
 	}
 	if _v3_run():
+		_dev_team(run_hero(lvl))
 		prof["team"] = _team_block(run_hero(lvl), _guest_level(lvl))
 		prof["guest"] = _open_guest
 	return prof
+
+
+## Dev route only (a synthetic account: EconData.heroes_run() in a Save.readonly run, never the live phase):
+## the run's hero leads the team, and the scripted pair _synthetic_heroes gave the account's hero (gift chest #1
+## by the team hero, PortalData.SCRIPTED_FIRST, then SCRIPTED_SECOND) becomes this hero's pair, as
+## champ_survival.account_for builds it. A team picked with --team stays as it is.
+func _dev_team(hero_id: String) -> void:
+	if heroes_on() or not EconData.heroes_run() or not Save.readonly or not account.get("team") is Dictionary:
+		return
+	var team: Dictionary = account["team"]
+	var was := str(team.get("hero", hero_id))
+	if was == hero_id:
+		return
+	team["hero"] = hero_id
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--team="):
+			return
+	var champs: Array = team.get("champions", [])
+	var old_first := str(PortalData.SCRIPTED_FIRST.get(was, PortalData.SCRIPTED_FIRST_DEFAULT))
+	var first := str(PortalData.SCRIPTED_FIRST.get(hero_id, PortalData.SCRIPTED_FIRST_DEFAULT))
+	if champs.is_empty() or str(champs[0]) != old_first or first == old_first or champs.has(first):
+		return
+	var roster: Dictionary = (account["champions"] as Dictionary)["roster"]
+	roster.erase(old_first)
+	roster[first] = EconData.new_champion_state(first, true, "chest")
+	champs[0] = first
 
 
 ## Books a finished run ONCE and returns the result bundle for the result / loss flow (§6.5).

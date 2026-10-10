@@ -256,10 +256,15 @@ static func _swept(phi: float, a: float, b: float, m: float) -> bool:
 
 # ------------------------------------------------------------------ turrets
 
-## Turrets fire at the nearest soldier within range (rate shots/s, one soldier per shot).
+## Turrets fire at the nearest soldier within range (rate shots/s, one soldier per shot). A silenced turret
+## (KindView.silence, Ольга form IV) holds its fire and spends no ward, as LevelSim._turrets skips it; its
+## cooldown waits.
 func step_turrets(dt: float, army: Army) -> void:
 	for it in turrets:
 		if not it["alive"]:
+			continue
+		if it.has("silence_end") and run.kind_view.silenced(it):
+			it["aim"] = Vector3.INF
 			continue
 		var node := it["node"] as Node3D
 		var tp := Vector3(float(it["x"]), 0.0, -float(it["d"]))

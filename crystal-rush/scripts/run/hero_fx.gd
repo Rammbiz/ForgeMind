@@ -283,6 +283,8 @@ var _cap := 0
 var _shown := -1
 var _gate_box := PackedVector4Array()
 var _gate_z := PackedFloat32Array()
+## Index into run._gates (sorted by d) of the first gate not yet behind the hero (_update_gates' cursor).
+var _gate_k := 0
 
 # The pool (ChampionFx's layout).
 var _mode := PackedByteArray()
@@ -408,6 +410,8 @@ func on_shape(data: Dictionary) -> void:
 			_doves(ph, data)
 		&"field":
 			_field(data)
+		&"rivets":
+			_rivets(data)
 		_:
 			# A kind without its own look yet: the shape's generic mark.
 			match shape:
@@ -721,6 +725,29 @@ func _forgewall(ph: StringName, data: Dictionary) -> void:
 			_close(&"forgewall")
 
 
+## Вартан's Rivet Turrets (form III; the rules' `rivets` event every period): a hot rivet flies a short arc from
+## the wall (the live rampart, else just ahead of the hero) to each target, a spark where it lands.
+func _rivets(data: Dictionary) -> void:
+	var on_wall: bool = _shape.get("kind", &"") == &"forgewall"
+	var c := _wall_center()
+	if not on_wall:
+		c = Vector3(float(data.get("x", run.hx)), 0.0, -float(data.get("d", run.d)) - 2.0)
+	var hw := float(_shape.get("w", 6.0)) * 0.5 if on_wall else 1.0
+	var k := 0
+	for id: int in data.get("targets", []):
+		var to := _target_at(id, 0.5)
+		if to == Vector3.INF:
+			continue
+		var from := Vector3(clampf(to.x, c.x - hw + 0.3, c.x + hw - 0.3), 0.5, c.z - 0.1)
+		var t := clampf(from.distance_to(to) / 30.0, 0.08, 0.3)
+		curve(from, (from + to) * 0.5 + Vector3(0.0, 0.45, 0.0), to, t, 0.15, Color(accent.r, accent.g, accent.b, 0.95),
+				0.02 * k, ROUND)
+		_spark(to, MARK, t + 0.02 * k)
+		k += 1
+	if k > 0:
+		Audio.play("arrow", -18.0, 0.3)
+
+
 ## Пава's Thousand Eyes (ward): her fan of eyes opens behind her in a wave and stays `s` seconds, the
 ## squads in `reach` are Branded (a rune ring each); at the close the eyes shut and the recorded soldiers
 ## rise back at the army front (form IV: eyes open over every squad hit).
@@ -814,14 +841,19 @@ func draw(dt: float) -> void:
 	mm.visible_instance_count = n
 
 
-## The next gate rows' panels for the shader's cap: [x0, x1, y0, y1] per gate and its plane z.
+## The next gate rows' panels for the shader's cap: [x0, x1, y0, y1] per gate and its plane z. The gates
+## behind the hero are skipped once (the _gate_k cursor; run._gates is sorted by d).
 func _update_gates() -> void:
 	var k := 0
 	var rows := 0
 	var last_row := -999
-	for g: Dictionary in run._gates:
+	var gates := run._gates
+	while _gate_k < gates.size() and float(gates[_gate_k]["d"]) < run.d - 0.5:
+		_gate_k += 1
+	for gi in range(_gate_k, gates.size()):
 		if k >= GATES:
 			break
+		var g := gates[gi]
 		var gd := float(g["d"])
 		if gd < run.d - 0.5 or not g.get("alive", false):
 			continue
@@ -881,7 +913,8 @@ func _write_shape(_dt: float, n: int) -> int:
 	var end := float(_shape.get("end", -1.0))
 	var fade := smoothstep(0.0, 0.12, t) * (1.0 - smoothstep(0.0, 0.3, t - end) if end >= 0.0 else 1.0)
 	var cap := n + SHAPE_SLOTS
-	match StringName(str(_shape["kind"])):
+	var kind: StringName = _shape["kind"]
+	match kind:
 		&"comet":
 			var x := float(_shape["x"])
 			var w := float(_shape["w"])

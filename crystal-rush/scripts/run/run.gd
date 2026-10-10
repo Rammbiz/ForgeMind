@@ -175,12 +175,17 @@ var kind_view: RunKindView
 ## the starters (Руді, Горан, Мейра keep the Meta-1 attack and ult VFX of Effects), so a starter's run
 ## builds exactly what it did before.
 var hero_fx: HeroFx
-## A hero without a Meta-1 row (§6: every hero but the three starters): its volleys run through
-## HeroKinds.attack (its pattern and procs) and draw through hero_fx.
+## A hero without a Meta-1 row (§6: every hero but the three starters): its volleys and ult shapes draw
+## through hero_fx.
 var _new_kind := false
 ## The run row is a v3 row (HeroKinds.scaled): its hp, damage, ult charge and ult numbers are final, so
-## the hero block's dmg / hp / ult-rate multipliers are not applied again (Reinforcements still are).
+## the hero block's dmg / hp / ult-rate multipliers are not applied again (Reinforcements still are; damage
+## gates scale by its dmg_mult, _hero_damage). Its volleys run through HeroKinds.attack (_kind_attack: the
+## starters' §6 attack rules too, drawn with their own shot VFX).
 var _v3 := false
+## Where each target of the volley in flight is aimed (a v3 starter's volley: _kind_attack fills it before the
+## hits, _hero_attack_fx draws the shots on it). Item kid -> aim point.
+var _volley_aim := {}
 ## Soldiers lost this run from any cause (KindView army()["lost"]: Пава's ward, the army_loss policy).
 var lost_total := 0.0
 ## The ult pose of the cast in flight was played (a new kind's cast poses once, on `ult_cast` or its
@@ -2007,16 +2012,19 @@ func _hero_rate() -> float:
 
 
 ## Hero damage per hit: base + damage gates, x the hero level multiplier (profile / RunHero). A v3 row's
-## damage is final (a float): only Reinforcements apply on top (LevelSim.hero_damage).
+## damage is final (a float) and its damage gates ("+1 шкода") scale with the hero's power as the shipped
+## game's do: row damage + gates x the row's dmg_mult (owner decision 10.10), then Reinforcements on top
+## (LevelSim.hero_damage).
 func _hero_damage() -> float:
 	if _v3:
 		var assist: Dictionary = profile.get("assist", {}) if profile.get("assist") is Dictionary else {}
-		return (float(def["damage"]) + float(power["dmg"])) * (1.0 + float(assist.get("dmg_add", 0.0)))
+		var dm := float((def.get("mults", {}) as Dictionary).get("dmg_mult", 1.0))
+		return (float(def["damage"]) + float(power["dmg"]) * dm) * (1.0 + float(assist.get("dmg_add", 0.0)))
 	return float(int(def["damage"]) + int(power["dmg"])) * hero_mult("dmg_mult")
 
 
 func _hero_attack(dt: float) -> void:
-	if _new_kind:
+	if _v3:
 		_kind_attack(dt)
 		return
 	_atk_cd -= dt
@@ -2075,10 +2083,11 @@ func _hero_attack(dt: float) -> void:
 			juice.add_trauma(0.08)
 
 
-## A new hero kind's volley (§6 Run lines, LevelSim._kind_attack): the starters' cooldown and targeting
-## (corridor, range, gates and crates, never the partner of a crate pair), the shots of HeroKinds.volley_shots
-## + power gates, then HeroKinds.attack applies the pattern and its procs through kind_view (hits land via
-## hurt as "hero" shots with MARK's vs) and sends the volley's `hero_attack` fx (HeroFx draws it).
+## A v3 row's volley (§6 Run lines, LevelSim._kind_attack; every hero from phase 2, the starters' §6 attack
+## rules included): the Meta-1 cooldown and targeting (corridor, range, gates and crates, never the partner
+## of a crate pair), the shots of HeroKinds.volley_shots + power gates, then HeroKinds.attack applies the
+## pattern and its procs through kind_view (hits land via hurt as "hero" shots with MARK's vs) and sends the
+## volley's `hero_attack` fx (_hero_attack_fx: HeroFx draws a new kind's, a starter keeps its _shot_fx).
 func _kind_attack(dt: float) -> void:
 	_atk_cd -= dt
 	if _atk_cd > 0.0:
@@ -2096,6 +2105,11 @@ func _kind_attack(dt: float) -> void:
 	_atk_cd += 1.0 / _hero_rate()
 	_atk_cd = maxf(_atk_cd, 0.02)
 	hero.strike()
+	if hero_fx == null:
+		# A starter's shots fly to where its targets stand before the hits (Meta-1's _shot_fx order).
+		_volley_aim.clear()
+		for it in list:
+			_volley_aim[int(it["kid"])] = aim_point(it)
 	# The volley's targets as KindView rows (LevelSim._kind_attack's: id, kind, d, x, hp; a gate's face op, a
 	# squad's soldiers, half width and Flying).
 	var rows: Array = []
@@ -2265,10 +2279,23 @@ func _ult_shape_fx(data: Dictionary) -> void:
 		_emit_ult()
 
 
-## A new hero kind's volley (RunKindView.fx `hero_attack`): HeroFx draws it.
+## A v3 volley (RunKindView.fx `hero_attack`): HeroFx draws a new kind's; a starter (Руді, Горан, Мейра) keeps
+## its Meta-1 look, one _shot_fx per target hit (the aim taken before the hits, _volley_aim; a target the volley
+## redirected to, a throw's or a lance's, is aimed now), the fortress shaking the camera as before.
 func _hero_attack_fx(data: Dictionary) -> void:
 	if hero_fx:
 		hero_fx.on_attack(data)
+		return
+	var k := 0
+	for id: int in data.get("targets", []):
+		var it := kind_item(id)
+		if it.is_empty():
+			continue
+		var at: Vector3 = _volley_aim.get(id, Vector3.INF)
+		_shot_fx(at if at != Vector3.INF else aim_point(it), mini(k, 3))
+		if str(it["kind"]) == "fortress":
+			juice.add_trauma(0.08)
+		k += 1
 
 
 ## The cast pose and the beat of a new kind's ult, once per cast (its `ult_cast` or its shape's start).

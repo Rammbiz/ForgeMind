@@ -26,12 +26,15 @@ extends KindView
 ## ult's hit, as Run._ult_hit), &"attack" is a hero shot (source "hero"); siege(); army()["lost"] = the
 ## soldiers lost this run (Run.lost_total); expose / strip / silence are stamped on the item as the run
 ## time they end ("expose_end" + "expose_k": the Run's clash ticks x (1 + k); "strip_end": the squad's rows
-## say armored false; "silence_end": Run.turret_hit makes the shot a miss); reveal shows the hidden gates;
-## buff keeps the team buffs (Run.volley_mult reads &"volleys", Run.hurt's volleys &"volley_status";
-## &"machines" waits for Weapons to read buff_value); revive_champion stands a fallen champion up
-## (ChampionKinds.revive) with the hero's touch drawn by HeroFx; lose takes soldiers off the army; the
-## "clash" wards (Вартан's wall HP) are spent by the Run's clash ticks (spend_wards). `ult_shape` and
-## `hero_attack` fx go to the Run (the hero's pose, juice) and on to its HeroFx.
+## say armored false; "silence_end": Hazards.step_turrets holds its fire, as LevelSim._turrets skips it);
+## reveal(.., &"gates") shows the hidden gates (&"phantoms" waits for the Phantoms); buff keeps the team
+## buffs (Run.volley_mult reads &"volleys", Run.hurt's volleys &"volley_status", Weapons._b2 &"machines");
+## revive_champion stands a fallen champion up (ChampionKinds.revive) with the hero's touch drawn by HeroFx;
+## lose takes soldiers off the army. Wards: grant_ward adds charges (or, with `replace`, sets them: the
+## drones' grant each period); every spend reads KindView.WARD_SPEND, the table SimKindView / LevelSim use
+## (absorb: a hazard or turret hit; spend_wards: the Run's clash ticks spend the "clash" wards of Вартан's
+## wall HP). `ult_shape` and `hero_attack` fx go to the Run (the hero's pose, juice) and on to its HeroFx
+## (the starters' v3 volleys: the Run's own shot VFX).
 
 ## Hurt source of every champion hit (Run.hurt / Statuses: not a machine, chains like a hero hit).
 const SOURCE := "champion"
@@ -42,6 +45,8 @@ var _none: Array = []
 var _found: Array = []
 var _no_status := {}
 var _hz_lists: Array = []
+## The lists structures_in walks (made once: the rules poll it every step).
+var _st_lists: Array = []
 ## [[item a, item b, share, end run time], ...] (tether).
 var _tethers: Array = []
 var _tethering := false
@@ -178,8 +183,10 @@ func hazards_in(d0: float, d1: float) -> Array:
 ## crates and the fortress (hw = the half bridge): [{id, d, x, kind, hp, hw}], by d.
 func structures_in(d0: float, d1: float) -> Array:
 	_found.clear()
-	var hz := run.hazards
-	for list: Array[Dictionary] in [hz.spikes, hz.turrets, hz.geodes, hz.crates]:
+	if _st_lists.is_empty():
+		var hz := run.hazards
+		_st_lists = [hz.spikes, hz.turrets, hz.geodes, hz.crates]
+	for list: Array[Dictionary] in _st_lists:
 		for i in range(_lower(list, d0), list.size()):
 			var it := list[i]
 			if float(it["d"]) > d1:
@@ -345,7 +352,8 @@ func strip(squad_id: int, sec: float) -> void:
 	it["strip_end"] = maxf(float(it.get("strip_end", 0.0)), run.t + sec)
 
 
-## Turret `turret_id` misses every shot for `sec` s (Ольга form IV): Run.turret_hit reads silenced().
+## Turret `turret_id` is silenced for `sec` s (Ольга form IV): Hazards.step_turrets holds its fire and spends
+## no ward (LevelSim._turrets skips it), Run.turret_hit makes a shot already in flight a miss.
 func silence(turret_id: int, sec: float) -> void:
 	var it := run.kind_item(turret_id)
 	if it.is_empty() or str(it.get("kind", "")) != "turret" or sec <= 0.0:
@@ -357,9 +365,12 @@ func silenced(it: Dictionary) -> bool:
 	return float(it.get("silence_end", 0.0)) > run.t
 
 
-## The hidden gates with d in [d0, d1] show their value (Run.reveal_gates; Phantoms are not modelled yet).
-func reveal(d0: float, d1: float) -> void:
-	run.reveal_gates(d0, d1)
+## What with d in [d0, d1] is revealed: &"gates" = the hidden gates show their value (Run.reveal_gates: Мейра
+## form III, a row reveal); &"phantoms" = the Phantom squads (Пава form IV, the mark proc): a no-op until the
+## Phantoms exist.
+func reveal(d0: float, d1: float, what: StringName = &"gates") -> void:
+	if what == &"gates":
+		run.reveal_gates(d0, d1)
 
 
 ## A timed team buff (the larger value and the longer time win): &"volleys" = army volleys x (1 + value)
@@ -429,7 +440,12 @@ func tether_share(it: Dictionary, dealt: float) -> void:
 		_tethering = false
 
 
-func grant_ward(kind: StringName, charges: int, sec: float) -> void:
+## `charges` more wards of ward kind `kind` for `sec` s (charges add up, the longer time is kept, an expired
+## ward starts over); with `replace` the store of `kind` becomes exactly `charges` for `sec` s (the drones'
+## grant each period; 0 charges or 0 s clear it).
+func grant_ward(kind: StringName, charges: int, sec: float, replace := false) -> void:
+	if replace:
+		_wards.erase(kind)
 	if charges <= 0 or sec <= 0.0:
 		return
 	var w: Array = _wards.get(kind, [0.0, 0.0])
@@ -438,13 +454,13 @@ func grant_ward(kind: StringName, charges: int, sec: float) -> void:
 	_wards[kind] = [float(w[0]) + float(charges), maxf(float(w[1]), run.t + sec)]
 
 
-## Spends up to `want` whole ward charges of `kind` (LevelSim.WARD_KINDS; the Run's clash ticks spend the
-## "clash" wards of Вартан's wall HP, one soldier each); returns the charges spent.
+## Spends up to `want` whole ward charges a `kind` hit may use (KindView.WARD_SPEND, in its order; the Run's
+## clash ticks spend the "clash" wards of Вартан's wall HP, one soldier each); returns the charges spent.
 func spend_wards(kind: StringName, want: int) -> int:
 	if _wards.is_empty() or want <= 0:
 		return 0
 	var spent := 0
-	for wk: StringName in LevelSim.WARD_KINDS.get(kind, [kind]):
+	for wk: StringName in KindView.WARD_SPEND.get(kind, [kind]):
 		var w: Array = _wards.get(wk, [])
 		if spent >= want or w.is_empty() or float(w[1]) <= run.t or float(w[0]) < 1.0:
 			continue
@@ -454,12 +470,13 @@ func spend_wards(kind: StringName, want: int) -> int:
 	return spent
 
 
-## One ward charge a `kind` hit may spend (LevelSim.WARD_KINDS: a blade hit spends a blade ward, then a
-## contact ward); true = the hit is absorbed.
+## One ward charge a `kind` hit may spend: from the first ward kind of KindView.WARD_SPEND[kind] holding a
+## whole charge (a turret shot: the wall's, a drone's, then a plain turret ward; a blade: the wall's contact
+## ward, a blade ward, then a contact ward); true = the hit is absorbed.
 func absorb(kind: StringName) -> bool:
 	if _wards.is_empty():
 		return false
-	for wk: StringName in LevelSim.WARD_KINDS.get(kind, [kind]):
+	for wk: StringName in KindView.WARD_SPEND.get(kind, [kind]):
 		var w: Array = _wards.get(wk, [])
 		if not w.is_empty() and float(w[1]) > run.t and float(w[0]) >= 1.0:
 			w[0] = float(w[0]) - 1.0

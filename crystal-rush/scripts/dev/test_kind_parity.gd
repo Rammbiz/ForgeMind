@@ -11,10 +11,16 @@ extends Node
 ##    hold, a 3 s BURN = 3 units, a JOLT chain of 75% to a squad 1.5 u away (one stack spent), a
 ##    grounded Flying squad reads as ground, and contact wards spent by blade and barricade hits only;
 ##    then the Run's own hazard contacts spend them where LevelSim._hazards does (Run.hazard_kills: one
-##    charge spares one soldier, the barricade keeps its wear).
+##    charge spares one soldier, the barricade keeps its wear). The ward table (KindView.WARD_SPEND) in
+##    both views: a turret shot spends the wall's ward, then a drone's, then a plain one; a drone grant
+##    replaces its kind; a contact the wall's contact ward first, a blade a blade ward before a contact one;
+##    the clash wards (Run.spend_wards vs LevelSim.ward_spend). The Run alone: a silenced turret
+##    (Hazards.step_turrets) holds its fire and spends no ward, and an H2 ult shape's hits (to its last
+##    step and its end part) never charge the next ult (Run._charge reads the clock active throughout).
 ## 2. Cases: seeds x heroes x team setups. A seed is a campaign level (LevelGen is deterministic per
-##    level; seed k plays LEVELS[k], all >= 41 so the 4-member team is legal on every one). Heroes: the
-##    three that run today (bolt, titan, seer). Setups: "none" (no champions), "expected" (the synthetic
+##    level; seed k plays LEVELS[k], all >= 41 so the 4-member team is legal on every one). Heroes: every
+##    hero of HeroKinds.KINDS (the twelve of §6, v3 rows at phase 2: Meta.run_profile gives each its own
+##    v3 block and scripted team). Setups: "none" (no champions), "expected" (the synthetic
 ##    EXPECTED account's pair, Meta.team_block_of through Meta.run_profile, as champ_survival builds it)
 ##    and "four" (borko, taya, ivo, mila: Warrior front, Mage, Guardian, Healer). Phase H2 is forced
 ##    (EconData.phase_override, restored at the end); the account is swapped into Meta for each case so the
@@ -49,16 +55,16 @@ extends Node
 ## fixing it would move shipped levels (LevelGen plans with LevelSim).
 ##
 ##   godot --headless --path . res://scenes/dev/test_kind_parity.tscn -- --autotest [--quick] [--verbs]
-##        [--seeds=10] [--levels=41,45] [--heroes=bolt,titan,seer] [--setups=none,expected,four]
+##        [--seeds=10] [--levels=41,45] [--heroes=bolt,vartan,...] [--setups=none,expected,four]
 ##        [--out=DIR] [--verbose] [--trace]
-## --quick = 2 seeds. Exit code = failures. Last line: TEST_KIND_PARITY PASS|FAIL: <cases>, <failed>,
-## time. --out writes kind_parity.csv (one row per case, the deltas on the team rows). About 5 s per
-## (seed, hero) plan and 2-4 s per Run case on a desktop: the full 90 cases take ~6-8 min.
+## --quick = 2 seeds. Exit code = failures. Per hero: TEST_KIND_PARITY_HERO (its team cases that match on
+## every column, the worst excess per column, the no-team drift). Last line: TEST_KIND_PARITY PASS|FAIL:
+## <cases>, <failed>, time. --out writes kind_parity.csv (one row per case, the deltas on the team rows).
+## About 5 s per (seed, hero) plan and 2-4 s per Run case on a desktop: the full 360 cases take ~30 min.
 
 const CS := preload("res://scripts/dev/champ_survival.gd")
 ## Seed k -> campaign level (all >= 41: the 4-member team needs the third slot, UNLOCK_AT.slot3 = 40).
 const LEVELS: Array[int] = [41, 42, 43, 44, 45, 46, 47, 50, 53, 55]
-const HEROES: Array[String] = ["bolt", "titan", "seer"]
 const SETUPS: Array[String] = ["none", "expected", "four"]
 const FOUR: Array[String] = ["borko", "taya", "ivo", "mila"]
 ## The rule: |dRun - dSim| <= max(TOL x max(|dRun|, |dSim|), FLOOR[column]) (see the header).
@@ -79,6 +85,8 @@ const ARMY_SPLIT := 0.1
 ## The verbs check plays on this level's first two squads, reset to RESET_HP before each sub-check.
 const VERB_LEVEL := 45
 const RESET_HP := 30.0
+## The silenced-turret check plays on this level's first turret (VERB_LEVEL has none).
+const TURRET_LEVEL := 41
 
 var _fails := 0
 var _verbose := false
@@ -104,7 +112,7 @@ func _ready() -> void:
 	else:
 		var n := 2 if args.has("quick") else clampi(int(args.get("seeds", "10")), 1, LEVELS.size())
 		levels = LEVELS.slice(0, n)
-	var heroes := _pick(args, "heroes", HEROES)
+	var heroes := _pick(args, "heroes", heroes_all())
 	var setups := _pick(args, "setups", SETUPS)
 	if not setups.has("none"):
 		# Every delta needs its no-team run.
@@ -153,6 +161,14 @@ func _ready() -> void:
 	if args.has("out"):
 		_write(str(args["out"]))
 	get_tree().quit(_fails)
+
+
+## Every hero the rules know (HeroKinds.KINDS: the twelve of §6), in its order.
+static func heroes_all() -> Array[String]:
+	var out: Array[String] = []
+	for h: String in HeroKinds.KINDS:
+		out.append(h)
+	return out
 
 
 static func _pick(args: Dictionary, key: String, all: Array[String]) -> Array[String]:
@@ -306,8 +322,125 @@ func _verbs() -> void:
 	_ok(got[0] == [false, true, true, false] and got[1] == got[0],
 			"wards: turret, blade, contact, contact -> Run %s, Sim %s (want false, true, true, false)" % [got[0], got[1]])
 	_ward_contacts(run)
+	_ward_table(run, s, rv, sv)
 	_drop(run)
+	await _silenced_turret()
+	await _ult_end_charge()
 	print("TEST_KIND_PARITY_VERBS %s: %d failed" % ["PASS" if _fails == fails0 else "FAIL", _fails - fails0])
+
+
+## The ward table KindView.WARD_SPEND in both views, from empty stores (run.t / State.t moved together): a
+## turret shot spends the wall's ward first (left unspent it would lapse after 1 s), then a drone's, then a
+## plain one; a drone grant with `replace` sets its charges (2 then 1 = 1, not 3); a contact spends the wall's
+## contact ward before a contact ward and never a blade ward, a blade spends one; the clash wards: 3 charges
+## cover 3 of 5 soldiers (Run.spend_wards, LevelSim.ward_spend).
+func _ward_table(run: Run, s: LevelSim.State, rv: RunKindView, sv: SimKindView) -> void:
+	var views: Array[KindView] = [rv, sv]
+	rv._wards.clear()
+	s.wards.clear()
+	var got: Array = [[], []]
+	for k in 2:
+		views[k].grant_ward(&"wall_turret", 1, 1.0)
+		views[k].grant_ward(&"drone", 1, 5.0, true)
+		views[k].grant_ward(&"turret", 1, 5.0)
+		got[k].append(views[k].absorb(&"turret"))
+	_set_t(run, s, run.t + 2.0)
+	for k in 2:
+		for n in 3:
+			got[k].append(views[k].absorb(&"turret"))
+		views[k].grant_ward(&"drone", 2, 5.0, true)
+		views[k].grant_ward(&"drone", 1, 5.0, true)
+		for n2 in 2:
+			got[k].append(views[k].absorb(&"turret"))
+		views[k].grant_ward(&"wall_contact", 1, 5.0)
+		views[k].grant_ward(&"blade", 1, 5.0)
+		views[k].grant_ward(&"contact", 1, 5.0)
+		for kind: StringName in [&"contact", &"contact", &"contact", &"blade", &"blade"]:
+			got[k].append(views[k].absorb(kind))
+		views[k].grant_ward(&"clash", 3, 5.0)
+	var want := [true, true, true, false, true, false, true, true, false, true, false]
+	var clash := Vector2(float(rv.spend_wards(&"clash", 5)), LevelSim.ward_spend(s, &"clash", 5.0))
+	_ok(got[0] == want and got[1] == want and clash == Vector2(3.0, 3.0),
+			"ward table (WARD_SPEND): Run %s, Sim %s (want %s); clash 5 -> %s spent (want 3 / 3)" % [got[0], got[1],
+			want, clash])
+
+
+## The Run alone (Hazards.step_turrets, as LevelSim._turrets skips it): the first turret of TURRET_LEVEL, set
+## 2.5 u ahead of a READY army of 20 and silenced for 3 s, holds its fire and spends none of 3 turret ward
+## charges; once the silence is over it fires and spends.
+func _silenced_turret() -> void:
+	var acc := account_with(TURRET_LEVEL, "bolt", [])
+	var keep_acc: Array = swap_in(acc, "bolt")
+	var run := Run.new()
+	run.setup(TURRET_LEVEL, "bolt")
+	swap_out(keep_acc)
+	add_child(run)
+	run.set_process(false)
+	await get_tree().process_frame
+	var tur: Dictionary = {}
+	for it: Dictionary in run.hazards.turrets:
+		if it["alive"]:
+			tur = it
+			break
+	if tur.is_empty():
+		_ok(false, "silenced turret: L%d has no turret" % TURRET_LEVEL)
+		_drop(run)
+		return
+	tur["d"] = run.d + 2.5
+	tur["x"] = 0.0
+	tur["cd"] = 0.0
+	run.set_army(20)
+	run.kind_view._wards.clear()
+	run.kind_view.grant_ward(&"turret", 3, 60.0)
+	run.kind_view.silence(int(tur["kid"]), 3.0)
+	for i in 40:
+		run.hazards.step_turrets(0.05, run.army_view)
+	var held := float((run.kind_view._wards[&"turret"] as Array)[0])
+	run.t += 3.5
+	for i2 in 40:
+		run.hazards.step_turrets(0.05, run.army_view)
+	var after := float((run.kind_view._wards[&"turret"] as Array)[0])
+	_ok(held == 3.0 and after < 3.0, ("silenced turret (Hazards.step_turrets): ward charges %.0f after 2 s silenced"
+			+ " (want 3), %.0f once it fires again (want < 3)") % [held, after])
+	_drop(run)
+
+
+## The Run alone: an H2 ult shape's hits never charge the next ult, its last step and its end part included
+## (the clock stays active while they land; Run._charge). Люмен's fan with a crown-shard end part (form IV's
+## extra: the 12 biggest on the screen at the close) is cast 8 u before the first squad of VERB_LEVEL and
+## stepped through Run._ult_step alone (the hero holds still, nothing else charges): the charge must stay 0
+## although its hits kill, in its last step too.
+func _ult_end_charge() -> void:
+	var acc := account_with(VERB_LEVEL, "lumen", [])
+	var keep: Array = swap_in(acc, "lumen")
+	var run := Run.new()
+	run.setup(VERB_LEVEL, "lumen")
+	swap_out(keep)
+	add_child(run)
+	run.set_process(false)
+	await get_tree().process_frame
+	if run.hazards.squads.is_empty():
+		_ok(false, "ult end: L%d has no squad" % VERB_LEVEL)
+		_drop(run)
+		return
+	run.d = float(run.hazards.squads[0]["d"]) - 8.0
+	run.ult = (run.ult as Dictionary).duplicate(true)
+	run.ult["extra"] = {"at": "end", "target": "biggest", "count": 12, "kills": 4.0, "breaks": 4.0}
+	run.ult_points = float(run.ult["charge"])
+	var fired := run.use_ult()
+	var k0 := float(run.stats["kills_total"])
+	var last := 0.0
+	var steps := 0
+	while run.ult_clock.active() and steps < 400:
+		var before := float(run.stats["kills_total"])
+		run._ult_step(DT)
+		last = float(run.stats["kills_total"]) - before
+		steps += 1
+	var kills := float(run.stats["kills_total"]) - k0
+	_ok(fired and not run.ult_clock.active() and kills > 0.0 and last > 0.0 and run.ult_points == 0.0,
+			("ult end (Run._charge): Люмен's fan + crown shards killed %.0f (%.0f in its last step), charge after"
+			+ " %.1f (want 0)") % [kills, last, run.ult_points])
+	_drop(run)
 
 
 ## The Run spends wards where LevelSim._hazards does (Run.hazard_kills, after the Barracks Scrape Guard,
@@ -791,6 +924,7 @@ func _summary(secs: float) -> void:
 		var bc: Array = by_col[col]
 		print("TEST_KIND_PARITY_COLUMN %-6s %d/%d within, worst excess %.1f%s" % [col, int(bc[1]), int(bc[0]),
 				float(bc[2]), (" (" + str(bc[3]) + ")") if str(bc[3]) != "" else ""])
+	_by_hero()
 	var drift := [0.0, 0.0, 0, 0.0, 0.0, 0.0, 0, 0]
 	for r: Dictionary in _rows:
 		if str(r["setup"]) != "none":
@@ -809,6 +943,45 @@ func _summary(secs: float) -> void:
 			float(drift[4]), int(drift[6]), int(drift[7])])
 	print("TEST_KIND_PARITY %s: %d cases (%d team deltas), %d failed, %.0f s" % ["PASS" if _fails == 0 else "FAIL",
 			_rows.size(), _deltas.size(), _fails, secs])
+
+
+## Per hero (the gate covers all twelve): its team cases that match on every column; per column the cases
+## within and the worst excess over the tolerance (army and the champion columns), and its no-team drift
+## (army at the fortress, Run / LevelSim on its own crate draws; printed, never asserted).
+func _by_hero() -> void:
+	var heroes: Array[String] = []
+	for row: Dictionary in _deltas:
+		if not heroes.has(str(row["hero"])):
+			heroes.append(str(row["hero"]))
+	for hero in heroes:
+		var n := 0
+		var ok := 0
+		var cols := {}
+		for col in COLUMNS:
+			cols[col] = [0, 0.0]
+		for row: Dictionary in _deltas:
+			if str(row["hero"]) != hero:
+				continue
+			n += 1
+			ok += 1 if bool(row["ok"]) else 0
+			for col in COLUMNS:
+				var c: Array = (row["cols"] as Dictionary)[col]
+				var hc: Array = cols[col]
+				hc[0] = int(hc[0]) + (1 if bool(c[4]) else 0)
+				hc[1] = maxf(float(hc[1]), float(c[2]) - float(c[3]))
+		var parts: PackedStringArray = PackedStringArray()
+		for col in COLUMNS:
+			var hc2: Array = cols[col]
+			var over := (" (+%.1f)" % float(hc2[1])) if float(hc2[1]) > 1e-6 else ""
+			parts.append("%s %d/%d%s" % [col, int(hc2[0]), n, over])
+		var fr := 0.0
+		var fs := 0.0
+		for r: Dictionary in _rows:
+			if str(r["setup"]) == "none" and str(r["hero"]) == hero:
+				fr += _fort(float(r["run_fort"]))
+				fs += _fort(float(r["own_fort"]))
+		print("TEST_KIND_PARITY_HERO %-6s %d/%d team cases match · %s · drift fort run / sim %.0f / %.0f" % [
+				hero, ok, n, " · ".join(parts), fr, fs] + " (not asserted)")
 
 
 func _write(dir: String) -> void:
