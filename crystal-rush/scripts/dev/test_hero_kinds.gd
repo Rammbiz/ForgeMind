@@ -936,7 +936,8 @@ func _test_fallback() -> void:
 	var calm := LevelSim.ult_worth(lv, s)
 	s.mode = LevelSim.Mode.CLASH
 	s.foe = 0
-	_ok(not calm and LevelSim.ult_worth(lv, s), "LevelSim: Іскар's comet holds on one squad, fires once the clash starts")
+	_ok(not calm and LevelSim.ult_worth(lv, s),
+			"LevelSim: Іскар's comet holds on one squad, fires once the clash starts")
 
 
 func _test_end_of_ult() -> void:
@@ -988,11 +989,13 @@ func _test_reveals() -> void:
 	_play(v, _def("pava", 4))
 	var rv := _reveals(v)
 	_ok(rv[0] == 0 and rv[1] == 1 and v.st_count(2, &"mark") == 1,
-			"eyes IV: Eyes Wide reveals the Phantoms only, never a hidden gate (gates %d, phantoms %d)" % [rv[0], rv[1]])
+			"eyes IV: Eyes Wide reveals the Phantoms only, never a hidden gate (gates %d, phantoms %d)"
+			% [rv[0], rv[1]])
 	var seer := _def("seer", 1, 9)
 	var vg := HeroView.new()
 	vg.gates = [_gate(20, 18.0, 0.0, "charge", -6.0, true), _gate(21, 26.0, 0.0, "+", 5.0, true)]
-	HeroKinds.attack(vg, seer, [{"id": 20, "kind": "gate", "d": 18.0, "x": 0.0, "op": "charge"}], 1, float(seer["damage"]))
+	var gate_row := {"id": 20, "kind": "gate", "d": 18.0, "x": 0.0, "op": "charge"}
+	HeroKinds.attack(vg, seer, [gate_row], 1, float(seer["damage"]))
 	var rg := _reveals(vg)
 	_ok(rg[0] == 2 and rg[1] == 0 and vg.dealt(20, &"gate") == 1.5,
 			"seer v3: a gate hit reveals its row and (beat 9) the next one, gates only; a charge gate takes x1.5")
@@ -1000,7 +1003,8 @@ func _test_reveals() -> void:
 	vk.squads = [_sq(1, 14.0, 0.0, 500.0)]
 	_volleys(vk, seer, 8)
 	var rk := _reveals(vk)
-	_ok(rk[0] == 0 and rk[1] == 1 and vk.st_count(1, &"mark") == 1 and float(vk.reveals[0][1]) - float(vk.reveals[0][0]) == 8.0,
+	var span := float(vk.reveals[0][1]) - float(vk.reveals[0][0]) if not vk.reveals.is_empty() else 0.0
+	_ok(rk[0] == 0 and rk[1] == 1 and vk.st_count(1, &"mark") == 1 and span == 8.0,
 			"seer v3 beat 6: the 8th hit MARKs and reveals Phantoms <= 4 u, no gates")
 	var lv := _mini([{"kind": "gate", "d": 20.0, "x": 0.0, "op": "+", "value": 5, "w": 2.0, "row": 1, "hidden": true}])
 	var s := LevelSim.start_state(lv, "bolt", 30, {"profile": _v3_prof("bolt", 1)})
@@ -1012,7 +1016,8 @@ func _test_reveals() -> void:
 	sv.reveal(10.0, 30.0, KindView.REVEAL_PHANTOMS)
 	var after_ph := s.rev[gi]
 	sv.reveal(10.0, 30.0, KindView.REVEAL_GATES)
-	_ok(after_ph == 0 and s.rev[gi] == 1, "SimKindView: a Phantom reveal leaves the hidden gate hidden, a gate reveal opens it")
+	_ok(after_ph == 0 and s.rev[gi] == 1,
+			"SimKindView: a Phantom reveal leaves the hidden gate hidden, a gate reveal opens it")
 
 
 func _test_wards() -> void:
@@ -1071,8 +1076,10 @@ func _test_wards() -> void:
 		s2.t += DT
 		HeroKinds.hero_step(v2, s2.def, DT)
 		most = maxf(most, LevelSim.ward_left(s2, &"turret"))
-	_ok(int(s2.def["drones"]) == 3 and is_equal_approx(most, 3.0) and is_equal_approx(LevelSim.ward_left(s2, &"contact"), 1.0),
-			"vartan rank 6: 3 drones and the contact drone over 60 s: at most %.1f turret / 1 contact charges" % most)
+	var cw := LevelSim.ward_left(s2, &"contact")
+	_ok(int(s2.def["drones"]) == 3 and is_equal_approx(most, 3.0) and is_equal_approx(cw, 1.0),
+			"vartan rank 6: 3 drones and the contact drone over 60 s: at most %.1f turret / %.1f contact charges"
+			% [most, cw])
 	# A whole Вартан run on turret rows: the wall's wards end with the wall.
 	var items: Array = []
 	for row in 22:
@@ -1093,10 +1100,11 @@ func _test_wards() -> void:
 			up = maxf(up, LevelSim.ward_left(s3, &"turret"))
 		if at_45 < 0.0 and s3.t >= 45.0:
 			at_45 = LevelSim.ward_left(s3, &"turret")
-	_ok(s3.uc.ults >= 2 and up >= HeroKinds.ALL_CHARGES and worst <= float(s3.def["drones"]) + 0.001 and at_45 >= 0.0
-			and at_45 <= float(s3.def["drones"]) + 0.001, ("a Вартан run (%d walls of 5 s, %.0f s): every turret shot warded "
-			+ "while a wall stands, else never more than the %d drones (most %.1f; at t=45 %.1f)")
-			% [s3.uc.ults, s3.t, int(s3.def["drones"]), worst, at_45])
+	var cap := float(s3.def["drones"]) + 0.001
+	_ok(s3.uc.ults >= 2 and up >= HeroKinds.ALL_CHARGES and worst <= cap and at_45 >= 0.0 and at_45 <= cap,
+			("a Вартан run (%d walls of 5 s, %.0f s): every turret shot warded while a wall stands, else never "
+			+ "more than the %d drones (most %.1f; at t=45 %.1f)") % [s3.uc.ults, s3.t, int(s3.def["drones"]), worst,
+			at_45])
 
 
 func _test_starters_v3() -> void:
@@ -1113,12 +1121,21 @@ func _test_starters_v3() -> void:
 	for n in 4:
 		HeroKinds.attack(vs, tit, [{"id": 10, "kind": "barricade", "d": 14.0, "x": 0.0, "hp": 1000.0}], 1, dt)
 	_ok(is_equal_approx(vs.dealt(10), 4.0 * dt * 1.5) and is_equal_approx(vs.dealt(11), dt * 1.5 * 0.5),
-			"titan v3: structures x1.5; beat 6: every 4th structure hit echoes 50%% of it on the next <= 4 u behind (%s)"
+			"titan v3: structures x1.5; beat 6: every 4th structure hit echoes 50%% of it on the next <= 4 u (%s)"
 			% vs.dealt(11))
 	var vb := HeroView.new()
 	vb.structs = [_st(10, 14.0, 0.0, "barricade", 1.0, 1.0), _st(11, 14.5, 1.0, "turret", 100.0, 0.45)]
 	HeroKinds.attack(vb, tit, [{"id": 10, "kind": "barricade", "d": 14.0, "x": 0.0, "hp": 1.0}], 1, dt)
 	_ok(vb.dealt(11) == 2.0, "titan v3 beat 9: a structure he breaks bursts 2 on structures <= 1.5 u")
+	# Power gates ("+1 постріл"): every shot of a volley lands; with one target in reach it takes them all.
+	var vg := HeroView.new()
+	vg.gates = [_gate(20, 18.0, 0.0)]
+	HeroKinds.attack(vg, tit, [{"id": 20, "kind": "gate", "d": 18.0, "x": 0.0, "op": "+"}], 2, dt)
+	var vq := HeroView.new()
+	vq.squads = [_sq(1, 14.0, 0.0, 500.0)]
+	HeroKinds.attack(vq, _def("arin", 1), [_row(vq.squads[0])], 3, 3.0)
+	_ok(vg.n_hits(20, &"gate") == 2 and vq.n_hits(1) == 3,
+			"power gates: the extra shots land on the one target in reach (a gate takes 2 hits, a squad 3)")
 	var bolt := _def("bolt", 1, 1)
 	var vr := HeroView.new()
 	vr.squads = [_sq(1, 14.0, 0.0, 500.0), _sq(2, 16.5, 1.0, 500.0), _sq(3, 25.0, 0.0, 500.0)]
@@ -1129,18 +1146,21 @@ func _test_starters_v3() -> void:
 	var vf := HeroView.new()
 	vf.squads = [_sq(1, 14.0, 0.0, 500.0, {"flying": true})]
 	_volleys(vf, bolt, 2)
-	_ok(vf.grounds.size() == 1 and float(vf.grounds[0][1]) == 1.2, "bolt v3: a hit grounds a Flying squad 1.2 s, not again within 4 s")
+	_ok(vf.grounds.size() == 1 and float(vf.grounds[0][1]) == 1.2,
+			"bolt v3: a hit grounds a Flying squad 1.2 s, not again within 4 s")
 	var bolt9 := _def("bolt", 1, 9)
 	var v9 := HeroView.new()
 	v9.squads = [_sq(1, 14.0, 0.0, 500.0), _sq(2, 17.0, 1.0, 500.0), _sq(3, 20.0, 2.0, 500.0)]
 	_volleys(v9, bolt9, 3)
 	_ok(v9.n_hits(2) == 1 and v9.n_hits(3) == 1 and v9.st_count(2, &"jolt") == 1 and v9.st_count(3, &"jolt") == 1
-			and v9.st_count(1, &"jolt") == 0, "bolt v3 beats 3 / 9: the fork reaches 5 u, chains once more, JOLTs what it forks to")
+			and v9.st_count(1, &"jolt") == 0,
+			"bolt v3 beats 3 / 9: the fork reaches 5 u, chains once more, JOLTs what it forks to")
 	var vl := HeroView.new()
 	vl.squads = [_sq(1, 14.0, 0.0, 500.0), _sq(2, 20.0, 0.2, 500.0), _sq(3, 20.0, 3.0, 500.0)]
 	_volleys(vl, bolt9, 8)
-	_ok(str((vl.events[7][1] as Dictionary)["proc"]) == "lance" and is_equal_approx(vl.dealt(2), float(bolt9["damage"]) * 2.0)
-			and vl.dealt(3) == 0.0, "bolt v3 beat 6: the 8th dart is a rail shot down the corridor x2")
+	var lance := str((vl.events[7][1] as Dictionary)["proc"])
+	_ok(lance == "lance" and is_equal_approx(vl.dealt(2), float(bolt9["damage"]) * 2.0) and vl.dealt(3) == 0.0,
+			"bolt v3 beat 6: the 8th dart is a rail shot down the corridor x2")
 	var seer := _def("seer", 1, 9)
 	var vm := HeroView.new()
 	vm.squads = [_sq(1, 14.0, 0.0, 2.0), _sq(2, 15.0, 1.0, 500.0)]
@@ -1156,7 +1176,8 @@ func _test_starters_v3() -> void:
 		for n2 in 40:
 			LevelSim.step(lv, s, path, DT)
 		casts.append("%s %d/%d" % [id, s.uc.casts, s.casts])
-		_ok(s.v3 and s.uc.casts > 0 and s.uc.casts == s.casts, "LevelSim %s v3: volleys through HeroKinds.attack (%d)" % [id, s.uc.casts])
+		_ok(s.v3 and s.uc.casts > 0 and s.uc.casts == s.casts,
+				"LevelSim %s v3: volleys through HeroKinds.attack (%d)" % [id, s.uc.casts])
 
 
 func _test_damage() -> void:
@@ -1164,12 +1185,13 @@ func _test_damage() -> void:
 	var lv := _mini([{"kind": "squad", "d": 6.0, "x": 0.0, "value": 5000, "w": 2.4}])
 	var s := LevelSim.start_state(lv, "bolt", 30, {"profile": _v3_prof("bolt", 1, 1.5)})
 	s.p_dmg = 2
-	_ok(s.v3 and is_equal_approx(LevelSim.hero_damage(s), 1.5 + 2.0 * 1.5) and is_equal_approx(HeroKinds.gate_damage(s.def, 2.0), 4.5),
+	var gd := HeroKinds.gate_damage(s.def, 2.0)
+	_ok(s.v3 and is_equal_approx(LevelSim.hero_damage(s), 1.5 + 2.0 * 1.5) and is_equal_approx(gd, 4.5),
 			"a v3 row: damage 1 x 1.5 + 2 gates x 1.5 = 4.5 (%s)" % LevelSim.hero_damage(s))
 	var sx := LevelSim.start_state(lv, "lumen", 30, {"profile": _v3_prof("lumen", 1, 2.0)})
 	sx.p_dmg = 3
-	_ok(is_equal_approx(LevelSim.hero_damage(sx), float(sx.def["damage"]) + 3.0 * 2.0), "a new hero's gates scale the same (%s)"
-			% LevelSim.hero_damage(sx))
+	_ok(is_equal_approx(LevelSim.hero_damage(sx), float(sx.def["damage"]) + 3.0 * 2.0),
+			"a new hero's gates scale the same (%s)" % LevelSim.hero_damage(sx))
 	EconData.phase_override = 0
 	var p0 := LevelSim.reference_profile(20).duplicate()
 	p0["hero"] = {"id": "bolt", "lvl": 5, "dmg_mult": 1.5}
@@ -1177,8 +1199,9 @@ func _test_damage() -> void:
 	s0.p_dmg = 2
 	_ok(not s0.v3 and is_equal_approx(LevelSim.hero_damage(s0), 3.0 * 1.5), "phase 0: (1 + 2 gates) x 1.5, as shipped")
 	EconData.phase_override = HeroKinds.V3_PHASE
-	_ok(is_equal_approx(HeroKinds.machines_b2(0.1), 0.1) and is_equal_approx(HeroKinds.machines_b2(0.3), TeamData.TEAM_B2_CAP)
-			and is_equal_approx(HeroKinds.machines_b2(0.1, 0.15), TeamData.TEAM_B2_CAP),
+	var cap := TeamData.TEAM_B2_CAP
+	_ok(is_equal_approx(HeroKinds.machines_b2(0.1), 0.1) and is_equal_approx(HeroKinds.machines_b2(0.3), cap)
+			and is_equal_approx(HeroKinds.machines_b2(0.1, 0.15), cap),
 			"the machines buff joins the team part of bucket 2, capped at TEAM_B2_CAP %.2f" % TeamData.TEAM_B2_CAP)
 	var sm := LevelSim.start_state(lv, "lumen", 30, {"profile": _v3_prof("lumen", 5)})
 	sm.weapons = [["cannon", 1, 0.0, 0]]
@@ -1194,7 +1217,7 @@ func _test_damage() -> void:
 	var row := LevelSim.machine_row(sm, sm.weapons[0])
 	var want := (float(row["b2"]) + 0.1) / float(row["b2"])
 	_ok(hp0 - sm.hp[sq] > 0.0 and absf((hp0 - sb.hp[sq]) / (hp0 - sm.hp[sq]) - want) < 0.002,
-			"LevelSim: a machine hit under the buff is x (b2 + 0.1) / b2 = %.3f (b2 %.2f), inside bucket 2 (%.3f / %.3f)"
+			"LevelSim: a machine hit under the buff is x (b2 + 0.1) / b2 = %.3f (b2 %.2f), in bucket 2 (%.3f / %.3f)"
 			% [want, row["b2"], hp0 - sb.hp[sq], hp0 - sm.hp[sq]])
 
 

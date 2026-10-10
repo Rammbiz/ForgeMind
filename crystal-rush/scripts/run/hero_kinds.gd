@@ -1371,9 +1371,10 @@ static func _proc_hit(c: Clock, st: String, p: float) -> bool:
 ## targeting for this volley, nearest first, unique ({id, kind: squad | gate | barricade | turret | geode | crate
 ## | fortress, d, x, op (a gate's face), flying}); `shots` = the shots of the volley (volley_shots + power
 ## gates: spare shots hit the last target again, a beam's spare rays converge on the first for x focus_mult);
-## `dmg` = hero damage per hit (every multiplier the owner applies: damage gates, Reinforcements, the Prism). Squad hits: dmg + splash, x Cleave on the squad in the clash, the
-## attack's statuses by proc, `pierce` more squads behind in the corridor; structures x structure_mult; gates
-## take hero hits (x charge_mult on a charge face; the row reveal with reveal_row). Every-Nth procs by cast:
+## `dmg` = hero damage per hit (every multiplier the owner applies: damage gates, Reinforcements, the Prism).
+## Squad hits: dmg + splash, x Cleave on the squad in the clash, the attack's statuses by proc, `pierce` more
+## squads behind in the corridor; structures x structure_mult; gates take hero hits (x charge_mult on a charge
+## face; the row reveal with reveal_row). Every-Nth procs by cast:
 ## throw (the shot goes to the farthest hostile <= reach for x mult), comet / lance (the corridor, x mult),
 ## dove (the farthest structure <= reach, else the biggest squad), fork (a plain volley chains on, _fork), mend
 ## (soldiers from the revive pool), eye, double, burst, mark, strip; on-event procs: echo (structure), burst
@@ -1441,13 +1442,10 @@ static func attack(view: KindView, def: Dictionary, targets: Array, shots: int, 
 	else:
 		# A throw or a dove is not a swing: no splash.
 		var plain := proc == &""
-		var own := int(def.get("targets", 1))
-		if procs.has("ray") and no % maxi(int((procs["ray"] as Dictionary).get("every", 1)), 1) == 0:
-			own += int((procs["ray"] as Dictionary).get("targets", 1))
+		# Every shot of the volley lands, the power gates' too (the Meta-1 rule: shots beyond the targets in reach
+		# hit the last one again; only Meta-1's chained Forked Fox shot needed another target, and on a v3 row the
+		# fork is a proc).
 		for k in n_shots:
-			if k >= base and k >= own:
-				# A power gate's extra shot only ever goes to another target (the starters' rule).
-				continue
 			if k >= base and pattern == ATTACK_BEAM and float(atk.get("focus_mult", 1.0)) > 1.0:
 				# Spare rays converge on the first target (x focus_mult instead of one more ray): damage only.
 				_hit_one(view, def, c, shot_targets[0], dmg * (float(atk["focus_mult"]) - 1.0), d, false, false)
