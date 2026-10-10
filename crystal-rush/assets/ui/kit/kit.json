@@ -602,5 +602,41 @@
  },
  "icon_trophy": {
   "painted": true
+ },
+ "icon_el_kinetic": {
+  "painted": true
+ },
+ "icon_el_volt": {
+  "painted": true
+ },
+ "icon_el_frost": {
+  "painted": true
+ },
+ "icon_el_plasma": {
+  "painted": true
+ },
+ "icon_el_tech": {
+  "painted": true
+ },
+ "icon_el_rune": {
+  "painted": true
+ },
+ "icon_el_rift": {
+  "painted": true
+ },
+ "icon_deck": {
+  "painted": true
+ },
+ "icon_fac_dawn": {
+  "painted": true
+ },
+ "icon_fac_wildfang": {
+  "painted": true
+ },
+ "icon_fac_stoneheart": {
+  "painted": true
+ },
+ "icon_fac_celestial": {
+  "painted": true
  }
 }
