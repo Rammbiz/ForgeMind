@@ -52,7 +52,7 @@ const META := {
 	"olena": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.49, 0.29), "focus_x": 0.5},
 	"nimb": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.57, 0.27), "focus_x": 0.55},
 	"dara": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.55, 0.31), "focus_x": 0.55},
-	"menhir": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.50, 0.27), "focus_x": 0.52},
+	"menhir": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.49, 0.25), "focus_x": 0.50},
 	# Wave 9 (C28-C33, Gemini cards 2026-10-10, 1792x2400 sources): eyes measured on card.png.
 	"franko": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.46, 0.305), "focus_x": 0.52},
 	"rukavychka": {"crop": Rect2(0.0, 0.0, 1.0, 1.0), "eye": Vector2(0.70, 0.34), "focus_x": 0.6},
