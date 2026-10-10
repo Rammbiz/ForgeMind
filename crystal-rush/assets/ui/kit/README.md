@@ -94,6 +94,11 @@ Factions: `icon_fac_dawn` (sunrise), `icon_fac_wildfang` (claw marks), `icon_fac
 
 Any other icon kind (machines, statuses, caches …) can be overridden the same way: `icon_<kind>.png`.
 
+A coloured, painted PNG in place of a **line** kind keeps its colours when kit.json marks it: `"icon_<kind>": {"painted": true}`
+(the game then dims it by alpha only and gives it a larger rect in round buttons). Batch 1 (2026-10-10, Gemini, source
+`art_src/ui/icons_sheet1_src.jpg`): `icon_tab_shop/arsenal/heroes/barracks`, `icon_coin`, `icon_gem`, `icon_blueprint`,
+`icon_crown`, and painted `icon_events`, `icon_mail`, `icon_quests`, `icon_chest`.
+
 ## D. Priority order for the owner (the biggest visual win first)
 
 1. `primary` + `cta_topaz` (the ГРАТИ / Призвати jewel)

@@ -177,7 +177,9 @@ func refresh() -> void:
 		_hero.scale = Vector3.ONE * HERO_SCALE
 		_hero.position = Vector3(0, _hero_y, 0)
 		_props.add_child(_hero)
-		var g: Dictionary = UITokens.GEMS.get(HERO_GEM.get(h, "sapphire"), UITokens.GEMS["sapphire"])
+		var gem := str(HERO_GEM.get(h, UITokens.RARITY_GEM.get(str((HeroData.HEROES.get(h, {}) as Dictionary).get("native", "")),
+				"sapphire")))
+		var g: Dictionary = UITokens.GEMS.get(gem, UITokens.GEMS["sapphire"])
 		var rim: Color = g["rim"]
 		_set_back_glow(rim, g["light"])
 		if _dais_mat:

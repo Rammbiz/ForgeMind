@@ -271,7 +271,8 @@ func _draw() -> void:
 		var hl := UITokens.HAIRLINE
 		draw_arc(c, r + 4.0, 0, TAU, 72, Color(hl.r, hl.g, hl.b, 0.8), UIKit.line_px(1.0), true)
 		draw_arc(c, r + 4.0, -PI / 2, -PI / 2 + TAU * clampf(progress, 0.0, 1.0), 72, pc, UIKit.line_px(2.0), true)
-	var icon_size := r * 1.12
+	# A painted bitmap (Icons.painted_bitmap) fills more of the disc than a line glyph does.
+	var icon_size := r * (1.5 if icon_kind != "" and Icons.painted_bitmap(icon_kind) else 1.12)
 	var icon_rect := Rect2(c - Vector2(icon_size, icon_size) * 0.5, Vector2(icon_size, icon_size))
 	if armed:
 		Icons.draw_icon(self, "check", icon_rect.grow(-icon_size * 0.08), UIKit.PLUS)

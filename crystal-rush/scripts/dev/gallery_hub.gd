@@ -27,6 +27,8 @@ func _ready() -> void:
 			"profile": profile = v
 			"tag": tag = v
 			"hero": hero = v
+			# --heroes_phase=2: a v3 hero (HeroData, e.g. --hero=olha) may stand on the Play stage.
+			"heroes_phase": EconData.phase_override = int(v)
 			# --hall[=fresh|mid|late|welcome]: the Heroes tab shows the Hall (HeroesUIModel.force_on)
 			# on that mock heroes state, so the Hall is shot inside the real hub with live world frost.
 			"hall":

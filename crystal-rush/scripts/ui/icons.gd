@@ -28,6 +28,14 @@ func _draw() -> void:
 	draw_icon(self, kind, r, tint, filled)
 
 
+## True when `k` draws the owner's coloured bitmap (assets/ui/kit/icon_<k>.png: a painted kind, or a line kind
+## marked "painted" in kit.json): callers give it a little more room than a thin line glyph.
+static func painted_bitmap(k: String) -> bool:
+	if UIKit.kit_texture("icon_" + k) == null:
+		return false
+	return not KitIcons.has_line(k) or bool(UIKit.kit_spec("icon_" + k).get("painted", false))
+
+
 ## A line icon in an explicit colour (ink on cream, ON_SCENE on 3D, GOLD_HI on slate).
 static func line(ci: CanvasItem, k: String, r: Rect2, col: Color) -> void:
 	if not KitIcons.line(ci, k, r, col):
@@ -149,7 +157,10 @@ static func _rocket(ci: CanvasItem, tail: Vector2, dir: Vector2, length: float, 
 static func draw_icon(ci: CanvasItem, k: String, r: Rect2, tint := Color.WHITE, filled := true) -> void:
 	var ov := UIKit.kit_texture("icon_" + k)
 	if ov:
-		ci.draw_texture_rect(ov, r, false, Color(1, 1, 1, tint.a) if not KitIcons.has_line(k) else tint)
+		# A line kind's bitmap is white line art the tint colours; one marked "painted" in kit.json
+		# (a coloured icon in place of the line glyph) keeps its own colours, only the alpha dims it.
+		var keep := not KitIcons.has_line(k) or bool(UIKit.kit_spec("icon_" + k).get("painted", false))
+		ci.draw_texture_rect(ov, r, false, Color(1, 1, 1, tint.a) if keep else tint)
 		return
 	if KitIcons.has_line(k):
 		var lc := tint

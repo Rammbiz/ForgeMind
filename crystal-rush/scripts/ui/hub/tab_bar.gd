@@ -292,7 +292,8 @@ func _draw() -> void:
 			var col := UITokens.NAV_GOLD.lerp(UITokens.NAV_GOLD_ON, on)
 			col.a = dim
 			if ov:
-				draw_texture_rect(ov, gr, false, Color(1, 1, 1, dim))
+				# A painted tab icon is a whole object, not a glyph: a touch larger than the 48 px glyph box.
+				draw_texture_rect(ov, gr.grow(gr.size.x * 0.08), false, Color(1, 1, 1, dim))
 			else:
 				# Porcelain: the active glyph's duotone fill is a light key-gold wash, not CTA_HI.
 				if UITokens.calm_cta():

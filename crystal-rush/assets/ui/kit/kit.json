@@ -557,5 +557,17 @@
    2,
    2
   ]
+ },
+ "icon_events": {
+  "painted": true
+ },
+ "icon_mail": {
+  "painted": true
+ },
+ "icon_quests": {
+  "painted": true
+ },
+ "icon_chest": {
+  "painted": true
  }
 }
