@@ -2,6 +2,7 @@ extends Node
 ## Hero art model preview (HeroModels.art: the Meshy model, its clips and props), one sheet of poses:
 ##   godot --path crystal-rush --resolution 640x480 res://scenes/dev/art_preview.tscn -- --autotest
 ##         --hero=olha --out=<png> --poses=idle:1.0:0,attack_a:2.0:30   (clip:seconds:yaw, yaw 0 = front)
+##         [--face] (head close-up) [--bones=RightHand,Head] (prints bone frames) [--tex=<albedo file>]
 ## Needs a real renderer (run it on a hidden desktop, muted). Phase-free: it only builds the model.
 
 const W := 400
@@ -40,6 +41,16 @@ func _ready() -> void:
 	vp.add_child(pivot)
 	var model := HeroModels.art(hero)
 	pivot.add_child(model)
+	if args.has("tex"):  # --tex=<png/jpg on disk>: try a repainted albedo without re-importing the model
+		var tex := ImageTexture.create_from_image(Image.load_from_file(str(args["tex"])))
+		for n: Node in model.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			if mi.skin == null:
+				continue
+			for s in mi.mesh.get_surface_count():
+				var mat := (mi.get_active_material(s) as BaseMaterial3D).duplicate() as BaseMaterial3D
+				mat.albedo_texture = tex
+				mi.set_surface_override_material(s, mat)
 	if args.has("bones"):
 		# Bone frames for tuning ART_PROPS: each listed bone's global basis in model units.
 		await get_tree().process_frame
@@ -55,8 +66,16 @@ func _ready() -> void:
 	vp.add_child(cam)
 	await get_tree().process_frame
 	var hh := float(model.get_meta("bar_y", 1.5))
-	cam.look_at_from_position(Vector3(0, hh * 0.5, hh * 2.4), Vector3(0, hh * 0.48, 0))
+	if args.has("face"):  # --face: a close-up of the head (Head bone), for checking the face texture
+		var sk := model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+		var head := (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin
+		var fy := head.y - hh * 0.025
+		cam.look_at_from_position(Vector3(0, fy, hh * 0.45), Vector3(0, fy, 0))
+	else:
+		cam.look_at_from_position(Vector3(0, hh * 0.5, hh * 2.4), Vector3(0, hh * 0.48, 0))
 	var ap: AnimationPlayer = model.get_meta("player")
+	for clip in ap.get_animation_list():
+		print("CLIP %s %.2f s" % [clip, ap.get_animation(clip).length])
 	var sheet := Image.create(W * poses.size(), H, false, Image.FORMAT_RGBA8)
 	for i in poses.size():
 		var parts := poses[i].split(":")

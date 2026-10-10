@@ -97,6 +97,8 @@ var _tethers: Array = []
 var _art: Array = []
 ## Height the art models are scaled to (the champions' 1.10 u, §4.2).
 const ART_HEIGHT := 1.10
+## Art champion one-shot speeds (Meshy presets run long; heroes_prompts (d) gives the in-game lengths).
+const ART_CLIP_SPEED := {&"action": 1.6, &"hit": 2.5, &"fall": 1.2, &"victory": 1.0}
 var _stamp: Label3D
 var _stamp_t := -1.0
 var _stamp_at := Vector3.ZERO
@@ -294,11 +296,80 @@ func _draw_bodies() -> void:
 		_pose[o] = Vector4(_pose[o].x, 0.0, 0.0, 0.0)
 		art.visible = c.visible
 		art.position = c.position
-		art.rotation = Vector3(-c.pitch(), c.yaw() + PI, 0.0)
-		var ap: AnimationPlayer = art.get_meta("player", null)
-		if ap:
-			ap.speed_scale = 0.0 if not c.alive else lerpf(0.35, 1.0, c.run_weight())
+		# A fallen art model plays its own fall clip: it keeps standing upright, no placeholder pitch.
+		art.rotation = Vector3(0.0 if art.get_meta("has_fall", false) else -c.pitch(), c.yaw() + PI, 0.0)
+		_art_loop(art, c)
 	_bmat.set_shader_parameter(&"pose", _pose)
+
+
+## An art champion's looping clip when no one-shot plays: victory once at the stairs / the win, idle at
+## READY and in fights, run at the run weight's pace otherwise; a fallen one holds its fall's last frame
+## (no fall clip: the pose freezes while the placeholder's pitch lays it down).
+func _art_loop(art: Node3D, c: RunChampion) -> void:
+	var ap: AnimationPlayer = art.get_meta("player", null)
+	if ap == null:
+		return
+	if bool(art.get_meta("down", false)):
+		if not bool(art.get_meta("has_fall", false)):
+			ap.speed_scale = 0.0
+		return
+	var dt := get_process_delta_time()
+	var busy := maxf(float(art.get_meta("busy", 0.0)) - dt, 0.0)
+	art.set_meta("busy", busy)
+	if busy > 0.0:
+		return
+	var st := run.state
+	if (st == Run.State.STAIRS or st == Run.State.WON) and ap.has_animation("victory"):
+		if not bool(art.get_meta("cheered", false)):
+			art.set_meta("cheered", true)
+			_art_play(art, &"victory")
+		return
+	var loop := "run" if st == Run.State.RUNNING and ap.has_animation("run") else "idle"
+	if not ap.has_animation(loop):
+		loop = ap.get_animation_list()[0] if not ap.get_animation_list().is_empty() else ""
+	if loop == "":
+		return
+	if ap.current_animation != loop:
+		ap.play(loop, 0.2)
+	ap.speed_scale = lerpf(0.5, 1.0, c.run_weight()) if loop == "run" else 1.0
+
+
+## Plays one-shot `clip` on an art champion (ART_CLIP_SPEED; the loops resume when it ends).
+func _art_play(art: Node3D, clip: StringName) -> void:
+	var ap: AnimationPlayer = art.get_meta("player", null)
+	if ap == null or not ap.has_animation(clip):
+		return
+	var sp := float(ART_CLIP_SPEED.get(clip, 1.0))
+	ap.speed_scale = 1.0
+	ap.play(clip, 0.1, sp)
+	art.set_meta("busy", ap.get_animation(clip).length / sp)
+
+
+## The fx events that move an art champion: its Action plays `action`, a hit `hit`, a fall `fall` (held),
+## a revive plays the fall backwards (up off the knee) and then the loops.
+func _art_fx(i: int, event: StringName) -> void:
+	if i < 0 or i >= _art.size() or _art[i] == null:
+		return
+	var art: Node3D = _art[i]
+	match event:
+		&"champ_hit":
+			if not bool(art.get_meta("down", false)) and float(art.get_meta("busy", 0.0)) <= 0.0:
+				_art_play(art, &"hit")
+		&"champ_down":
+			_art_play(art, &"fall")
+			art.set_meta("down", true)
+		&"champ_revive":
+			art.set_meta("down", false)
+			art.set_meta("busy", 0.0)
+			var ap: AnimationPlayer = art.get_meta("player", null)
+			if ap and ap.has_animation(&"fall"):
+				var sp := float(ART_CLIP_SPEED[&"fall"])
+				ap.speed_scale = 1.0
+				ap.play(&"fall", 0.1, -sp, true)
+				art.set_meta("busy", ap.get_animation(&"fall").length / sp)
+		&"champ_leap", &"champ_shot", &"champ_spell", &"champ_block", &"champ_mend", &"champ_twist":
+			if not bool(art.get_meta("down", false)):
+				_art_play(art, &"action")
 
 
 ## The champion's Meshy art model when assets/heroes/<id>/model.glb exists (§14 art waves; null =
@@ -326,11 +397,17 @@ func _art_model(id: String) -> Node3D:
 	if not players.is_empty():
 		var ap := players[0] as AnimationPlayer
 		var clips := ap.get_animation_list()
+		for loop in ["run", "idle"]:
+			if ap.has_animation(loop):
+				ap.get_animation(loop).loop_mode = Animation.LOOP_LINEAR
 		if not clips.is_empty():
-			var anim := ap.get_animation(clips[0])
-			anim.loop_mode = Animation.LOOP_LINEAR
-			ap.play(clips[0])
+			var first := "idle" if ap.has_animation("idle") else clips[0]
+			ap.get_animation(first).loop_mode = Animation.LOOP_LINEAR
+			ap.play(first)
 		holder.set_meta("player", ap)
+		holder.set_meta("has_fall", ap.has_animation("fall"))
+	# Props on the rig (HeroModels.ART_PROPS by id: the same table and folders as the heroes).
+	HeroModels._art_props(id, model)
 	return holder
 
 
@@ -615,6 +692,7 @@ func _chain(a: Vector3, b: Vector3, col: Color, delay: float) -> void:
 func on_fx(event: StringName, data: Dictionary) -> void:
 	var i := int(_by_id.get(str(data.get("id", "")), -1))
 	var c: RunChampion = models[i] if i >= 0 else null
+	_art_fx(i, event)
 	match event:
 		&"champ_leap":
 			if c:

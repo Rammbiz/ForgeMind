@@ -8,3 +8,7 @@
 - `../art_prompts/build.py` — builds the owner's prompt page from `docs/design/heroes_prompts.md`: `python3 build.py --repo` writes
   `docs/art_prompts/index.html` (opened in a browser via htmlpreview); without `--repo` it writes the self-contained page with
   embedded images to `out/` (or `$ART_PROMPTS_OUT`). Add finished art to `RECEIVED` in build.py.
+- `gemini_image.py` — one image from Gemini (Google AI Studio): `py gemini_image.py --out x.png --prompt-file p.txt --ref card.png
+  --size 2K --aspect 3:4` (references repeatable; `--search` lets the model use Google Search). The key is the owner's Windows
+  user variable `GEMINI_API_KEY` (set by them with `~/.claude/mcp/set-gemini-key.py`; never in the repo or a chat). Each call
+  costs the owner's AI Studio billing, so ask before batches.

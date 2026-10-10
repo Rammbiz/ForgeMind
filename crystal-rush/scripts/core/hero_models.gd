@@ -618,13 +618,19 @@ const ART_PROPS := {
 		# On the fingertips of the raised hand (the hand bone's +Y runs along the fingers): victory only.
 		["prop_dove.glb", "RightHand", Vector3(0.0, 0.14, 0.0), Vector3(0.0, 0.0, 0.0), 0.3, ["victory"]],
 	],
+	# Champions use the same table (ChampionView._art_model); their clips: run, idle, action, hit, fall,
+	# victory. Тарас: the heavy book of «Слово» in his throwing hand.
+	"taras": [
+		["prop_book.glb", "RightHand", Vector3(0.0, 0.1, 0.03), Vector3(0.0, 0.0, 0.0), 0.28, []],
+	],
 }
 
 
 ## A hero's Meshy art model (ART_DIR): the rigged GLB scaled to the proxy's height, facing +Z like every
 ## hero here (RunHero turns it), its first clip looping at the run's pace (hero(): "anim" = "art").
 static func art(type: String) -> Node3D:
-	var h := float((PROXY[type] as Dictionary)["h"])
+	# Heroes take their proxy's height; a champion (dev previews) the champions' 1.10 u.
+	var h := float((PROXY.get(type, {"h": ChampionView.ART_HEIGHT}) as Dictionary)["h"])
 	var root := Node3D.new()
 	root.name = "Model"
 	var model := (load(ART_DIR % type) as PackedScene).instantiate() as Node3D
