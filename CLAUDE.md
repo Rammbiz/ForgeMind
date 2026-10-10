@@ -44,8 +44,9 @@ All paths below are from the repo root.
   needs `python3 crystal-rush/tools/gen_save_v3_data.py --sim crystal-rush/tools/heroes_sim.py --roster-only` (rewrites
   `tools/data/heroes_migration.json` + `save_v3_data.gd`). `econ_data.gd` and `arsenal_data.gd` are hand-written.
 - Everything heroes/Portal is behind `EconData.HEROES_PHASE` (0); the gallery forces it on (`HeroesUIModel.force_on`).
-- Roster: 12 heroes (titan, arin, bolt, eira, seer, iskar, vesta, vartan, lumen, pava, sirko, olha) and 15 champions
-  (mila, ivo, borko, alba, otto, taya, brant, teo, olena, nimb, dara, menhir, taras, snaryad, dovbush). Collector numbers are one
+- Roster: 12 heroes (titan, arin, bolt, eira, seer, iskar, vesta, vartan, lumen, pava, sirko, olha) and 21 champions
+  (mila, ivo, borko, alba, otto, taya, brant, teo, olena, nimb, dara, menhir, taras, snaryad, dovbush, franko, rukavychka,
+  odarka, hohotun, skovoroda, motyvator). Collector numbers are one
   shared line in joining order (sirko = 26, olha = 27).
 - Painted art: `assets/heroes/<id>/splash.png` (heroes); champions `card.png` + `splash.png` in the same folder (NOT
   `assets/champions/` as heroes_prompts.md §1.6 says). 4K sources: `art_src/heroes/<id>/<id>_<kind>_src.jpg` (JPEG q88; Godot
@@ -107,8 +108,10 @@ All paths below are from the repo root.
   Wave 8 (owner-approved 2026-10-10): TEAM_DEMAND re-baked in LevelSim (`scenes/dev/demand_bake.tscn`; LevelGen scales the
   enemy side only when the heroes system is on), front champions' HP x1.1 (`heroes_tables.FRONT_HP_MULT`), the twist budget
   counted against each champion's measured template (`CHAMP_P0` -> `ChampionData.KIT_P0`; re-emit with
-  `test_champion_twists --emit` when HP or levels move). Wave 9 (in progress): six new champions (franko, rukavychka, odarka,
-  hohotun, skovoroda, motyvator); 9 more new characters have art only (heroes_ua_icons.md §5). test_kind_parity --quick is red on purpose (old Run vs LevelSim hazard / pre-clash drift: report only,
+  `test_champion_twists --emit` when HP or levels move). Wave 9 (merged 2026-10-10): six new champions (franko, rukavychka,
+  odarka, hohotun, skovoroda, motyvator) with data, texts, cards, A-pose sheets and their twists in the run (knobs tuned to
+  the +-3% band; Одарка and Сковорода UNMEASURED: LevelGen has no fliers and no squad behind a Block); 9 more new
+  characters have art only (heroes_ua_icons.md §5). test_kind_parity --quick is red on purpose (old Run vs LevelSim hazard / pre-clash drift: report only,
   `docs/design/sim_drift_report.md`); loc_lint has 47 old table errors (H3b removes them).
 - Next in the queue: H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop, Meta-1 review, Meta-2,
   perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка, Мамай, Одарка, Сковорода ...).
