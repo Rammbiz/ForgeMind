@@ -153,8 +153,8 @@ static var world: Dictionary = {}
 ## number over the bare field, the forecast on a round pill) only for a dev comparison: `--gate_labels=v1` in a
 ## dev run (--autotest / --shot), the one place the flag is read; hud_lab --compare switches it per run.
 static var gate_labels_v2 := _boot_gate_labels()
-## §10.2 rule 2: true while an ult runs (Effects sets it when Run.ult_clock starts and clears it Effects.ULT_TAIL s
-## after it stops, when the ult's last VFX are gone).
+## §10.2 rule 2: true exactly while an ult runs (Effects follows Run.ult_clock.active(); ult VFX that outlive the
+## clock keep their own gate cap instead).
 ## Each v2 gate's plate switches its labels on the change (_GatePlate.over): plate, glyphs and arrow without depth
 ## test at PLATE_PRIORITY while it is true, else depth-tested at PLATE_PRIORITY_IDLE like v1, so a squad, the
 ## hero or a nearer crossbar in front of a gate hides its labels as before.
