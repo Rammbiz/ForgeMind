@@ -86,7 +86,13 @@ extends Node
 ## Exit code = matrix cells where v2 reads below 3 : 1 (or is covered). Last line: HUD_LAB_COMPARE PASS|FAIL.
 ##   godot --fixed-fps 60 --path . --resolution 720x1280 res://scenes/dev/hud_lab.tscn -- --autotest --compare
 ##        --out=DIR [--level=45] [--cases=quiet,ult_storm] [--kinds=good,power] [--stills=storm_L12|none]
-##        [--matrix=none]
+##        [--matrix=none] [--tail]
+##
+## --tail (with --gate-legibility or --compare): an ult case is also captured TAIL_AT s after its ult clock stops
+## (Run.ult_clock, the first frame it is seen stopped, awaited TAIL_MAX s at most; the storm's 3 s and the rift's 4 s
+## outlast CAPTURE_AT): the labels leave their ult draw then while the ult's own VFX fade out, which must hold
+## themselves back over the panels (§10.2 rule 3). Those captures count like the others; the worst of them is
+## printed too (TAIL lines: the clock's stop and the worst label from it on, v1 -> v2 under --compare).
 ##
 ## --fit (headless is fine): the gate number's size, v1 against v2, for FIT_GATES (typical faces on a 3-gate row's
 ## 1.7 u gate and a 2-gate row's 2.1 u one) in every world: each number's cap height under both, v2's share of v1's,
@@ -120,6 +126,9 @@ const AHEAD := 6.0
 const ARMY := 220
 const DT := 1.0 / 60.0
 const CAPTURE_AT: Array[float] = [0.1, 0.25, 0.5, 0.8, 1.2, 1.8, 2.5]
+## --tail: the captures after the ult clock stops (s from the stop), and how long the clock is awaited.
+const TAIL_AT: Array[float] = [0.05, 0.2, 0.4, 0.7, 1.0, 1.5]
+const TAIL_MAX := 8.0
 ## Text pixels: luminance above the label-less frame by this much (white glyph fill).
 const TEXT_DIFF := 0.1
 const MIN_TEXT := 12
@@ -367,11 +376,10 @@ func _case(name: String) -> bool:
 	var remasked := 0
 	var moved := 0
 	var fx := {}
-	var t := 0.0
-	for at in CAPTURE_AT:
-		while t + DT * 0.5 < at:
-			await _frame(run, str(spec[2]) == "ult")
-			t += DT
+	var walk := _walk()
+	var tail := {"ratio": INF}
+	var at := await _next_capture(run, str(spec[2]) == "ult", walk)
+	while at >= 0.0:
 		var cap: Dictionary = await _capture(labels, base, false, true)
 		var fx_now: Dictionary = await _fx_alpha(run, labels)
 		fx = _fx_worse(fx, fx_now, at)
@@ -386,7 +394,10 @@ func _case(name: String) -> bool:
 				worst_img = cap["img"]
 				worst_rects = cap["rects"]
 				worst_t = at
+			_tail_worse(tail, walk, r, at)
+		at = await _next_capture(run, str(spec[2]) == "ult", walk)
 	_fx_report(name, fx)
+	_tail_report(name, walk, tail)
 	# Nothing measured (no label on screen, no image) is a failure, never a vacuous pass; a covered label
 	# measures ratio 1.
 	var ok := measured > 0 and on_screen > 0 and float(worst["ratio"]) >= MIN_RATIO
@@ -534,6 +545,48 @@ func _frame(run: Run, ult: bool) -> void:
 		run._ult_step(DT)
 	run._visuals(DT)
 	await get_tree().process_frame
+
+
+## A case's walk to its captures (_next_capture): {t (s since the trigger), plan (capture times left), stop (when the
+## ult clock was first seen stopped, -1 before)}.
+static func _walk() -> Dictionary:
+	return {"t": 0.0, "plan": CAPTURE_AT.duplicate(), "stop": -1.0}
+
+
+## Steps the case frame by frame to its next capture and returns its time (-1 when none is left): CAPTURE_AT and,
+## with --tail on an ult, TAIL_AT s after the frame its clock is first seen stopped (awaited TAIL_MAX s at most).
+func _next_capture(run: Run, ult: bool, walk: Dictionary) -> float:
+	var plan: Array = walk["plan"]
+	var tail := ult and args.has("tail")
+	while plan.is_empty() or float(walk["t"]) + DT * 0.5 < float(plan[0]):
+		if plan.is_empty() and not (tail and float(walk["stop"]) < 0.0 and float(walk["t"]) < TAIL_MAX):
+			return -1.0
+		await _frame(run, ult)
+		walk["t"] = float(walk["t"]) + DT
+		if tail and float(walk["stop"]) < 0.0 and not run.ult_clock.active():
+			walk["stop"] = walk["t"]
+			for x: float in TAIL_AT:
+				plan.append(float(walk["t"]) + x)
+			plan.sort()
+	return float(plan.pop_front())
+
+
+## --tail: keeps in `tail` the worst label measurement `r` (taken at `at` s) from the ult clock's stop on.
+static func _tail_worse(tail: Dictionary, walk: Dictionary, r: Dictionary, at: float) -> void:
+	var stop := float(walk["stop"])
+	if stop < 0.0 or at + DT * 0.5 < stop or float(r["ratio"]) >= float(tail["ratio"]):
+		return
+	tail.merge(r, true)
+	tail["at"] = at - stop
+
+
+## --tail: the case's worst label after its ult clock stopped (nothing without --tail or a stop).
+func _tail_report(name: String, walk: Dictionary, tail: Dictionary) -> void:
+	if not args.has("tail") or float(walk["stop"]) < 0.0:
+		return
+	print("    TAIL %s: the ult clock stopped at %.2f s; from then on worst %.2f : 1 on %s at +%.2f s (%s)" % [name,
+			float(walk["stop"]), float(tail["ratio"]), str(tail.get("label", "-")), float(tail.get("at", 0.0)),
+			_detail(tail)])
 
 
 ## Fires the case. Returns what was fired ("" when it could not be).
@@ -1285,6 +1338,18 @@ func _compare_matrix(cases: Array[String], kinds: Array[String]) -> void:
 					at_kind = k
 			if not fx.is_empty():
 				_fx_report("%s (%s row, %s)" % [c, at_kind, "v2" if v2 else "v1"], fx)
+	# --tail: per cell, the worst label from the ult clock's stop on (v1 -> v2).
+	for c: String in cases:
+		for k: String in kinds:
+			var a2: Dictionary = res["%s|%s|false" % [c, k]]
+			var b2: Dictionary = res["%s|%s|true" % [c, k]]
+			if not args.has("tail") or float(b2["stop"]) < 0.0:
+				continue
+			var tb: Dictionary = b2["tail"]
+			var mark := "!" if float(tb["ratio"]) < MIN_RATIO else ("~" if float(tb["ratio"]) < IDEAL_RATIO else "")
+			print("    TAIL %s %s: the ult clock stopped at %.2f s; from then on v1 %.2f -> v2 %.2f : 1%s" % [c, k,
+					float(b2["stop"]), float((a2["tail"] as Dictionary)["ratio"]), float(tb["ratio"]), mark] +
+					" on %s at +%.2f s (%s)" % [str(tb.get("label", "-")), float(tb.get("at", 0.0)), _detail(tb)])
 	_write_csv("gate_compare.csv")
 
 
@@ -1317,11 +1382,10 @@ func _cell(name: String, kind: String, v2: bool) -> Dictionary:
 	var measured := 0
 	var moved := 0
 	var fx := {}
-	var t := 0.0
-	for at in CAPTURE_AT:
-		while t + DT * 0.5 < at:
-			await _frame(run, ult)
-			t += DT
+	var walk := _walk()
+	var tail := {"ratio": INF}
+	var at := await _next_capture(run, ult, walk)
+	while at >= 0.0:
 		var cap: Dictionary = await _capture(labels, base, false, true)
 		var fx_now: Dictionary = await _fx_alpha(run, labels)
 		fx = _fx_worse(fx, fx_now, at)
@@ -1333,6 +1397,8 @@ func _cell(name: String, kind: String, v2: bool) -> Dictionary:
 				worst_img = cap["img"]
 				worst_rects = cap["rects"]
 				worst_t = at
+			_tail_worse(tail, walk, r, at)
+		at = await _next_capture(run, ult, walk)
 	await _drop(holder)
 	var ratio := float(worst["ratio"]) if measured > 0 else 1.0
 	var vname := "v2" if v2 else "v1"
@@ -1348,7 +1414,7 @@ func _cell(name: String, kind: String, v2: bool) -> Dictionary:
 	# The matrix keeps HeroFx's numbers only (its frames are saved by --gate-legibility).
 	fx.erase("img")
 	return {"ratio": ratio, "label": str(worst.get("label", "-")), "at": worst_t, "row": worst, "measured": measured,
-			"fx": fx}
+			"fx": fx, "stop": float(walk["stop"]), "tail": tail}
 
 
 static func _cell_note(c: Dictionary) -> String:
