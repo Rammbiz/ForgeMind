@@ -96,14 +96,21 @@ All paths below are from the repo root.
   `version/name` and `version/code` in `crystal-rush/export_presets.cfg` (now 2.3.0 / 7). Never commit keystores or passwords.
 
 ## State of play (update this section when it changes)
-- Done and pushed: Taras, Snaryad, Dovbush (champions), Sirko, Olha (heroes), prompts page, art tools.
+- Done: Taras, Snaryad, Dovbush (champions), Sirko, Olha (heroes), prompts page, art tools.
 - **UI v3 "porcelain glass" + the «Порцеляна» key button are IN this branch** (merge c65e6a2: hub, Heroes, Portal restyle;
   `UITokens.CTA_STYLE = "porcelain"`, `--cta=ink|amber` only for dev comparisons). Spec: `crystal-rush/docs/design/ui_v3_spec.md`.
   The last amber accents are gone too (Ult button, avatar arc, nav, Portal, progress bars: ink + gold). The cloud session builds
   APK 2.4 from this branch next (version bump in export_presets.cfg). Ask before large `crystal-rush/scripts/ui/` changes while
   the cloud session is active, and always `git pull --ff-only` first so the two sessions do not collide.
-- Next in the queue: H2 champions in the run, H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop,
-  Meta-1 review, Meta-2, perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка,
-  Мамай, Одарка, Сковорода ...).
-- 3D: no character has its new Meshy model yet. Starters run on old models (`assets/models/heroes/bolt.glb`, `titan.glb`,
-  `assets/heroes/seer/seer.glb`) due for the wave-0 remake; only Vesta's glaive prop is new. Order: `heroes_prompts.md` §2.
+- H2 champions in the run: waves 1-7 are merged (rules, Run + LevelSim, champion HUD, the 9 new hero kinds, gate labels v2 for
+  everyone, labels over the VFX exactly while an ult runs). Owner decisions are in the design doc (§6.8, §6.10, twist sheets).
+  Left: the TEAM_DEMAND re-bake (front-champion survival, twist budget from measured class values), then the near-invisible
+  twists. test_kind_parity --quick is red on purpose (old Run vs LevelSim hazard / pre-clash drift: report only,
+  `docs/design/sim_drift_report.md`); loc_lint has 47 old table errors (H3b removes them).
+- Next in the queue: H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop, Meta-1 review, Meta-2,
+  perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка, Мамай, Одарка, Сковорода ...).
+- 3D: Ольга (hero, 9 clips, bow / quiver / dove) and Тарас (champion, 6 clips, book) have Meshy models, Міла a test one
+  (`assets/heroes/<id>/model.glb`; HeroModels.ART_PROPS hangs props on the rig; preview with `scenes/dev/art_preview.tscn`
+  on the hidden desktop). Starters still run on old models due for the wave-0 remake. Order: `heroes_prompts.md` §2.
+- Images: Meshy's nano-banana (credits), or the owner's Gemini app in their Chrome (ask before each download), or
+  `crystal-rush/tools/art/gemini_image.py` (the owner's GEMINI_API_KEY; the API has no free tier for image models).
