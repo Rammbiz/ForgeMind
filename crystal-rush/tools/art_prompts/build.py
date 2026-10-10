@@ -95,12 +95,12 @@ RECEIVED = {  # hero id -> [(file, caption)], the owner's finished art (newest f
     'menhir': [('menhir/menhir_card_src.jpg', 'Картка')],
     'sirko': [('sirko/sirko_splash_src.jpg', 'Сплеш (4K)')],
     'olha': [('olha/olha_splash_src.jpg', 'Сплеш (4K)')],
-    'franko': [('franko/franko_card_src.jpg', 'Картка')],
-    'rukavychka': [('rukavychka/rukavychka_card_src.jpg', 'Картка')],
-    'odarka': [('odarka/odarka_card_src.jpg', 'Картка')],
-    'hohotun': [('hohotun/hohotun_card_src.jpg', 'Картка')],
-    'skovoroda': [('skovoroda/skovoroda_card_src.jpg', 'Картка')],
-    'motyvator': [('motyvator/motyvator_card_src.jpg', 'Картка')],
+    'franko': [('franko/franko_card_src.jpg', 'Картка'), ('franko/franko_sheet_front_src.jpg', 'Лист для 3D (фронт)')],
+    'rukavychka': [('rukavychka/rukavychka_card_src.jpg', 'Картка'), ('rukavychka/rukavychka_sheet_front_src.jpg', 'Лист для 3D (фронт)')],
+    'odarka': [('odarka/odarka_card_src.jpg', 'Картка'), ('odarka/odarka_sheet_front_src.jpg', 'Лист для 3D (фронт)')],
+    'hohotun': [('hohotun/hohotun_card_src.jpg', 'Картка'), ('hohotun/hohotun_sheet_front_src.jpg', 'Лист для 3D (фронт)')],
+    'skovoroda': [('skovoroda/skovoroda_card_src.jpg', 'Картка'), ('skovoroda/skovoroda_sheet_front_src.jpg', 'Лист для 3D (фронт)')],
+    'motyvator': [('motyvator/motyvator_card_src.jpg', 'Картка'), ('motyvator/motyvator_sheet_front_src.jpg', 'Лист для 3D (фронт)')],
 }
 _uri_cache = {}
 
