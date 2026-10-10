@@ -101,6 +101,8 @@ A coloured, painted PNG in place of a **line** kind keeps its colours when kit.j
 Batch 2 (`art_src/ui/icons_sheet2_src.jpg`, cut at tolerance 40 so the lantern loses its halo): painted `icon_events`
 (one pennant, replacing batch 1's garland), `icon_team`, `icon_helmet`, `icon_target`, `icon_cls_warrior/ranger/mage/guardian/
 healer`, `icon_odds`, `icon_settings`, `icon_trophy`. KitSocket gives painted bitmaps 75 % of its disc too.
+Batch 3 (`art_src/ui/icons_sheet3_src.jpg`; the rune redrawn alone, `icon_el_rune_src.jpg`, because the sheet's read as
+an R): painted `icon_el_kinetic/volt/frost/plasma/tech/rune/rift`, `icon_deck`, `icon_fac_dawn/wildfang/stoneheart/celestial`.
 
 ## D. Priority order for the owner (the biggest visual win first)
 
