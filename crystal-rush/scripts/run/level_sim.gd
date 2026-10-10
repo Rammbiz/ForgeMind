@@ -90,9 +90,10 @@ class_name LevelSim
 ##   every clash and siege, else by its §10.4 policy.
 ##   The verbs those rules use land here: a clash ward (Вартан's wall HP) and an exposure (x (1 + add) foe
 ##   losses) in the clash / siege ticks, wards spend through KindView.WARD_SPEND, a silenced turret kills
-##   nothing, team buffs scale volleys (and give them statuses) and machines (bucket 2, HeroKinds.machines_b2),
-##   a gate reveal opens hidden gates; Phantoms, Shielded and Armored are not modelled (strip and the Phantom
-##   reveal change nothing here), structures take no statuses.
+##   nothing, team buffs scale volleys (and give them statuses) and machine hits (HeroKinds.machines_b2 inside
+##   the whole bucket 2 Weapons._b2 sums: add, overflow, Reinforcements, the Prism amp), a gate reveal opens
+##   hidden gates; Phantoms, Shielded and Armored are not modelled (strip and the Phantom reveal change nothing
+##   here), structures take no statuses.
 
 enum K { TILE, COIN, RECRUITS, GATE, BARRICADE, BLADE, TURRET, SQUAD, GEODE, CRATE, FORTRESS, STAIRS }
 enum Mode { RUN, CLASH, SIEGE, WON, LOST }
@@ -160,6 +161,7 @@ class State extends RefCounted:
 	var new_crate := ""                 ## the NEW crate machine of this level ("" = owned)
 	var new_got := false                ## planning: this line opened the NEW crate (a permanent unlock)
 	var hero_dmg := 1.0                 ## profile hero dmg_mult (x Reinforcements dmg_add)
+	var mach_add := 0.0                 ## Reinforcements dmg_add in a machine's bucket 2 (Weapons._b2)
 	var ult_rate := 1.0                 ## profile hero ult_rate_mult
 	var ult_pow := 1.0                  ## Ult Rank effect multiplier
 	var aspect := ""
@@ -244,7 +246,7 @@ class State extends RefCounted:
 		s.hazard_deaths = hazard_deaths; s.clash_deaths = clash_deaths; s.kills = kills; s.peak = peak
 		s.army_at_fortress = army_at_fortress; s.survivors = survivors; s.stairs_mult = stairs_mult
 		s.total_coins = total_coins; s.reason = reason; s.auto_ult = auto_ult; s.gate_margin = gate_margin
-		s.ult_rate = ult_rate; s.ult_pow = ult_pow; s.aspect = aspect; s.casts = casts
+		s.ult_rate = ult_rate; s.ult_pow = ult_pow; s.aspect = aspect; s.casts = casts; s.mach_add = mach_add
 		s.recruit_bonus = recruit_bonus; s.reserves = reserves; s.scrape_guard = scrape_guard; s.drill = drill
 		s.drill_k = drill_k; s.guard = guard.duplicate(); s.hit_t = hit_t.duplicate(); s.slow_acc = slow_acc
 		# Champions branch with the state (a deep copy); without any, the copy keeps its own empty set.
@@ -1532,22 +1534,27 @@ static func _machines(lv: Level, s: State, dt: float) -> void:
 		var over := 0.0
 		for k in int(w[3]) if w.size() > 3 else 0:
 			over += ArsenalData.overflow_bonus(k + 1)
-		var mult := (1.0 + over) * (1.0 + (amp if lane and str(w[0]) != "prism" else 0.0))
+		var a := amp if lane and str(w[0]) != "prism" else 0.0
+		var mult := (1.0 + over) * (1.0 + a)
+		# The buff's share of a hit: it joins the machine's whole bucket 2 as Weapons._b2 sums it (1 + add + overflow +
+		# Reinforcements dmg_add + the Prism amp on a LANE shot; the row's crowd / struct carry the 1 + add), not on
+		# top of it. Hits only: the Run's Burn ticks go through Statuses, never bucket 2. k = 1 without a buff.
+		var k_b2 := 1.0
 		if b2 > 0.0:
-			# Into the row's bucket-2 sum (its crowd / struct already carry x (1 + add)), not on top of it.
-			mult *= (float(row["b2"]) + b2) / float(row["b2"])
+			var bb := float(row["b2"]) + over + a + s.mach_add
+			k_b2 = (bb + b2) / bb
 		if lv.kind[i] == K.SQUAD:
 			if s.kv.is_empty():
-				_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
+				_hurt(lv, s, i, (float(row["crowd"]) * k_b2 + float(row.get("burn", 0.0))) * tick * mult)
 			else:
 				# Machine hits land MARK's vs (Weapons._vs); the machine's Burn ticks do not (the Run's Burn ticks
 				# go through Statuses, never x vs, and never set off a Jolt chain).
-				_hurt_vs(lv, s, i, float(row["crowd"]) * tick * mult)
+				_hurt_vs(lv, s, i, float(row["crowd"]) * k_b2 * tick * mult)
 				var burn := float(row.get("burn", 0.0)) * tick * mult
 				if burn > 0.0:
 					_hurt(lv, s, i, burn, false)
 		else:
-			_hurt(lv, s, i, float(row["struct"]) * tick * mult)
+			_hurt(lv, s, i, float(row["struct"]) * k_b2 * tick * mult)
 
 
 # ------------------------------------------------------------------ machine profiles (pure)
@@ -1717,6 +1724,7 @@ static func apply_profile(s: State, prof: Dictionary) -> void:
 		s.ult_rate = float(hero.get("ult_rate_mult", 1.0))
 		s.ult_pow = 1.0 + float(EconData.HERO.get("ult_rank_bonus", 0.2)) \
 				* float(clampi(int(hero.get("ult_rank", 1)), 1, 4) - 1)
+	s.mach_add = float(assist0.get("dmg_add", 0.0))
 	s.aspect = str(hero.get("aspect", "")) if str(hero.get("id", s.hero)) == s.hero else ""
 	if s.aspect == "":
 		s.aspect = str(s.def.get("aspect", ""))

@@ -17,7 +17,8 @@ extends Node
 ##    reveal splits gates from Phantoms; the ward kinds (wall_turret / wall_contact end with the wall, drones
 ##    replace their own grant) and the one spend order (KindView.WARD_SPEND) in LevelSim, over a whole Вартан
 ##    run; the starters' v3 attacks through HeroKinds.attack (Горан, Руді's fork, Мейра); damage gates x
-##    dmg_mult; Люмен's machines buff inside bucket 2.
+##    dmg_mult; Люмен's machines buff inside bucket 2 (hits, not Burn), with the share the Run's Weapons._b2
+##    gives it (overflow, Prism amp and Reinforcements in the bucket, the TEAM_B2_CAP cap).
 ## 5. LevelSim plays L20, L41 and L60 with each of the 12 heroes at phase 2 (EXPECTED account, the two scripted
 ##    champions; one input per level: Руді's planned path, replayed by every hero) to the end: printed per hero
 ##    (won, army at the fortress, ult casts, attack volleys of the new heroes).
@@ -1207,18 +1208,59 @@ func _test_damage() -> void:
 	sm.weapons = [["cannon", 1, 0.0, 0]]
 	var sb := sm.copy()
 	LevelSim.buff(sb, &"machines", 0.1, 5.0, {})
-	var sq := 0
-	for i in lv.items.size():
-		if lv.kind[i] == LevelSim.K.SQUAD:
-			sq = i
-	var hp0 := sm.hp[sq]
 	LevelSim._machines(lv, sm, 0.3)
 	LevelSim._machines(lv, sb, 0.3)
 	var row := LevelSim.machine_row(sm, sm.weapons[0])
-	var want := (float(row["b2"]) + 0.1) / float(row["b2"])
-	_ok(hp0 - sm.hp[sq] > 0.0 and absf((hp0 - sb.hp[sq]) / (hp0 - sm.hp[sq]) - want) < 0.002,
-			"LevelSim: a machine hit under the buff is x (b2 + 0.1) / b2 = %.3f (b2 %.2f), in bucket 2 (%.3f / %.3f)"
-			% [want, row["b2"], hp0 - sb.hp[sq], hp0 - sm.hp[sq]])
+	var k := (float(row["b2"]) + 0.1) / float(row["b2"])
+	var c := float(row["crowd"])
+	var u := float(row.get("burn", 0.0))
+	var want := (c * k + u) / (c + u)
+	_ok(sm.kills > 0.0 and u > 0.0 and absf(sb.kills / sm.kills - want) < 1e-6,
+			"LevelSim: a buffed cannon hits x (b2 + 0.1) / b2 = %.3f (b2 %.2f), its Burn not: x %.4f (want %.4f)"
+			% [k, row["b2"], sb.kills / sm.kills, want])
+	_machines_vs_run()
+
+
+## Люмен V's machines buff on one LANE machine with every other bucket-2 term in play (add 0.3, two overflow
+## copies, the fielded Prism's amp, Reinforcements dmg_add 0.05): LevelSim._machines scales its hit by the share
+## the Run's own Weapons._b2 gives the buff (a bare Run: its profile, the fielded Prism, RunKindView's buff), and
+## so does the cap (a buff of 0.3 counts TEAM_B2_CAP).
+func _machines_vs_run() -> void:
+	var lv := _mini([{"kind": "squad", "d": 6.0, "x": 0.0, "value": 400, "w": 2.4}])
+	var eb := LevelSim.entry("ballista", int(EconData.START_LEVEL[ArsenalData.rarity_of("ballista")]))
+	eb["add"] = 0.3
+	var ep := LevelSim.entry("prism", int(EconData.START_LEVEL[ArsenalData.rarity_of("prism")]))
+	var p := _v3_prof("lumen", 5)
+	p["machines"] = {"ballista": eb, "prism": ep}
+	p["assist"] = {"soldiers": 0, "dmg_add": 0.05}
+	var over := ArsenalData.overflow_bonus(1) + ArsenalData.overflow_bonus(2)
+	var run := Run.new()
+	run.profile = p
+	var wp := Weapons.new()
+	wp.run = run
+	var bm := {"id": "ballista", "e": eb, "over_add": over}
+	wp.machines.append(bm)
+	wp.machines.append({"id": "prism", "st": (ep["by_rank"] as Array)[0], "e": ep})
+	var r0 := wp._b2(bm, true)
+	for bv: float in [0.1, 0.3]:
+		# The Prism parked (its timer never reaches a tick): only the ballista fires, two overflow copies.
+		var sm := LevelSim.start_state(lv, "lumen", 30, {"profile": p})
+		sm.weapons = [["ballista", 1, 0.0, 2], ["prism", 1, -100.0, 0]]
+		var sb := sm.copy()
+		LevelSim.buff(sb, &"machines", bv, 5.0, {})
+		LevelSim._machines(lv, sm, 0.3)
+		LevelSim._machines(lv, sb, 0.3)
+		run.kind_view = RunKindView.new(run)
+		run.kind_view.buff(&"machines", bv, 6.0)
+		var want := wp._b2(bm, true) / r0
+		var row := LevelSim.machine_row(sm, sm.weapons[0])
+		var old := (float(row["b2"]) + HeroKinds.machines_b2(bv)) / float(row["b2"])
+		_ok(sm.kills > 0.0 and is_equal_approx(r0, 1.3 + over + LevelSim.prism_amp(sm) + 0.05)
+				and absf(sb.kills / sm.kills - want) < 1e-6,
+				"LevelSim = Run: buff %.1f on a LANE machine (bucket 2 %.3f) x %.4f, Weapons._b2 x %.4f (was x %.4f)"
+				% [bv, r0, sb.kills / sm.kills, want, old])
+	wp.free()
+	run.free()
 
 
 # ------------------------------------------------------------------ 5. LevelSim with every hero
