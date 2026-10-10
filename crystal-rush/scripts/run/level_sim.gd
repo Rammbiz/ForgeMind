@@ -82,14 +82,17 @@ class_name LevelSim
 ## - Hero kinds (heroes design §6, §10.4; H2): the hero's run row is HeroKinds.def_for(hero, profile.hero),
 ##   cached in State.def at start_state (State.copy shares it): exactly Balance.HEROES[hero] for the starters
 ##   at phase 0; from heroes phase 2 with a v3 hero block, the hero's sheet with FINAL numbers (State.v3: the
-##   profile's dmg_mult / hp_mult / ult_rate_mult / Ult Rank are not applied again). A v3 hero that is not a
-##   starter attacks through HeroKinds.attack (its pattern and procs; the starters keep the path above), its
-##   ult runs the shape rules (drop, area, beam, fan, wall, ward, flock) and HeroKinds.hero_step keeps its
-##   own state (State.uc, the hero's HeroKinds.Clock: attack counters, the Healer revive pool, loss samples).
+##   profile's dmg_mult / hp_mult / ult_rate_mult / Ult Rank are not applied again; damage gates add
+##   x dmg_mult, HeroKinds.gate_damage). Every v3 row (the starters' too) attacks through HeroKinds.attack (its
+##   pattern and procs; the path above is the Meta-1 rows'), its ult runs the shape rules (drop, area, beam,
+##   fan, wall, ward, flock) or the timed / waves rules, HeroKinds.hero_step keeps its own state (State.uc, the
+##   hero's HeroKinds.Clock: attack counters, the Healer revive pool, loss samples), and its auto ult fires in
+##   every clash and siege, else by its §10.4 policy.
 ##   The verbs those rules use land here: a clash ward (Вартан's wall HP) and an exposure (x (1 + add) foe
-##   losses) in the clash / siege ticks, a silenced turret kills nothing, team buffs scale volleys (and give
-##   them statuses) and machines, a reveal opens hidden gates; Phantoms, Shielded and Armored are not
-##   modelled (strip and the Phantom reveal change nothing here), structures take no statuses.
+##   losses) in the clash / siege ticks, wards spend through KindView.WARD_SPEND, a silenced turret kills
+##   nothing, team buffs scale volleys (and give them statuses) and machines (bucket 2, HeroKinds.machines_b2),
+##   a gate reveal opens hidden gates; Phantoms, Shielded and Armored are not modelled (strip and the Phantom
+##   reveal change nothing here), structures take no statuses.
 
 enum K { TILE, COIN, RECRUITS, GATE, BARRICADE, BLADE, TURRET, SQUAD, GEODE, CRATE, FORTRESS, STAIRS }
 enum Mode { RUN, CLASH, SIEGE, WON, LOST }
@@ -842,15 +845,19 @@ static func hero_rate(s: State) -> float:
 	return float(s.def["rate"]) * Balance.power_mult(s.upgrade) * (1.0 + s.p_rate)
 
 
-## Hero damage per hit: (row damage + damage gates) x the profile's dmg_mult (1 on a v3 row: its damage is
-## final) x Reinforcements x the Prism. A Meta-1 row's damage is an integer (as Run reads it).
+## Hero damage per hit: (row damage + damage gates) x the profile's dmg_mult x Reinforcements x the Prism. A
+## Meta-1 row's damage is an integer (as Run reads it). A v3 row's damage is final, and its damage gates scale
+## with the hero's power as in the shipped game (HeroKinds.gate_damage: + gates x dmg_mult; owner, 10.10), so
+## only Reinforcements and the Prism apply on top (Run._hero_damage).
 static func hero_damage(s: State) -> float:
-	var base := float(s.def["damage"]) if s.v3 else float(int(s.def["damage"]))
-	return (base + float(s.p_dmg)) * s.hero_dmg * (1.0 + prism_amp(s))
+	if s.v3:
+		return HeroKinds.gate_damage(s.def, float(s.p_dmg)) * s.hero_dmg * (1.0 + prism_amp(s))
+	return (float(int(s.def["damage"])) + float(s.p_dmg)) * s.hero_dmg * (1.0 + prism_amp(s))
 
 
 static func _hero_attack(lv: Level, s: State, def: Dictionary, dt: float) -> void:
-	if s.v3 and not HeroKinds.starter(s.hero):
+	if s.v3:
+		# Every v3 row, the starters' too (§6: Горан's structure x1.5 and STAGGER, Руді's fork, Мейра's BRAND ...).
 		_kind_attack(lv, s, def, dt)
 		return
 	s.atk_cd -= dt
@@ -903,9 +910,9 @@ const ROW_KIND := {K.SQUAD: "squad", K.GATE: "gate", K.BARRICADE: "barricade", K
 		K.CRATE: "crate", K.FORTRESS: "fortress"}
 
 
-## A v3 hero's volley (heroes design §6 Run lines, H2): the starters' cooldown and targeting (corridor, range,
-## gates and crates, never the partner of a crate pair), then HeroKinds.attack applies the pattern and its
-## procs through the SimKindView (squad hits land MARK's vs there, as the starters' shots do).
+## A v3 row's volley (heroes design §6 Run lines, H2; the starters' v3 rows too): the Meta-1 cooldown and
+## targeting (corridor, range, gates and crates, never the partner of a crate pair), then HeroKinds.attack applies
+## the pattern and its procs through the SimKindView (squad hits land MARK's vs there, as the Meta-1 shots do).
 static func _kind_attack(lv: Level, s: State, def: Dictionary, dt: float) -> void:
 	s.atk_cd -= dt
 	if s.atk_cd > 0.0:
@@ -1096,10 +1103,11 @@ const KV_EXPOSE_K := 14         ## its add
 const KV_SILENCE_END := 15      ## run time a silenced turret fires again (KindView.silence)
 ## The timed status slots _statuses runs down.
 const KV_TIMED: Array[int] = [KV_MARK, KV_BURN, KV_JOLT, KV_CHILL, KV_SEAL, KV_STAGGER]
-## Ward kinds a hit of each kind may spend (KindView.absorb: a blade contact also spends a contact ward;
-## a clash tick spends the clash wards of Вартан's wall).
-const WARD_KINDS := {&"turret": [&"turret"], &"blade": [&"blade", &"contact"], &"contact": [&"contact"],
-		&"clash": [&"clash"]}
+## Ward kinds a hit of each kind may spend, in order: the one table both views share (KindView.WARD_SPEND; a
+## turret shot spends the Forgewall's ward, then a drone's, then a plain one; a blade contact the wall's contact
+## ward, then blade, then contact; a clash tick the clash wards of Вартан's wall HP). Kept under this name for
+## the callers that still read it here.
+const WARD_KINDS := KindView.WARD_SPEND
 
 static var _tethering := false
 
@@ -1352,32 +1360,36 @@ static func _tether_share(lv: Level, s: State, i: int, dealt: float) -> void:
 		_tethering = false
 
 
-## KindView.grant_ward: `charges` more wards against `kind` hits until `sec` s from now (charges add up,
-## the time keeps the longer; an expired ward starts over).
-static func grant_ward(s: State, kind: StringName, charges: float, sec: float) -> void:
+## KindView.grant_ward: `charges` more wards of ward kind `kind` until `sec` s from now (charges add up, the
+## time keeps the longer; an expired ward starts over). `replace`: the grant replaces what `kind` still holds
+## (charges 0 or `sec` 0 clears it: the drones' recharge, the Forgewall's end).
+static func grant_ward(s: State, kind: StringName, charges: float, sec: float, replace := false) -> void:
 	if charges <= 0.0 or sec <= 0.0:
+		if replace:
+			s.wards.erase(kind)
 		return
 	var w: Array = s.wards.get(kind, [0.0, 0.0])
-	if float(w[1]) <= s.t:
+	if replace or float(w[1]) <= s.t:
 		w = [0.0, 0.0]
 	s.wards[kind] = [float(w[0]) + charges, maxf(float(w[1]), s.t + sec)]
 
 
-## The ward charges a `kind` hit may spend now (WARD_KINDS).
+## The ward charges a `kind` hit may spend now (KindView.WARD_SPEND).
 static func ward_left(s: State, kind: StringName) -> float:
 	var n := 0.0
-	for wk: StringName in WARD_KINDS.get(kind, [kind]):
+	for wk: StringName in KindView.WARD_SPEND.get(kind, [kind]):
 		var w: Array = s.wards.get(wk, [])
 		if not w.is_empty() and float(w[1]) > s.t:
 			n += float(w[0])
 	return n
 
 
-## Spends up to `want` ward charges a `kind` hit may use (WARD_KINDS); returns the charges spent. One
-## charge = one hit = one soldier (LevelSim's fractional losses spend fractions).
+## Spends up to `want` ward charges a `kind` hit may use, in KindView.WARD_SPEND's order (the first kind with
+## charges left pays first); returns the charges spent. One charge = one hit = one soldier (LevelSim's
+## fractional losses spend fractions, where the Run's whole hits spend whole charges).
 static func ward_spend(s: State, kind: StringName, want: float) -> float:
 	var spent := 0.0
-	for wk: StringName in WARD_KINDS.get(kind, [kind]):
+	for wk: StringName in KindView.WARD_SPEND.get(kind, [kind]):
 		if spent >= want or not s.wards.has(wk):
 			continue
 		var w: Array = s.wards[wk]
@@ -1424,7 +1436,8 @@ static func silenced(s: State, i: int) -> bool:
 	return i >= 0 and o + KV <= s.kv.size() and s.kv[o + KV_SILENCE_END] > s.t
 
 
-## KindView.reveal: the hidden gates with d in [d0, d1] show their value (Phantoms are not modelled).
+## KindView.reveal(.., REVEAL_GATES): the hidden gates with d in [d0, d1] show their value (SimKindView answers a
+## Phantom reveal with nothing: Phantoms are not modelled).
 static func reveal(lv: Level, s: State, d0: float, d1: float) -> void:
 	var lo := _first_at(lv.d, lv.targ, d0)
 	for j in range(lo, lv.targ.size()):
@@ -1495,8 +1508,9 @@ const NEW_WORTH := 80.0
 
 static func _machines(lv: Level, s: State, dt: float) -> void:
 	var amp := prism_amp(s)
-	# A hero kind's machine buff (KindView.buff &"machines", bucket 2: Люмен form V); 0 without one.
-	var b2 := buff_value(s, &"machines") if not s.buffs.is_empty() else 0.0
+	# A hero kind's machine buff (KindView.buff &"machines": Люмен form V) joins the team part of bucket 2, never
+	# past TEAM_B2_CAP (HeroKinds.machines_b2); 0 without one.
+	var b2 := HeroKinds.machines_b2(buff_value(s, &"machines")) if not s.buffs.is_empty() else 0.0
 	for w: Array in s.weapons:
 		w[2] = float(w[2]) + dt
 		if float(w[2]) < MACHINE_TICK:
@@ -1520,7 +1534,8 @@ static func _machines(lv: Level, s: State, dt: float) -> void:
 			over += ArsenalData.overflow_bonus(k + 1)
 		var mult := (1.0 + over) * (1.0 + (amp if lane and str(w[0]) != "prism" else 0.0))
 		if b2 > 0.0:
-			mult *= 1.0 + b2
+			# Into the row's bucket-2 sum (its crowd / struct already carry x (1 + add)), not on top of it.
+			mult *= (float(row["b2"]) + b2) / float(row["b2"])
 		if lv.kind[i] == K.SQUAD:
 			if s.kv.is_empty():
 				_hurt(lv, s, i, (float(row["crowd"]) + float(row.get("burn", 0.0))) * tick * mult)
@@ -1613,8 +1628,9 @@ const SIM_GATLING_SPIN := 0.85      ## mean gatling spin
 
 ## LevelSim abstraction of one machine at one Rank: kills per second vs squads (`crowd`),
 ## damage per second vs structures (`struct`), `range`, verb flags (`lane`: fires down the hero
-## corridor; `place`: lands `place` u ahead within `radius`), `amp` (Prism) and `burn` (units/s
-## while the source keeps a squad burning). Matches the Run behaviours above on average.
+## corridor; `place`: lands `place` u ahead within `radius`), `amp` (Prism), `burn` (units/s
+## while the source keeps a squad burning) and `b2` (its bucket 2, 1 + add, already in crowd and struct).
+## Matches the Run behaviours above on average.
 static func sim_row(id: String, s: Dictionary, add: float, mods: Dictionary = {}) -> Dictionary:
 	var b2 := 1.0 + add
 	var dmg := float(s.get("damage", 0.0))
@@ -1669,6 +1685,7 @@ static func sim_row(id: String, s: Dictionary, add: float, mods: Dictionary = {}
 			row["struct"] = float(sim.get("dps", 0.0)) * float(sim.get("structure_mult", 1.0))
 	row["crowd"] = float(row["crowd"]) * b2
 	row["struct"] = float(row["struct"]) * b2
+	row["b2"] = b2
 	return row
 
 

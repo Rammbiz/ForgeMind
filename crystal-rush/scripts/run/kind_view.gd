@@ -11,12 +11,27 @@ extends RefCounted
 ## threat_ahead, hazard_near, army, fx. ChampionKinds (H2) uses: army, in_fight, squads_in,
 ## hazards_in, hit, status, add_soldiers, fx (the champ_* events listed at ChampionKinds.FX).
 ## HeroKinds (H2, the v3 hero kinds of §6) also uses: squads_in, hazards_in, structures_in, gates_in,
-## hit, status, hold, ground, expose, strip, silence, reveal, grant_ward, buff, add_soldiers,
-## champions, revive_champion, siege, army()["lost"] and the clock's H2 fields (HeroKinds.Clock: the
-## hero kind's counters persist in the view's clock from ult to ult).
+## hit, status, hold, ground, expose, strip, silence, reveal (gates | phantoms), grant_ward (WARD_SPEND's
+## kinds, replace), buff, add_soldiers, champions, revive_champion, siege, army()["lost"] and the clock's H2
+## fields (HeroKinds.Clock: the hero kind's counters persist in the view's clock from ult to ult). An H2
+## shape's clock stays active (left > 0) through its last step's hits and its end parts, so nothing they kill
+## charges the next ult (HeroKinds._shape_step; the Meta-1 timed path is unchanged).
 ## Target ids are ints the view owns (Run: RunKindView maps them to the run's item dictionaries,
 ## LevelSim: the item index); hit / status accept exactly the ids squads_in / hazards_in /
 ## structures_in / gates_in returned.
+
+## Ward kinds a hit of each kind may spend, in this order (grant_ward / absorb; both views spend through
+## this one table: a whole hit spends one charge of the first kind holding >= 1 whole charge, LevelSim's
+## fractional losses spend fractions in the same order). Grant kinds: turret, blade, contact, clash (a
+## hero kind's ult or proc), wall_turret / wall_contact (Вартан's Forgewall: they end with the wall),
+## drone (Вартан's ward-drones: each recharge's grant replaces the last, it never banks).
+const WARD_SPEND := {&"turret": [&"wall_turret", &"drone", &"turret"],
+		&"blade": [&"wall_contact", &"blade", &"contact"], &"contact": [&"wall_contact", &"contact"],
+		&"clash": [&"clash"]}
+## What reveal() opens: hidden gates (Мейра's row reveal, her rift III) or Phantom squads (Пава IV Eyes Wide,
+## Мейра's Umbral Mark, Пава's Watchful eyes; no view models Phantoms yet: a no-op until they exist).
+const REVEAL_GATES := &"gates"
+const REVEAL_PHANTOMS := &"phantoms"
 
 
 # ------------------------------------------------------------------ H0: starters' rules
@@ -171,19 +186,22 @@ func hold(_squad_id: int, _s: float, _strength := 1.0) -> void:
 	pass
 
 
-## Takes one hit of `kind` (turret | blade | contact = a blade or barricade contact) off the army if
-## a shield / ward is up (hero ult wards: Пава, Вартан); true = absorbed (consumes one charge). A blade
-## hit spends a blade ward first, then a contact ward; a barricade hit (contact) only contact wards.
-## The owners ask at every hit (LevelSim._hazards / _turrets spend fractions per soldier lost).
+## Takes one hit of `kind` (turret | blade | contact = a barricade contact) off the army if a ward is up
+## (hero wards: Пава, Вартан); true = absorbed: one charge of the first ward kind of WARD_SPEND[kind] that
+## holds >= 1 whole charge is spent (a turret shot: the wall's, then a drone's, then a plain turret ward; a
+## blade: the wall's contact ward, then blade, then contact). The owners ask at every hit (LevelSim._hazards /
+## _turrets spend fractions per soldier lost, in the same order).
 func absorb(_kind: StringName) -> bool:
 	return false
 
 
-## The per-run ward store absorb() spends: `charges` more wards against `kind` hits (turret | blade |
-## contact | clash) for `s` seconds (a hero kind's ult grants them; charges add up, the time keeps the
-## longer, an expired ward starts over). `clash` (Вартан's wall HP): each charge takes one soldier of the
-## army's clash / siege losses before the army loses it (the owner's clash tick spends it). No-op by default.
-func grant_ward(_kind: StringName, _charges: int, _s: float) -> void:
+## The per-run ward store absorb() spends: `charges` more wards of ward kind `kind` (see WARD_SPEND: turret |
+## blade | contact | clash | wall_turret | wall_contact | drone) for `s` seconds. A grant adds its charges and
+## keeps the longer time (an expired ward starts over); with `replace` it replaces whatever that kind still
+## holds (charges and time: the drones' recharge, the wall's end; charges 0 or `s` 0 clears the kind at once).
+## `clash` (Вартан's wall HP): each charge takes one soldier of the army's clash / siege losses before the army
+## loses it (the owner's clash tick spends it). No-op by default.
+func grant_ward(_kind: StringName, _charges: int, _s: float, _replace := false) -> void:
 	pass
 
 
@@ -219,15 +237,18 @@ func silence(_turret_id: int, _s: float) -> void:
 	pass
 
 
-## Hidden gates and Phantom squads with d in [d0, d1] are revealed (Мейра form III, Пава form IV, a row
-## reveal of a hero hit, Мейра's beat 6).
-func reveal(_d0: float, _d1: float) -> void:
+## `what` with d in [d0, d1] is revealed: REVEAL_GATES = the hidden gates show their value (Мейра's row
+## reveal of a gate hit, her rift III), REVEAL_PHANTOMS = the Phantom squads (Пава IV Eyes Wide, Мейра's
+## Umbral Mark; her rift III reveals both). A Phantom reveal never opens a gate.
+func reveal(_d0: float, _d1: float, _what: StringName) -> void:
 	pass
 
 
 ## A timed team buff for `s` seconds (a new one keeps the larger value and the longer time): &"volleys"
-## = army volley damage x (1 + value) (Веста's Sun Field), &"machines" = machine damage + value (bucket 2,
-## inside TEAM_B2_CAP; Люмен form V), &"volley_status" = every army volley also applies data.statuses (id ->
-## stacks) to its target (Сірко form V).
+## = army volley damage x (1 + value) (Веста's Sun Field), &"machines" = machine damage + value (Люмен form V:
+## it joins the team part of bucket 2, HeroKinds.machines_b2: with the team's other bucket-2 adds it never
+## passes TeamData.TEAM_B2_CAP; Run: Weapons._b2, LevelSim: _machines' bucket-2 sum, never an outer
+## multiplier), &"volley_status" = every army volley also applies data.statuses (id -> stacks) to its target
+## (Сірко form V).
 func buff(_kind: StringName, _value: float, _s: float, _data := {}) -> void:
 	pass

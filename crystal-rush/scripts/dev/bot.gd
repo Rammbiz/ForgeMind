@@ -4,8 +4,9 @@ class_name Bot
 ## run, keeps its current line unless another is clearly better (hysteresis), then calls
 ## run.steer_to(x). It fires the ult when LevelSim.ult_worth() says so: HeroKinds.ult_worth for every
 ## kind (heroes design §10.4): a Meta-1 row (the starters at phase 0) keeps the Meta-1 rule (a big squad /
-## the fortress / (titan) a hazard ahead), a v3 row reads its kind's §10.4 policy (the snapshot carries
-## the run's hero clock, so Пава's army-loss window and the hero kind's counters are the live ones).
+## the fortress / (titan) a hazard ahead), a v3 row fires in every clash and siege (the snapshot mirrors both)
+## and otherwise reads its kind's §10.4 policy (the snapshot carries the run's hero clock, so Пава's army-loss
+## window and the hero kind's counters are the live ones).
 ##
 ## Modes: "best" (the planner), "lazy" (always x 0), "random" (a new random x every 4-10 u).
 ## `skill` < 1 adds aim noise, a reaction delay and the odd random pick. Call reset() between
@@ -22,6 +23,7 @@ const BEHIND := 8.0
 const STATE_READY := 0
 const STATE_RUNNING := 1
 const STATE_CLASH := 2
+const STATE_SIEGE := 3
 
 var mode := "best"
 var skill := 1.0
@@ -260,5 +262,9 @@ func snapshot(run: Object, fog := true) -> Array:
 			if str(live[i]["kind"]) == "squad" and s.alive[i] == 1 and absf(float(live[i]["d"]) - Balance.CONTACT - d) < 0.6:
 				s.mode = LevelSim.Mode.CLASH
 				s.foe = i
+	elif int(run.get("state")) == STATE_SIEGE and lv.fortress >= 0 and s.alive[lv.fortress] == 1:
+		# The siege: the snapshot fights the fortress too (SimKindView.siege / in_fight: a v3 ult fires there).
+		s.mode = LevelSim.Mode.SIEGE
+		s.foe = lv.fortress
 	LevelSim.sync_cursors(lv, s)
 	return [lv, s]

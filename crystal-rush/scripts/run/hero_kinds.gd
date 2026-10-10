@@ -10,22 +10,22 @@ extends RefCounted
 ## autotests stay identical). From V3_PHASE (H2) with a v3 hero block in the profile (Meta.run_profile
 ## in dev runs) every hero of §6 runs on its sheet: def_for builds the row from HeroData (the attack at
 ## its Attack rank, the ult at its form, x the v3 multipliers), the ult shapes drop / area / beam / fan /
-## wall / ward / flock join timed and waves, attack() runs the new heroes' patterns and procs,
-## hero_step() keeps the hero kind's timers, and ult_worth() reads the §10.4 policies (HeroData.ULTS
-## policy, the POLICY_WHEN vocabulary).
+## wall / ward / flock join timed and waves, attack() runs every v3 row's pattern and procs (the starters'
+## too), hero_step() keeps the hero kind's timers, and ult_worth() fires in every clash and siege and
+## otherwise reads the §10.4 policies (HeroData.ULTS policy, the POLICY_WHEN vocabulary).
 ##
 ## A v3 row (def.v3 = true) carries FINAL numbers: hp x hp_mult (x the Guardian's Bulwark), damage x
 ## dmg_mult (a float), ult.charge / ult_rate_mult, the ult's kills / breaks / heal / return / wall_hp
 ## (and its extra's kills / breaks) x ult_power (ult.power records it, and the rules then never
 ## multiply by view.ult_power()). An owner applies none of the hero block's multipliers on a v3 row
-## again (Reinforcements dmg_add, damage gates and team synergies still apply). def.mults lists what
-## was applied.
+## again (Reinforcements dmg_add and team synergies still apply; damage gates add x dmg_mult, gate_damage).
+## def.mults lists what was applied.
 ##
 ## FX (view.fx): timed and waves keep ult_cast, ult_step, ult_tick, ult_tick_done, ult_end, ult_wave,
 ## ult_waves_end; every other shape sends SHAPE_FX with one Dictionary {kind, form, shape, phase:
 ## &"start" | &"hit" | &"end", d, x, r, d0, d1, x0, x1, angle, reach, charges, s, targets} (unused keys
-## left out) at its start, at each hit and at its end; a v3 attack volley of a new hero sends ATTACK_FX
-## {pattern, targets, d, x, proc} (the starters keep their own attack path and fx).
+## left out) at its start, at each hit and at its end; a v3 attack volley sends ATTACK_FX {pattern, targets,
+## d, x, proc} (the Run draws the starters' volleys with their own shot fx).
 
 ## The phase the heroes feature runs at: 0 = shipped Meta-1 (2.2.x), 1 = rules and data,
 ## 2 = champions in the run, 3 = meta UI on. The one flag is EconData.HEROES_PHASE (WS-B).
@@ -100,9 +100,11 @@ const ULTS := {
 	&"doves": {"shape": FLOCK, "slows": false},
 }
 
-## Dev tools only (test_hero_kinds --measure --fallback), never set by the game: a v3 policy also fires in a
-## clash or the siege, as Meta-1's rule did (the §10.4 table alone leaves some kinds idle on sparse levels).
-static var fight_fallback := false
+## The Forgewall's ward kinds (KindView.WARD_SPEND): they end with the wall (_wall_end clears them).
+const WALL_WARDS: Array[StringName] = [&"wall_turret", &"wall_contact", &"clash"]
+## The clock's `left` while an H2 shape's last step and its end parts run (_shape_step): still active, so
+## their kills never charge the next ult.
+const END_HOLD := 0.001
 
 ## Forked Fox (Руді's default Aspect): every FORK_EVERY-th cast chains to one more target.
 const FORK_ASPECT := "forked_fox"
@@ -245,7 +247,8 @@ static func is_timed(kind: StringName) -> bool:
 	return ult_row(kind)["shape"] == TIMED
 
 
-## True for the Meta-1 starters (a Balance.HEROES row): they keep their own attack path and fx at every phase.
+## True for the Meta-1 starters (a Balance.HEROES row): the Run draws their volleys with their own shot fx at every
+## phase; on a v3 row (from V3_PHASE) the volleys themselves run through attack(), as every hero's.
 static func starter(hero: String) -> bool:
 	return Balance.HEROES.has(hero)
 
@@ -343,6 +346,15 @@ static func _v3_row(hero_id: String, b: Dictionary) -> Dictionary:
 		out["charge_mult"] = float(atk["charge_mult"])
 	if int(atk.get("reveal_rows", 0)) > 0:
 		out["reveal_row"] = true
+	# hero_step's timers, read every step: cached here so the step reads plain numbers (no lookups, no
+	# defaults to build). drones = Вартан's ward-drones (beat 6: the contact drone), guard = Пава's beat 9.
+	out["drones"] = int(atk.get("drones", 0))
+	out["drone_recharge"] = float(atk.get("drone_recharge", 6.0))
+	out["drone_contact_cd"] = float(atk.get("drone_contact_cd", 0.0))
+	var gp: Dictionary = (atk.get("procs", {}) as Dictionary).get("guard", {})
+	var gk: Array = gp.get("kinds", ["turret"])
+	out["guard_cd"] = float(gp.get("cd", 10.0)) if not gp.is_empty() else 0.0
+	out["guard_kind"] = StringName(str(gk[0])) if not gk.is_empty() else &"turret"
 	var u := HeroData.ult_numbers(String(kind), form)
 	for k: String in POWER_KEYS:
 		if u.has(k):
@@ -386,6 +398,21 @@ static func _element_color(el: String) -> Color:
 ## power (Meta-1).
 static func _pw(view: KindView, u: Dictionary) -> float:
 	return 1.0 if u.has("power") else view.ult_power()
+
+
+## Hero damage per hit of a v3 row with `gates` damage from "+1 шкода" gates (power.dmg), before Reinforcements
+## and the Prism (both views apply those on top): the gates scale with the hero's power as in the shipped game
+## (Meta-1: (damage + gates) x dmg_mult), so a v3 row's final damage + gates x its dmg_mult (owner, 10.10).
+static func gate_damage(def: Dictionary, gates: float) -> float:
+	var m: Dictionary = def.get("mults", {})
+	return float(def["damage"]) + gates * float(m.get("dmg_mult", 1.0))
+
+
+## The team part of bucket 2 a machine gets from Люмен V's &"machines" buff (`buff`) on top of the team's other
+## bucket-2 adds (`team`: Affinity, Celestials, Rally; neither view applies those yet): never past
+## TeamData.TEAM_B2_CAP. Both views add it into the machine's bucket-2 sum (Weapons._b2, LevelSim._machines).
+static func machines_b2(buff: float, team := 0.0) -> float:
+	return minf(TeamData.TEAM_B2_CAP, maxf(team, 0.0) + maxf(buff, 0.0))
 
 
 # ------------------------------------------------------------------ ult rules
@@ -473,7 +500,8 @@ static func ult_step(view: KindView, kind: StringName, u: Dictionary, dt: float)
 ## and Phantoms <= reveal u revealed while it is open).
 static func _timed_riders(view: KindView, u: Dictionary, c: Clock, d: float) -> void:
 	if u.has("reveal"):
-		view.reveal(d, d + float(u["reveal"]))
+		view.reveal(d, d + float(u["reveal"]), KindView.REVEAL_GATES)
+		view.reveal(d, d + float(u["reveal"]), KindView.REVEAL_PHANTOMS)
 	var fm := float(u.get("flying_mult", 1.0))
 	if not u.has("statuses") and fm == 1.0 and not u.has("ground_after"):
 		return
@@ -562,11 +590,12 @@ static func _shape_cast(view: KindView, _kind: StringName, shape: StringName, u:
 			c.hp = float(u.get("wall_hp", 0.0)) * float(u.get("wall_hp_mult", 1.0))
 			var dur := float(u.get("duration", 0.0))
 			var ab: Dictionary = u.get("absorb", {})
+			# The wall's own ward kinds (WALL_WARDS): a new wall replaces what an older one left; they end with it.
 			if ab.has("turret"):
-				view.grant_ward(&"turret", ALL_CHARGES if int(ab["turret"]) < 0 else int(ab["turret"]), dur)
+				view.grant_ward(&"wall_turret", ALL_CHARGES if int(ab["turret"]) < 0 else int(ab["turret"]), dur, true)
 			if c.hp > 0.0:
 				# The wall's HP takes the clash losses of the squads that reach it first (ward kind "clash").
-				view.grant_ward(&"clash", ceili(c.hp), dur)
+				view.grant_ward(&"clash", ceili(c.hp), dur, true)
 			var hw2 := float(u.get("width", 6.0)) * 0.5
 			more = {"d": d + float(u.get("ahead", 0.0)), "x0": c.x - hw2, "x1": c.x + hw2, "s": dur,
 					"charges": ceili(c.hp)}
@@ -622,10 +651,15 @@ static func _revive(view: KindView, count: int, hp: float) -> int:
 	return done
 
 
+## One step of a running H2 shape. The clock stays active (left >= END_HOLD) while this step's hits and, on
+## the last step, _shape_end run: in the Run the view's clock IS the ult clock, so a kill there would otherwise
+## charge the next ult (Люмен IV's Crown Shards, Вартан IV's Landslide, Пава IV's Eyes Wide); LevelSim's
+## State.ult_left keeps its value until store_clock, so both views now refuse those points alike.
 static func _shape_step(view: KindView, _kind: StringName, shape: StringName, u: Dictionary, dt: float) -> void:
 	var c := view.clock()
 	c.t += dt
-	c.left -= dt
+	var left := c.left - dt
+	c.left = maxf(left, END_HOLD)
 	match shape:
 		DROP:
 			_drop_step(view, u, c, dt)
@@ -641,10 +675,12 @@ static func _shape_step(view: KindView, _kind: StringName, shape: StringName, u:
 			_ward_step(view, u, c)
 		FLOCK:
 			_flock_step(view, u, c, dt)
-	if c.left <= 0.0:
+	if left <= 0.0:
 		_shape_end(view, shape, u, c)
 		c.left = 0.0
 		view.fx(SHAPE_FX, _fxd(u, &"end", {"d": view.distance(), "x": c.x}))
+	else:
+		c.left = left
 	view.store_clock(c)
 
 
@@ -1035,11 +1071,12 @@ static func _fan_end(view: KindView, u: Dictionary, c: Clock) -> void:
 # ---- wall (Вартан's forgewall)
 
 ## A knee-high wall `width` u wide, `ahead` u in front, travelling with the army for `duration` s. At the cast
-## (_shape_cast) it takes every turret shot at the army (a `turret` ward) and its HP (wall_hp x wall_hp_mult)
-## takes the clash losses of the squads that reach it (a `clash` ward). Each squad reaching it (not Flying)
-## is hit once: kills + riders (STAGGER). The first barricade or blade it reaches (absorb.contact): a
-## barricade takes contact_breaks and the army's contact with it is warded (a `contact` ward for every
-## soldier until the army has passed it). Form III: rivet turrets (_rivets). Form IV at the end (_wall_end).
+## (_shape_cast) it takes every turret shot at the army (a `wall_turret` ward) and its HP (wall_hp x
+## wall_hp_mult) takes the clash losses of the squads that reach it (a `clash` ward). Each squad reaching it
+## (not Flying) is hit once: kills + riders (STAGGER). The first barricade or blade it reaches
+## (absorb.contact): a barricade takes contact_breaks and the army's contact with it is warded (a
+## `wall_contact` ward for every soldier until the army has passed it). Every wall ward ends with the wall
+## (_wall_end). Form III: rivet turrets (_rivets). Form IV at the end (_wall_end).
 static func _wall_step(view: KindView, u: Dictionary, c: Clock, dt: float) -> void:
 	var d := view.distance()
 	var a := view.army()
@@ -1068,10 +1105,10 @@ static func _wall_step(view: KindView, u: Dictionary, c: Clock, dt: float) -> vo
 			c.parts["contact"] = int(h["id"])
 			if kind == "barricade" and float(u.get("contact_breaks", 0.0)) > 0.0:
 				view.hit(int(h["id"]), float(u["contact_breaks"]), {"src": "hero", "kind": &"ult"})
-			# The army's rear passes the hazard in about this long (it runs at RUN_SPEED).
+			# The army's rear passes the hazard in about this long (it runs at RUN_SPEED); the wall's end cuts it.
 			var rear := float(a["d"]) - float(a["radius"]) * Balance.BLOB_STRETCH
 			var pass_s := maxf(float(h["d"]) - rear, 0.0) / Balance.RUN_SPEED + 0.3
-			view.grant_ward(&"contact", maxi(ceili(float(a["n"])), 1), pass_s)
+			view.grant_ward(&"wall_contact", maxi(ceili(float(a["n"])), 1), pass_s, true)
 			rows.append(h)
 			break
 	if u.get("turrets") is Dictionary:
@@ -1112,9 +1149,14 @@ static func _rivets(view: KindView, t: Dictionary, c: Clock, dt: float, d: float
 	view.fx(SHAPE_FX, {"kind": &"rivets", "phase": &"hit", "d": d, "x": ax, "targets": tg})
 
 
-## Вартан IV Landslide (extra at end, target strip): the wall topples forward, a strip `width` u wide from the
-## wall to `to` u ahead of the hero: kills / breaks.
+## The wall's end: its wards end with it (WALL_WARDS cleared: the turret ward, the contact ward of a barricade
+## the army is still passing, what is left of its HP). Вартан IV Landslide (extra at end, target strip): the
+## wall topples forward, a strip `width` u wide from the wall to `to` u ahead of the hero: kills / breaks.
 static func _wall_end(view: KindView, u: Dictionary, c: Clock) -> void:
+	if not c.parts.has("wards_off"):
+		c.parts["wards_off"] = true
+		for wk: StringName in WALL_WARDS:
+			view.grant_ward(wk, 0, 0.0, true)
 	if not u.get("extra") is Dictionary or c.parts.has("extra"):
 		return
 	var ex: Dictionary = u["extra"]
@@ -1145,8 +1187,8 @@ static func _ward_step(view: KindView, u: Dictionary, c: Clock) -> void:
 
 
 ## At the close min(recorded, return + return_pool x the revive pool) soldiers come back (the pool pays the
-## part above `return`); form IV Eyes Wide: every squad on the screen loses kills, the screen's hidden gates
-## and Phantoms are revealed and the Phantoms MARKed.
+## part above `return`); form IV Eyes Wide: every squad on the screen loses kills, the screen's Phantoms are
+## revealed (KindView.REVEAL_PHANTOMS; hidden gates stay hidden) and MARKed.
 static func _ward_close(view: KindView, u: Dictionary, c: Clock) -> void:
 	if c.parts.has("closed"):
 		return
@@ -1170,7 +1212,8 @@ static func _ward_close(view: KindView, u: Dictionary, c: Clock) -> void:
 				view.status(id, &"mark", 0.0)
 			tg.append(id)
 		if ex.has("reveal"):
-			view.reveal(d - 0.5, d + reach)
+			# Eyes Wide reveals the Phantoms only (§6.10), never a hidden gate.
+			view.reveal(d - 0.5, d + reach, KindView.REVEAL_PHANTOMS)
 	view.fx(SHAPE_FX, _fxd(u, &"hit", {"d": d, "x": float(view.army()["x"]), "charges": int(back), "targets": tg}))
 
 
@@ -1318,18 +1361,19 @@ static func _proc_hit(c: Clock, st: String, p: float) -> bool:
 	return n % maxi(int(round(1.0 / minf(p, 1.0))), 1) == 0
 
 
-## One volley of a v3 hero's attack (HeroData.ATTACKS at the row's Attack rank; the starters keep their own
-## path). `targets` = the owner's targeting for this volley, nearest first, unique ({id, kind: squad | gate |
-## barricade | turret | geode | crate | fortress, d, x, op (a gate's face), flying}); `shots` = the shots of
-## the volley (volley_shots + power gates: spare shots hit the last target again, a beam's spare rays
-## converge on the first for x focus_mult); `dmg` = hero damage per hit (every multiplier the owner applies:
-## damage gates, Reinforcements, the Prism). Squad hits: dmg + splash, x Cleave on the squad in the clash, the
+## One volley of a v3 hero's attack (HeroData.ATTACKS at the row's Attack rank). `targets` = the owner's
+## targeting for this volley, nearest first, unique ({id, kind: squad | gate | barricade | turret | geode | crate
+## | fortress, d, x, op (a gate's face), flying}); `shots` = the shots of the volley (volley_shots + power
+## gates: spare shots hit the last target again, a beam's spare rays converge on the first for x focus_mult);
+## `dmg` = hero damage per hit (every multiplier the owner applies: damage gates, Reinforcements, the Prism). Squad hits: dmg + splash, x Cleave on the squad in the clash, the
 ## attack's statuses by proc, `pierce` more squads behind in the corridor; structures x structure_mult; gates
 ## take hero hits (x charge_mult on a charge face; the row reveal with reveal_row). Every-Nth procs by cast:
 ## throw (the shot goes to the farthest hostile <= reach for x mult), comet / lance (the corridor, x mult),
-## dove (the farthest structure <= reach, else the biggest squad), mend (soldiers from the revive pool), eye,
-## double, burst, mark, strip; on-event procs: echo (structure), burst (break / structure), bounce (kill),
-## flinch (wipe). Sends ATTACK_FX.
+## dove (the farthest structure <= reach, else the biggest squad), fork (a plain volley chains on, _fork), mend
+## (soldiers from the revive pool), eye, double, burst, mark, strip; on-event procs: echo (structure), burst
+## (break / structure), bounce (kill), flinch (wipe). Sends ATTACK_FX. From V3_PHASE the starters attack through
+## it too (their §6 rules: Горан structure_mult / STAGGER / echo / burst, Руді grounding / fork / lance, Мейра
+## BRAND / bounce / mark, the row reveal and charge gates x1.5); at phase 0 they keep their Meta-1 path.
 static func attack(view: KindView, def: Dictionary, targets: Array, shots: int, dmg: float) -> void:
 	if targets.is_empty():
 		return
@@ -1417,9 +1461,44 @@ static func attack(view: KindView, def: Dictionary, targets: Array, shots: int, 
 				view.hold(int(first["id"]), float(tp2.get("weaken_s", 3.0)), float(tp2["weaken"]))
 		if proc == &"dove":
 			_statuses(view, int(first["id"]), (procs["dove"] as Dictionary).get("statuses", {}), procs["dove"])
+		if plain and procs.has("fork") and _due(procs["fork"], no) \
+				and _fork(view, def, c, procs["fork"], first, dmg, d, hit_ids):
+			proc = &"fork"
 	_volley_procs(view, c, procs, no, shot_targets[0])
 	view.fx(ATTACK_FX, {"pattern": pattern, "targets": hit_ids, "d": float((shot_targets[0] as Dictionary)["d"]),
 			"x": float((shot_targets[0] as Dictionary)["x"]), "proc": proc})
+
+
+## Руді's Forked Fox (the `fork` proc on its every-Nth cast, §6.3): the dart chains from squad `t` to `targets`
+## more squads within `r` u (nearest first, none struck this volley), `chains` jumps, each from the last squad
+## it struck. A forked hit is a hero hit of `n` (its riders: grounding, the attack's statuses) and carries the
+## fork's own statuses by proc (beat 9 Stormcaller: JOLT). Adds the squads struck to `hit_ids`; true when one
+## was. On a v3 row it replaces the Meta-1 Forked Fox aspect's extra shot.
+static func _fork(view: KindView, def: Dictionary, c: Clock, fp: Dictionary, t: Dictionary, n: float, d: float,
+		hit_ids: Array[int]) -> bool:
+	if str(t["kind"]) != "squad":
+		return false
+	var r := float(fp.get("r", 4.0))
+	var fd := float(t["d"])
+	var fx := float(t["x"])
+	var struck := false
+	for j in maxi(int(fp.get("chains", 1)), 1):
+		var near: Array = []
+		for sq: Dictionary in view.squads_in(fd - r, fd + r, fx - r, fx + r):
+			if not hit_ids.has(int(sq["id"])):
+				near.append([absf(float(sq["d"]) - fd) + absf(float(sq["x"]) - fx), sq])
+		if near.is_empty():
+			break
+		near.sort_custom(func(p: Array, q: Array) -> bool: return float(p[0]) < float(q[0]))
+		for k in mini(maxi(int(fp.get("targets", 1)), 1), near.size()):
+			var row := _as_target(near[k][1])
+			_hit_one(view, def, c, row, n, d)
+			_attack_statuses(view, c, def, int(row["id"]), fp)
+			hit_ids.append(int(row["id"]))
+			struck = true
+			fd = float(row["d"])
+			fx = float(row["x"])
+	return struck
 
 
 ## A row of squads_in (no "kind") as an attack target row.
@@ -1442,12 +1521,12 @@ static func _hit_one(view: KindView, def: Dictionary, c: Clock, t: Dictionary, n
 			var hits := float(def.get("charge_mult", 1.0)) if str(t.get("op", "")) == "charge" else 1.0
 			view.hit(id, hits, {"src": "hero", "kind": &"gate"})
 			if bool(def.get("reveal_row", false)):
-				view.reveal(float(t["d"]) - 0.01, float(t["d"]) + 0.01)
+				view.reveal(float(t["d"]) - 0.01, float(t["d"]) + 0.01, KindView.REVEAL_GATES)
 				if int(atk.get("reveal_rows", 1)) > 1:
 					var next := view.gates_in(float(t["d"]) + 0.1, float(t["d"]) + SCREEN)
 					if not next.is_empty():
 						var nd := float((next[0] as Dictionary)["d"])
-						view.reveal(nd - 0.01, nd + 0.01)
+						view.reveal(nd - 0.01, nd + 0.01, KindView.REVEAL_GATES)
 		"squad":
 			var cleave := float(def.get("cleave", 1.0))
 			var k := n + (float(def.get("splash", 0.0)) if splash else 0.0)
@@ -1558,9 +1637,9 @@ static func _on_structure(view: KindView, def: Dictionary, c: Clock, t: Dictiona
 				view.hit(int(h2["id"]), v, {"src": "hero", "kind": &"attack"})
 
 
-## The volley's every-Nth side procs: mend (soldiers from the revive pool), eye (planted on the squad hit),
-## burst (`kills` on the squads <= r of the target + statuses), mark (MARK the target, reveal <= reveal u),
-## strip (a burning strip across the bridge `depth` u at the target).
+## The volley's every-Nth side procs: mend (soldiers from the revive pool), eye (planted on the squad hit; beat 6
+## reveals a Phantom), burst (`kills` on the squads <= r of the target + statuses), mark (MARK the target, the
+## Phantoms <= reveal u revealed), strip (a burning strip across the bridge `depth` u at the target).
 static func _volley_procs(view: KindView, c: Clock, procs: Dictionary, no: int, t: Dictionary) -> void:
 	if procs.has("mend") and _due(procs["mend"], no):
 		var want := float((procs["mend"] as Dictionary).get("soldiers", 1))
@@ -1571,6 +1650,9 @@ static func _volley_procs(view: KindView, c: Clock, procs: Dictionary, no: int, 
 		var ep: Dictionary = procs["eye"]
 		c.eyes[int(t["id"])] = [float(t["d"]), float(ep.get("soldiers", 1))]
 		_statuses(view, int(t["id"]), ep.get("statuses", {}), ep)
+		if bool(ep.get("reveals", false)):
+			# Пава beat 6 Watchful: the Eye shows a Phantom for what it is.
+			view.reveal(float(t["d"]) - 0.5, float(t["d"]) + 0.5, KindView.REVEAL_PHANTOMS)
 	if procs.has("burst") and _due(procs["burst"], no):
 		var bp: Dictionary = procs["burst"]
 		var r := float(bp.get("r", 1.5))
@@ -1583,7 +1665,8 @@ static func _volley_procs(view: KindView, c: Clock, procs: Dictionary, no: int, 
 		var mp: Dictionary = procs["mark"]
 		view.status(int(t["id"]), &"mark", float(mp.get("mark_s", 3.0)))
 		if float(mp.get("reveal", 0.0)) > 0.0:
-			view.reveal(float(t["d"]) - float(mp["reveal"]), float(t["d"]) + float(mp["reveal"]))
+			var rv := float(mp["reveal"])
+			view.reveal(float(t["d"]) - rv, float(t["d"]) + rv, KindView.REVEAL_PHANTOMS)
 	if procs.has("strip") and _due(procs["strip"], no):
 		var sp: Dictionary = procs["strip"]
 		var td2 := float(t["d"])
@@ -1620,9 +1703,10 @@ static func _farthest(view: KindView, d0: float, d1: float, structures_only: boo
 
 ## One step of a v3 hero's own state (owners call it every step after the ult): the Healer revive pool
 ## (mend_share of every soldier lost), the loss samples of the army_loss policy, Pava's Eyes (a wiped squad
-## gives its soldiers back from the pool), Вартан's ward-drones (`drones` turret wards every drone_recharge
-## s; beat 6: a contact ward every drone_contact_cd s), Pava's beat 9 guard, Пава's Awakening (a fallen
-## champion stands up again after 11 - rank s at 30% HP, once per level). No-op on a Meta-1 row.
+## gives its soldiers back from the pool), Вартан's ward-drones (`drones` drone wards every drone_recharge
+## s, each recharge replacing the last; beat 6: a contact ward every drone_contact_cd s), Pava's beat 9 guard,
+## Пава's Awakening (a fallen champion stands up again after 11 - rank s at 30% HP, once per level). No-op on a
+## Meta-1 row.
 static func hero_step(view: KindView, def: Dictionary, dt: float) -> void:
 	if not scaled(def):
 		return
@@ -1644,27 +1728,26 @@ static func hero_step(view: KindView, def: Dictionary, dt: float) -> void:
 		_eyes(view, c)
 		_awakening(view, def, c)
 	c.cds["sample"] = cd
-	var atk: Dictionary = def.get("atk", {})
-	if int(atk.get("drones", 0)) > 0:
-		_every(view, c, "drones", float(atk.get("drone_recharge", 6.0)), dt, &"turret", int(atk["drones"]))
-		if float(atk.get("drone_contact_cd", 0.0)) > 0.0:
-			_every(view, c, "drone_contact", float(atk["drone_contact_cd"]), dt, &"contact", 1)
-	var procs: Dictionary = atk.get("procs", {})
-	if procs.has("guard"):
-		var gp: Dictionary = procs["guard"]
-		var kinds: Array = gp.get("kinds", ["turret"])
-		var gk: StringName = StringName(str(kinds[0])) if not kinds.is_empty() else &"turret"
-		_every(view, c, "guard", float(gp.get("cd", 10.0)), dt, gk, 1)
+	# The row's cached timers (_v3_row: drones, drone_recharge, drone_contact_cd, guard_cd, guard_kind).
+	var drones := int(def.get("drones", 0))
+	if drones > 0:
+		# Вартан's ward-drones: `drone` wards (a turret shot spends the wall's first, then these).
+		_every(view, c, "drones", float(def["drone_recharge"]), dt, &"drone", drones)
+		if float(def["drone_contact_cd"]) > 0.0:
+			_every(view, c, "drone_contact", float(def["drone_contact_cd"]), dt, &"contact", 1)
+	if float(def.get("guard_cd", 0.0)) > 0.0:
+		_every(view, c, "guard", float(def["guard_cd"]), dt, def["guard_kind"], 1)
 	view.store_clock(c)
 
 
-## Grants `charges` wards of `kind` every `period` s (each grant lasts the period, so an unspent one lapses).
+## Grants `charges` wards of `kind` every `period` s, each grant replacing what the last one left (an unspent
+## charge lapses at the next recharge: drones and guards never bank).
 static func _every(view: KindView, c: Clock, key: String, period: float, dt: float, kind: StringName,
 		charges: int) -> void:
 	var left := float(c.cds.get(key, 0.0)) - dt
 	if left <= 0.0:
 		left += period
-		view.grant_ward(kind, charges, period)
+		view.grant_ward(kind, charges, period, true)
 	c.cds[key] = left
 
 
@@ -1713,14 +1796,15 @@ static func _awakening(view: KindView, def: Dictionary, c: Clock) -> void:
 
 # ------------------------------------------------------------------ auto-fire policy (§10.4)
 
-## The auto-fire policy (bot, level_check, LevelSim): 1.0 = fire now, 0.0 = hold. A v3 row: the §10.4
-## policy of HeroData.ULTS[kind] (fire when ANY of its POLICY_WHEN conditions holds). A Meta-1 row
+## The auto-fire policy (bot, level_check, LevelSim): 1.0 = fire now, 0.0 = hold. A v3 row: always in a
+## clash or the fortress siege (the owner's rule, 10.10: no kind sits on a full charge through a fight), else
+## the §10.4 policy of HeroData.ULTS[kind] (fire when ANY of its POLICY_WHEN conditions holds). A Meta-1 row
 ## (phase 0): always in a clash or the siege; else when the squads overlapping the blob's lane within
 ## `reach` hold >= max(8, 35% of the army) hp (the fortress counts 99); a `guard` kind also fires for
 ## its armour when a hazard is close ahead of a decent army.
 static func ult_worth(kind: StringName, view: KindView, u: Dictionary) -> float:
 	if u.has("v3"):
-		if fight_fallback and view.in_fight():
+		if view.in_fight():
 			return 1.0
 		var pol: Dictionary = (HeroData.ULTS.get(String(kind), {}) as Dictionary).get("policy", {})
 		for cond: Dictionary in pol.get("any", []):

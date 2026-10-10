@@ -10,7 +10,8 @@ extends KindView
 ## State (LevelSim.State.kv, kv_live, tethers, wards; LevelSim's "KindView records" section), so the
 ## planner's copies branch them; the statuses are LevelSim's expected-value mirror of the Run's Statuses.
 ## The v3 hero kinds' verbs (expose, silence, reveal, buff) do the same; the hero's clock is State.uc (a
-## v3 row: it carries the hero kind's counters between steps), the Meta-1 scalars otherwise.
+## v3 row: it carries the hero kind's counters between steps), the Meta-1 scalars otherwise. Wards spend
+## through KindView.WARD_SPEND (grant_ward's replace: the drones' recharge, the Forgewall's end).
 
 ## The shared empty answers (read-only constants: the rules never change what they get).
 const _NONE: Array = []
@@ -20,6 +21,9 @@ var lv: LevelSim.Level
 var s: LevelSim.State
 ## fx events seen by this view (budget checks; LevelSim draws nothing).
 var fx_count := 0
+## army()'s answer, refreshed in place on every call (as RunKindView's: the rules read it at once and never keep
+## it across a verb; hero_step and the champions ask every step, so it allocates nothing).
+var _army := {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0, "lost": 0.0}
 
 
 func _init(p_lv: LevelSim.Level, p_s: LevelSim.State) -> void:
@@ -94,9 +98,14 @@ func hazard_near(ahead: float) -> bool:
 
 func army() -> Dictionary:
 	# x = the hero's x, the Run's blob centre (Run._army_center); the lagged s.ax stays the hazards'
-	# model of the trailing soldiers. HeroKinds reads only n.
-	return {"n": s.army, "x": s.hx, "d": LevelSim.army_center_d(s), "radius": Balance.blob_radius(s.army),
-			"reserves": s.reserves, "revive_pool": 0.0, "lost": s.hazard_deaths + s.clash_deaths + s.gate_deaths}
+	# model of the trailing soldiers.
+	_army["n"] = s.army
+	_army["x"] = s.hx
+	_army["d"] = LevelSim.army_center_d(s)
+	_army["radius"] = Balance.blob_radius(s.army)
+	_army["reserves"] = s.reserves
+	_army["lost"] = s.hazard_deaths + s.clash_deaths + s.gate_deaths
+	return _army
 
 
 func fx(event: StringName, _data := {}) -> void:
@@ -269,17 +278,17 @@ func tether(a: int, b: int, share: float, sec: float) -> void:
 	LevelSim.tether(lv, s, a, b, share, sec)
 
 
-func grant_ward(kind: StringName, charges: int, sec: float) -> void:
-	LevelSim.grant_ward(s, kind, float(charges), sec)
+func grant_ward(kind: StringName, charges: int, sec: float, replace := false) -> void:
+	LevelSim.grant_ward(s, kind, float(charges), sec, replace)
 
 
-## One whole ward charge a `kind` hit may spend (LevelSim.WARD_KINDS, in that order): as RunKindView.absorb,
+## One whole ward charge a `kind` hit may spend (KindView.WARD_SPEND, in that order): as RunKindView.absorb,
 ## one ward kind must hold >= 1 whole charge (two half charges of two kinds absorb nothing). LevelSim's own
-## hazard and turret losses spend fractions of charges (LevelSim.ward_spend).
+## hazard and turret losses spend fractions of charges (LevelSim.ward_spend, the same order).
 func absorb(kind: StringName) -> bool:
 	if s.wards.is_empty():
 		return false
-	for wk: StringName in LevelSim.WARD_KINDS.get(kind, [kind]):
+	for wk: StringName in WARD_SPEND.get(kind, [kind]):
 		var w: Array = s.wards.get(wk, _NONE)
 		if not w.is_empty() and float(w[1]) > s.t and float(w[0]) >= 1.0:
 			w[0] = float(w[0]) - 1.0
@@ -312,8 +321,10 @@ func silence(turret_id: int, sec: float) -> void:
 	LevelSim.silence(lv, s, turret_id, sec)
 
 
-func reveal(d0: float, d1: float) -> void:
-	LevelSim.reveal(lv, s, d0, d1)
+## Gates: LevelSim.reveal opens the hidden gates in [d0, d1]; Phantoms are not modelled (nothing to reveal).
+func reveal(d0: float, d1: float, what: StringName) -> void:
+	if what == REVEAL_GATES:
+		LevelSim.reveal(lv, s, d0, d1)
 
 
 func buff(kind: StringName, value: float, sec: float, data := {}) -> void:

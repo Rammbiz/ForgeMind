@@ -19,12 +19,11 @@ extends Node
 ## --measure: wins and fortress army of every hero on L20-60 every 5th level (--from / --to / --step), each
 ##    against Руді (bolt) on the same level; a hero more than 15% off Руді's mean fortress army is flagged as a
 ##    balance note (numbers are generated data: the owner decides; nothing is tuned here). Printed with the ult
-##    casts per run (the §10.4 policies decide them); --fallback also fires every v3 ult in a clash or the siege
-##    (HeroKinds.fight_fallback, the Meta-1 rule), to tell a policy's idle charge from a kit's strength.
+##    casts per run (every clash and siege, else the §10.4 policies, decide them: HeroKinds.ult_worth).
 ##    --levels= (empty) skips part 5.
 ##
 ##   godot --headless --path . res://scenes/dev/test_hero_kinds.tscn -- --autotest [--verbose] [--measure]
-##        [--fallback] [--from=20] [--to=60] [--step=5] [--levels=20,41,60] [--heroes=arin,olha]
+##        [--from=20] [--to=60] [--step=5] [--levels=20,41,60] [--heroes=arin,olha]
 ## Exit code = failures. Last line: TEST_HERO_KINDS PASS|FAIL: passed, failed, time.
 
 const CS := preload("res://scripts/dev/champ_survival.gd")
@@ -97,8 +96,8 @@ class HeroView extends KindView:
 	var exposes: Array = []     ## [id, add, s]
 	var strips: Array = []      ## [id, s]
 	var silences: Array = []    ## [id, s]
-	var reveals: Array = []     ## [d0, d1]
-	var wards: Array = []       ## [kind, charges, s]
+	var reveals: Array = []     ## [d0, d1, what]
+	var wards: Array = []       ## [kind, charges, s, replace]
 	var buffs: Array = []       ## [kind, value, s, data]
 	var added: Array = []       ## [n, cause]
 	var revived: Array = []     ## [id, hp]
@@ -199,11 +198,11 @@ class HeroView extends KindView:
 	func silence(turret_id: int, sec: float) -> void:
 		silences.append([turret_id, sec])
 
-	func reveal(d0: float, d1: float) -> void:
-		reveals.append([d0, d1])
+	func reveal(d0: float, d1: float, what: StringName) -> void:
+		reveals.append([d0, d1, what])
 
-	func grant_ward(kind: StringName, charges: int, sec: float) -> void:
-		wards.append([kind, charges, sec])
+	func grant_ward(kind: StringName, charges: int, sec: float, replace := false) -> void:
+		wards.append([kind, charges, sec, replace])
 
 	func buff(kind: StringName, value: float, sec: float, data := {}) -> void:
 		buffs.append([kind, value, sec, data])
@@ -487,14 +486,23 @@ func _forgewall() -> void:
 	var tur := false
 	var clash := false
 	var contact := false
+	var off := 0
 	for w: Array in v.wards:
-		tur = tur or (w[0] == &"turret" and int(w[1]) == HeroKinds.ALL_CHARGES and float(w[2]) == 5.0)
-		clash = clash or (w[0] == &"clash" and int(w[1]) == 30 and float(w[2]) == 5.0)
-		contact = contact or (w[0] == &"contact" and int(w[1]) == 50)
-	_ok(tur and clash, "forgewall I: every turret shot warded 5 s, the wall's 30 HP take the clash (%s)" % str(v.wards))
+		tur = tur or (w[0] == &"wall_turret" and int(w[1]) == HeroKinds.ALL_CHARGES and float(w[2]) == 5.0
+				and bool(w[3]))
+		clash = clash or (w[0] == &"clash" and int(w[1]) == 30 and float(w[2]) == 5.0 and bool(w[3]))
+		contact = contact or (w[0] == &"wall_contact" and int(w[1]) == 50 and bool(w[3]))
+		if int(w[1]) == 0 and bool(w[3]) and HeroKinds.WALL_WARDS.has(w[0]):
+			off += 1
+	_ok(tur and clash, "forgewall I: every turret shot warded 5 s (wall_turret), the wall's 30 HP take the clash (%s)"
+			% str(v.wards))
 	_ok(v.dealt(1) == 8.0 and v.n_hits(1) == 1 and v.st_count(1, &"stagger") == 1 and v.dealt(2) == 0.0,
 			"forgewall I: a squad reaching the wall loses 8 once and is Staggered; Flying passes over")
-	_ok(v.dealt(10) == 10.0 and contact, "forgewall I: the first barricade takes 10, the army's contact is warded")
+	_ok(v.dealt(10) == 10.0 and contact,
+			"forgewall I: the first barricade takes 10, the army's contact is warded (wall_contact)")
+	var last: Array = v.wards[v.wards.size() - 1]
+	_ok(off == 3 and int(last[1]) == 0 and v.phases()[v.phases().size() - 1] == "end",
+			"forgewall I: its end clears the three wall wards (replace with 0: they end with the wall)")
 	_fx_ok(v, "forgewall")
 	var v4 := HeroView.new()
 	v4.squads = [_sq(1, 22.0, 0.0, 300.0), _sq(2, 18.5, 1.0, 300.0)]
@@ -634,8 +642,14 @@ func _test_timed_riders() -> void:
 	var r := HeroView.new()
 	r.squads = [_sq(1, 15.0, 0.0)]
 	_play(r, _def("seer", 3))
-	_ok(not bool(r.areas[0][4]) == false and r.st_count(1, &"seal") == r.areas.size() and r.reveals.size() == r.areas.size(),
-			"rift II / III: BRAND each tick, gates hit and hidden gates revealed <= 30 u")
+	var rv_gates := 0
+	var rv_ph := 0
+	for rv: Array in r.reveals:
+		rv_gates += 1 if rv[2] == KindView.REVEAL_GATES and float(rv[1]) - float(rv[0]) == 30.0 else 0
+		rv_ph += 1 if rv[2] == KindView.REVEAL_PHANTOMS and float(rv[1]) - float(rv[0]) == 30.0 else 0
+	_ok(bool(r.areas[0][4]) and r.st_count(1, &"seal") == r.areas.size() and rv_gates == r.areas.size()
+			and rv_ph == r.areas.size(),
+			"rift II / III: BRAND each tick, gates hit, hidden gates and Phantoms revealed <= 30 u")
 	var r1 := HeroView.new()
 	_play(r1, _def("seer", 1))
 	_ok(not bool(r1.areas[0][4]), "rift I (v3): no gate hits on the sheet's Form I")
@@ -718,9 +732,10 @@ func _test_attacks() -> void:
 		HeroKinds.hero_step(vv, vartan, DT)
 	var drones := 0
 	for w: Array in vv.wards:
-		if w[0] == &"turret" and int(w[1]) == 2 and float(w[2]) == 6.0:
+		if w[0] == &"drone" and int(w[1]) == 2 and float(w[2]) == 6.0 and bool(w[3]):
 			drones += 1
-	_ok(drones == 2, "vartan: 2 ward-drones every 6 s (%d grants in 6.5 s)" % drones)
+	_ok(drones == 2 and vv.wards.size() == 2,
+			"vartan: 2 ward-drones every 6 s, each recharge replacing the last (%d grants in 6.5 s)" % drones)
 	var vs := HeroView.new()
 	vs.fight = true
 	vs.squads = [_sq(1, 10.0 + Balance.CONTACT, 0.0, 500.0)]
@@ -922,10 +937,8 @@ func _measure() -> void:
 	var heroes: Array = Array(HeroData.HERO_ORDER) if not _args.has("heroes") else Array(str(_args["heroes"]).split(",", false))
 	if not heroes.has("bolt"):
 		heroes.push_front("bolt")
-	var keep := HeroKinds.fight_fallback
-	HeroKinds.fight_fallback = _args.has("fallback")
-	print("== MEASURE: phase %d, EXPECTED, team of the two scripted champions, L%d-%d step %d (planner, 9 candidates)%s"
-			% [EconData.heroes_phase(), from, to, step, ", policy + fight fallback" if HeroKinds.fight_fallback else ""])
+	print("== MEASURE: phase %d, EXPECTED, team of the two scripted champions, L%d-%d step %d (planner, 9 candidates)"
+			% [EconData.heroes_phase(), from, to, step])
 	var t0 := Time.get_ticks_msec()
 	var tab := {}
 	for h: String in heroes:
@@ -960,5 +973,4 @@ func _measure() -> void:
 		var flag := "  BALANCE NOTE: %+.0f%% vs Руді" % (100.0 * dv) if absf(dv) > FLAG_SHARE and hero != "bolt" else ""
 		print("MEASURE %-6s %2d/%-2d %8.1f %+7.1f%% %6.1f   %s%s" % [hero, int(row2["wins"]), int(row2["runs"]), mean,
 				100.0 * dv, float(row2["ults"]) / runs, ", ".join(per), flag])
-	HeroKinds.fight_fallback = keep
 	print("MEASURE done in %.1f s" % [(Time.get_ticks_msec() - t0) / 1000.0])
