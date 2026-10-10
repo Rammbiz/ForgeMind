@@ -104,13 +104,18 @@ All paths below are from the repo root.
   the cloud session is active, and always `git pull --ff-only` first so the two sessions do not collide.
 - H2 champions in the run: waves 1-7 are merged (rules, Run + LevelSim, champion HUD, the 9 new hero kinds, gate labels v2 for
   everyone, labels over the VFX exactly while an ult runs). Owner decisions are in the design doc (§6.8, §6.10, twist sheets).
-  Left: the TEAM_DEMAND re-bake (front-champion survival, twist budget from measured class values), then the near-invisible
-  twists. test_kind_parity --quick is red on purpose (old Run vs LevelSim hazard / pre-clash drift: report only,
+  Wave 8 (owner-approved 2026-10-10): TEAM_DEMAND re-baked in LevelSim (`scenes/dev/demand_bake.tscn`; LevelGen scales the
+  enemy side only when the heroes system is on), front champions' HP x1.1 (`heroes_tables.FRONT_HP_MULT`), the twist budget
+  counted against each champion's measured template (`CHAMP_P0` -> `ChampionData.KIT_P0`; re-emit with
+  `test_champion_twists --emit` when HP or levels move). Wave 9 (in progress): six new champions (franko, rukavychka, odarka,
+  hohotun, skovoroda, motyvator); 9 more new characters have art only (heroes_ua_icons.md §5). test_kind_parity --quick is red on purpose (old Run vs LevelSim hazard / pre-clash drift: report only,
   `docs/design/sim_drift_report.md`); loc_lint has 47 old table errors (H3b removes them).
 - Next in the queue: H3b wire UI to the real Meta API + Loc (delete the HeroesText fallback), H4 Workshop, Meta-1 review, Meta-2,
   perf pass; more characters from `heroes_ua_icons.md` as the owner picks (Леонтович, Франко, Рукавичка, Мамай, Одарка, Сковорода ...).
 - 3D: Ольга (hero, 9 clips, bow / quiver / dove) and Тарас (champion, 6 clips, book) have Meshy models, Міла a test one
   (`assets/heroes/<id>/model.glb`; HeroModels.ART_PROPS hangs props on the rig; preview with `scenes/dev/art_preview.tscn`
   on the hidden desktop). Starters still run on old models due for the wave-0 remake. Order: `heroes_prompts.md` §2.
-- Images: Meshy's nano-banana (credits), or the owner's Gemini app in their Chrome (ask before each download), or
+- UI art: `assets/ui/kit/` holds the painted icons, buttons, card grounds, plates and panel (kit.json: "painted", "scale": 2;
+  pipelines in `tools/art/`: cut_icons.py, cut_parts.py, build_buttons.py, build_ornaments.py). Modals keep their frosted glass.
+- Images: Meshy's nano-banana (credits), or Gemini in Claude's own browser pane (the owner approved downloads from those chats), or
   `crystal-rush/tools/art/gemini_image.py` (the owner's GEMINI_API_KEY; the API has no free tier for image models).
