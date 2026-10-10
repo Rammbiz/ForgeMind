@@ -913,7 +913,7 @@ func _twist(c: RunChampion, i: int, data: Dictionary) -> void:
 				fx.ring(hz + Vector3(0.0, 0.05, 0.0), 0.3, 0.9, 0.05, 0.45, Color(acc.r, acc.g, acc.b, 0.7))
 				_rise(hz, 6, 0.5, acc, 0.0, ChampionFx.STAR)
 		&"stone":
-			_stone(tgt, int(data.get("debris", -1)), acc)
+			_stone(c, i, tgt, int(data.get("debris", -1)), acc)
 		&"mitten":
 			_mitten(c, i, int(data.get("guests", 0)), bool(data.get("bark", false)), acc)
 		&"jar":
@@ -937,9 +937,10 @@ func _twist(c: RunChampion, i: int, data: Dictionary) -> void:
 			_shout(c, i, float(data.get("s", 1.5)), acc)
 
 
-## Франко's stone (§6.30): on the hammer's impact granite chips fly from the stone, a ring of dust spreads,
-## «ЛУПАЙТЕ!» shows over the stone, and the debris flies on into the squad behind it (`debris`, -1: none).
-func _stone(tgt: Vector3, debris: int, acc: Color) -> void:
+## Франко's stone (§6.30): «ЛУПАЙТЕ!» rides over him (over the stone it met the stone's own counter), on the
+## hammer's impact granite chips fly from the stone, a ring of dust spreads, and the debris flies on into the
+## squad behind it (`debris`, -1: none).
+func _stone(c: RunChampion, i: int, tgt: Vector3, debris: int, acc: Color) -> void:
 	var t_hit := RunChampion.impact_delay(&"leap")
 	var at := tgt + Vector3(0.0, 0.35, 0.3)
 	fx.ring(tgt + Vector3(0.0, 0.05, 0.3), 0.3, 1.3, 0.07, 0.5, Color(DUST.r, DUST.g, DUST.b, 0.8), t_hit)
@@ -952,7 +953,7 @@ func _stone(tgt: Vector3, debris: int, acc: Color) -> void:
 			fx.curve(at, (at + deb) * 0.5 + Vector3(0.0, 0.9, 0.0) + side, deb + side, 0.3, 0.13, GRANITE,
 					t_hit + 0.03 * k, ChampionFx.BLADE, 12.0)
 		_burst(deb, 6, 1.6, DUST, 0.1, t_hit + 0.3, 0.8, 5.0)
-	stamp(Loc.t("ACT_FRANKO_POP"), Vector3(tgt.x, STAMP_Y, tgt.z + 0.3))
+	stamp(Loc.t("ACT_FRANKO_POP"), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2), i)
 
 
 ## Рукавичка's mitten (§6.31): a returning Mend lets one guest hop into the mitten on her back; the 7th
