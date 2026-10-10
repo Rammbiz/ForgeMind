@@ -354,7 +354,9 @@ static func _v3_row(hero_id: String, b: Dictionary) -> Dictionary:
 	var gp: Dictionary = (atk.get("procs", {}) as Dictionary).get("guard", {})
 	var gk: Array = gp.get("kinds", ["turret"])
 	out["guard_cd"] = float(gp.get("cd", 10.0)) if not gp.is_empty() else 0.0
-	out["guard_kind"] = StringName(str(gk[0])) if not gk.is_empty() else &"turret"
+	# One listed kind guards that kind; turret + blade (Пава §6.10 «a turret shot or blade contact») is the
+	# shared &"fan" ward, spent by whichever comes first.
+	out["guard_kind"] = StringName(str(gk[0])) if gk.size() == 1 else (&"fan" if gk.size() > 1 else &"turret")
 	# A reviving Awakening (AWAKEN_REVIVE, Пава): the wait at the row's Awakening rank (0 = none) and the HP share.
 	var aw: Dictionary = AWAKEN_REVIVE.get(hero_id, {})
 	var awk := int(out["awakened"])

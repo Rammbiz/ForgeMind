@@ -1026,9 +1026,23 @@ func _test_wards() -> void:
 	var t: Array = KindView.WARD_SPEND[&"turret"]
 	var b: Array = KindView.WARD_SPEND[&"blade"]
 	var k: Array = KindView.WARD_SPEND[&"contact"]
-	_ok(t == [&"wall_turret", &"drone", &"turret"] and b == [&"wall_contact", &"blade", &"contact"]
+	_ok(t == [&"wall_turret", &"drone", &"turret", &"fan"] and b == [&"wall_contact", &"blade", &"contact", &"fan"]
 			and k == [&"wall_contact", &"contact"] and LevelSim.WARD_KINDS == KindView.WARD_SPEND,
-			"one spend table: turret wall > drone > turret, blade wall > blade > contact, contact wall > contact")
+			"one spend table: turret wall > drone > turret > fan, blade wall > blade > contact > fan, contact wall > contact")
+	# Пава's beat 9 Fan Guard (§6.10: «a turret shot or blade contact»): one shared &"fan" charge, never a barricade.
+	var pd := _def("pava", 1, 9)
+	_ok(pd["guard_kind"] == &"fan" and is_equal_approx(float(pd["guard_cd"]), 10.0), "pava beat 9: a fan guard every 10 s")
+	var lp := _mini([{"kind": "squad", "d": 30.0, "x": 0.0, "value": 40, "w": 2.4}])
+	var sp := LevelSim.start_state(lp, "pava", 40, {"profile": _v3_prof("pava", 1)})
+	var vf := SimKindView.new(lp, sp)
+	vf.grant_ward(&"fan", 1, 10.0, true)
+	var f_bar := vf.absorb(&"contact")
+	var f_blade := vf.absorb(&"blade")
+	var f_turret := vf.absorb(&"turret")
+	vf.grant_ward(&"fan", 1, 10.0, true)
+	var f_turret2 := vf.absorb(&"turret")
+	_ok(not f_bar and f_blade and not f_turret and f_turret2,
+			"the fan takes a blade or a turret shot, whichever comes first, once; never a barricade contact")
 	var lv := _mini([{"kind": "squad", "d": 30.0, "x": 0.0, "value": 40, "w": 2.4}])
 	var s := LevelSim.start_state(lv, "vartan", 40, {"profile": _v3_prof("vartan", 1)})
 	var v := SimKindView.new(lv, s)

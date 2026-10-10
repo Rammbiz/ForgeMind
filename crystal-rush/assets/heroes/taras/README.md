@@ -11,3 +11,5 @@
   fx events (`ART_CLIP_SPEED`).
 - `prop_book.glb` (+ `prop_book_0.jpg`, 512²) — the throwing book, Meshy-T2 1 465 triangles (sheet in
   `art_src/heroes/taras/taras_prop_book_src.jpg`), hung on RightHand by `HeroModels.ART_PROPS`.
+- `action.png` — 256² action icon «Слово / The Word» (Gemini, heroes_prompts C23 (e), style from Ольга's skill icons; source
+  `art_src/heroes/taras/taras_action_src.jpg`, 2048²). A draft, not wired into the UI yet.

@@ -24,9 +24,10 @@ extends RefCounted
 ## this one table: a whole hit spends one charge of the first kind holding >= 1 whole charge, LevelSim's
 ## fractional losses spend fractions in the same order). Grant kinds: turret, blade, contact, clash (a
 ## hero kind's ult or proc), wall_turret / wall_contact (Вартан's Forgewall: they end with the wall),
-## drone (Вартан's ward-drones: each recharge's grant replaces the last, it never banks).
-const WARD_SPEND := {&"turret": [&"wall_turret", &"drone", &"turret"],
-		&"blade": [&"wall_contact", &"blade", &"contact"], &"contact": [&"wall_contact", &"contact"],
+## drone (Вартан's ward-drones: each recharge's grant replaces the last, it never banks), fan (Пава's beat 9 Fan
+## Guard: one charge for a turret shot or a blade contact, whichever comes first; never a barricade).
+const WARD_SPEND := {&"turret": [&"wall_turret", &"drone", &"turret", &"fan"],
+		&"blade": [&"wall_contact", &"blade", &"contact", &"fan"], &"contact": [&"wall_contact", &"contact"],
 		&"clash": [&"clash"]}
 ## What reveal() opens: hidden gates (Мейра's row reveal, her rift III) or Phantom squads (Пава IV Eyes Wide,
 ## Мейра's Umbral Mark, Пава's Watchful eyes; no view models Phantoms yet: a no-op until they exist).
@@ -196,11 +197,11 @@ func absorb(_kind: StringName) -> bool:
 
 
 ## The per-run ward store absorb() spends: `charges` more wards of ward kind `kind` (see WARD_SPEND: turret |
-## blade | contact | clash | wall_turret | wall_contact | drone) for `s` seconds. A grant adds its charges and
+## blade | contact | clash | wall_turret | wall_contact | drone | fan) for `s` seconds. A grant adds its charges and
 ## keeps the longer time (an expired ward starts over); with `replace` it replaces whatever that kind still
 ## holds (charges and time: the drones' recharge, the wall's end; charges 0 or `s` 0 clears the kind at once).
-## `clash` (Вартан's wall HP): each charge takes one soldier of the army's clash / siege losses before the army
-## loses it (the owner's clash tick spends it). No-op by default.
+## `clash` (Вартан's wall HP): each charge takes one soldier of the army's clash losses before the army loses
+## it (the owner's clash tick spends it; not the fortress siege, owner 2026-10-10). No-op by default.
 func grant_ward(_kind: StringName, _charges: int, _s: float, _replace := false) -> void:
 	pass
 
