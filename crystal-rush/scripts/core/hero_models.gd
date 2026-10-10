@@ -78,6 +78,8 @@ const CLIP_HEROES := {
 static func hero(type: String) -> Node3D:
 	if CLIP_HEROES.has(type):
 		return _clip_hero(type)
+	if ResourceLoader.exists(ART_DIR % type) and PROXY.has(type):
+		return art(type)
 	if PROXY.has(type):
 		return proxy(type)
 	return _rigged_hero(type, HERO_DIR + type + ".glb")
@@ -303,6 +305,11 @@ static func animate_hero(model: Node3D, t: float, moving: bool, attack: float, a
 			_animate_tree(model, t, moving, attack, ult, pace)
 		"proxy":
 			_animate_proxy(model, t, moving, attack, ult, combat)
+		"art":
+			# Only the run clip so far: full pace while moving, slow in place otherwise.
+			var ap: AnimationPlayer = model.get_meta("player", null)
+			if ap:
+				ap.speed_scale = 1.0 if moving else 0.35
 		_:
 			_animate_rig(model, t, moving, attack, ability, ult, alt, combat, pace)
 
@@ -593,6 +600,44 @@ static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, a
 # ------------------------------------------------------------------ grey-box heroes (PROXY)
 
 static var _proxy_meshes := {}
+
+
+## Where a hero's Meshy art model lands (§14 art waves): it replaces the grey-box proxy once present.
+const ART_DIR := "res://assets/heroes/%s/model.glb"
+
+
+## A hero's Meshy art model (ART_DIR): the rigged GLB scaled to the proxy's height, facing +Z like every
+## hero here (RunHero turns it), its first clip looping at the run's pace (hero(): "anim" = "art").
+static func art(type: String) -> Node3D:
+	var h := float((PROXY[type] as Dictionary)["h"])
+	var root := Node3D.new()
+	root.name = "Model"
+	var model := (load(ART_DIR % type) as PackedScene).instantiate() as Node3D
+	root.add_child(model)
+	var top := 0.0
+	for n: Node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.mesh:
+			top = maxf(top, mi.mesh.get_aabb().size.y)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if Save.quality == "high" \
+				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if top > 0.01:
+		model.scale = Vector3.ONE * (h / top)
+	var players := model.find_children("*", "AnimationPlayer", true, false)
+	if not players.is_empty():
+		var ap := players[0] as AnimationPlayer
+		var clips := ap.get_animation_list()
+		if not clips.is_empty():
+			ap.get_animation(clips[0]).loop_mode = Animation.LOOP_LINEAR
+			ap.play(clips[0])
+		root.set_meta("player", ap)
+	root.set_meta("anim", "art")
+	root.set_meta("type", type)
+	root.set_meta("style", "art")
+	var face := Vector3(0.0, h * 0.93, 0.0)
+	root.set_meta("portrait", [face + Vector3(0.05, 0.08, 1.6), face])
+	root.set_meta("bar_y", h + 0.12)
+	return root
 
 
 ## A hero without its 3D model yet (PROXY): RunChampion's procedural rig (one draw, +1 shadow) with this
