@@ -1,5 +1,5 @@
 extends Node
-## Headless tests of the champion twists (heroes design §4.3, §6.11-6.27, §10.5; phase H2 forced
+## Headless tests of the champion twists (heroes design §4.3, §6.11-6.27, §6.30-6.35, §10.5; phase H2 forced
 ## through EconData.phase_override and restored after):
 ## - every TWISTS row fires through ChampionKinds over a test-local view (TwistView: it logs hits,
 ##   statuses, holds, groundings, soldiers added and fx), and a stats row with `twist: {}` runs the
@@ -100,6 +100,8 @@ func _ok(cond: bool, what: String) -> void:
 class TwistView extends KindView:
 	var a := {"n": 100.0, "x": 0.0, "d": 0.0, "radius": 2.0, "reserves": 0.0, "revive_pool": 0.0}
 	var fight := false
+	## The fight is the fortress siege (siege(); structures_in lists a "fortress" hazard row as any other).
+	var sieging := false
 	var squads: Array = []
 	var hazards: Array = []
 	var hits: Array = []
@@ -115,6 +117,9 @@ class TwistView extends KindView:
 
 	func in_fight() -> bool:
 		return fight
+
+	func siege() -> bool:
+		return fight and sieging
 
 	func squads_in(d0: float, d1: float, x0: float, x1: float) -> Array:
 		var out: Array = []
@@ -228,7 +233,7 @@ func _test_rows() -> void:
 # ------------------------------------------------------------------ healers
 
 func _test_healers() -> void:
-	print("== Healers: Міла's Tonic, Олена's Frost Balm and rime")
+	print("== Healers: Міла's Tonic, Олена's Frost Balm and rime, Рукавичка's mitten, Одарка's jar")
 	var v := TwistView.new()
 	v.squads = [{"id": 1, "d": 9.0, "x": 0.0, "n": 50.0}, {"id": 2, "d": 6.0, "x": 1.0, "n": 50.0},
 			{"id": 3, "d": 20.0, "x": 0.0, "n": 50.0}]
@@ -273,12 +278,74 @@ func _test_healers() -> void:
 			left2, left3])
 	_ok(is_equal_approx(ChampionKinds.absorb_hazard(vo, [olena], 42, &"turret", 5.0, 100.0, 2.0), 5.0),
 			"Олена: turrets never use the rime")
+	# Рукавичка (tier I, 3 per pulse, pool 30): 7 Mends let 7 guests in, the 7th returns x bark; the 8th beat
+	# is skipped, so 8 beats return 24 like the template's 8 x 3.
+	var tw_r := ChampionKinds.twist("rukavychka")
+	var slots := int(tw_r["guests"])
+	var bark := float(tw_r["bark"])
+	var vr := TwistView.new()
+	var ru := _mem("rukavychka", 1, 3.0, 30.0)
+	ChampionKinds.feed([ru], 100.0)
+	_run_for(vr, [ru], 3.0 * float(slots - 1) + 0.05)
+	_ok(is_equal_approx(vr.added, 3.0 * float(slots - 1)) and int(ru["guests"]) == slots - 1
+			and vr.twists(&"mitten").size() == slots - 1, "Рукавичка: %d Mends, %d guests in the mitten" % [slots - 1,
+			int(ru["guests"])])
+	_run_for(vr, [ru], 3.0)
+	var mit := vr.twists(&"mitten")
+	var last: Dictionary = mit[mit.size() - 1][1] if not mit.is_empty() else {}
+	_ok(is_equal_approx(vr.added, 3.0 * float(slots - 1) + 3.0 * bark) and int(ru["guests"]) == 0 and bool(ru["rest"])
+			and bool(last.get("bark", false)) and int(last.get("guests", 0)) == slots,
+			"Рукавичка: the %dth Mend returns x%.1f and the dog barks (%.0f returned)" % [slots, bark, vr.added])
+	var after_bark := vr.added
+	_run_for(vr, [ru], 3.0)
+	_ok(is_equal_approx(vr.added, after_bark) and not bool(ru["rest"]), "Рукавичка: the beat after the bark is skipped")
+	_run_for(vr, [ru], 3.0)
+	_ok(is_equal_approx(vr.added, after_bark + 3.0) and int(ru["guests"]) == 1,
+			"Рукавичка: then the next guest moves in (%.0f returned)" % vr.added)
+	var vrb := TwistView.new()
+	var rub := _mem("rukavychka", 1, 3.0, 30.0, {})
+	ChampionKinds.feed([rub], 100.0)
+	_run_for(vrb, [rub], 3.0 * float(slots + 1) + 0.05)
+	_ok(is_equal_approx(vrb.added, after_bark) and vrb.twists(&"mitten").is_empty(),
+			"bare Healer: %d beats return %.0f, the mitten's cycle the same" % [slots + 1, vrb.added])
+	var vrc := TwistView.new()
+	var ruc := _mem("rukavychka", 1, 3.0, 30.0)
+	ruc["guests"] = slots - 1
+	ruc["pool"] = 4.0
+	ruc["fed"] = 30.0
+	_run_for(vrc, [ruc], 3.05)
+	_ok(is_equal_approx(vrc.added, 4.0) and bool(ruc["rest"]), "Рукавичка: the pool clips the bark Mend (4 returned)")
+	# Одарка (tier II, right slot): a returning Mend throws a jar at the nearest Flying squad <= 12 u (1 x power +
+	# BURN 3 s); never at a ground squad.
+	var vj := TwistView.new()
+	vj.squads = [{"id": 1, "d": 5.0, "x": 0.0, "n": 50.0}, {"id": 2, "d": 9.0, "x": 1.5, "n": 50.0, "flying": true},
+			{"id": 3, "d": 30.0, "x": 0.0, "n": 50.0, "flying": true}]
+	var od := _mem("odarka", 2, 3.0, 32.0)
+	ChampionKinds.feed([od], 50.0)
+	_run_for(vj, [od], 3.05)
+	var jar := vj.hits_of(&"jar")
+	_ok(is_equal_approx(vj.added, 4.0) and jar.size() == 1 and int(jar[0][0]) == 2
+			and is_equal_approx(float(jar[0][1]), float(ChampionKinds.twist("odarka")["jar"]))
+			and vj.twists(&"jar").size() == 1, "Одарка: the jar flies at the Flying squad <= 12 u (%s)" % str(jar))
+	_ok(vj.status_of(2, &"burn").size() == 1 and is_equal_approx(float(vj.status_of(2, &"burn")[0][2]), 3.0)
+			and vj.status_of(1, &"burn").is_empty(), "Одарка: the jar BURNs it 3 s; the ground squad is left alone")
+	var vj0 := TwistView.new()
+	vj0.squads = [{"id": 1, "d": 5.0, "x": 0.0, "n": 50.0}]
+	var od0 := _mem("odarka", 2, 3.0, 32.0)
+	ChampionKinds.feed([od0], 50.0)
+	_run_for(vj0, [od0], 3.05)
+	_ok(is_equal_approx(vj0.added, 4.0) and vj0.hits.is_empty() and vj0.twists(&"jar").is_empty(),
+			"Одарка: no flier in reach, no jar")
+	var vj1 := TwistView.new()
+	vj1.squads = vj.squads.duplicate(true)
+	_run_for(vj1, [_mem("odarka", 2, 3.0, 32.0)], 3.05)
+	_ok(vj1.hits.is_empty(), "Одарка: no jar from an empty pulse")
 
 
 # ------------------------------------------------------------------ guardians
 
 func _test_guardians() -> void:
-	print("== Guardians: Іво, Отто, Снаряд, Німб")
+	print("== Guardians: Іво, Отто, Снаряд, Німб, Сковорода")
 	# Іво: the barricade takes his Action (here 3) and burns; a blade Block kills 1 x mult behind.
 	var v := TwistView.new()
 	v.squads = [{"id": 5, "d": 4.0, "x": 0.0, "n": 30.0}]
@@ -416,6 +483,39 @@ func _test_guardians() -> void:
 			"Німб: JOLT on the squads only")
 	_ok(vn.hits_of(&"block").size() == 1 and is_equal_approx(float(vn.hits_of(&"block")[0][1]), 1.0),
 			"Німб: the Block's own +1 kill x power")
+	# Сковорода (tier III): the stamp reads «МИМО!»; Blocks 1 and 2 kill behind, the 3rd nets the squad behind
+	# (a hold of net_s at net_k, «НЕ СПІЙМАВ!» after the Block's own fx) instead of its kill.
+	var tw_s := ChampionKinds.twist("skovoroda")
+	var vk := TwistView.new()
+	vk.squads = [{"id": 5, "d": 4.0, "x": 0.0, "n": 30.0}]
+	var sk := _mem("skovoroda", 3, 1.0, 77.0)
+	ChampionKinds.step(vk, [sk], 0.05)
+	ChampionKinds.absorb_hazard(vk, [sk], 40, &"blade", 5.0, 100.0, 2.0)
+	_run_for(vk, [sk], 5.05)
+	ChampionKinds.absorb_hazard(vk, [sk], 41, &"blade", 5.0, 100.0, 2.0)
+	var kb := vk.hits_of(&"block")
+	_ok(kb.size() == 2 and int(kb[0][0]) == 5 and int(kb[1][0]) == 5 and vk.holds.is_empty(),
+			"Сковорода: Blocks 1 and 2 kill 1 x power behind (%s)" % str(kb))
+	_run_for(vk, [sk], 5.05)
+	ChampionKinds.absorb_hazard(vk, [sk], 42, &"blade", 5.0, 100.0, 2.0)
+	var blk_s: Array = vk.events.filter(func(e: Array) -> bool: return e[0] == &"champ_block")
+	var tail: Array = vk.events[vk.events.size() - 1]
+	_ok(vk.hits_of(&"block").size() == 2 and vk.holds.size() == 1 and int(vk.holds[0][0]) == 5
+			and is_equal_approx(float(vk.holds[0][1]), float(tw_s["net_s"]))
+			and is_equal_approx(float(vk.holds[0][2]), float(tw_s["net_k"])),
+			"Сковорода: the 3rd Block nets the squad behind: held %.2f s at %.2f, no kill (%s)" % [float(tw_s["net_s"]),
+			float(tw_s["net_k"]), str(vk.holds)])
+	_ok(blk_s.size() == 3 and blk_s.all(func(e: Array) -> bool: return (e[1] as Dictionary)["stamp"] == &"miss")
+			and tail[0] == ChampionKinds.TWIST_FX and (tail[1] as Dictionary)["twist"] == &"net"
+			and vk.events[vk.events.size() - 2][0] == &"champ_block",
+			"Сковорода: every stamp reads МИМО; the net's fx right after its Block's")
+	var vk2 := TwistView.new()
+	var sk2 := _mem("skovoroda", 3, 1.0, 77.0)
+	sk2["blocks"] = 2
+	ChampionKinds.step(vk2, [sk2], 0.05)
+	ChampionKinds.absorb_hazard(vk2, [sk2], 43, &"barricade", 5.0, 100.0, 2.0)
+	_ok(vk2.holds.is_empty() and vk2.hits_of(&"block").size() == 1 and int(vk2.hits_of(&"block")[0][0]) == 43
+			and vk2.twists(&"net").is_empty(), "Сковорода: a net Block with no squad behind strikes as the template")
 
 
 # ------------------------------------------------------------------ warriors
@@ -473,6 +573,116 @@ func _test_warriors() -> void:
 	var h1 := v1.hits_of(&"leap")
 	_ok(h1.size() == 2 and int(h1[0][0]) == 7 and int(h1[1][0]) == 7,
 			"Довбуш: one squad in range: the bartka strikes it again on its way back (%s)" % str(h1))
+	_test_wave9_warriors()
+
+
+## Франко, Гоготун, Мотиватор (§6.30, §6.33, §6.35).
+func _test_wave9_warriors() -> void:
+	print("== Warriors: Франко, Гоготун, Мотиватор")
+	# Франко (tier IV, front slot 1.26 ahead, reach 4 u): the barricade in reach before the nearer squad;
+	# 3 + 1 (tier II) = 4 x stone as structure damage; the debris STAGGERs the squad <= 2 u behind it.
+	var stone := float(ChampionKinds.twist("franko")["stone"])
+	var vf := TwistView.new()
+	vf.squads = [{"id": 1, "d": 3.8, "x": 0.0, "n": 50.0}, {"id": 2, "d": 2.0, "x": 0.0, "n": 50.0},
+			{"id": 3, "d": 7.0, "x": 0.0, "n": 50.0}]
+	vf.hazards = [{"id": 20, "d": 3.0, "x": 0.5, "kind": &"barricade", "hp": 30.0, "hw": 2.0}]
+	var fr := _mem("franko", 4, 3.0, 60.0)
+	ChampionKinds.step(vf, [fr], 0.05)
+	var lp: Array = vf.events.filter(func(e: Array) -> bool: return e[0] == &"champ_leap")
+	var sto := vf.twists(&"stone")
+	_ok(vf.hits.size() == 1 and int(vf.hits[0][0]) == 20 and is_equal_approx(float(vf.hits[0][1]), 4.0 * stone)
+			and is_equal_approx(float(fr["struct"]), 4.0 * stone) and is_zero_approx(float(fr["kills"])),
+			"Франко: the leap goes at the barricade, not the nearer squad: %.1f structure damage (%s)" % [4.0 * stone,
+			str(vf.hits)])
+	_ok(vf.status_of(1, &"stagger").size() == 1 and vf.status_of(2, &"stagger").is_empty()
+			and vf.status_of(3, &"stagger").is_empty() and sto.size() == 1
+			and int((sto[0][1] as Dictionary)["debris"]) == 1 and lp.size() == 1
+			and (lp[0][1] as Dictionary)["verb"] == &"stone" and is_equal_approx(float(fr["cd"]), 4.0),
+			"Франко: the debris STAGGERs the squad <= 2 u behind the stone; «ЛУПАЙТЕ!» fx; cd 4 s")
+	var vl := TwistView.new()
+	var low := 2.0 * stone
+	vl.hazards = [{"id": 21, "d": 3.0, "x": 0.0, "kind": &"barricade", "hp": low, "hw": 2.0}]
+	var fl := _mem("franko", 4, 3.0, 60.0)
+	ChampionKinds.step(vl, [fl], 0.05)
+	_ok(is_equal_approx(float(fl["struct"]), low) and vl.twists(&"stone").size() == 1
+			and int((vl.twists(&"stone")[0][1] as Dictionary)["debris"]) == -1,
+			"Франко: a stone with %.2f left books %.2f (not the whole hit); no squad behind, no debris" % [low, low])
+	var vt := TwistView.new()
+	vt.squads = [{"id": 4, "d": 3.5, "x": 0.0, "n": 50.0}]
+	vt.hazards = [{"id": 22, "d": 3.0, "x": 0.0, "kind": &"turret", "hp": 30.0}]
+	ChampionKinds.step(vt, [_mem("franko", 4, 3.0, 60.0)], 0.05)
+	_ok(vt.hits.size() == 1 and int(vt.hits[0][0]) == 4 and vt.twists(&"stone").is_empty(),
+			"Франко: a turret is no stone: the template leap at the squad (%s)" % str(vt.hits))
+	var vg := TwistView.new()
+	vg.hazards = [{"id": 23, "d": 4.0, "x": 0.0, "kind": &"geode", "hp": 20.0}]
+	ChampionKinds.step(vg, [_mem("franko", 4, 3.0, 60.0)], 0.05)
+	_ok(vg.hits.size() == 1 and int(vg.hits[0][0]) == 23, "Франко: a geode is stone")
+	# The siege: every leap goes at the fortress gate (out of reach of the template); a bare Warrior never leaps.
+	var vs := TwistView.new()
+	vs.fight = true
+	vs.sieging = true
+	vs.hazards = [{"id": 50, "d": 6.5, "x": 0.0, "kind": &"fortress", "hp": 200.0, "hw": 4.0}]
+	var fs := _mem("franko", 4, 3.0, 60.0)
+	_run_for(vs, [fs], 4.1)
+	var gate_hits: Array = vs.hits.filter(func(h: Array) -> bool: return int(h[0]) == 50)
+	_ok(gate_hits.size() == 2 and vs.twists(&"stone").size() == 2
+			and bool((vs.twists(&"stone")[0][1] as Dictionary)["siege"]),
+			"Франко: in the siege a leap at the gate every 4 s (%d in 4.1 s)" % gate_hits.size())
+	var vs0 := TwistView.new()
+	vs0.fight = true
+	vs0.sieging = true
+	vs0.hazards = vs.hazards.duplicate(true)
+	_run_for(vs0, [_mem("franko", 4, 3.0, 60.0, {})], 4.1)
+	_ok(vs0.hits.is_empty(), "bare Warrior: no leap in the siege")
+	vs0.sieging = false
+	vs0.squads = [{"id": 5, "d": 3.0, "x": 0.0, "n": 50.0}]
+	var fc := _mem("franko", 4, 3.0, 60.0)
+	_run_for(vs0, [fc], 1.0)
+	_ok(vs0.hits.is_empty(), "Франко: no leap in a clash (only the siege sends him at the gate)")
+	# Гоготун (tier II): a Flying squad in reach before the nearer ground one; the honk MARKs it after the strike.
+	var hs := float(ChampionKinds.twist("hohotun")["honk_s"])
+	var vh := TwistView.new()
+	vh.squads = [{"id": 1, "d": 2.0, "x": 0.0, "n": 50.0}, {"id": 2, "d": 4.0, "x": 0.5, "n": 50.0, "flying": true}]
+	var ho := _mem("hohotun", 2, 3.0, 57.0)
+	ChampionKinds.step(vh, [ho], 0.05)
+	var honk := vh.twists(&"honk")
+	var i_honk := -1
+	var i_leap := -1
+	for k in vh.events.size():
+		if vh.events[k][0] == ChampionKinds.TWIST_FX and (vh.events[k][1] as Dictionary).get("twist") == &"honk":
+			i_honk = k
+		elif vh.events[k][0] == &"champ_leap":
+			i_leap = k
+	_ok(vh.hits.size() == 1 and int(vh.hits[0][0]) == 2 and is_equal_approx(float(vh.hits[0][1]), 4.0),
+			"Гоготун: the leap picks the Flying squad in reach first (%s)" % str(vh.hits))
+	_ok(vh.status_of(2, &"mark").size() == 1 and is_equal_approx(float(vh.status_of(2, &"mark")[0][2]), hs)
+			and honk.size() == 1 and i_honk >= 0 and i_honk < i_leap,
+			"Гоготун: «ГА-ГА-ГА!» first, the target MARKed %.2f s (honk_s)" % hs)
+	var vh0 := TwistView.new()
+	vh0.squads = vh.squads.duplicate(true)
+	ChampionKinds.step(vh0, [_mem("hohotun", 2, 3.0, 57.0, {})], 0.05)
+	_ok(int(vh0.hits[0][0]) == 1 and vh0.statuses.is_empty() and vh0.twists(&"honk").is_empty(),
+			"bare Warrior: the nearest squad, no MARK")
+	# Мотиватор (tier I): after the leap the shout cuts the army's clash losses for shout_s; booked as saved.
+	var cut := float(ChampionKinds.twist("motyvator")["shout_cut"])
+	var ss := float(ChampionKinds.twist("motyvator")["shout_s"])
+	var vm := TwistView.new()
+	vm.squads = [{"id": 1, "d": 3.0, "x": 0.0, "n": 50.0}]
+	var mo := _mem("motyvator", 1, 3.0, 53.0)
+	_ok(is_equal_approx(ChampionKinds.clash_loss_mult([mo]), 1.0), "Мотиватор: no cut before a shout")
+	ChampionKinds.step(vm, [mo], 0.05)
+	_ok(vm.hits.size() == 1 and is_equal_approx(float(vm.hits[0][1]), 3.0) and vm.twists(&"shout").size() == 1
+			and is_equal_approx(float(mo["shout_left"]), ss) and is_equal_approx(ChampionKinds.clash_loss_mult([mo]),
+			1.0 - cut), "Мотиватор: the leap (3 kills, no extra) ends with «СИЛА ЛІСУ!»: clash losses x%.3f for %.1f s" % [
+			1.0 - cut, ss])
+	vm.fight = true
+	ChampionKinds.clash_hit(vm, [mo], 10.0, false)
+	_ok(is_equal_approx(float(mo["saved"]), 10.0 * cut), "Мотиватор: a clash tick of 10 books %.2f saved" % (10.0 * cut))
+	vm.fight = false
+	vm.squads[0]["n"] = 0.0
+	_run_for(vm, [mo], ss + 0.1)
+	_ok(is_equal_approx(ChampionKinds.clash_loss_mult([mo]), 1.0) and is_zero_approx(float(mo["shout_left"])),
+			"Мотиватор: the shout ends after %.1f s" % ss)
 
 
 # ------------------------------------------------------------------ rangers

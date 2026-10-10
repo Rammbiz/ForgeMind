@@ -9,9 +9,9 @@ extends Node3D
 ## - Marks: ONE MultiMesh (ChampionFx.SHADER) with each champion's contact shadow, white-gold foot
 ##   ring (under the drawn model, so it reads inside a crowd of knights), aura ring and class glyph,
 ##   then the ChampionFx pool: arrow tracers, leap dust, spell and mend sparkles, spell rings, the
-##   ring shatter, every twist's placeholder (§6.11-6.27), Дара's tethers and the stamp plate.
-## - The stamp text: one Label3D without outline (+1 draw only while a «БЛОК» / «ЧИСТО!» or a Mend's
-##   «+N» shows). One slot: a Block's stamp takes it at once; a Mend's count waits for it (and adds up)
+##   ring shatter, every twist's placeholder (§6.11-6.27, §6.30-6.35), Дара's tethers and the stamp plate.
+## - The stamp text: one Label3D without outline (+1 draw only while a «БЛОК» / «ЧИСТО!» / «МИМО!», a twist's
+##   cry («ЛУПАЙТЕ!», «ГА-ГА-ГА!», «НЕ СПІЙМАВ!», «СИЛА ЛІСУ!») or a Mend's «+N» shows). One slot: a Block's stamp takes it at once; a Mend's count waits for it (and adds up)
 ##   while a Block's shows, so the Healer's pulses never cost the outlined popup's ~6 draws (§10.6).
 ## ChampionHud puts the medallions and the start banner on the HUD. Run builds this only while
 ## Champions.active(); it never changes the rules (ChampionKinds) and reads the members as the rules
@@ -45,6 +45,11 @@ const DUST := Color(0.86, 0.82, 0.74)
 const BLADE_INK := Color(0.24, 0.26, 0.36, 0.95)
 const DIRT := Color(0.53, 0.46, 0.37, 0.55)
 const PAGE_TINT := Color(1.0, 0.98, 0.93, 0.95)
+## Франко's granite chips, Одарка's jar glass, Гоготун's grey feathers, Мотиватор's leaves (all matte).
+const GRANITE := Color(0.45, 0.44, 0.45, 0.95)
+const JAR_GLASS := Color(0.9, 0.95, 0.93, 0.9)
+const FEATHER := Color(0.7, 0.69, 0.66, 0.9)
+const LEAF := Color(0.45, 0.58, 0.33, 0.9)
 const CLASS_INDEX := {"warrior": 0, "ranger": 1, "mage": 2, "guardian": 3, "healer": 4}
 const NO_ARMY := {}
 ## Marks instances: four per member (shadow, foot ring, aura ring, glyph), the FX pool, the tethers, the plate.
@@ -62,7 +67,8 @@ const STAMP_Y := 1.75
 const STAMP_INK := Color("#2C3158")
 ## Under the gate labels (3+), over the marks (1): §10.2.
 const STAMP_PRIORITY := 2
-const STAMPS := {&"block": "CHAMP_BLOCK_POP", &"clear": "CHAMP_CLEAR_POP", &"catch": "CHAMP_BLOCK_POP"}
+const STAMPS := {&"block": "CHAMP_BLOCK_POP", &"clear": "CHAMP_CLEAR_POP", &"catch": "CHAMP_BLOCK_POP",
+		&"miss": "ACT_SKOVORODA_POP"}
 ## A Mend's «+N» joins the count showing over the same Healer while the stamp is younger than this (s).
 const MEND_JOIN := 0.6
 
@@ -793,7 +799,7 @@ func _shatter(i: int) -> void:
 
 # ------------------------------------------------------------------ twists (ChampionKinds.TWIST_FX)
 
-## One twist moment (§6.11-6.27, ChampionKinds.TWIST_FX lists the keys): a cheap placeholder in the pool,
+## One twist moment (§6.11-6.27, §6.30-6.35, ChampionKinds.TWIST_FX lists the keys): a cheap placeholder in the pool,
 ## in the champion's element accent unless it is earth (dust) or the stamp's white-gold.
 func _twist(c: RunChampion, i: int, data: Dictionary) -> void:
 	var acc: Color = _glyph_col[i]
@@ -905,6 +911,105 @@ func _twist(c: RunChampion, i: int, data: Dictionary) -> void:
 			if hz != Vector3.INF:
 				fx.ring(hz + Vector3(0.0, 0.05, 0.0), 0.3, 0.9, 0.05, 0.45, Color(acc.r, acc.g, acc.b, 0.7))
 				_rise(hz, 6, 0.5, acc, 0.0, ChampionFx.STAR)
+		&"stone":
+			_stone(tgt, int(data.get("debris", -1)), acc)
+		&"mitten":
+			_mitten(c, i, int(data.get("guests", 0)), bool(data.get("bark", false)), acc)
+		&"jar":
+			var from4 := c.root + Vector3(0.15, 0.95, -0.2)
+			var to4 := tgt + Vector3(0.0, 1.0, 0.0)
+			# A high overarm throw; the jar bursts in a puff of red peppers (the Plasma accent).
+			fx.curve(from4, (from4 + to4) * 0.5 + Vector3(0.0, 2.4, 0.0), to4, 0.55, 0.16, JAR_GLASS, 0.0, ChampionFx.ROUND,
+					9.0)
+			fx.vring(to4, 0.15, 0.6, 0.04, 0.35, acc, 0.55)
+			_burst(to4, 9, 2.0, acc, 0.09, 0.55, 0.5, 5.0)
+		&"honk":
+			_honk(c, i, tgt, acc)
+		&"net":
+			_net(c, tgt, int(data.get("target", -1)), float(data.get("s", 0.5)))
+		&"shout":
+			_shout(c, i, float(data.get("s", 1.5)), acc)
+
+
+## Франко's stone (§6.30): on the hammer's impact granite chips fly from the stone, a ring of dust spreads,
+## «ЛУПАЙТЕ!» shows over the stone, and the debris flies on into the squad behind it (`debris`, -1: none).
+func _stone(tgt: Vector3, debris: int, acc: Color) -> void:
+	var t_hit := RunChampion.impact_delay(&"leap")
+	var at := tgt + Vector3(0.0, 0.35, 0.3)
+	fx.ring(tgt + Vector3(0.0, 0.05, 0.3), 0.3, 1.3, 0.07, 0.5, Color(DUST.r, DUST.g, DUST.b, 0.8), t_hit)
+	_burst(at, 10, 2.6, GRANITE, 0.12, t_hit, 1.3, 7.0, ChampionFx.BLADE)
+	_burst(at, 4, 1.6, acc, 0.08, t_hit, 1.0, 5.0)
+	var deb := _item_at(debris, 0.5)
+	if deb != Vector3.INF:
+		for k in 3:
+			var side := Vector3(randf_range(-0.4, 0.4), 0.0, 0.0)
+			fx.curve(at, (at + deb) * 0.5 + Vector3(0.0, 0.9, 0.0) + side, deb + side, 0.3, 0.13, GRANITE,
+					t_hit + 0.03 * k, ChampionFx.BLADE, 12.0)
+		_burst(deb, 6, 1.6, DUST, 0.1, t_hit + 0.3, 0.8, 5.0)
+	stamp(Loc.t("ACT_FRANKO_POP"), Vector3(tgt.x, STAMP_Y, tgt.z + 0.3))
+
+
+## Рукавичка's mitten (§6.31): a returning Mend lets one guest hop into the mitten on her back; the 7th
+## (`bark`) makes the dog bark («ГАВ!»): every guest jumps out and runs, and the mitten is empty again.
+func _mitten(c: RunChampion, i: int, guests: int, bark: bool, acc: Color) -> void:
+	var back := c.root + Vector3(0.0, 0.75, 0.22)
+	if not bark:
+		var from := c.root + Vector3(0.45, 0.15, -0.1)
+		fx.curve(from, (from + back) * 0.5 + Vector3(0.0, 0.7, 0.0), back, 0.4, 0.1, MEND, 0.15, ChampionFx.ROUND)
+		return
+	stamp(Loc.t("CHAMP_BARK_POP"), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2), i)
+	var n := maxi(guests, 1)
+	for k in n:
+		var a := TAU * (float(k) + 0.5) / float(n) + randf() * 0.3
+		fx.mote(back, Vector3(cos(a) * 1.5, 2.2, sin(a) * 1.0), 0.65, 0.12, acc if k % 2 == 0 else MEND, 0.04 * k, 6.0,
+				ChampionFx.ROUND)
+	fx.vring(back, 0.15, 0.6, 0.04, 0.4, MARK)
+	fx.ring(Vector3(c.root.x, 0.05, c.root.z), 0.3, 1.0, 0.05, 0.45, Color(MARK.r, MARK.g, MARK.b, 0.7))
+
+
+## Гоготун's honk (§6.33): «ГА-ГА-ГА!» as he takes off, three short arcs from his beak, then the MARK
+## ring on the target and a few grey feathers as he drops on it with his wings spread.
+func _honk(c: RunChampion, i: int, tgt: Vector3, acc: Color) -> void:
+	stamp(Loc.t("ACT_HOHOTUN_POP"), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2), i)
+	var beak := c.root + Vector3(0.0, 1.0, -0.35)
+	for k in 3:
+		fx.vring(beak, 0.08 + 0.05 * k, 0.3 + 0.1 * k, 0.03, 0.3, MARK, 0.08 * k)
+	var t_hit := RunChampion.impact_delay(&"leap")
+	fx.vring(tgt + Vector3(0.0, 0.7, 0.0), 0.2, 0.6, 0.04, 0.45, acc, t_hit)
+	fx.ring(tgt + Vector3(0.0, 0.05, 0.0), 0.3, 1.1, 0.05, 0.5, Color(acc.r, acc.g, acc.b, 0.7), t_hit)
+	_burst(tgt + Vector3(0.0, 0.5, 0.0), 6, 1.4, FEATHER, 0.1, t_hit, 0.9, 1.2, ChampionFx.BLADE)
+
+
+## Сковорода's net (§6.34): the golden net that was meant for him flies past him onto the squad behind
+## (`target`), settles as a ring over it for its hold, and «НЕ СПІЙМАВ!» shows over it.
+func _net(c: RunChampion, tgt: Vector3, target: int, s: float) -> void:
+	var sq := _item_at(target)
+	var at := sq if sq != Vector3.INF else tgt
+	var top := c.root + Vector3(0.0, 1.5, 0.0)
+	var over := at + Vector3(0.0, 1.3, 0.0)
+	for k in 3:
+		var side := Vector3(0.5 * float(k - 1), 0.0, 0.0)
+		fx.curve(top, (top + over) * 0.5 + Vector3(0.0, 1.0, 0.0) + side, over + side, 0.35, 0.14, MARK, 0.04 * k,
+				ChampionFx.DIAMOND, 5.0)
+	fx.ring(at + Vector3(0.0, 0.05, 0.0), 1.3, 0.8, 0.06, maxf(s, 0.4) + 0.35, Color(MARK.r, MARK.g, MARK.b, 0.85), 0.35)
+	for k2 in 6:
+		var p := at + Vector3(randf_range(-0.7, 0.7), 1.5, randf_range(-0.4, 0.4))
+		fx.mote(p, Vector3(0.0, -1.8, 0.0), 0.55, 0.09, MARK, 0.35 + 0.03 * k2, 0.0, ChampionFx.DIAMOND)
+	stamp(Loc.t("ACT_SKOVORODA_NET_POP"), Vector3(at.x, STAMP_Y, at.z))
+
+
+## Мотиватор's shout (§6.35): «СИЛА ЛІСУ!» over him and leaves swirling over the crowd's front for the
+## shout's `s` seconds, with one ring in his Rune accent.
+func _shout(c: RunChampion, i: int, s: float, acc: Color) -> void:
+	stamp(Loc.t("ACT_MOTYVATOR_POP"), Vector3(c.pos.x, STAMP_Y, c.pos.z - 0.2), i)
+	var front := run.army_view.front_point() if run and run.army_view else c.root
+	var life := clampf(s, 0.5, 3.0)
+	fx.ring(Vector3(front.x, 0.05, front.z), 0.6, 2.2, 0.05, 0.6, Color(acc.r, acc.g, acc.b, 0.55))
+	for k in 10:
+		var a := TAU * float(k) / 10.0
+		var p := front + Vector3(cos(a) * 1.2, 0.4 + randf() * 0.4, sin(a) * 0.8)
+		fx.mote(p, Vector3(-sin(a) * 1.2, 0.5, cos(a) * 0.8), life * 0.6, 0.12, LEAF, randf() * life * 0.4, -0.2,
+				ChampionFx.BLADE, 0.6, randf_range(-6.0, 6.0))
 
 
 ## Борко's burrow (§6.13): a splash where he dives, a ridge of dirt racing under the road to the target

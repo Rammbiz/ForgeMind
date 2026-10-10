@@ -277,7 +277,8 @@ func _test_text() -> void:
 		var lore: Array = Loc.STRINGS.get("CHAMP_%s_LORE" % u, ["", ""])
 		_check(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "%s lore: 3 lines uk and en" % w[1])
 	_check(w9_ids == HeroesUIModel.WAVE9_CHAMPIONS, "the mock state and this test list the same wave-9 champions")
-	for k: String in ["CHAMP_MISS_POP", "CHAMP_UNCAUGHT_POP", "CHAMP_BARK_POP"]:
+	for k: String in ["ACT_FRANKO_POP", "ACT_HOHOTUN_POP", "ACT_SKOVORODA_POP", "ACT_SKOVORODA_NET_POP",
+			"ACT_MOTYVATOR_POP", "CHAMP_BARK_POP"]:
 		_check(Loc.has(k), "wave-9 twist stamp " + k)
 	_check(HeroesText.hero_name("bolt") == ("Руді" if HeroesText.lang() == "uk" else "Rudi"), "stale Meta-1 HERO_BOLT is not used")
 	_check(HeroesText.t("PORTAL_PITY_L", [7]).contains("7"), "args format")

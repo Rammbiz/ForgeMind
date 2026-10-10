@@ -18,6 +18,10 @@ extends Node
 ## frame), and the layer shows that frame as one premultiplied TextureRect following the banner's fade
 ## (its own short fade-in first).
 ##
+## Рукавичка's mitten (§6.31): a member whose TWISTS row has `guests` gets a column of that many pips beside its
+## medallion (left of it, filled from the bottom per guest the rules count in the member's "guests"); it is one
+## small canvas item on the medallion, redrawn only when the count or the champion's life changes.
+##
 ## The ribbon keeps TeamBanner's own band (its centre at a third of the height): over real level starts
 ## (hud_lab --banner: 18 levels, at READY and with the run tapped into motion the moment it shows, so it
 ## lives its whole time over a moving run) no gate label came within 140 px of it (§10.2).
@@ -33,6 +37,12 @@ const BANNER_MARGIN := 28.0
 const AVOID_REACH := 34.0
 ## Frames to wait for the HUD to be built before giving up (no HUD in this scene).
 const LINK_FRAMES := 30
+## Рукавичка's guest pips at the 72 px medallion (GUEST_AT, ChampionMedallions.SIZE; scaled with it): radius,
+## pitch, the gap to its left edge.
+const GUEST_AT := 72.0
+const GUEST_PIP := 2.6
+const GUEST_PITCH := 8.6
+const GUEST_GAP := 7.0
 
 ## Tests and dev tools only: class name -> Script used instead of the global class (stand-ins).
 static var override_classes := {}
@@ -54,6 +64,8 @@ var _can_fx := false
 var _bvp: SubViewport
 var _btex: TextureRect
 var _baked := -1.0
+## [[member row, _GuestPips], ...] (Рукавичка's mitten).
+var _guests: Array = []
 
 
 func setup(p_run: Run) -> void:
@@ -73,6 +85,9 @@ func _process(delta: float) -> void:
 		medallions.call("refresh", members)
 		if _can_avoid:
 			_avoid()
+		for g: Array in _guests:
+			var row: Dictionary = g[0]
+			(g[1] as _GuestPips).show_count(int(row.get("guests", 0)), bool(row.get("alive", true)))
 	if _btex:
 		_banner_frame(delta)
 
@@ -121,6 +136,7 @@ func _link() -> void:
 		_can_fx = medallions.has_method("on_fx")
 		medallions.call("setup", members)
 		_place()
+		_build_guests()
 	banner = _make(BANNER_CLASS, ["show_team"])
 	if banner:
 		banner.name = "TeamBanner"
@@ -240,6 +256,59 @@ func _avoid() -> void:
 		var half := (e - c).abs()
 		_rects.append(Rect2(c - half, half * 2.0))
 	medallions.call("set_avoid_rects", _rects)
+
+
+## Рукавичка's guest pips: one _GuestPips on the medallion of every member whose twist counts guests.
+func _build_guests() -> void:
+	_guests.clear()
+	if not medallions.has_method("medallion_of"):
+		return
+	for m: Dictionary in members:
+		var slots := int((m.get("tw", {}) as Dictionary).get("guests", 0)) if m.get("tw") is Dictionary else 0
+		if slots <= 0:
+			continue
+		var md: Variant = medallions.call("medallion_of", str(m.get("id", "")))
+		if not md is Control:
+			continue
+		var pips := _GuestPips.new()
+		pips.slots = slots
+		(md as Control).add_child(pips)
+		_guests.append([m, pips])
+
+
+## The guests in the mitten beside a medallion (its parent): `slots` pips in a column left of it, the bottom
+## ones filled (deep gold) per guest, the empty ones a 1 dpx gold ring; dimmed while the champion is down.
+class _GuestPips extends Control:
+	var slots := 7
+	var _count := -1
+	var _alive := true
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	func show_count(n: int, alive: bool) -> void:
+		if n == _count and alive == _alive:
+			return
+		_count = n
+		_alive = alive
+		queue_redraw()
+
+	func _draw() -> void:
+		var k := size.y / ChampionHud.GUEST_AT if size.y > 1.0 else 1.0
+		var r := ChampionHud.GUEST_PIP * k
+		var pitch := ChampionHud.GUEST_PITCH * k
+		var x := -ChampionHud.GUEST_GAP * k
+		var y0 := size.y * 0.5 + pitch * float(slots - 1) * 0.5
+		var gold := UITokens.LINE_GOLD_DEEP
+		var dim := UITokens.INK_DIM_GLASS
+		var line := Color(dim.r, dim.g, dim.b, 0.5) if not _alive else gold
+		for i in slots:
+			var c := Vector2(x, y0 - pitch * float(i))
+			if i < _count and _alive:
+				draw_circle(c, r, Color(gold.r, gold.g, gold.b, 1.0), true, -1.0, true)
+			else:
+				draw_arc(c, r - 0.5, 0.0, TAU, 16, line, UIKit.line_px(1.0), true)
 
 
 ## A new instance of the global script class `cls` (a Control with every method in `needs`), or

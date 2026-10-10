@@ -6,7 +6,7 @@ extends RefCounted
 ## champions add, absorb or take. Nothing here touches nodes; VFX / SFX / HUD go through view.fx.
 ##
 ## Phase H2 = class templates (§4.3) with the action tier (I-IV) upgrades, plus each champion's
-## twist (§6.11-6.27) as a TWISTS row: plain fields the class rules read (no per-id branches).
+## twist (§6.11-6.27, §6.30-6.35) as a TWISTS row: plain fields the class rules read (no per-id branches).
 ##
 ## A member (Champions.members, KindView.champions()) is a Dictionary made by member():
 ## {id, slot, class, element, gem, native, status, tier, mult, hp, hp_max, alive, action, aura, aura_effect,
@@ -14,11 +14,13 @@ extends RefCounted
 ##  heal_cd, block_id, block_left, cleave_acc, kills, heals, blocks, dmg_taken,
 ##  tw, fight, foe_id, fight_cd, plant, plant_cd, plant_hit, rimed, rime_id, rime_left, teth_a, teth_b,
 ##  teth_left, circ_d, circ_x, circ_r, circ_left, circ_tick, cut_id, cut_left, cut, catch_cd, catch_id,
-##  catch_left, saved, struct}
+##  catch_left, guests, rest, shout_left, saved, struct}
 ## x / d = the champion's place on the bridge (d = run distance, ahead = larger), set every step
 ## from the blob centre and its slot. `tw` = the champion's TWISTS row (shared, read-only); every
 ## other field is a scalar, so Champions.copy (a shallow duplicate per member) branches cleanly.
-## `saved` = soldiers its Blocks, plants, rime, catches and circle cut spared, `struct` = damage it
+## `guests` = Рукавичка's guests in the mitten (0..TWISTS guests; the HUD shows them on her medallion),
+## `rest` = her next Mend beat is skipped (the bark), `shout_left` = Мотиватор's shout still running (s).
+## `saved` = soldiers its Blocks, plants, rime, catches, circle cut and shout spared, `struct` = damage it
 ## dealt to structures (dev tools: the budget table; not in the report).
 ##
 ## Hook order a view owner follows each step (Run._process, LevelSim.step):
@@ -27,7 +29,8 @@ extends RefCounted
 ##   absorb_hazard(view, members, id, kind, lost, army, radius) on every hazard loss (Guardian Block,
 ##                                           Олена's rime)
 ##   absorb_turret(view, members, id, lost)  on every turret loss, before the Healer aura (Німб IV)
-##   clash_loss_mult(members)                x the army's clash losses (Guardian aura, Менгір's circle)
+##   clash_loss_mult(members)                x the army's clash losses (Guardian aura, Менгір's circle,
+##                                           Мотиватор's shout)
 ##   clash_kill_mult(members)                x the foe's clash losses (Warrior aura)
 ##   tick_free(members)                      before a clash tick: true = this tick costs the army 0
 ##   cleave(members)                         per FIGHT_TICK in a clash: extra foe kills (Warrior)
@@ -52,7 +55,11 @@ const FX: Array[StringName] = [&"champ_leap", &"champ_shot", &"champ_spell", &"c
 ## {target, partner, d, x, s} (Дара: the tether) · lull {target, n, s} (Тая) · circle {d, x, r, s} (Менгір) ·
 ## pages {target, d, x} (Тарас) · plant {ticks} (Отто) · rod {targets [ids], d, x} (Німб) · charge {target,
 ## d, x} (Снаряд: "Гав — бум!") · catch {hazard} (Німб IV) · tonic {target, d, x} (Міла) · balm {n} (Олена) ·
-## rime {n} (Олена: the rimed soldiers spare n at a hazard).
+## rime {n} (Олена: the rimed soldiers spare n at a hazard) · stone {target, d, x, debris, siege} (Франко: the
+## hammer on the stone, «ЛУПАЙТЕ!», debris = the staggered squad or -1) · mitten {guests, bark} (Рукавичка: a
+## guest moved in; bark = the 7th, the guests run off) · jar {target, d, x} (Одарка: the jar at a flier) · honk
+## {target, d, x, s} (Гоготун: «ГА-ГА-ГА!», the MARK) · net {target, d, x, s} (Сковорода: the net held the
+## squad behind, «НЕ СПІЙМАВ!») · shout {d, x, s} (Мотиватор: «СИЛА ЛІСУ!», the army's clash cut).
 const TWIST_FX := &"champ_twist"
 
 ## Slot names in the conflict order of §4.2 (front -> rear -> left -> right).
@@ -86,7 +93,7 @@ const CLASS := {
 			"heal_cd": 15.0, "heal_frac": 0.1},
 }
 
-## Per-champion twists (§6.11-6.27): fields the class rules read; a champion without a row (or a
+## Per-champion twists (§6.11-6.27, §6.30-6.35): fields the class rules read; a champion without a row (or a
 ## stats row passing `twist: {}`, the dev tools' bare template) runs the class template alone.
 ## Fields marked "knob" were tuned in LevelSim (scripts/dev/test_champion_twists.gd: the budget table,
 ## §4.1 / §4.3 "twists are tuned inside +-3%" of the bare class template; owner decision 2026-10-09: a
@@ -96,17 +103,21 @@ const CLASS := {
 ## and JOLT (expected values), holds (clash damage), tethers. CHILL, SEAL and STAGGER change nothing (as in
 ## the Run's Statuses); groundings and reveals need Flying / Phantom squads and a tether two squads <= 4 u
 ## apart, which LevelGen levels do not have: Борко, Альба, Дара and Тарас measure UNMEASURED (twist = no
-## twist). The class templates measure far below §4.3's ~1.0 / s (owner decision: kept; since 2026-10-10 the
+## twist), and so do Одарка (fliers) and Сковорода (no squad behind a Block). The class templates measure far below §4.3's ~1.0 / s (owner decision: kept; since 2026-10-10 the
 ## budget P0_c is the measured template, ChampionData.KIT_P0, §4.4), so the twists that move clash losses keep
 ## only a small share.
 ##
 ## Every class: status (replaces the element status) · status_at [tiers] (the sheet's tiers that add
 ## the status before the template's tier III) · fight_status / fight_every / fight_s (a status on the
 ## squad in clash contact: once at each clash start when fight_every is 0, else every fight_every s).
-## Warrior (the leap): verb (fx name) · no_flying · leap_targets · return (always leap_targets strikes: the
-## return pass hits the first squad again) · reach / reach_ii · add_ii (x mult per
-## squad from tier II) · cd / cd_iv · armored_first · path_r_iii (tier III: the status also on squads <= r
-## of the path) · splash_r (the leap's status also on squads <= r of the target) · burrow_s (fx only).
+## Warrior (the leap): verb (fx name) · no_flying · prefer_flying (a Flying squad in reach first) ·
+## leap_targets · return (always leap_targets strikes: the return pass hits the first squad again) · reach /
+## reach_ii · add_ii (x mult per squad from tier II) · cd / cd_iv · armored_first · path_r_iii (tier III: the
+## status also on squads <= r of the path) · splash_r (the leap's status also on squads <= r of the target) ·
+## burrow_s (fx only) · stone (x the leap's kills as damage to the nearest barricade / geode / fortress gate in
+## reach, before any squad; in the siege every leap goes at the gate) / debris_r / debris_s (STAGGER on the
+## nearest squad <= debris_r behind the stone) · honk_status / honk_s (the leap's target after the strike) ·
+## shout_s / shout_cut (after each leap the army's clash losses x (1 - shout_cut) for shout_s).
 ## Ranger: flying_mult · flying_range · prefer_flying · homing (fx only) · probe_every / probe_status /
 ## probe_s / probe_reach · harpoon_every / tether_r / tether_share / tether_s / ground_s.
 ## Mage: target (&"nearest" | densest) · page_share / page_reach · lull_s / lull_strength (KindView.hold) ·
@@ -116,9 +127,12 @@ const CLASS := {
 ## the nearest squad instead) · charge_bar (x Action into a blocked barricade when no squad is near) ·
 ## rod_targets / rod_reach / rod_status (x action each) · plant_ticks / plant_cd / plant_share /
 ## plant_cut (the share of a planted tick the army is spared; absent = 1, the whole tick) ·
-## catch_r / catch_cd / catch_tier (absorb_turret; no catch_cd = shares the Block cd).
+## catch_r / catch_cd / catch_tier (absorb_turret; no catch_cd = shares the Block cd) · net_every / net_s /
+## net_k (every net_every-th Block holds the squad behind net_s at strength net_k instead of its strike).
 ## Healer (after a pulse that returned >= 1): pulse_status / pulse_s / pulse_reach / pulse_back /
-## pulse_all · rime_cap / rime_per.
+## pulse_all · rime_cap / rime_per · jar / jar_reach / jar_status / jar_s (x mult damage + the status on the
+## nearest Flying squad <= jar_reach of her; none: no jar) · guests / bark (each returning Mend lets a guest
+## in; the one that fills the last slot returns x bark, empties the mitten and skips the next Mend beat).
 const TWISTS := {
 	# §6.11 Міла — Тонік: a returning pulse MARKs the nearest squad <= 12 u (reveals Phantom). Knob pulse_s
 	# 3 -> 0.15 s: 1.025 (3 s: 1.111; 0.5 s: 1.050; even one 0.05 s step: 1.016: the vial follows losses, so
@@ -175,7 +189,38 @@ const TWISTS := {
 	# STAGGER <= 1 u of the path. Knob add_ii 0.5 -> 0.15: 1.007 (0.5: 1.102; no return: 0.757).
 	"dovbush": {"verb": &"bartka", "leap_targets": 2, "return": true, "reach": 6.0, "reach_ii": 7.0, "add_ii": 0.15,
 			"armored_first": true, "path_r_iii": 1.0},
+	# §6.30 Франко — Лупайте сю скалу!: the leap prefers stone (a barricade, geode or the fortress gate in reach:
+	# his leap kills x stone as structure damage); the debris STAGGERs the nearest squad <= 2 u behind it 1 s; in
+	# the siege every leap hits the gate. Knob stone 1 -> 0.05: 1.017 (1: 1.489; 0.5: 1.242; 0: 0.991). The
+	# template never leaps in a fight and seldom finds a squad in reach, so a stone leap is an extra leap, not a
+	# traded one: one leap at the gate per run (the siege, or the approach) is +44% at x1, barricades and geodes
+	# alone +4.6%; a stone met together with a squad in reach does not occur in LevelGen levels.
+	"franko": {"stone": 0.05, "debris_r": 2.0, "debris_s": 1.0},
+	# §6.31 Рукавичка — Хто в рукавичці живе?: 7 guests; the Mend that lets the 7th in returns x bark and the next
+	# Mend beat is skipped (8 beats: 7 x 3 = 24, the template's 8 x 3). Knob bark 2 (the sheet): 1.013 (1.5:
+	# 0.987; 2.5: 1.038; 1, the skip alone: 0.955).
+	"rukavychka": {"guests": 7, "bark": 2.0},
+	# §6.32 Одарка — Банка: a returning Mend throws a jar at the nearest Flying squad <= 12 u (1 x power + BURN 3 s);
+	# no flier, no jar. UNMEASURED (LevelGen builds no Flying squads): the jar keeps the sheet's 1 x power.
+	"odarka": {"jar": 1.0, "jar_reach": 12.0, "jar_status": "burn", "jar_s": 3.0},
+	# §6.33 Гоготун — Га-га-га!: the honk MARKs the leap's target after the strike (the leap itself stays the
+	# template's; a MARK before it would make every leap x1.25); the leap picks a Flying squad in reach first
+	# (UNMEASURED: no fliers). Knob honk_s 1 -> 0.04: 1.024 (1: 1.443; 0.1: 1.054; 0.05: 1.033; LevelSim runs a
+	# status for at least one 0.05 s step, so 0.01-0.04 all measure 1.024: the hero's next shots land on it).
+	"hohotun": {"honk_status": "mark", "honk_s": 0.04, "prefer_flying": true},
+	# §6.34 Сковорода — Світ ловив мене: the stamp reads «МИМО!»; every 3rd Block the net holds the squad behind
+	# instead of that Block's strike (no squad behind: the plain strike). UNMEASURED: no squad stands <= 6 u
+	# behind a Block in LevelGen levels (as Снаряд's charge), so the template's kill behind never lands there
+	# either; the net keeps the sheet's 0.5 s full hold.
+	"skovoroda": {"stamp": &"miss", "net_every": 3, "net_s": 0.5, "net_k": 1.0},
+	# §6.35 Мотиватор — Сила лісу!: after each leap the army loses shout_cut fewer in clashes for shout_s (booked
+	# as saved, like Менгір's cut). Knob shout_cut 0.05 -> 0.003: 1.023 (0.05: 1.386; 0.01: 1.077; 0.004: 1.031;
+	# 0.0025: 1.019): the leap lands just before the clash, so the shout covers its first ticks.
+	"motyvator": {"shout_s": 1.5, "shout_cut": 0.003},
 }
+
+## Франко's stone (TWISTS stone): the structures his leap prefers (structures_in kinds).
+const STONE_KINDS: Array[String] = ["barricade", "geode", "fortress"]
 
 ## Element -> the status it applies (ArsenalData.FAMILIES[element].status; rune = seal).
 const ELEMENT_STATUS := {"kinetic": "stagger", "volt": "jolt", "frost": "chill", "plasma": "burn",
@@ -214,8 +259,8 @@ static func member(st: Dictionary, slot: StringName) -> Dictionary:
 			"tw": tw, "fight": false, "foe_id": -1, "fight_cd": 0.0, "plant": 0, "plant_cd": 0.0, "plant_hit": false,
 			"rimed": 0.0, "rime_id": -1, "rime_left": 0.0, "teth_a": -1, "teth_b": -1, "teth_left": 0.0,
 			"circ_d": 0.0, "circ_x": 0.0, "circ_r": 0.0, "circ_left": 0.0, "circ_tick": 0.0, "cut_id": -1,
-			"cut_left": 0.0, "cut": 0.0, "catch_cd": 0.0, "catch_id": -1, "catch_left": 0.0, "saved": 0.0,
-			"struct": 0.0}
+			"cut_left": 0.0, "cut": 0.0, "catch_cd": 0.0, "catch_id": -1, "catch_left": 0.0, "guests": 0,
+			"rest": false, "shout_left": 0.0, "saved": 0.0, "struct": 0.0}
 	if tw.has("status"):
 		m["status"] = str(tw["status"])
 	if cls == "healer":
@@ -376,6 +421,8 @@ static func _twist_step(view: KindView, m: Dictionary, tw: Dictionary, fighting:
 		m["teth_left"] = float(m["teth_left"]) - dt
 	if float(m["cut_left"]) > 0.0:
 		m["cut_left"] = float(m["cut_left"]) - dt
+	if float(m["shout_left"]) > 0.0:
+		m["shout_left"] = maxf(float(m["shout_left"]) - dt, 0.0)
 	m["cut"] = 0.0
 	if not fighting:
 		m["fight"] = false
@@ -408,14 +455,27 @@ static func _twist_step(view: KindView, m: Dictionary, tw: Dictionary, fighting:
 static func _warrior(view: KindView, m: Dictionary, dt: float) -> void:
 	var c: Dictionary = CLASS["warrior"]
 	m["cd"] = maxf(float(m["cd"]) - dt, 0.0)
-	if view.in_fight() or float(m["cd"]) > 0.0:
+	if float(m["cd"]) > 0.0:
 		return
 	var tw: Dictionary = m["tw"]
+	if view.in_fight():
+		# Франко in the siege: every leap goes at the fortress gate (no clash leaps: the template's rule).
+		if tw.has("stone") and view.siege():
+			var gate := _stone_in(view, float(m["d"]) - 1.0, float(m["d"]) + 40.0, float(m["x"]), INF, true)
+			if not gate.is_empty():
+				_stone_leap(view, m, tw, gate, true)
+		return
 	var tier := int(m["tier"])
 	var reach := float(tw.get("reach_ii", c["leap_range_ii"])) if tier >= 2 else float(tw.get("reach", c["leap_range"]))
 	var d := float(m["d"])
 	var x := float(m["x"])
 	var lane := float(c["lane"])
+	if tw.has("stone"):
+		# Франко: stone in reach first (the same lane the leap reaches squads in).
+		var st := _stone_in(view, d, d + reach, x, lane, false)
+		if not st.is_empty():
+			_stone_leap(view, m, tw, st, false)
+			return
 	var sq := view.squads_in(d, d + reach, x - lane, x + lane)
 	if sq.is_empty():
 		return
@@ -423,7 +483,14 @@ static func _warrior(view: KindView, m: Dictionary, dt: float) -> void:
 		sq = sq.filter(func(s: Dictionary) -> bool: return not bool(s.get("flying", false)))
 		if sq.is_empty():
 			return
-	if bool(tw.get("armored_first", false)):
+	if bool(tw.get("prefer_flying", false)):
+		# Гоготун: geese fly; a Flying squad in reach first, then by distance.
+		sq.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
+			var pf := bool(p.get("flying", false))
+			if pf != bool(q.get("flying", false)):
+				return pf
+			return float(p["d"]) < float(q["d"]))
+	elif bool(tw.get("armored_first", false)):
 		# "Robin Hood": the most armoured squad in range first, then by distance.
 		sq.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
 			var pa := bool(p.get("armored", false))
@@ -463,12 +530,77 @@ static func _warrior(view: KindView, m: Dictionary, dt: float) -> void:
 				if int(s2["id"]) != int(first["id"]):
 					view.status(int(s2["id"]), st, float(c["status_s"]))
 			view.fx(TWIST_FX, {"id": m["id"], "twist": &"cross", "target": int(first["id"]), "d": fd, "x": fxx, "r": sr})
+	if tw.has("honk_status"):
+		# Гоготун's honk: the MARK lands on the target after the strike (the leap itself stays the template's);
+		# the view shows the honk as he takes off (this fx comes before the leap's).
+		var hs := float(tw.get("honk_s", 1.0))
+		view.status(int(first["id"]), StringName(str(tw["honk_status"])), hs)
+		view.fx(TWIST_FX, {"id": m["id"], "twist": &"honk", "target": int(first["id"]), "d": float(first["d"]),
+				"x": float(first["x"]), "s": hs})
 	var verb: StringName = tw.get("verb", &"leap")
 	view.fx(&"champ_leap", {"id": m["id"], "target": int(first["id"]), "d": float(first["d"]), "x": float(first["x"]),
 			"verb": verb, "targets": n_targets})
 	if verb != &"leap":
 		view.fx(TWIST_FX, {"id": m["id"], "twist": verb, "target": int(first["id"]), "d": float(first["d"]),
 				"x": float(first["x"]), "targets": n_targets, "burrow_s": float(tw.get("burrow_s", 0.0))})
+	_shout(view, m, tw)
+	m["cd"] = float(tw.get("cd_iv", c["leap_cd_iv"])) if tier >= 4 else float(tw.get("cd", c["leap_cd"]))
+
+
+## Мотиватор's shout at the end of a leap: for shout_s the army's clash losses are x (1 - shout_cut)
+## (clash_loss_mult; clash_hit books the spared share). A new shout restarts the timer.
+static func _shout(view: KindView, m: Dictionary, tw: Dictionary) -> void:
+	if not tw.has("shout_cut"):
+		return
+	m["shout_left"] = float(tw.get("shout_s", 1.5))
+	view.fx(TWIST_FX, {"id": m["id"], "twist": &"shout", "d": float(m["d"]), "x": float(m["x"]),
+			"s": float(m["shout_left"])})
+
+
+## Франко's stone: the nearest living structure of STONE_KINDS with d in [d0, d1] whose span meets
+## [x - lane, x + lane] ({} when none); `gate_only` = the fortress alone (the siege; lane INF = any x).
+static func _stone_in(view: KindView, d0: float, d1: float, x: float, lane: float, gate_only: bool) -> Dictionary:
+	var best: Dictionary = {}
+	for h: Dictionary in view.structures_in(d0, d1):
+		var kind := str(h["kind"])
+		if not STONE_KINDS.has(kind) or (gate_only and kind != "fortress") or float(h.get("hp", 1.0)) <= 0.0:
+			continue
+		if absf(float(h["x"]) - x) > lane + float(h.get("hw", 0.5)):
+			continue
+		if best.is_empty() or float(h["d"]) < float(best["d"]):
+			best = h
+	return best
+
+
+## Франко's leap at stone row `st`: the stone takes the leap's kills x stone as structure damage (booked
+## as struct, at most what it had left); the debris STAGGERs the nearest squad <= debris_r behind it
+## (fx debris = its id, -1 when none). The impact point is the stone's span nearest his x.
+static func _stone_leap(view: KindView, m: Dictionary, tw: Dictionary, st: Dictionary, in_siege: bool) -> void:
+	var c: Dictionary = CLASS["warrior"]
+	var tier := int(m["tier"])
+	var power := float(m["action"]) + (float(tw.get("add_ii", c["leap_add_ii"])) * float(m["mult"]) if tier >= 2 else 0.0)
+	var dmg := power * float(tw.get("stone", 1.0))
+	var sid := int(st["id"])
+	var left := maxf(float(st.get("hp", dmg)), 0.0)
+	view.hit(sid, dmg, {"src": m["id"], "kind": &"leap"})
+	m["struct"] = float(m["struct"]) + minf(dmg, left)
+	var sd := float(st["d"])
+	var hw := float(st.get("hw", 0.5))
+	var sx := clampf(float(m["x"]), float(st["x"]) - hw, float(st["x"]) + hw)
+	var dr := float(tw.get("debris_r", 2.0))
+	var debris := -1
+	var best := INF
+	for s: Dictionary in view.squads_in(sd, sd + dr, sx - dr, sx + dr):
+		var k := Vector2(float(s["x"]) - sx, float(s["d"]) - sd).length()
+		if k < best:
+			best = k
+			debris = int(s["id"])
+	if debris >= 0:
+		view.status(debris, &"stagger", float(tw.get("debris_s", 1.0)))
+	view.fx(&"champ_leap", {"id": m["id"], "target": sid, "d": sd, "x": sx, "verb": &"stone", "targets": 1})
+	view.fx(TWIST_FX, {"id": m["id"], "twist": &"stone", "target": sid, "d": sd, "x": sx, "debris": debris,
+			"siege": in_siege})
+	_shout(view, m, tw)
 	m["cd"] = float(tw.get("cd_iv", c["leap_cd_iv"])) if tier >= 4 else float(tw.get("cd", c["leap_cd"]))
 
 
@@ -747,16 +879,26 @@ static func _healer(view: KindView, members: Array, m: Dictionary, dt: float) ->
 	m["cd"] = float(m["cd"]) - dt
 	if float(m["cd"]) <= 0.0:
 		m["cd"] = float(m["cd"]) + _healer_cd(m)
-		var per := float(m["action"]) + (float(c["add_ii"]) * float(m["mult"]) if int(m["tier"]) >= 2 else 0.0)
-		var n := floorf(minf(float(m["pool"]), per))
-		if n >= 1.0 and float(view.army()["n"]) >= 1.0:
-			m["pool"] = float(m["pool"]) - n
-			m["heals"] = float(m["heals"]) + n
-			view.add_soldiers(n, &"mend")
-			view.fx(&"champ_mend", {"id": m["id"], "n": n, "front": int(m["tier"]) >= 2})
-			var tw: Dictionary = m["tw"]
-			if not tw.is_empty():
-				_pulse_twist(view, m, tw, n)
+		var tw: Dictionary = m["tw"]
+		if bool(m["rest"]):
+			# Рукавичка: the beat after the bark is skipped (the guests ran off; the pool keeps).
+			m["rest"] = false
+		else:
+			var per := float(m["action"]) + (float(c["add_ii"]) * float(m["mult"]) if int(m["tier"]) >= 2 else 0.0)
+			var slots := int(tw.get("guests", 0))
+			if slots > 0 and int(m["guests"]) >= slots - 1:
+				# The Mend that lets the last guest in: the dog barks, this one returns x bark.
+				per *= float(tw.get("bark", 2.0))
+			var n := floorf(minf(float(m["pool"]), per))
+			if n >= 1.0 and float(view.army()["n"]) >= 1.0:
+				m["pool"] = float(m["pool"]) - n
+				m["heals"] = float(m["heals"]) + n
+				view.add_soldiers(n, &"mend")
+				view.fx(&"champ_mend", {"id": m["id"], "n": n, "front": int(m["tier"]) >= 2})
+				if slots > 0:
+					_mitten(view, m, slots)
+				if not tw.is_empty():
+					_pulse_twist(view, m, tw, n)
 	if int(m["tier"]) >= 3:
 		m["heal_cd"] = float(m["heal_cd"]) - dt
 		if float(m["heal_cd"]) <= 0.0:
@@ -768,9 +910,45 @@ static func _healer(view: KindView, members: Array, m: Dictionary, dt: float) ->
 				view.fx(&"champ_heal", {"id": m["id"], "target": f["id"], "hp": add})
 
 
-## After a pulse that returned `n`: the pulse's status (Міла's Tonic on the nearest squad ahead,
-## Олена's Frost Balm on every squad <= pulse_reach of the army front) and Олена's rimed soldiers.
+## Рукавичка's mitten after a returning Mend: one more guest; the last slot filled = the bark (the
+## mitten empties, the next Mend beat is skipped). fx mitten {guests, bark}.
+static func _mitten(view: KindView, m: Dictionary, slots: int) -> void:
+	var g := int(m["guests"]) + 1
+	var bark := g >= slots
+	m["guests"] = 0 if bark else g
+	if bark:
+		m["rest"] = true
+	view.fx(TWIST_FX, {"id": m["id"], "twist": &"mitten", "guests": g, "bark": bark})
+
+
+## Одарка's jar after a returning Mend: the nearest Flying squad <= jar_reach of her takes jar x mult and
+## the jar's status (none in reach: no jar; she never throws at ground squads).
+static func _jar(view: KindView, m: Dictionary, tw: Dictionary) -> void:
+	var jr := float(tw.get("jar_reach", 12.0))
+	var d := float(m["d"])
+	var x := float(m["x"])
+	var near: Dictionary = {}
+	var best := INF
+	for s: Dictionary in view.squads_in(d - jr, d + jr, x - jr, x + jr):
+		if not bool(s.get("flying", false)):
+			continue
+		var k := Vector2(float(s["x"]) - x, float(s["d"]) - d).length()
+		if k <= jr and k < best:
+			best = k
+			near = s
+	if near.is_empty():
+		return
+	var tid := int(near["id"])
+	m["kills"] = float(m["kills"]) + view.hit(tid, float(tw["jar"]) * float(m["mult"]), {"src": m["id"], "kind": &"jar"})
+	view.status(tid, StringName(str(tw.get("jar_status", "burn"))), float(tw.get("jar_s", 3.0)))
+	view.fx(TWIST_FX, {"id": m["id"], "twist": &"jar", "target": tid, "d": float(near["d"]), "x": float(near["x"])})
+
+
+## After a pulse that returned `n`: Одарка's jar, the pulse's status (Міла's Tonic on the nearest squad
+## ahead, Олена's Frost Balm on every squad <= pulse_reach of the army front) and Олена's rimed soldiers.
 static func _pulse_twist(view: KindView, m: Dictionary, tw: Dictionary, n: float) -> void:
+	if tw.has("jar"):
+		_jar(view, m, tw)
 	if tw.has("rime_cap"):
 		m["rimed"] = minf(float(m["rimed"]) + n, float(tw["rime_cap"]))
 	if not tw.has("pulse_status"):
@@ -817,8 +995,8 @@ static func clash_kill_mult(members: Array) -> float:
 
 ## x the army's clash losses: Guardian aura "clash losses -x%"; x (1 - circle_cut) while the foe stands
 ## in a Менгір circle (or left it less than brand_s ago); x (1 - plant_cut) on Отто's planted tick (a
-## partial plant: tick_free flagged it and returned false). Called right after tick_free, as the Run and
-## LevelSim do.
+## partial plant: tick_free flagged it and returned false); x (1 - shout_cut) while Мотиватор's shout runs.
+## Called right after tick_free, as the Run and LevelSim do.
 static func clash_loss_mult(members: Array) -> float:
 	var k := maxf(0.0, 1.0 - _aura_sum(members, "guardian"))
 	for m: Dictionary in members:
@@ -828,7 +1006,14 @@ static func clash_loss_mult(members: Array) -> float:
 			k *= 1.0 - float(m["cut"])
 		if bool(m.get("plant_hit", false)):
 			k *= 1.0 - _plant_cut(m)
+		if float(m["shout_left"]) > 0.0:
+			k *= 1.0 - _shout_cut(m)
 	return k
+
+
+## The share of the army's clash losses Мотиватор's shout spares while it runs (0 without one).
+static func _shout_cut(m: Dictionary) -> float:
+	return clampf(float((m["tw"] as Dictionary).get("shout_cut", 0.0)), 0.0, 1.0)
 
 
 ## x every hazard / turret loss: Healer aura "hazard losses -x%".
@@ -896,10 +1081,13 @@ static func _block(view: KindView, members: Array, hazard_id: int, kind: StringN
 		m["blocks"] = int(m["blocks"]) + 1
 		if int(m["tier"]) >= 3:
 			m["shield"] = float(c["shield_iii"])
-		_block_strike(view, m, tw, hazard_id, kind)
+		var net := _block_strike(view, m, tw, hazard_id, kind)
 		if tw.has("rod_targets"):
 			_rod(view, m, tw, hazard_id)
 		view.fx(&"champ_block", {"id": m["id"], "hazard": hazard_id, "kind": kind, "stamp": tw.get("stamp", &"block")})
+		if not net.is_empty():
+			# Сковорода's net, after the Block's own fx: «НЕ СПІЙМАВ!» takes the stamp over the squad.
+			view.fx(TWIST_FX, net)
 		var spare2 := minf(float(m["block_left"]), lost)
 		m["block_left"] = float(m["block_left"]) - spare2
 		m["saved"] = float(m["saved"]) + spare2
@@ -910,11 +1098,21 @@ static func _block(view: KindView, members: Array, hazard_id: int, kind: StringN
 ## The Block's own strike: a blocked barricade takes `bar` (x mult; tier IV +5), else the squad behind
 ## takes `behind` kills (both default to the Action). Снаряд's charge replaces it: the nearest squad
 ## <= charge_reach takes the Action + charge_status (a barricade takes it when no squad is near).
-static func _block_strike(view: KindView, m: Dictionary, tw: Dictionary, hazard_id: int, kind: StringName) -> void:
+## Сковорода's net replaces it on every net_every-th Block: the squad behind (as the strike finds it) is
+## held net_s at net_k (no squad behind: the plain strike). Returns the net's fx row ({} when none).
+static func _block_strike(view: KindView, m: Dictionary, tw: Dictionary, hazard_id: int, kind: StringName) -> Dictionary:
 	var c: Dictionary = CLASS["guardian"]
 	var mult := float(m["mult"])
 	var d := float(m["d"])
 	var x := float(m["x"])
+	var every := int(tw.get("net_every", 0))
+	if every > 0 and int(m["blocks"]) % every == 0:
+		var behind_sq := _behind(view, d, x)
+		if not behind_sq.is_empty():
+			var ns := float(tw.get("net_s", 0.5))
+			view.hold(int(behind_sq["id"]), ns, float(tw.get("net_k", 1.0)))
+			return {"id": m["id"], "twist": &"net", "target": int(behind_sq["id"]), "d": float(behind_sq["d"]),
+					"x": float(behind_sq["x"]), "s": ns}
 	if tw.has("charge_reach"):
 		var cr := float(tw["charge_reach"])
 		var near: Dictionary = {}
@@ -935,7 +1133,7 @@ static func _block_strike(view: KindView, m: Dictionary, tw: Dictionary, hazard_
 			var cb := float(m["action"]) * float(tw["charge_bar"])
 			view.hit(hazard_id, cb, {"src": m["id"], "kind": &"charge"})
 			m["struct"] = float(m["struct"]) + cb
-		return
+		return {}
 	if kind == &"barricade":
 		var bar := float(tw["bar"]) * mult if tw.has("bar") else float(m["action"])
 		bar += float(c["barricade_iv"]) if int(m["tier"]) >= 4 else 0.0
@@ -943,18 +1141,25 @@ static func _block_strike(view: KindView, m: Dictionary, tw: Dictionary, hazard_
 		m["struct"] = float(m["struct"]) + bar
 		if tw.has("bar_fx"):
 			view.fx(TWIST_FX, {"id": m["id"], "twist": tw["bar_fx"], "hazard": hazard_id})
-		return
-	var sq := view.squads_in(d, d + float(c["behind"]), x - 1.5, x + 1.5)
-	if sq.is_empty():
-		return
-	var first: Dictionary = sq[0]
-	for s2: Dictionary in sq:
-		if float(s2["d"]) < float(first["d"]):
-			first = s2
+		return {}
+	var first := _behind(view, d, x)
+	if first.is_empty():
+		return {}
 	var behind := float(tw["behind"]) * mult if tw.has("behind") else float(m["action"])
 	m["kills"] = float(m["kills"]) + view.hit(int(first["id"]), behind, {"src": m["id"], "kind": &"block"})
 	if tw.has("status") and str(m["status"]) != "":
 		view.status(int(first["id"]), StringName(str(m["status"])), 2.0)
+	return {}
+
+
+## The squad behind a Guardian's Block: the nearest squad <= CLASS guardian behind ahead of (d, x) in its
+## 1.5 u lane ({} when none).
+static func _behind(view: KindView, d: float, x: float) -> Dictionary:
+	var first: Dictionary = {}
+	for s: Dictionary in view.squads_in(d, d + float(CLASS["guardian"]["behind"]), x - 1.5, x + 1.5):
+		if first.is_empty() or float(s["d"]) < float(first["d"]):
+			first = s
+	return first
 
 
 ## Німб's Lightning Rod: the rod_targets hostiles nearest him (<= rod_reach; squads and structures, never
@@ -1129,9 +1334,11 @@ static func cleave(members: Array) -> float:
 ## (fx champ_down).
 static func clash_hit(view: KindView, members: Array, hit: float, guardian_hero: bool) -> void:
 	for mc: Dictionary in members:
-		# Менгір's circle cut this tick (clash_loss_mult): booked for the budget table.
+		# Менгір's circle cut and Мотиватор's shout this tick (clash_loss_mult): booked for the budget table.
 		if float(mc["cut"]) > 0.0 and bool(mc["alive"]):
 			mc["saved"] = float(mc["saved"]) + hit * float(mc["cut"])
+		if float(mc["shout_left"]) > 0.0 and bool(mc["alive"]):
+			mc["saved"] = float(mc["saved"]) + hit * _shout_cut(mc)
 	var f := in_slot(members, FRONT)
 	if f.is_empty() or hit <= 0.0:
 		return
@@ -1172,6 +1379,7 @@ static func _damage(view: KindView, m: Dictionary, dmg: float) -> void:
 		m["shield"] = 0.0
 		m["plant"] = 0
 		m["cut"] = 0.0
+		m["shout_left"] = 0.0
 		view.fx(&"champ_down", {"id": m["id"], "slot": m["slot"], "x": float(m["x"]), "d": float(m["d"])})
 
 

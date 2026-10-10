@@ -1362,9 +1362,12 @@ const STRINGS := {
 	"HINT_CHAMP_BLOCK": ["Блок! Страж прийняв удар леза", "Block! The Guardian took the blade hit"],
 	"CHAMP_BLOCK_POP": ["БЛОК", "BLOCK"],
 	"CHAMP_CLEAR_POP": ["ЧИСТО!", "ALL CLEAR!"],
-	# Wave-9 twist stamps (§6.30-§6.35): Сковорода's Block and every third net, Рукавичка's full mitten.
-	"CHAMP_MISS_POP": ["МИМО!", "MISSED!"],
-	"CHAMP_UNCAUGHT_POP": ["НЕ СПІЙМАВ!", "CAN’T CATCH ME!"],
+	# The wave 9 twists' cries on the champions' stamp (ChampionView; heroes_design.md §6.30-6.35).
+	"ACT_FRANKO_POP": ["ЛУПАЙТЕ!", "BREAK IT!"],
+	"ACT_HOHOTUN_POP": ["ГА-ГА-ГА!", "HONK-HONK!"],
+	"ACT_SKOVORODA_POP": ["МИМО!", "MISSED!"],
+	"ACT_SKOVORODA_NET_POP": ["НЕ СПІЙМАВ!", "CAN’T CATCH ME!"],
+	"ACT_MOTYVATOR_POP": ["СИЛА ЛІСУ!", "FOREST POWER!"],
 	"CHAMP_BARK_POP": ["ГАВ!", "WOOF!"],
 	"HINT_CHAMP_FALL": ["Чемпіон упав: його бонуси зникли до кінця рівня", "Champion down: its bonuses are gone for this level"],
 	"TOAST_SAVE_FAILED": ["Не вдалося зберегти — нічого не витрачено", "Could not save — nothing was spent"],
