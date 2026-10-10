@@ -820,11 +820,11 @@ white feather means cowardice in English), Німб «Щит бурі / Storm Ae
 | 23 | `taras` | Тарас / Taras | Кобзар / The Kobzar | Пробиває загони словом / Breaks squads with the Word | Топаз | Mage | Rune | Wildfang | human · m |
 | 24 | `snaryad` | Снаряд / Snaryad | Пес-сапер / The Sapper Hound | Знешкоджує пастки / Defuses the traps | Аметист | Guardian | Tech | Dawn | beast (Jack Russell terrier) · m |
 | 25 | `dovbush` | Довбуш / Dovbush | Опришок / The Carpathian Rebel | Кидає бартку крізь загони / Hurls the bartka | Топаз | Warrior | Kinetic | Stoneheart | human · m |
-| 28 | `franko` | Франко / Franko | Каменяр / The Stonebreaker | Лупає скелю / Breaks the rock | Топаз | Warrior | Kinetic | Stoneheart | human · m |
-| 29 | `rukavychka` | Рукавичка / The Mitten | Мишка-шкряботушка / Scrabble-Mouse | Повертає полеглих гуртом / Brings the fallen back together | Кварц | Healer | Frost | Wildfang | beast (mouse) · f |
-| 30 | `odarka` | Баба Одарка / Granny Odarka | Берегиня борщу / Keeper of the Borscht | Годує полеглих, б'є летунів / Feeds the fallen, hits the fliers | Сапфір | Healer | Plasma | Dawn | human · f |
-| 31 | `hohotun` | Гоготун / Honker | Бойовий гусак / The Battle Goose | Мітить і падає з неба / Marks, then drops from the sky | Сапфір | Warrior | Tech | Wildfang | beast (grey goose) · m |
-| 32 | `skovoroda` | Сковорода / Skovoroda | Невловимий / The Uncaught | Леза летять мимо / The blades fly past | Аметист | Guardian | Kinetic | Dawn | human · m |
+| 28 | `franko` | Франко / Franko | Каменяр / The Stonebreaker | Лупає мури й ворота / Breaks walls and gates | Топаз | Warrior | Kinetic | Stoneheart | human · m |
+| 29 | `rukavychka` | Рукавичка / The Mitten | Мишка-шкряботушка / Scrabble-Mouse | Повертає полеглих гуртом / Brings the fallen back in a crowd | Кварц | Healer | Frost | Wildfang | beast (mouse) · f |
+| 30 | `odarka` | Баба Одарка / Granny Odarka | Берегиня борщу / Keeper of the Borscht | Годує полеглих і б’є летунів / Feeds the fallen, pelts the fliers | Сапфір | Healer | Plasma | Dawn | human · f |
+| 31 | `hohotun` | Гоготун / Honker | Бойовий гусак / The Battle Goose | Стрибає навіть на летунів / Leaps even at the fliers | Сапфір | Warrior | Tech | Wildfang | beast (grey goose) · m |
+| 32 | `skovoroda` | Сковорода / Skovoroda | Невловимий / The Uncaught | Пускає леза мимо / Lets the blades miss | Аметист | Guardian | Kinetic | Dawn | human · m |
 | 33 | `motyvator` | Мотиватор / The Motivator | Сила лісу / Power of the Forest | Додає армії духу / Lifts the army's spirit | Кварц | Warrior | Rune | Wildfang | human · m |
 
 Coverage: classes W 9 · R 6 · M 5 · G 7 · H 6; elements Kin 7 · Volt 4 · Plasma 6 · Rune 7 · Frost 4 · Tech 5;
@@ -1543,12 +1543,12 @@ and beats are on each hero sheet (Сірко's on §6.28, Ольга's on §6.29
 | taras | Тарас прийшов у Рунічний ліс із торбою книжок і навчив звіролюдей записувати власні пісні. / Його слово не горить: коли Жаророгі підпалили ліс, сторінки його книжок знялися в повітря й розтяли полум'я, мов леза. / Він вірить, що вчасно сказане слово сильніше за будь-яку зброю, — і кожен бій починає з рядка. |
 | snaryad | Снаряд був найменшим цуценям у псарні Небесної гавані, а нюх мав найкращий у всьому Ордені Світанку. / Він чує пастку Жаророгих за три кроки й знешкоджує її раніше, ніж до неї ступить бодай один воїн. / Кожне висмикнуте запобіжне кільце він носить на грудях, як медаль, — і щоразу чекає, що його назвуть молодцем. |
 | dovbush | Довбуш — син гір: він виріс на перевалі Крижаних вершин, і скелі Кам'яного Серця досі звуть його своїм. / Він забирає в жорстоких ватажків Жаророгих награбоване й віддає тим, кого вони пограбували, а прості стріли його не беруть. / Його бартка летить туди, куди він покаже, — і завжди повертається до руки. |
-| franko | Франко виріс у кузні на перевалі Крижаних вершин і змалку знав, що кожен камінь має свою тріщину. / Жаророгі закували каменярів Кам'яного Серця в кайдани й звеліли тесати їм фортецю, та він першим підняв молот на скелю, а не на брата. / Відтоді кайдани на його зап'ястях завжди розбиті, а скеля перед ним завжди тріскає. |
-| rukavychka | Дід загубив рукавичку на стежці Рунічного лісу, і першою в ній оселилася мишка-шкряботушка. / Відтоді в рукавичці зимують усі, кому холодно: жабка, зайчик, лисичка, вовчик, кабан і ведмідь, і місце знаходиться завжди. / У бою вона ховає туди полеглих воїнів, а коли гавкає собака, вони вискакують зігріті й знову стають у стрій. |
-| odarka | Баба Одарка тримає найбільшу кухню в Небесній гавані, і жоден воїн Ордену Світанку ще не пішов від неї голодним. / Її погріб — легенда: закрутки стоять там рядами, як військо, а маринований перець пече сильніше за вогонь Жаророгих. / Полеглих вона годує, доки ті не встануть, а в летунів Жаророгих кидає банку — і ще жодного разу не схибила. |
-| hohotun | Гоготун — найгучніший гусак Диких Іклів: його «Га-га-га!» чути від Коралового рифу до Рунічного лісу. / Він сам приміряв шолом і стьобанку й записався до війська, бо «хтось мусить стерегти небо». / На лапі він носить таємне кільце з номером 001 і нікому не каже, що воно означає. |
-| skovoroda | Сковорода все життя мандрував шляхами від Небесної гавані до Рунічного лісу з ціпком, сопілкою й торбою книжок. / Жаророгі сплели для нього золоту сітку й не раз її закидали, та він щоразу проходив крізь неї, мов вітер. / На його ціпку вирізано «Світ ловив мене, та не спіймав», і він досі усміхається, коли це читає. |
-| motyvator | Мотиватор живе в найглибшій гущавині Рунічного лісу, де мох м'якший за перину, а кора тепліша за кожух. / Ліс навчив його одного: хто вміє радіти, того не зламати, — і він кричить про це так, що гнуться сосни. / Коли армія втомлюється, він здіймає кулак до неба, і воїни знову відчувають силу лісу. |
+| franko | Франко прийшов до каменярів Кам’яного Серця з торбою рукописів і лишився лупати скелю пліч-о-пліч із ними. / Кайдани, якими Жаророгі прикували копачів до скелі, він розбив першим ударом молота — і досі носить їхні уламки на зап’ястях. / Він каже, що слово й молот роблять одну роботу: прокладають дорогу тим, хто йде слідом. |
+| rukavychka | Рукавичкою звуть найменшу мишку Рунічного лісу: коли дід загубив у снігу рукавичку, вона першою в ній оселилася. / Слідом прийшли жабка, зайчик, лисичка, вовчик, кабан і ведмідь, і щоразу вона казала: «Тісно — але влізе!» / Тепер у її рукавичці гріються поранені солдати, а коли гавкає собака, усі вискакують назад у бій. |
+| odarka | Баба Одарка тримає кухню Небесної гавані, і ще жоден воїн Ордену Світанку не вийшов від неї голодним. / Кожному, хто впав, вона наливає борщу й каже: «Ти щось схуд. Їж!» — і той підводиться. / А для летунів Жаророгих у неї є цілий погріб закруток, і банку з перцем вона кидає влучніше за лучника. |
+| hohotun | Гоготун був найгоноровішим гусаком на березі Коралового рифу, аж поки звіролюди не дали йому сталевий шолом. / Тепер перед кожним стрибком він гелгоче «Га-га-га!», і ворог, на якого він глянув, уже знає, що буде далі. / На лапі він носить алюмінієве кільце з номером, а що той номер означає — цілком таємно. |
+| skovoroda | Сковорода сходив пішки сотні доріг між Небесною гаванню й Рунічним лісом — із ціпком, сопілкою й торбою книжок. / Він учив, що вільної душі не зловить жодна сітка, і Жаророгі, хоч скільки її закидали, щоразу ловили порожнечу. / Слова, якими його пам’ятатимуть, він обрав сам: «Світ ловив мене, та не спіймав», — і кожен бій доводить, що це правда. |
+| motyvator | Мотиватор живе в найглибшій гущавині Рунічного лісу, і мох на його плечах старший за деякі дуби. / Щоранку він обіймає стовбури, п’є росу й гукає так, що ліс прокидається, а звіролюди йдуть за ним хоч на край світу. / Коли армія втомлюється, він здіймає кулак до неба — і втома тане, мов роса на сонці. |
 
 Champion en lore (3 lines each, same order as uk; en for heroes is on the hero sheets):
 **mila** Mila was the youngest apprentice in the orbital temple's infirmary, and always the first one out to the field. /
@@ -1586,26 +1586,26 @@ trap three steps away and defuses it before a single soldier sets foot on it. / 
 on his chest like a medal, and every time he waits to be called a good boy. **dovbush** Dovbush is a son of the
 mountains: he grew up on the Frost Peaks pass, and the Stoneheart rocks still call him their own. / He takes back what
 the cruel Emberhorn chieftains have plundered and returns it to those they robbed, and ordinary arrows cannot touch him.
-/ His bartka flies wherever he points, and it always comes back to his hand. **franko** Franko grew up in a forge on the
-Frost Peaks pass and learned as a boy that every stone has its crack. / The Emberhorn chained the Stoneheart stonebreakers
-and made them hew a fortress, but he was the first to raise his hammer at the rock, not at his brother. / Since then the
-shackles on his wrists are always broken, and the rock in front of him always cracks. **rukavychka** An old man lost his
-mitten on a Rune Forest path, and the first to move in was the scrabble-mouse. / Ever since, everyone who is cold winters
-in the mitten: the frog, the hare, the fox, the wolf, the boar and the bear, and there is always room. / In battle she
-tucks the fallen soldiers inside, and when the dog barks they jump out warm and take their place in the line again.
-**odarka** Granny Odarka keeps the biggest kitchen in the Sky Harbour, and no Dawn Order soldier has ever left it hungry.
-/ Her cellar is a legend: the jars stand in rows like an army, and her pickled peppers burn hotter than Emberhorn fire.
-/ She feeds the fallen until they get up, throws a jar at the Emberhorn fliers, and has never missed once. **hohotun**
-Honker is the loudest goose of the Wildfang: his honk carries from the Coral Reef to the Rune Forest. / He tried on the
-helmet and the quilted vest himself and joined the army, because "someone has to guard the sky". / He wears a secret
-ring numbered 001 on his leg and tells no one what it means. **skovoroda** Skovoroda spent his whole life wandering the
-roads from the Sky Harbour to the Rune Forest with a staff, a pipe and a satchel of books. / The Emberhorn wove a golden
-net for him and cast it many times, but each time he passed through it like the wind. / His staff is carved with the
-words "The world tried to catch me, and missed", and he still smiles when he reads them. **motyvator** The Motivator
-lives in the deepest thicket of the Rune Forest, where the moss is softer than a feather bed and the bark is warmer than
-a sheepskin coat. / The forest taught him one thing: whoever knows how to rejoice cannot be broken, and he shouts it so
-loud the pines bend. / When the army tires, he raises his fist to the sky, and the soldiers feel the power of the forest
-again.
+/ His bartka flies wherever he points, and it always comes back to his hand. **franko** Franko came to the Stoneheart
+quarrymen with a satchel of manuscripts and stayed to break the rock beside them. / The chains the Emberhorn used to
+bind the diggers to the cliff broke under the first blow of his hammer, and he still wears the broken cuffs on his
+wrists. / He says the word and the hammer do the same work: they clear the road for those who come after. **rukavychka**
+Everyone calls the smallest mouse of the Rune Forest the Mitten: when an old man dropped his mitten in the snow, she was
+the first to move in. / Then came the frog, the hare, the fox, the wolf, the boar and the bear, and each time she said
+it was tight, but there was room. / Now wounded soldiers warm up in her mitten, and when the dog barks, everyone jumps
+back into the fight. **odarka** Granny Odarka runs the kitchen of the Sky Harbour, and no one in the Dawn Order has ever
+left her table hungry. / She pours a bowl of borscht for everyone who falls, tells them they have lost weight, and up
+they get. / And for the Emberhorn fliers she keeps a whole cellar of preserves: she throws a jar of peppers straighter
+than any archer. **hohotun** Honker was the proudest goose on the shore of the Coral Reef, until the beast-kin gave him
+a steel helmet. / Now he honks before every leap, and the foe he glares at already knows what comes next. / He wears an
+aluminium ring with a number on one leg, and what that number means is top secret. **skovoroda** Skovoroda walked
+hundreds of roads between the Sky Harbour and the Rune Forest with a staff, a reed pipe and a satchel of books. / He
+taught that no net can catch a free soul, and however often the Emberhorn cast theirs, they caught only empty air. / He
+chose his own words to be remembered by: the world tried to catch me, but it never did. Every battle proves them true.
+**motyvator** The Motivator lives in the deepest thicket of the Rune Forest, and the moss on his shoulders is older than
+some of the oaks. / Every morning he hugs the trees, drinks the dew and shouts so loud the forest wakes, and the
+beast-kin would follow him to the end of the world. / When the army tires, he raises his fist to the sky, and the
+weariness melts like dew in the sun.
 
 **Skill-name keys:** heroes `ULT_<ID>` (starters keep `ULT_STORM`, `ULT_QUAKE`, `ULT_RIFT`), `ATK_<ID>`, `RALLY_<ID>`,
 `AWK_<ID>`, beats `ATK_<ID>_B3/B6/B9`, forms `ULT_<ID>_F2…F5` (names = the bold names on each sheet); champions
@@ -1997,7 +1997,7 @@ lost weight. Eat!" · action «Ще борщику? Я не питаю.» / "Mor
 | Twist — Банка / The Jar | a Mend that returns ≥ 1 soldier also throws a jar of pickled peppers on a high arc at the nearest **Flying** squad ≤ 12 u: 1 × power damage *(knob)* + BURN 3 s; no flier in range, no jar (she never throws at ground squads, so she does not repeat Міла's vial) | 1.08 / 1.97 / 2.12 jar damage |
 | Aura (r 1.3) | hazard losses − value × 0.30 (right) | 0.130 → 3.9% / 0.272 → 8.2% |
 | Tier | II: +1 per pulse; returns land at the blob front (a recut keeps II) | — |
-| Relic Бабусин половник / Granny's Ladle | +4 pool cap +5 · +8 the jar's BURN +1 s · +12 the jar splashes every Flying squad ≤ 1 u of its target | — |
+| Relic Половник / The Ladle | +4 pool cap +5 · +8 the jar's BURN +1 s · +12 the jar splashes every Flying squad ≤ 1 u of its target | — |
 
 Budget: the Mend is the template's; the jar is the twist. LevelGen builds no Flying squads before Meta-2, so in LevelSim
 the jar never flies and the kit measures as the bare template: UNMEASURED (like Альба's flier rule); the jar damage is
@@ -2035,7 +2035,7 @@ very proud of his helmet. **Voice:** pick «Га-га-га! В атаку!» / "
 | Twist — Га-га-га! / Honk-Honk-Honk! | before each leap he honks (0.4 s, «ГА-ГА-ГА!») and MARKs the target squad for 1 s *(knob)*; then he flies up and drops on it with his wings spread. His leap may pick a **Flying** squad ≤ 3 u (the only Warrior leap that reaches fliers) | — |
 | Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.108 → 3.8% / 0.227 → 7.9% |
 | Tier | II: leap 4 kills, reach 4 u (a recut keeps II) | — |
-| Relic Таємне кільце / The Secret Ring | +4 MARK +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
+| Relic Кільце № 001 / Ring No. 001 | +4 MARK +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
 
 Budget: the leap is the template's; the MARK makes the target take more from everyone (soldiers, machines, the hero)
 for its length, so the MARK length is the knob that keeps `KIT_INDEX` = 1 ± 3% (Міла's 3 s MARK measured ×1.11, so
@@ -2072,7 +2072,7 @@ me, and missed." · action «Мимо!» / "Missed!"
 |---|---|---|
 | HP | takes the front clash share (fractional accumulator) | 77 / 140 / 146 |
 | Action — Block | the template: absorbs one blade / spike / barricade contact on soldiers within 1.0 u (0 losses) + 1 × power kills on the squad behind; cd 5 s; the stamp reads «МИМО!» / "MISSED!" instead of «БЛОК» (the blade passes through his cloak) | 1.17 / 2.13 / 2.21 kills |
-| Twist — Світ ловив мене / The World Tried to Catch Me | every 3rd Block the golden net that was meant for him falls on the squad behind instead of that Block's kill: the squad is held 0.5 s *(knob)* and «НЕ СПІЙМАВ!» / "NOT CAUGHT!" flashes over it | — |
+| Twist — Світ ловив мене, та не спіймав / The World Never Caught Me | every 3rd Block the golden net that was meant for him falls on the squad behind instead of that Block's kill: the squad is held 0.5 s *(knob)* and «НЕ СПІЙМАВ!» / "NOT CAUGHT!" flashes over it | — |
 | Aura (r 1.0) | clash losses − value × 0.35 (front) | 0.117 → 4.1% / 0.245 → 8.6% |
 | Tier | III: II block radius 1.4 u · III after a Block a 1.5 s front shield (the next clash tick costs 0) (a recut keeps III) | — |
 | Relic Сопілка мандрівника / The Wanderer's Pipe | +4 block radius +0.1 u · +8 the net's hold +0.2 s · +12 Block cd −0.5 s | — |
@@ -2115,7 +2115,7 @@ action «Сила лісу!» / "Power of the forest!"
 | Twist — Сила лісу! / Power of the Forest! | each leap ends with his shout: for 1.5 s the army loses 5% *(knob)* fewer soldiers in clashes (leaves and moss swirl over the crowd); the twist adds no kills | — |
 | Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.100 → 3.5% / 0.210 → 7.3% |
 | Tier | I (a recut keeps I) | — |
-| Relic Жолудеве намисто / The Acorn Necklace | +4 shout +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
+| Relic Жолудь сили / The Acorn of Strength | +4 shout +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
 
 Budget: the leap is the template's; the shout's cut is booked as the soldiers it spares (like Менгір's circle cut), so
 its size and length are the knobs that keep `KIT_INDEX` = 1 ± 3%. The relic is the acorn necklace on his chest.
