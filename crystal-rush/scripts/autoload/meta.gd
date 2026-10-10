@@ -76,7 +76,7 @@ func load_account() -> void:
 	if Save.readonly:
 		_rng.seed = 1
 		if dev_profile == "":
-			dev_profile = "fresh"
+			dev_profile = "expected" if Preview.on() else "fresh"
 		account = synthetic_account(maxi(1, int(Save.level)), dev_profile)
 		(account["progress"] as Dictionary)["hero"] = str(Save.hero)
 		return

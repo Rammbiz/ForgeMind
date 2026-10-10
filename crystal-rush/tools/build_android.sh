@@ -8,6 +8,8 @@
 # Defaults: "debug", output crystal-rush/build/crystal-rush-<mode>.apk
 #
 # Requirements / environment:
+#   PRESET             export preset (default "Android"; "Android Preview" = the owner's preview app,
+#                      scripts/core/preview.gd).
 #   GODOT              Godot 4.7.x editor binary (default: `godot` on PATH). The matching
 #                      export templates must be installed (Editor > Manage Export Templates,
 #                      or unpack the .tpz into ~/.local/share/godot/export_templates/<ver>/).
@@ -35,12 +37,16 @@ esac
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUT="${2:-$PROJECT_DIR/build/crystal-rush-$MODE.apk}"
-case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
+case "$OUT" in /*|[A-Za-z]:*) ;; *) OUT="$PWD/$OUT" ;; esac
 GODOT="${GODOT:-godot}"
-PRESET="Android"
+PRESET="${PRESET:-Android}"
 
 die() { echo "error: $*" >&2; exit 1; }
 log() { echo "==> $*"; }
+# Windows (Git Bash / MSYS): Godot keeps its data in %APPDATA%\Godot and reads Windows paths only.
+IS_WIN=0
+case "${OSTYPE:-}" in msys*|cygwin*) IS_WIN=1 ;; esac
+winpath() { if [[ "$IS_WIN" == 1 ]]; then cygpath -m "$1"; else echo "$1"; fi; }
 
 command -v "$GODOT" >/dev/null 2>&1 || die "Godot binary '$GODOT' not found (set GODOT=/path/to/godot)"
 
@@ -55,7 +61,11 @@ else
 	die "could not parse the Godot version '$GODOT_VERSION'"
 fi
 [[ "$MAJOR_MINOR" == "4.7" ]] || echo "warning: project targets Godot 4.7, found $GODOT_VERSION" >&2
-TEMPLATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/$TEMPLATE_VERSION"
+if [[ "$IS_WIN" == 1 ]]; then
+	TEMPLATE_DIR="$(cygpath -u "$APPDATA")/Godot/export_templates/$TEMPLATE_VERSION"
+else
+	TEMPLATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/$TEMPLATE_VERSION"
+fi
 for t in android_debug.apk android_release.apk; do
 	[[ -f "$TEMPLATE_DIR/$t" ]] || die "missing export template $TEMPLATE_DIR/$t"
 done
@@ -64,8 +74,8 @@ done
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-${ANDROID_SDK:-}}}"
 [[ -n "$SDK" ]] || die "set ANDROID_SDK_ROOT (or ANDROID_HOME) to your Android SDK"
 SDK="$(cd "$SDK" && pwd)"
-[[ -x "$SDK/platform-tools/adb" ]] || die "$SDK/platform-tools/adb not found"
-compgen -G "$SDK/build-tools/*/apksigner" >/dev/null || die "no build-tools/<ver>/apksigner in $SDK"
+[[ -x "$SDK/platform-tools/adb" || -f "$SDK/platform-tools/adb.exe" ]] || die "$SDK/platform-tools/adb not found"
+compgen -G "$SDK/build-tools/*/apksigner*" >/dev/null || die "no build-tools/<ver>/apksigner in $SDK"
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
 	command -v java >/dev/null 2>&1 || die "no JDK: set JAVA_HOME or put java on PATH"
@@ -75,7 +85,11 @@ fi
 export JAVA_HOME
 
 # --- Editor settings ---------------------------------------------------------------------
-SETTINGS="${GODOT_EDITOR_SETTINGS:-${XDG_CONFIG_HOME:-$HOME/.config}/godot/editor_settings-$MAJOR_MINOR.tres}"
+if [[ "$IS_WIN" == 1 ]]; then
+	SETTINGS="${GODOT_EDITOR_SETTINGS:-$(cygpath -u "$APPDATA")/Godot/editor_settings-$MAJOR_MINOR.tres}"
+else
+	SETTINGS="${GODOT_EDITOR_SETTINGS:-${XDG_CONFIG_HOME:-$HOME/.config}/godot/editor_settings-$MAJOR_MINOR.tres}"
+fi
 mkdir -p "$(dirname "$SETTINGS")"
 if [[ ! -f "$SETTINGS" ]]; then
 	printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n' > "$SETTINGS"
@@ -87,8 +101,8 @@ set_editor_setting() {   # key value  (value written as a quoted string)
 	awk -v line="$key = \"$value\"" '{ print } /^\[resource\]$/ && !done { print line; done = 1 }' "$tmp" > "$SETTINGS"
 	rm -f "$tmp"
 }
-set_editor_setting "export/android/android_sdk_path" "$SDK"
-set_editor_setting "export/android/java_sdk_path" "$JAVA_HOME"
+set_editor_setting "export/android/android_sdk_path" "$(winpath "$SDK")"
+set_editor_setting "export/android/java_sdk_path" "$(winpath "$JAVA_HOME")"
 log "Editor settings: $SETTINGS (android_sdk_path=$SDK, java_sdk_path=$JAVA_HOME)"
 
 # --- Signing -------------------------------------------------------------------------------
@@ -107,6 +121,7 @@ if [[ "$MODE" == "debug" ]]; then
 		fi
 	fi
 	[[ -f "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH" ]] || die "debug keystore $GODOT_ANDROID_KEYSTORE_DEBUG_PATH not found"
+	GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$(winpath "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH")"
 	: "${GODOT_ANDROID_KEYSTORE_DEBUG_USER:?set GODOT_ANDROID_KEYSTORE_DEBUG_USER}"
 	: "${GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD:?set GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD}"
 else
@@ -114,6 +129,7 @@ else
 	: "${GODOT_ANDROID_KEYSTORE_RELEASE_USER:?set GODOT_ANDROID_KEYSTORE_RELEASE_USER (key alias)}"
 	: "${GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD:?set GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD}"
 	[[ -f "$GODOT_ANDROID_KEYSTORE_RELEASE_PATH" ]] || die "release keystore $GODOT_ANDROID_KEYSTORE_RELEASE_PATH not found"
+	GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$(winpath "$GODOT_ANDROID_KEYSTORE_RELEASE_PATH")"
 fi
 
 # --- Import + export -------------------------------------------------------------------------
@@ -125,11 +141,11 @@ log "Importing project ($GODOT_VERSION)"
 "$GODOT" --headless --path "$PROJECT_DIR" --import
 
 log "Exporting $MODE APK -> $OUT"
-"$GODOT" --headless --path "$PROJECT_DIR" "--export-$MODE" "$PRESET" "$OUT"
+"$GODOT" --headless --path "$PROJECT_DIR" "--export-$MODE" "$PRESET" "$(winpath "$OUT")"
 [[ -s "$OUT" ]] || die "export failed: $OUT was not created"
 rm -f "$OUT.idsig"   # APK Signature Scheme v4 side file, only needed for incremental adb installs
 
-APKSIGNER="$(find "$SDK/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -n 1)"
+APKSIGNER="$(find "$SDK/build-tools" -mindepth 2 -maxdepth 2 -name 'apksigner' -o -mindepth 2 -maxdepth 2 	-name 'apksigner.bat' | sort -V | tail -n 1)"
 log "Verifying signature"
 "$APKSIGNER" verify --print-certs "$OUT" | grep -E "^Signer #1 certificate (DN|SHA-256)" || true
 "$APKSIGNER" verify "$OUT" >/dev/null || die "apksigner could not verify $OUT"

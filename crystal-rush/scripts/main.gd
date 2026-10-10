@@ -5,7 +5,8 @@ extends Node
 ## LossScreen (loss) plays over the run's last frame. World Caches open on the CacheAltar
 ## (from the result flow or the hub's Vault via Hub.open_altar).
 ## Dev flags (after `--`): --autotest, --levelcheck, --loop, --campaign, --shot=path.png, --screen=menu|run,
-## --level=N, --hero=bolt|titan, --heroes_phase=N [--team=id,id] (dev runs only, see _dev_heroes)
+## --level=N, --hero=bolt|titan, --heroes_phase=N [--team=id,id] (dev runs only, see _dev_heroes),
+## --preview (the preview build's launcher on a PC; Preview)
 ## The run scripts are loaded on demand, so the router (menu, level_check) still works while
 ## the run code is being rewritten.
 
@@ -51,15 +52,38 @@ func _dev_heroes() -> void:
 	Meta.load_account()
 	if not _args.has("team") or not EconData.heroes_run():
 		return
+	_field_team(Array(str(_args["team"]).split(",", false)))
+
+
+## Fields champions `ids` (owned or not, up to 4, team order) in the synthetic account's team (dev runs).
+func _field_team(ids_in: Array) -> void:
 	var acc: Dictionary = Meta.account
 	var roster: Dictionary = (acc["champions"] as Dictionary)["roster"]
 	var ids: Array = []
-	for id in str(_args["team"]).split(",", false):
-		if ChampionData.CHAMPIONS.has(id) and not ids.has(id) and ids.size() < 4:
-			ids.append(id)
-			if not roster.has(id):
-				roster[id] = EconData.new_champion_state(id, true, "dev")
+	for id in ids_in:
+		if ChampionData.CHAMPIONS.has(str(id)) and not ids.has(str(id)) and ids.size() < 4:
+			ids.append(str(id))
+			if not roster.has(str(id)):
+				roster[str(id)] = EconData.new_champion_state(str(id), true, "dev")
 	(acc["team"] as Dictionary)["champions"] = ids
+
+
+## The preview build's home (Preview): pick a hero, champions and a level, then play.
+func show_preview() -> void:
+	var l := PreviewLauncher.new()
+	l.play.connect(_preview_play)
+	_switch(l)
+
+
+## A preview run: the EXPECTED account at `level` under the heroes run phase, `hero` leading `team`.
+func _preview_play(hero: String, team: Array, level: int) -> void:
+	Save.level = level
+	Save.hero = hero
+	EconData.phase_override = EconData.HEROES_RUN_PHASE
+	Meta.load_account()
+	(Meta.account["team"] as Dictionary)["hero"] = hero
+	_field_team(team)
+	start_run()
 
 
 func _start_dev(tool: String) -> void:
@@ -81,6 +105,9 @@ func _start_dev(tool: String) -> void:
 
 ## The home screen: the meta hub on its Play tab.
 func show_menu() -> void:
+	if Preview.on():
+		show_preview()
+		return
 	show_hub("play")
 
 
@@ -88,6 +115,9 @@ func show_menu() -> void:
 ## screen's "Арсенал" button uses show_hub("arsenal"). `machine` opens that machine's detail
 ## (the result flow's Best-upgrade row, the Altar's "Покращити <machine>").
 func show_hub(tab := "play", machine := "") -> Hub:
+	if Preview.on():
+		show_preview()
+		return null
 	var h := Hub.new(tab)
 	h.play.connect(start_run)
 	h.open_altar.connect(open_altar)

@@ -56,6 +56,9 @@ func load_data() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--autotest") or a.begins_with("--shot"):
 			readonly = true
+	# The preview build (Preview.on: its own app id) plays dev runs only and never saves.
+	if Preview.on():
+		readonly = true
 	if readonly:
 		for a in OS.get_cmdline_user_args():
 			if a.begins_with("--hero="):

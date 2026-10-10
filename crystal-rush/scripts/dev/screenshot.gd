@@ -1,6 +1,6 @@
 extends Node
 ## Renders a screenshot for visual checks.
-## Usage: godot --rendering-driver opengl3 -- --shot=out.png [--screen=menu|run|portraits]
+## Usage: godot --rendering-driver opengl3 -- --shot=out.png [--screen=menu|run|portraits|preview]
 ##        [--level=N] [--hero=bolt|titan] [--frames=N]
 ## Run setup (applied in this order):
 ##   --army=N          start with N soldiers
@@ -35,6 +35,14 @@ func _ready() -> void:
 		return
 	if screen == "menu":
 		main.call("set_scene_now", Menu.new())
+	elif screen == "preview":
+		main.call("set_scene_now", PreviewLauncher.new())
+	elif screen == "preview_run":
+		# The preview build's path (main._preview_play): --hero, --team=a,b, --level; --play=s before the shot.
+		main.call("_preview_play", str(args.get("hero", "olha")), Array(str(args.get("team", "taras,mila")).split(",")),
+				int(args.get("level", "41")))
+		for f in int(float(args.get("play", "2")) * 60.0):
+			await get_tree().process_frame
 	else:
 		await _run_setup(main)
 	var frames := int(args.get("frames", "12"))
