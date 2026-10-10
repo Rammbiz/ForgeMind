@@ -8,6 +8,17 @@ extends Node
 var _fails := 0
 var _passes := 0
 
+## Wave 9 (heroes_design.md §6.30-§6.35, owner-approved 2026-10-10): id, uk name, native gem, Action tier, class,
+## element, faction, collector number.
+const WAVE9 := [
+	["franko", "Франко", "L", 4, "warrior", "kinetic", "stoneheart", 28],
+	["rukavychka", "Рукавичка", "C", 1, "healer", "frost", "wildfang", 29],
+	["odarka", "Баба Одарка", "R", 2, "healer", "plasma", "dawn", 30],
+	["hohotun", "Гоготун", "R", 2, "warrior", "tech", "wildfang", 31],
+	["skovoroda", "Сковорода", "E", 3, "guardian", "kinetic", "dawn", 32],
+	["motyvator", "Мотиватор", "C", 1, "warrior", "rune", "wildfang", 33],
+]
+
 
 func _ready() -> void:
 	_test_states()
@@ -78,6 +89,17 @@ func _test_states() -> void:
 	_test_joined_state("snaryad", "Снаряд", "E", 3, "guardian", "dawn")
 	# C25 Довбуш (§6.27): the same.
 	_test_joined_state("dovbush", "Довбуш", "L", 4, "warrior", "stoneheart")
+	# C28-C33, wave 9 (§6.30-§6.35): the same for each, plus the element and the uk name, once ChampionData has the row
+	# (the data branch adds them; until then the mock state skips them too).
+	for w: Array in WAVE9:
+		var cid := str(w[0])
+		if not ChampionData.CHAMPIONS.has(cid):
+			print("NOTE %s: no ChampionData row yet (the data branch adds it); its mock-state checks wait for it" % w[1])
+			continue
+		_test_joined_state(cid, str(w[1]), str(w[2]), int(w[3]), str(w[4]), str(w[6]))
+		var c := HeroesUIModel.champion(cid)
+		_check(str(c["element"]) == str(w[5]) and int(c["no"]) == int(w[7]), "late: %s element %s, C%d" % [w[1], w[5], int(c["no"])])
+		_check(HeroesText.lang() != "uk" or str(c["name"]) == str(w[1]), "late: %s named from Loc" % w[1])
 	# H26 Сірко (§6.28), the 11th hero: owned, NEW, native Опал and born awakened in 'late'; listed, not owned elsewhere.
 	_test_joined_hero_state("sirko", "Сірко", "M", "warrior", "dawn")
 	# H27 Ольга (§6.29), the 12th hero: the same.
@@ -238,6 +260,25 @@ func _test_text() -> void:
 	for id: String in ChampionData.CHAMPION_ORDER:
 		for k in ["CHAMP_" + id.to_upper(), "CHAMP_" + id.to_upper() + "_TITLE", "CHAMP_" + id.to_upper() + "_ROLE"]:
 			_check(HeroesText.t(k) != k, "text " + k)
+	# Wave 9 (§6.30-§6.35): every row the Hall, the Showcase and the run read, uk and en, before the data rows land too.
+	var w9_ids: Array[String] = []
+	for w: Array in WAVE9:
+		var cid := str(w[0])
+		var u := cid.to_upper()
+		w9_ids.append(cid)
+		for k: String in ["CHAMP_%s" % u, "CHAMP_%s_TITLE" % u, "CHAMP_%s_ROLE" % u, "ACT_%s" % u, "ACT_%s_DESC" % u,
+				"RELIC_%s" % u, "CHAMP_%s_ACTVAL" % u]:
+			_check(HeroesText.t(k) != k, "text " + k)
+		for k: String in ["CHAMP_%s" % u, "CHAMP_%s_TITLE" % u, "CHAMP_%s_ROLE" % u, "CHAMP_%s_LORE" % u, "ACT_%s" % u,
+				"ACT_%s_DESC" % u, "ACT_%s_VALUE" % u, "RELIC_%s" % u, "RELIC_%s_DESC" % u]:
+			var row: Array = Loc.STRINGS.get(k, [])
+			_check(row.size() == 2 and str(row[0]) != "" and str(row[1]) != "", "Loc %s (uk, en)" % k)
+		_check(str(Loc.STRINGS.get("CHAMP_" + u, ["", ""])[0]) == str(w[1]), "Loc CHAMP_%s = %s" % [u, w[1]])
+		var lore: Array = Loc.STRINGS.get("CHAMP_%s_LORE" % u, ["", ""])
+		_check(str(lore[0]).split("\n").size() == 3 and str(lore[1]).split("\n").size() == 3, "%s lore: 3 lines uk and en" % w[1])
+	_check(w9_ids == HeroesUIModel.WAVE9_CHAMPIONS, "the mock state and this test list the same wave-9 champions")
+	for k: String in ["CHAMP_MISS_POP", "CHAMP_UNCAUGHT_POP", "CHAMP_BARK_POP"]:
+		_check(Loc.has(k), "wave-9 twist stamp " + k)
 	_check(HeroesText.hero_name("bolt") == ("Руді" if HeroesText.lang() == "uk" else "Rudi"), "stale Meta-1 HERO_BOLT is not used")
 	_check(HeroesText.t("PORTAL_PITY_L", [7]).contains("7"), "args format")
 	_check(HeroesText.count(46, "tome") == "46 томів" or HeroesText.lang() != "uk", "uk plural")
@@ -263,6 +304,13 @@ func _test_art() -> void:
 	_check(HeroArt.state("taras") == "splash" and HeroArt.card_texture("taras") != null, "Тарас has the owner's card art")
 	_check(HeroArt.state("snaryad") == "splash" and HeroArt.card_texture("snaryad") != null, "Снаряд has the owner's card art")
 	_check(HeroArt.state("dovbush") == "splash" and HeroArt.card_texture("dovbush") != null, "Довбуш has the owner's card art")
+	# Wave 9 (§6.30-§6.35): the cut-out cards and their framing (the eye line measured on card.png).
+	for w: Array in WAVE9:
+		var cid := str(w[0])
+		var eye: Vector2 = HeroArt.meta(cid).get("eye", Vector2(-1.0, -1.0))
+		var fx := float(HeroArt.meta(cid).get("focus_x", -1.0))
+		_check(HeroArt.state(cid) == "splash" and HeroArt.card_texture(cid) != null, "%s has the card art" % w[1])
+		_check(eye.x > 0.3 and eye.x < 0.8 and eye.y > 0.15 and eye.y < 0.4 and fx > 0.3 and fx < 0.7, "%s framing: eye %s, focus %.2f" % [w[1], eye, fx])
 	_check(HeroArt.state("sirko") == "splash" and HeroArt.card_texture("sirko") != null, "Сірко has the owner's splash and a card crop")
 	_check(HeroArt.state("olha") == "splash" and HeroArt.card_texture("olha") != null, "Ольга has the owner's splash and a card crop")
 	# Ольга's signature walkout beat (§6.29): an additive "doves" beat on the full Opal walkout, keyed by a real hero id;

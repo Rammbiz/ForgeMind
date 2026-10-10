@@ -49,6 +49,8 @@ extends RefCounted
 
 ## Mock account states (set_state).
 const STATES: Array[String] = ["fresh", "mid", "late", "welcome"]
+## Wave-9 champions (C28-C33, heroes_design.md §6.30-§6.35): owned and NEW in the 'late' mock state.
+const WAVE9_CHAMPIONS: Array[String] = ["franko", "rukavychka", "odarka", "hohotun", "skovoroda", "motyvator"]
 
 ## Dev override: the Hall shows even while HeroKinds.phase() < 3 (set by the gallery).
 static var force_on := false
@@ -905,6 +907,11 @@ static func _build_state(name: String) -> Dictionary:
 			C["snaryad"] = _champ_st(true, "E", 0, 0, true)
 			# C25 Довбуш (Опришок), native Топаз, just joined from a Hero Chest (§6.27); other states list him not owned.
 			C["dovbush"] = _champ_st(true, "L", 0, 0, true)
+			# C28-C33, wave 9 (§6.30-§6.35): Франко, Рукавичка, Одарка, Гоготун, Сковорода, Мотиватор, each native and
+			# just joined from a Hero Chest; other states list them not owned. Skipped until ChampionData has the row.
+			for c: String in WAVE9_CHAMPIONS:
+				if ChampionData.CHAMPIONS.has(c):
+					C[c] = _champ_st(true, str(ChampionData.CHAMPIONS[c]["native"]), 0, 0, true)
 			acc["champion_level"] = 9
 			acc["team"] = {"hero": "vesta", "champions": ["mila", "ivo", "dara"]}
 			acc["portal"] = {"welcome": false, "since_e": 2, "since_l": 23, "focus": {"C": "arin"}, "history": [], "total": 164}
