@@ -59,7 +59,13 @@
   "menhir",
   "taras",
   "snaryad",
-  "dovbush"
+  "dovbush",
+  "franko",
+  "rukavychka",
+  "odarka",
+  "hohotun",
+  "skovoroda",
+  "motyvator"
  ],
  "starters": [
   "titan",
@@ -738,6 +744,102 @@
    },
    "action_note": "bartka kills per squad x2 squads (every 5 s; + STAGGER)",
    "aura_note": "squad clash loss +"
+  },
+  "franko": {
+   "no": 28,
+   "native": "L",
+   "class": "warrior",
+   "element": "kinetic",
+   "faction": "stoneheart",
+   "slot": "front",
+   "kit": {
+    "hp": 53,
+    "action": 3,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "leap kills or stone damage (every 5 s; stone first)",
+   "aura_note": "squad clash loss +"
+  },
+  "rukavychka": {
+   "no": 29,
+   "native": "C",
+   "class": "healer",
+   "element": "frost",
+   "faction": "wildfang",
+   "slot": "left",
+   "kit": {
+    "hp": 30,
+    "action": 3,
+    "aura": 0.12,
+    "radius": 1.3
+   },
+   "action_note": "soldiers returned per pulse (every 3 s; 7th Mend x2, next beat skipped)",
+   "aura_note": "hazard losses -"
+  },
+  "odarka": {
+   "no": 30,
+   "native": "R",
+   "class": "healer",
+   "element": "plasma",
+   "faction": "dawn",
+   "slot": "right",
+   "kit": {
+    "hp": 30,
+    "action": 3,
+    "aura": 0.12,
+    "radius": 1.3
+   },
+   "action_note": "soldiers returned per pulse (every 3 s; + a jar at a flier)",
+   "aura_note": "hazard losses -"
+  },
+  "hohotun": {
+   "no": 31,
+   "native": "R",
+   "class": "warrior",
+   "element": "tech",
+   "faction": "wildfang",
+   "slot": "front",
+   "kit": {
+    "hp": 53,
+    "action": 3,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "leap kills (every 5 s; MARK first, reaches fliers)",
+   "aura_note": "squad clash loss +"
+  },
+  "skovoroda": {
+   "no": 32,
+   "native": "E",
+   "class": "guardian",
+   "element": "kinetic",
+   "faction": "dawn",
+   "slot": "front",
+   "kit": {
+    "hp": 66,
+    "action": 1,
+    "aura": 0.1,
+    "radius": 1.0
+   },
+   "action_note": "kills per Block (Block every 5 s; every 3rd: the net)",
+   "aura_note": "clash losses -"
+  },
+  "motyvator": {
+   "no": 33,
+   "native": "C",
+   "class": "warrior",
+   "element": "rune",
+   "faction": "wildfang",
+   "slot": "front",
+   "kit": {
+    "hp": 53,
+    "action": 3,
+    "aura": 0.1,
+    "radius": 1.1
+   },
+   "action_note": "leap kills (every 5 s; + the shout)",
+   "aura_note": "squad clash loss +"
   }
  },
  "champion_p0": {
@@ -755,7 +857,13 @@
   "menhir": 0.384,
   "taras": 0.3902,
   "snaryad": 0.1308,
-  "dovbush": 0.2628
+  "dovbush": 0.2628,
+  "franko": 0.2628,
+  "rukavychka": 0.394,
+  "odarka": 0.4598,
+  "hohotun": 0.1595,
+  "skovoroda": 0.1308,
+  "motyvator": 0.0775
  },
  "index_terms": {
   "power_w": {

@@ -894,12 +894,20 @@ func _test_save_v3() -> void:
 	older.set_value("meta", "version", 3)
 	older.set_value("progress", "level", 40)
 	older.set_value("champions", "roster", {"alba": {"owned": true, "gem": "C"}})
-	older.set_value("_orphans", "champions", {"taras": {"owned": true, "gem": "L", "facets": 2, "frags": 7}, "ghost": {"owned": true}, "otto": 5})
+	# (wave 9: a save that passed through the 2.4.0 APK parked Франко and Рукавичка the same way)
+	older.set_value("_orphans", "champions", {"taras": {"owned": true, "gem": "L", "facets": 2, "frags": 7}, "ghost": {"owned": true}, "otto": 5,
+			"franko": {"owned": true, "gem": "L", "facets": 1, "frags": 3}, "rukavychka": {"owned": true, "gem": "R", "facets": 0, "frags": 12}})
 	older.set_value("_orphans", "heroes", {"lumen": {"owned": true, "gem": "M", "lvl": 12}, "zorro": {"lvl": 4}})
 	var so := Save.account_from_cfg(older)
 	var rt: Dictionary = (so["champions"]["roster"] as Dictionary).get("taras", {})
 	_ok(Roster.owned(so, "taras") and str(rt.get("gem", "")) == "L" and int(rt.get("facets", -1)) == 2 and int(rt.get("frags", -1)) == 7
 			and not (so["_orphans"]["champions"] as Dictionary).has("taras"), "orphaned Тарас -> sanitize_v3 -> owned again, facets and fragments kept")
+	var rf: Dictionary = (so["champions"]["roster"] as Dictionary).get("franko", {})
+	var rr: Dictionary = (so["champions"]["roster"] as Dictionary).get("rukavychka", {})
+	_ok(Roster.owned(so, "franko") and int(rf.get("facets", -1)) == 1 and int(rf.get("frags", -1)) == 3
+			and Roster.owned(so, "rukavychka") and str(rr.get("gem", "")) == "R" and int(rr.get("frags", -1)) == 12
+			and not (so["_orphans"]["champions"] as Dictionary).has("franko") and not (so["_orphans"]["champions"] as Dictionary).has("rukavychka"),
+			"orphaned wave-9 champions (Франко, Рукавичка recut to Сапфір) come back, facets and fragments kept")
 	_ok(Roster.owned(so, "lumen") and int(so["heroes"]["lumen"]["lvl"]) == 12 and not (so["_orphans"]["heroes"] as Dictionary).has("lumen"), "orphaned known hero comes back")
 	_ok((so["_orphans"]["champions"] as Dictionary).has("ghost") and (so["_orphans"]["champions"] as Dictionary).has("otto")
 			and (so["_orphans"]["heroes"] as Dictionary).has("zorro") and not (so["champions"]["roster"] as Dictionary).has("otto"),

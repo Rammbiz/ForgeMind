@@ -208,6 +208,13 @@ CHAMPS = {
     "taras": dict(n=3, cls="mage", el="rune", fac="wildfang"),     # C23, added after launch (heroes_design.md §6.25)
     "snaryad": dict(n=2, cls="guardian", el="tech", fac="dawn"),   # C24, added after launch (heroes_design.md §6.26)
     "dovbush": dict(n=3, cls="warrior", el="kinetic", fac="stoneheart"),  # C25, added after launch (heroes_design.md §6.27)
+    # wave 9 (owner-approved 2026-10-10), collector numbers C28-C33 after H26 / H27 (heroes_design.md §6.30-6.35)
+    "franko": dict(n=3, cls="warrior", el="kinetic", fac="stoneheart"),     # C28 §6.30
+    "rukavychka": dict(n=0, cls="healer", el="frost", fac="wildfang"),      # C29 §6.31
+    "odarka": dict(n=1, cls="healer", el="plasma", fac="dawn"),             # C30 §6.32
+    "hohotun": dict(n=1, cls="warrior", el="tech", fac="wildfang"),         # C31 §6.33
+    "skovoroda": dict(n=2, cls="guardian", el="kinetic", fac="dawn"),       # C32 §6.34
+    "motyvator": dict(n=0, cls="warrior", el="rune", fac="wildfang"),       # C33 §6.35
 }
 SCRIPTED_FIRST = {"bolt": "alba", "titan": "otto"}
 SCRIPTED_FIRST_DEFAULT = "otto"

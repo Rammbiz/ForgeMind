@@ -94,6 +94,13 @@ CHAMPS = [
     ("taras", "Тарас", 3, "Mage", "Rune", "Wildfang", 26, 4, "The Word kills per squad (every 4 s; pages cut on)", 0.15, "volley status proc x", 1.2, "rear"),
     ("snaryad", "Снаряд", 2, "Guardian", "Tech", "Dawn", 60, 2, "Sapper's Nose charge kills (per Block, every 6 s; + MARK)", 0.10, "clash losses -", 1.0, "front"),
     ("dovbush", "Довбуш", 3, "Warrior", "Kinetic", "Stoneheart", 48, 1.5, "bartka kills per squad x2 squads (every 5 s; + STAGGER)", 0.10, "squad clash loss +", 1.1, "front"),
+    # wave 9 (owner-approved 2026-10-10, §6.30-6.35): every kit is its class template (the twist trades inside it)
+    ("franko", "Франко", 3, "Warrior", "Kinetic", "Stoneheart", 48, 3, "leap kills or stone damage (every 5 s; stone first)", 0.10, "squad clash loss +", 1.1, "front"),
+    ("rukavychka", "Рукавичка", 0, "Healer", "Frost", "Wildfang", 30, 3, "soldiers returned per pulse (every 3 s; 7th Mend x2, next beat skipped)", 0.12, "hazard losses -", 1.3, "left"),
+    ("odarka", "Одарка", 1, "Healer", "Plasma", "Dawn", 30, 3, "soldiers returned per pulse (every 3 s; + a jar at a flier)", 0.12, "hazard losses -", 1.3, "right"),
+    ("hohotun", "Гоготун", 1, "Warrior", "Tech", "Wildfang", 48, 3, "leap kills (every 5 s; MARK first, reaches fliers)", 0.10, "squad clash loss +", 1.1, "front"),
+    ("skovoroda", "Сковорода", 2, "Guardian", "Kinetic", "Dawn", 60, 1, "kills per Block (Block every 5 s; every 3rd: the net)", 0.10, "clash losses -", 1.0, "front"),
+    ("motyvator", "Мотиватор", 0, "Warrior", "Rune", "Wildfang", 48, 3, "leap kills (every 5 s; + the shout)", 0.10, "squad clash loss +", 1.1, "front"),
 ]
 # §4.2 survival knob (H2): ONE multiplier on the kit HP of every champion whose slot is front (the Guardian and Warrior
 # templates), never per champion. The rows above keep the §4.3 template HP; CHAMPS below carries hp x FRONT_HP_MULT
@@ -110,10 +117,12 @@ AURA_CAP = 0.40
 # holds did, per second of play (aura left out); Руді + Мейра pooled, levels 15-112 step 4, gates frozen, 50 runs.
 # Every kit's KIT_INDEX = kit value / P0_c lies within 1 +- CHAMP_KIT_TOL. The test fails when a template moves past
 # that band from its row (LevelSim, LevelGen, a class template, a kit's HP or Action, the EXPECTED account): re-measure
-# and paste its CHAMP_P0 line (--emit), then gen_heroes_data.py --refresh. Measured 2026-10-10.
+# and paste its CHAMP_P0 line (--emit), then gen_heroes_data.py --refresh. Measured 2026-10-10 (the six wave-9
+# champions C28-C33 the same day, on their bare templates, before their twists existed).
 CHAMP_P0 = {"mila": 0.3940, "ivo": 0.0773, "borko": 0.0775, "alba": 0.2099, "otto": 0.1304, "taya": 0.2003,
             "brant": 0.2608, "teo": 0.4394, "olena": 0.4806, "nimb": 0.1478, "dara": 0.2442, "menhir": 0.3840,
-            "taras": 0.3902, "snaryad": 0.1308, "dovbush": 0.2628}
+            "taras": 0.3902, "snaryad": 0.1308, "dovbush": 0.2628, "franko": 0.2628, "rukavychka": 0.3940,
+            "odarka": 0.4598, "hohotun": 0.1595, "skovoroda": 0.1308, "motyvator": 0.0775}
 
 # ------------------------------------------------------------------------------------------------ ult and attack rules
 # The §6 hero sheets as data (§6.1-6.10, §6.28 Сірко, §6.29 Ольга; bot policies §10.4), read by gen_heroes_data.py

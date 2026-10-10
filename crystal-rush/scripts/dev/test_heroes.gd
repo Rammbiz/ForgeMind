@@ -278,14 +278,17 @@ func _test_roster() -> void:
 	for g: String in ["C", "R", "E", "L"]:
 		_ok(int(per_gem_c.get(g, 0)) >= 3, "%d champions of gem %s (at least 3, §4.1)" % [int(per_gem_c.get(g, 0)), g])
 	_ok(int(per_gem_c.get("M", 0)) == 0, "no Opal champion (Opal is hero-only)")
+	# §5.3: at least 3 champions per faction (a mono-faction team of 4 with any hero of it); 3-4 at launch, up to 7
+	# since wave 9 (owner-approved 2026-10-10: the faction tiers stop at 4 members, a bigger faction only gives choice).
 	for f: String in TeamData.FACTIONS:
-		_ok(int(per_fac_c.get(f, 0)) in [3, 4], "faction %s has %d champions (3-4, §5.3)" % [f, int(per_fac_c.get(f, 0))])
+		_ok(int(per_fac_c.get(f, 0)) >= 3, "faction %s has %d champions (3 or more, §5.3)" % [f, int(per_fac_c.get(f, 0))])
 	for i in range(1, HeroData.HERO_ORDER.size() + n_champ + 1):
 		_ok(nos.has(i), "collector number %02d" % i)
 	_ok(nos.size() == HeroData.HERO_ORDER.size() + n_champ, "collector numbers are unique")
 	_test_taras()
 	_test_snaryad()
 	_test_dovbush()
+	_test_wave9()
 	_test_sirko()
 	_test_olha()
 	_ok(ChampionData.action_tier("mila") == 1 and ChampionData.action_tier("menhir") == 4, "Action tier = native + 1")
@@ -1168,7 +1171,10 @@ func _test_champions() -> void:
 			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [83, 152, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
 			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396],
 			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [77, 140, 146, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245],
-			"dovbush": [67, 122, -1, 1.89, 3.45, -1, 0.126, 0.044, 0.264]}
+			"dovbush": [67, 122, -1, 1.89, 3.45, -1, 0.126, 0.044, 0.264], "franko": [67, 122, -1, 3.78, 6.89, -1, 0.126, 0.044, 0.264],
+			"rukavychka": [30, 55, 61, 3.00, 5.47, 6.09, 0.120, 0.036, 0.252], "odarka": [32, 59, 63, 3.24, 5.91, 6.35, 0.130, 0.039, 0.272],
+			"hohotun": [57, 104, 112, 3.24, 5.91, 6.35, 0.108, 0.038, 0.227], "skovoroda": [77, 140, 146, 1.17, 2.13, 2.21, 0.117, 0.041, 0.245],
+			"motyvator": [53, 97, 108, 3.00, 5.47, 6.09, 0.100, 0.035, 0.210]}
 	for cid: String in rows:
 		var w: Array = rows[cid]
 		var nat := Roster.native(cid)
@@ -1246,6 +1252,28 @@ func _test_snaryad() -> void:
 func _test_dovbush() -> void:
 	_test_joined_champion("dovbush", "Довбуш", 25, {"native": "L", "class": "warrior", "element": "kinetic", "faction": "stoneheart", "slot": "front"},
 			"brant", {"hp": 53, "action": 1.5, "aura": 0.1, "radius": 1.1}, "Опришок")
+
+
+## Wave 9 (heroes_design.md §6.30-6.35, owner-approved 2026-10-10): six champions C28-C33 numbered after H27, each on
+## its class template kit (hp x FRONT_HP_MULT for the front classes, the template Action, aura and radius).
+func _test_wave9() -> void:
+	_test_joined_champion("franko", "Франко", 28, {"native": "L", "class": "warrior", "element": "kinetic", "faction": "stoneheart", "slot": "front"},
+			"brant", {"hp": 53, "action": 3, "aura": 0.1, "radius": 1.1}, "Каменяр")
+	_test_joined_champion("rukavychka", "Рукавичка", 29, {"native": "C", "class": "healer", "element": "frost", "faction": "wildfang", "slot": "left"},
+			"mila", {"hp": 30, "action": 3, "aura": 0.12, "radius": 1.3}, "Мишка-шкряботушка")
+	_test_joined_champion("odarka", "Баба Одарка", 30, {"native": "R", "class": "healer", "element": "plasma", "faction": "dawn", "slot": "right"},
+			"olena", {"hp": 30, "action": 3, "aura": 0.12, "radius": 1.3}, "Берегиня борщу")
+	_test_joined_champion("hohotun", "Гоготун", 31, {"native": "R", "class": "warrior", "element": "tech", "faction": "wildfang", "slot": "front"},
+			"brant", {"hp": 53, "action": 3, "aura": 0.1, "radius": 1.1}, "Бойовий гусак")
+	_test_joined_champion("skovoroda", "Сковорода", 32, {"native": "E", "class": "guardian", "element": "kinetic", "faction": "dawn", "slot": "front"},
+			"ivo", {"hp": 66, "action": 1, "aura": 0.1, "radius": 1.0}, "Невловимий")
+	_test_joined_champion("motyvator", "Мотиватор", 33, {"native": "C", "class": "warrior", "element": "rune", "faction": "wildfang", "slot": "front"},
+			"borko", {"hp": 53, "action": 3, "aura": 0.1, "radius": 1.1}, "Сила лісу")
+	# the collector line: C28-C33 follow H27 in joining order
+	var nos: Array = []
+	for cid: String in ["franko", "rukavychka", "odarka", "hohotun", "skovoroda", "motyvator"]:
+		nos.append(int(ChampionData.CHAMPIONS.get(cid, {}).get("no", 0)))
+	_ok(nos == [28, 29, 30, 31, 32, 33] and int(HeroData.HEROES["olha"]["no"]) == 27, "wave 9 is C28-C33, after H27 Ольга (%s)" % str(nos))
 
 
 ## H26 Сірко (heroes_design.md §6.28), the 11th hero: a native Opal Warrior of Rune and Dawn (form V adds Tech), his kit
@@ -1579,7 +1607,8 @@ func _test_joined_champion(cid: String, uk: String, no: int, tags: Dictionary, t
 							if not (float(rc[key]) < float(tc[key]) or (capped and float(rc[key]) <= float(tc[key]))):
 								bad.append("%s f%d cl%d r%d %s" % [c2, f, cl, r, key])
 	print("  %s rule #3: %d champions recut to %s, worst recut / native mult %.4f, %d of its class checked on HP / aura" % [uk, recut, native, worst, same])
-	_ok(recut > 0 and bad.is_empty() and worst < 1.0, "rule #3: a champion recut to %s < native %s on mult (worst %.4f), %d of its class on HP / aura %s"
+	# a native Quartz has no recut below it (recut 0): rule #3 holds trivially
+	_ok((recut > 0 or native == "C") and bad.is_empty() and worst < 1.0, "rule #3: a champion recut to %s < native %s on mult (worst %.4f), %d of its class on HP / aura %s"
 			% [native, uk, worst, same, str(bad.slice(0, 4))])
 
 
@@ -2048,7 +2077,10 @@ func _test_chests() -> void:
 			team_hits += 1
 	_ok(_z(team_hits, hn, 0.5) <= 4.0, "team hero x2 weight: %.3f of hero cards (exact 0.5 with 3 heroes)" % [float(team_hits) / hn])
 	var w := HeroChest.champion_weights(acc6, "C")
-	_ok(is_equal_approx(float(w["ivo"]), 0.6) and is_equal_approx(float(w["mila"]), 0.2), "chest Focus: 60% / 20% / 20%")
+	var pool_c := HeroChest.pool("C")
+	var other_c := (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_c.size() - 1)
+	_ok(is_equal_approx(float(w["ivo"]), 0.6) and is_equal_approx(float(w["mila"]), other_c),
+			"chest Focus: 60%% / %.0f%% each of the other %d Quartz champions" % [100.0 * other_c, pool_c.size() - 1])
 	var fo := 0
 	var fn := 20000
 	for i4 in fn:
@@ -2086,7 +2118,7 @@ func _test_chests() -> void:
 			"chest Focus Снаряд: 60%% and the other %d Amethyst champions %.2f%% each" % [pool_e.size() - 1, 100.0 * (1.0 - PortalData.CHEST_FOCUS_TOTAL) / (pool_e.size() - 1)])
 	var acc7 := _acc(15, ["bolt"], ["mila"])
 	var w7 := HeroChest.champion_weights(acc7, "C")
-	_ok(float(w7["mila"]) == 0.0 and is_equal_approx(float(w7["ivo"]), 0.5), "unowned champions first")
+	_ok(float(w7["mila"]) == 0.0 and is_equal_approx(float(w7["ivo"]), 1.0 / (HeroChest.pool("C").size() - 1)), "unowned champions first")
 	_ok(str(HeroChest.open(_acc(14), "hero", rng)["reason"]) == "locked", "no chest before the L14 win")
 	# Opening updates pity from the cards given and counts the chest.
 	var acc8 := _acc(31, ["bolt"], ChampionData.CHAMPION_ORDER)

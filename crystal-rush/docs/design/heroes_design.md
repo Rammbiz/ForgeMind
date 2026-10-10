@@ -12,14 +12,14 @@ exported to `heroes/heroes_consts.json`. Display names are uk first, then en. Pa
 layouts (§9).
 
 Contents: 0 Owner summary · 1 Pillars and owner decisions · 2 Rarity and the native ceiling · 3 Hero progression ·
-4 Champions · 5 Classes, elements, factions, synergies · 6 Roster (12 heroes, 15 champions) · 7 Portal, Seals, Hero
+4 Champions · 5 Classes, elements, factions, synergies · 6 Roster (12 heroes, 21 champions) · 7 Portal, Seals, Hero
 Chests, Workshop, odds, pity · 8 Economy and sim results · 9 Screens and ceremonies · 10 Run integration and performance ·
 11 Onboarding and unlock pacing · 12 Save v3, data, Loc, telemetry, tests · 13 Implementation plan · 14 Art production
 plan · 15 Risks and open questions.
 
 ## 0. Owner summary (one page, plain language)
 
-**What you get.** 12 heroes (2 per gem Кварц → Топаз, 4 of Опал since Сірко and Ольга joined) who lead the run, and 15 champions (3 per gem Кварц and Сапфір, 4 of Аметист since Снаряд joined, 5 of Топаз since Тарас and Довбуш)
+**What you get.** 12 heroes (2 per gem Кварц → Топаз, 4 of Опал since Сірко and Ольга joined) who lead the run, and 21 champions (5 per gem Кварц, Сапфір and Аметист, 6 of Топаз, with the post-launch joiners Тарас, Снаряд, Довбуш and the six of wave 9)
 who walk inside the crowd as commanders and act on their own. A team is 1 hero + 2 champions from level 14, 3 from
 level 40. Руді, Горан and Мейра stay the starters (Мейра visits for one level at L5 and joins at the World 3 boss).
 
@@ -81,7 +81,7 @@ in place).
 
 | # | Owner decision (decisions.md) | Implemented as | § | Status |
 |---|---|---|---|---|
-| 1 | Heroes + Champions from packs | 12 heroes (Portal) + 15 champions (Hero Chests; the roster in §6.0) | 4, 6, 7 | ✓ |
+| 1 | Heroes + Champions from packs | 12 heroes (Portal) + 21 champions (Hero Chests; the roster in §6.0) | 4, 6, 7 | ✓ |
 | 2 | 1 hero + 2–3 champions per run | «Команда / Team»: 2 slots from L14, 3rd at the World 5 boss (L40) | 4.1, 11 | ✓ (unlock L18 → L14, critic M7) |
 | 3 | 5 tiers; ascended never reaches natives | four brakes + real-kit parity tests; F-CAP and F-AWK2 change two FROZEN formulas | 2 | ✓ **owner sign-off needed** for F-CAP / F-AWK2 (§15 Q1–Q2) |
 | 4 | Gem names, big cut-gem emblem | Кварц · Сапфір · Аметист · Топаз · Опал, Living Gem emblem, 5 colour-blind channels | 2.1 | ✓ |
@@ -96,9 +96,9 @@ in place).
 | 13 | 2D splash + live 3D | layered splash (cutout + rig + fx masks) on the Showcase; «Деталі» = live 3D on a gem stage + cream sheet | 9.3 | ✓ |
 | 14 | Champions = squad commanders | own clip characters in the crowd, act on their own, aura on nearby soldiers, can fall | 4.2, 10 | ✓ (Mage aura now lifts soldiers too) |
 | 15 | Cinematic reveal for rare ones, skippable | Q 1.2 s · S 1.8 s · Amethyst / Topaz / Opal walkouts 0.6 + 2.6 / 3.6 / 5.0 s, skippable from 0.5 s | 9.4 | ✓ |
-| 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz; + C23 Тарас (Topaz), C24 Снаряд (Amethyst), C25 Довбуш (Topaz), the 11th hero H26 Сірко (Opal) and the 12th hero H27 Ольга (Opal), owner requests 2026-10-09 | 6 | ✓ |
-| 17 | Humans, beasts, creatures | 11 · 8 · 8 (§6.0 coverage) | 6 | ✓ |
-| 18 | Name + title, readable in uk and en | every name (27 with Тарас, Снаряд, Довбуш, Сірко and Ольга); 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
+| 16 | 10 heroes + 12 champions | 2 heroes per gem, 3 champions per gem Quartz–Topaz; + C23 Тарас (Topaz), C24 Снаряд (Amethyst), C25 Довбуш (Topaz), the 11th hero H26 Сірко (Opal) and the 12th hero H27 Ольга (Opal), owner requests 2026-10-09; wave 9 (owner-approved 2026-10-10): C28 Франко (Topaz), C29 Рукавичка (Quartz), C30 Одарка (Sapphire), C31 Гоготун (Sapphire), C32 Сковорода (Amethyst), C33 Мотиватор (Quartz) | 6 | ✓ |
+| 17 | Humans, beasts, creatures | 15 · 10 · 8 (§6.0 coverage) | 6 | ✓ |
+| 18 | Name + title, readable in uk and en | every name (33 with Тарас, Снаряд, Довбуш, Сірко, Ольга and the six of wave 9); 5 titles changed after the IP / meaning review | 6.0 | ✓ (§15 Q8) |
 | 19 | Forge + trophies, little randomness | «Майстерня / Workshop» (your "Forge"): craft exactly what is shown, one material «Зоряна руда», 7 boss trophies (+3 ranks from each night boss), zero randomness | 3.4 | ✓ (name: §15 Q6) |
 | 20 | Design now, code after APK 2.1 + prompts now | this doc; prompts in `heroes/heroes_prompts.md` (next workflow step) | 13, 14 | ✓ |
 | A1 | Second reference: top tier visibly has more | 4 skills on native Amethyst / Topaz / Opal at pull, gem-washed full screens, more particles per gem | 2, 9 | ✓ |
@@ -412,7 +412,7 @@ Roster at native max: 2 946 Tomes; all 12 at Opal f5 (recut caps 10): 4 916 Tome
 
 **Slots:** hero = Зброя / Weapon (`dmg_add`) · Обладунок / Armour (`hp_add`) · Оберіг / Charm (`ult_add` + `charge_add`) ·
 Реліквія / Relic. Champion = Relic only. **12 faction items** (4 factions × 3 slots, crafted once per account, wearable by
-any hero, re-equip free) + **one relic per character** (27 with Тарас, Снаряд, Довбуш, Сірко and Ольга, auto-equipped). Stats never depend on the wearer.
+any hero, re-equip free) + **one relic per character** (33 with Тарас, Снаряд, Довбуш, Сірко, Ольга and the six of wave 9, auto-equipped). Stats never depend on the wearer.
 
 | Slot | Stat | base | per rank | beats +4 / +8 / +12 | +0 | +3 | +6 | +9 | +12 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -446,7 +446,7 @@ the ≤ 35% / 35% rule.
 | Temper r → r+1 (item, hero relic) | 8 + 4r | 0.35 s; tier change (+3 / +6 / +9) 1.2 s; beats (+4 / +8 / +12) 1.2 s |
 | Temper r → r+1 (champion relic) | ⌈(8 + 4r) / 2⌉ | same |
 
-To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (12 items + 27 relics, C23–C25, H26 and H27 included) 12 990 Star Ore.
+To +12: item 400 Star Ore · hero relic 420 · champion relic 210; everything (12 items + 33 relics, C23–C25, H26, H27 and C28–C33 included) 14 250 Star Ore.
 
 **Star Ore income** (earned only; one pool, so ≈ 0.45× the v1 per-faction amounts):
 
@@ -498,12 +498,12 @@ counting machine Feats only), so no paid or coin-bought progress can reach a ran
 
 | Aspect | Rule |
 |---|---|
-| Roster | 12 at launch: 3 natives each of Кварц, Сапфір, Аметист, Топаз; + C23 Тарас (Топаз), C24 Снаряд (Аметист) and C25 Довбуш (Топаз), owner requests 2026-10-09 = 15, so Аметист holds 4 and Топаз 5. Opal is hero-only. Recut stops at Топаз (`CHAMPION_MAX_GEM = "L"`). |
+| Roster | 12 at launch: 3 natives each of Кварц, Сапфір, Аметист, Топаз; + C23 Тарас (Топаз), C24 Снаряд (Аметист) and C25 Довбуш (Топаз), owner requests 2026-10-09 = 15; wave 9 (owner-approved 2026-10-10) adds C29 Рукавичка and C33 Мотиватор (Кварц), C30 Одарка and C31 Гоготун (Сапфір), C32 Сковорода (Аметист) and C28 Франко (Топаз) = 21, so Кварц, Сапфір and Аметист hold 5 each and Топаз 6. Opal is hero-only. Recut stops at Топаз (`CHAMPION_MAX_GEM = "L"`). |
 | Sources | Hero Chests and Grand Hero Chests (copies); the two scripted first chests. Never the Portal, never Seals, never a SKU. |
 | Tracks | Facets & recut (fragments, same tables as heroes) · **Champion Level** (one shared coin track, Lv1–20, `cl(L) = 1 + 0.04 (L − 1)`, cost `round(40·L^1.5/10)·10`, 26 840 coins in total, cap `2 + 2 × world_reached`, 20 in Invasion) · **Relic** (Star Ore, +0…+12, +3% +1%/rank on HP, Action and Aura, three named modifiers). No Tomes, no gear slots. |
 | Skills | **Action** (class template + the champion's twist; tier I–IV = native gem + 1, fixed at birth, a recut keeps its tier) and **Aura** (class hook; value capped at `AURA_CAP 0.40`; effect = value × the slot's fixed share). |
 | Duplicates | `DUP_FRAGS[native]`; past Топаз f5 → Tomes 20 : 1. |
-| Chest Focus | when every champion of a gem is owned, the Focus champion gets exactly **60%** of that gem's champion cards; the others share 40% evenly (20% each of two; 13.33% each of three in Аметист; 10% each of four in Топаз). |
+| Chest Focus | when every champion of a gem is owned, the Focus champion gets exactly **60%** of that gem's champion cards; the others share 40% evenly (10% each of four in Кварц, Сапфір and Аметист; 8% each of five in Топаз). |
 | Synergy | counts fully, native-blind and gem-blind. |
 | Budget (critique M2) | power weight `W_C = 0.012` per champion-index point (a native champion at f0 Lv1 ≈ 4.8% of the Lv1 hero term); expected uptime 0.94 (champions can fall); invariant **champions + synergy ≤ 12% of power growth at L60** (measured 7.7–8.6%). Every kit's `KIT_INDEX` (kit / P0_c, P0_c = `ChampionData.KIT_P0`, measured, §4.4) = 1 ± 3% in LevelSim (§2.3). |
 
@@ -566,7 +566,7 @@ cooldown 5 → 4 s; Guardian Block cooldown 6 → 5 s + 1 kill; Healer pulse 2 �
 at value ≈ 1.0 / s at f0 Lv1 (Warrior ≈ 0.3 clash + 0.4 leap + aura; Ranger 0.83 + aura; Mage 1.0–1.2; Guardian ≈ 4
 soldiers per 5 s + 0.2; Healer ≤ 1.0 pool-limited). LevelSim measures 0.075–0.481 / s without the aura (§4.4); the owner
 kept the class strength (2026-10-09/10), so the budget follows the measured values: P0_c = `ChampionData.KIT_P0`, and
-twists (§6.11–6.22, §6.25–6.27) are tuned inside P0_c ± 3%.
+twists (§6.11–6.22, §6.25–6.27, §6.30–6.35) are tuned inside P0_c ± 3%.
 
 ### 4.4 Champion numbers by gem (generated, `heroes_tables.py` §D)
 
@@ -590,6 +590,12 @@ slot share (value capped 0.40; right column with relic +12):
 | Менгір `menhir` | Топаз · Mage · right | 33 / 60 / — | rune-strike kills per squad 5.04 / 9.19 | volley status proc 0.189 → 5.7% / 0.396 → 11.9% | IV |
 | Тарас `taras` | Топаз · Mage · rear | 33 / 60 / — | The Word kills per squad 5.04 / 9.19 | volley status proc 0.189 → 4.7% / 0.396 → 9.9% | IV |
 | Довбуш `dovbush` | Топаз · Warrior · front | 67 / 122 / — | bartka kills per squad ×2 squads (+ STAGGER) 1.89 / 3.45 | squad clash loss +0.126 → 4.4% / 0.264 → 9.2% | IV |
+| Франко `franko` | Топаз · Warrior · front | 67 / 122 / — | leap kills or stone damage (stone first) 3.78 / 6.89 | squad clash loss +0.126 → 4.4% / 0.264 → 9.2% | IV |
+| Рукавичка `rukavychka` | Кварц · Healer · left | 30 / 55 / 61 | returned per pulse (the 7th Mend ×2, the next beat skipped) 3.00 / 5.47 / 6.09 | hazard −0.120 → 3.6% / 0.252 → 7.6% | I |
+| Одарка `odarka` | Сапфір · Healer · right | 32 / 59 / 63 | returned per pulse (+ a jar at a flier) 3.24 / 5.91 / 6.35 | hazard −0.130 → 3.9% / 0.272 → 8.2% | II |
+| Гоготун `hohotun` | Сапфір · Warrior · front | 57 / 104 / 112 | leap kills (MARK first, reaches fliers) 3.24 / 5.91 / 6.35 | squad clash loss +0.108 → 3.8% / 0.227 → 7.9% | II |
+| Сковорода `skovoroda` | Аметист · Guardian · front | 77 / 140 / 146 | kills per Block (every 3rd: the net) 1.17 / 2.13 / 2.21 | clash −0.117 → 4.1% / 0.245 → 8.6% | III |
+| Мотиватор `motyvator` | Кварц · Warrior · front | 53 / 97 / 108 | leap kills (+ the shout) 3.00 / 5.47 / 6.09 | squad clash loss +0.100 → 3.5% / 0.210 → 7.3% | I |
 
 Max-investment ratio of a recut champion to the weakest native Topaz of any class (rule #3, cross-class): ≤ 0.983 with
 every kit at ±3% (§2.3). The Champion Showcase prints the ceiling: «Ярус IV — лише для корінних Топазів».
@@ -608,11 +614,17 @@ P0_c by class and gem, value / s (the champion it was measured on; element and s
 
 | Class | Кварц (I) | Сапфір (II) | Аметист (III) | Топаз (IV) |
 |---|---|---|---|---|
-| Воїн / Warrior | 0.0750 Борко | — | 0.2567 Брант | 0.2582 Довбуш |
+| Воїн / Warrior | 0.0775 Борко · 0.0775 Мотиватор | 0.1595 Гоготун | 0.2608 Брант | 0.2628 Довбуш · 0.2628 Франко |
 | Стрілець / Ranger | — | 0.2099 Альба | 0.4394 Тео | 0.2442 Дара |
 | Маг / Mage | — | 0.2003 Тая | — | 0.3840 Менгір · 0.3902 Тарас |
-| Страж / Guardian | 0.0773 Іво | 0.1304 Отто | 0.1308 Снаряд | 0.1478 Німб |
-| Цілитель / Healer | 0.3940 Міла | — | 0.4806 Олена | — |
+| Страж / Guardian | 0.0773 Іво | 0.1304 Отто | 0.1308 Снаряд · 0.1308 Сковорода | 0.1478 Німб |
+| Цілитель / Healer | 0.3940 Міла · 0.3940 Рукавичка | 0.4598 Одарка | 0.4806 Олена | — |
+
+Борко, Брант and Довбуш were re-measured after the front HP ×1.1 and the H2 `TEAM_DEMAND` (0.0750 → 0.0775, 0.2567 →
+0.2608, 0.2582 → 0.2628). The six of wave 9 were measured on their bare templates the day they joined (2026-10-10);
+four measure exactly as an earlier champion of the same class, gem, tier and slot (Франко = Довбуш, Рукавичка = Міла,
+Сковорода = Снаряд, Мотиватор = Борко: the Warrior template applies its element only from tier III, the Guardian and
+Healer templates never), and Гоготун and Одарка are the first Sapphire Warrior and Healer.
 
 Every measured kit sits inside the band; no kit number moved in the re-count (the twists were cut against the same
 templates on 2026-10-09, §6.11–6.27 carry the old value and its ratio):
@@ -623,11 +635,15 @@ templates on 2026-10-09, §6.11–6.27 carry the old value and its ratio):
 | Іво | 0.0773 | 0.0790 | 1.022 | Німб | 0.1478 | 0.1495 | 1.012 |
 | Отто | 0.1304 | 0.1330 | 1.020 | Менгір | 0.3840 | 0.3912 | 1.019 |
 | Тая | 0.2003 | 0.2049 | 1.023 | Снаряд | 0.1308 | 0.1308 | 1.000 |
-| Брант | 0.2567 | 0.2611 | 1.017 | Довбуш | 0.2582 | 0.2599 | 1.006 |
+| Брант | 0.2608 | 0.2657 | 1.019 | Довбуш | 0.2628 | 0.2653 | 1.009 |
 | Тео | 0.4394 | 0.4468 | 1.017 | | | | |
 
-Борко, Альба, Дара and Тарас are not measured yet (kit = P0_c): STAGGER and CHILL change nothing in the run's
-statuses, and their other effects need Flying squads or squads ≤ 4 u apart that LevelGen does not build.
+(Full `--budget` table re-run 2026-10-10 with the 21 champions: P0_c in step, 11 measured within, 0 misses.) Борко,
+Альба, Дара and Тарас are not measured yet (kit = P0_c): STAGGER and CHILL change nothing in the run's statuses, and
+their other effects need Flying squads or squads ≤ 4 u apart that LevelGen does not build. The six of wave 9 have no
+twist row yet (the twist builder comes next), so each runs its bare template (kit = P0_c, `KIT_INDEX` 1.000): Франко's
+stone leap, Гоготун's MARK, Сковорода's net and Мотиватор's shout will be measurable; Одарка's jar and Гоготун's reach
+over fliers need Flying squads, Рукавичка's rhythm only moves the pool cap.
 
 The template's tier rules, measured on each champion's own stats (`--tiers`: what a rule adds, as a share of the same
 champion's tier I template), are far from the designed +4% each, so a tier IV template is worth 1.6–2.8× its tier I
@@ -683,7 +699,11 @@ in the same release (Мейра's Rune affinity switches on inside the EXPECTED 
 
 Only the highest tier of each faction is active; a 2 + 2 team runs two tier-I factions. Each faction has 2–4 heroes (Орден Світанку 4 since H26 Сірко: Арін, Ейра, Веста, Сірко; Дикі Ікла 4 since H27 Ольга:
 Руді, Мейра, Пава, Ольга) and
-3–4 champions (Дикі Ікла 4 since C23 Тарас, Орден Світанку 4 since C24 Снаряд, Кам'яне Серце 4 since C25 Довбуш), so a mono-faction team of 4 is always possible. Faction identity lives in trophies, item looks and
+3–7 champions (Дикі Ікла 7 since wave 9: Борко, Альба, Олена, Тарас, Рукавичка, Гоготун, Мотиватор; Орден Світанку 6: Міла, Іво, Дара, Снаряд,
+Одарка, Сковорода; Кам'яне Серце 5: Отто, Брант, Менгір, Довбуш, Франко; Небожителі 3: Тая, Тео, Німб), so a mono-faction team of 4 is
+always possible. The owner approved wave 9's factions as they stand (2026-10-10): the faction tiers stop at 4 members, so a
+bigger faction only gives more choice; Небожителі is now the smallest (3 champions, 5 characters), and the next
+characters should go to it (`heroes_ua_icons.md` §4). Faction identity lives in trophies, item looks and
 set bonuses; there is one material (Star Ore).
 
 ### 5.4 Rally hooks and their parity bases (each hero uses exactly one; S's per-hook value ≈ 3 Barracks levels)
@@ -722,15 +742,15 @@ target and parity base, or shares one with the same base.
 
 | Tag | Heroes | Champions | Total |
 |---|---|---|---|
-| Воїн | Арін, Веста, Сірко | Борко, Брант, Довбуш | 6 |
+| Воїн | Арін, Веста, Сірко | Борко, Брант, Довбуш, Франко, Гоготун, Мотиватор | 9 |
 | Стрілець | Руді, Іскар, Ольга | Альба, Тео, Дара | 6 |
 | Маг | Мейра, Люмен | Тая, Менгір, Тарас | 5 |
-| Страж | Горан, Вартан | Іво, Отто, Німб, Снаряд | 6 |
-| Цілитель | Ейра, Пава | Міла, Олена | 4 |
-| Kinetic · Volt · Frost · Plasma · Tech · Rune | Горан, Арін · Руді, Іскар · Ейра · Веста, Люмен, Ольга · Вартан · Мейра, Пава, Сірко | Борко, Отто, Довбуш · Німб, Дара · Альба, Олена · Іво, Брант · Міла, Тео, Снаряд · Тая, Менгір, Тарас | 5 · 4 · 3 · 5 · 4 · 6 |
-| Орден Світанку | Арін, Ейра, Веста, Сірко | Міла, Іво, Дара, Снаряд | 8 |
-| Дикі Ікла | Руді, Мейра, Пава, Ольга | Борко, Альба, Олена, Тарас | 8 |
-| Кам'яне Серце | Горан, Вартан | Отто, Брант, Менгір, Довбуш | 6 |
+| Страж | Горан, Вартан | Іво, Отто, Німб, Снаряд, Сковорода | 7 |
+| Цілитель | Ейра, Пава | Міла, Олена, Рукавичка, Одарка | 6 |
+| Kinetic · Volt · Frost · Plasma · Tech · Rune | Горан, Арін · Руді, Іскар · Ейра · Веста, Люмен, Ольга · Вартан · Мейра, Пава, Сірко | Борко, Отто, Довбуш, Франко, Сковорода · Німб, Дара · Альба, Олена, Рукавичка · Іво, Брант, Одарка · Міла, Тео, Снаряд, Гоготун · Тая, Менгір, Тарас, Мотиватор | 7 · 4 · 4 · 6 · 5 · 7 |
+| Орден Світанку | Арін, Ейра, Веста, Сірко | Міла, Іво, Дара, Снаряд, Одарка, Сковорода | 10 |
+| Дикі Ікла | Руді, Мейра, Пава, Ольга | Борко, Альба, Олена, Тарас, Рукавичка, Гоготун, Мотиватор | 11 |
+| Кам'яне Серце | Горан, Вартан | Отто, Брант, Менгір, Довбуш, Франко | 7 |
 | Небожителі | Іскар, Люмен | Тая, Тео, Німб | 5 |
 
 Designed pairs (★): Горан + Отто (scripted first chest for Горан: Stoneheart I + Guardian pair + Kinetic ×2) · Руді +
@@ -740,7 +760,10 @@ Designed pairs (★): Горан + Отто (scripted first chest for Горан
 (Wildfang + Healer pair) · Мейра + Тарас (Wildfang + Mage pair + Rune ×2) · Вартан + Снаряд (Guardian pair + Tech ×2) · Веста + Снаряд
 (Dawn + FLARE: his MARK, her BURN) · Горан + Довбуш (Stoneheart + Kinetic ×2) · Арін + Довбуш (Warrior pair + Kinetic ×2) · Сірко +
 Довбуш (Warrior pair + STAGGER twice: the laughter and the bartka) · Сірко + Тарас (Rune ×2: the Letter and the Word) · Ольга + Альба (Wildfang + Ranger pair: the lady of the
-birds and the snowy owl) · Ольга + Снаряд (FLARE: his MARK, her BURN; the siege pair).
+birds and the snowy owl) · Ольга + Снаряд (FLARE: his MARK, her BURN; the siege pair) · wave 9: Тарас + Франко («Класики»,
+a lore banner pair) · Горан + Франко (Stoneheart + Kinetic ×2) · Ейра + Рукавичка (Healer pair + Frost ×2) · Веста + Одарка
+(Dawn + Plasma ×2) · Ольга + Гоготун (Wildfang + FLARE: his MARK, her BURN) · Горан + Сковорода (Guardian pair + Kinetic
+×2) · Мейра + Мотиватор (Wildfang + Rune ×2) · Сірко + Мотиватор (Warrior pair + Rune ×2).
 
 Reactions are arsenal §2.1 (unchanged): JOLT + CHILL = SUPERCONDUCT · BURN + CHILL = THERMAL SHOCK · MARK + BURN = FLARE.
 
@@ -750,17 +773,20 @@ Reactions are arsenal §2.1 (unchanged): JOLT + CHILL = SUPERCONDUCT · BURN + C
 | «Кам'яна стіна / Stonewall» | Горан + Отто + Іво (+ Брант / Менгір) | Горан L4, Отто = scripted chest #1, Іво = Кварц | walks through blades, breaks walls |
 | «Варта Світанку / Dawn Watch» | Арін + Міла + Іво (+ Дара) | Арін = commonest Portal hero, Міла = scripted chest #2 | wins by soldiers at the fortress |
 
-## 6. Roster: 12 heroes and 15 champions (full sheets)
+## 6. Roster: 12 heroes and 21 champions (full sheets)
 
 ### 6.0 At a glance
 
 Collector numbers: heroes 01–10, champions 11–25 (in gem order at launch; C23 Тарас, C24 Снаряд and C25 Довбуш joined after launch, numbered as they
-joined), H26 Сірко and H27 Ольга (the 11th and 12th heroes, joined after them; heroes and champions share one number line). Names read the same in uk and en; titles translate.
+joined), H26 Сірко and H27 Ольга (the 11th and 12th heroes, joined after them; heroes and champions share one number line), then
+C28–C33, the six champions of wave 9 (owner-approved 2026-10-10; Франко, Рукавичка, Одарка, Гоготун, Сковорода, Мотиватор).
+Names read the same in uk and en, titles translate; four wave-9 names are nicknames and translate too (Рукавичка / The
+Mitten, Баба Одарка / Granny Odarka, Гоготун / Honker, Мотиватор / The Motivator).
 Five titles changed after the IP / meaning review (critique X21): Руді «Громовий лис / Thunder Fox» (was "the Bolt", a
 2008 film), Горан «Кам'яний велет / the Stone Titan» (was «Громило», uk "thug"), Альба «Сніжне Перо / Snowquill" (the
 white feather means cowardice in English), Німб «Щит бурі / Storm Aegis» (Stormshield is a known MMO city), Олена
 «Морозна знахарка / Frost Herbalist». Before the splash prompts are final the owner runs a store / trademark search on all
-27 names + titles (§15 Q8).
+33 names + titles (§15 Q8).
 
 | № | id | Name | Title uk / en | Gem | Class | Element | Faction | Species · gender | Niche | Ult kind | Source |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -794,9 +820,16 @@ white feather means cowardice in English), Німб «Щит бурі / Storm Ae
 | 23 | `taras` | Тарас / Taras | Кобзар / The Kobzar | Пробиває загони словом / Breaks squads with the Word | Топаз | Mage | Rune | Wildfang | human · m |
 | 24 | `snaryad` | Снаряд / Snaryad | Пес-сапер / The Sapper Hound | Знешкоджує пастки / Defuses the traps | Аметист | Guardian | Tech | Dawn | beast (Jack Russell terrier) · m |
 | 25 | `dovbush` | Довбуш / Dovbush | Опришок / The Carpathian Rebel | Кидає бартку крізь загони / Hurls the bartka | Топаз | Warrior | Kinetic | Stoneheart | human · m |
+| 28 | `franko` | Франко / Franko | Каменяр / The Stonebreaker | Лупає скелю / Breaks the rock | Топаз | Warrior | Kinetic | Stoneheart | human · m |
+| 29 | `rukavychka` | Рукавичка / The Mitten | Мишка-шкряботушка / Scrabble-Mouse | Повертає полеглих гуртом / Brings the fallen back together | Кварц | Healer | Frost | Wildfang | beast (mouse) · f |
+| 30 | `odarka` | Баба Одарка / Granny Odarka | Берегиня борщу / Keeper of the Borscht | Годує полеглих, б'є летунів / Feeds the fallen, hits the fliers | Сапфір | Healer | Plasma | Dawn | human · f |
+| 31 | `hohotun` | Гоготун / Honker | Бойовий гусак / The Battle Goose | Мітить і падає з неба / Marks, then drops from the sky | Сапфір | Warrior | Tech | Wildfang | beast (grey goose) · m |
+| 32 | `skovoroda` | Сковорода / Skovoroda | Невловимий / The Uncaught | Леза летять мимо / The blades fly past | Аметист | Guardian | Kinetic | Dawn | human · m |
+| 33 | `motyvator` | Мотиватор / The Motivator | Сила лісу / Power of the Forest | Додає армії духу / Lifts the army's spirit | Кварц | Warrior | Rune | Wildfang | human · m |
 
-Coverage: classes W 6 · R 6 · M 5 · G 6 · H 4; elements Kin 5 · Volt 4 · Plasma 5 · Rune 6 · Frost 3 · Tech 4;
-factions 8 · 8 · 6 · 5; species humans 11 · beasts 8 · creatures 8. The heroes of a gem never share a class or a
+Coverage: classes W 9 · R 6 · M 5 · G 7 · H 6; elements Kin 7 · Volt 4 · Plasma 6 · Rune 7 · Frost 4 · Tech 5;
+factions 10 · 11 · 7 · 5; species humans 15 · beasts 10 · creatures 8. Champions per gem 5 · 5 · 5 · 6: since wave 9
+Сапфір holds all five classes; Кварц lacks a Ranger and a Mage, Аметист a Mage, Топаз a Healer (two Warriors, two Mages). The heroes of a gem never share a class or a
 splash pose (Опал: Люмен Mage P3, Пава Healer P1, Сірко Warrior P2, Ольга Ranger P4). The enemy horde is «Жаророгі / the Emberhorn» (lore only).
 
 **How to read a sheet.** *Kit* = stored Quartz-normalised; *eff* = what the native sees (× NATIVE_MULT). Rank tables are
@@ -1193,7 +1226,7 @@ of a thousand eyes opens behind her; the eyes blink open in a wave.
 
 ### 6.11–6.22 Champions — common rules
 
-These rules cover C23 Тарас, C24 Снаряд and C25 Довбуш too (their sheets are §6.25–6.27, after the Loc appendix, so the
+These rules cover C23 Тарас, C24 Снаряд, C25 Довбуш and C28–C33 too (their sheets are §6.25–6.27 and §6.30–6.35, after the Loc appendix, so the
 § numbers above stay).
 
 - **Numbers** are the §4.4 generated rows (kit × ladder × `cl(L)` × relic): *native f0 Lv1 / native f5 Lv20 / recut to
@@ -1477,7 +1510,7 @@ inlaid with topaz, star-cut heart gem). **Special:** palm slam on the road (circ
 | `celestial` | Місячне жало / Moonsilver Sting | Зоряна мантія / Starglass Mantle | Підвіска-орбіта / Orbit Pendant |
 
 Boss trophies reuse these 12 names with a provenance line («Трофей: Кракен / Trophy: the Kraken»). Hero relic names
-and beats are on each hero sheet (Сірко's on §6.28, Ольга's on §6.29); champion relics are on §6.11–6.22 and §6.25–6.27.
+and beats are on each hero sheet (Сірко's on §6.28, Ольга's on §6.29); champion relics are on §6.11–6.22, §6.25–6.27 and §6.30–6.35.
 
 ### 6.24 Loc appendix — uk lore (`HERO_<ID>_LORE`, `CHAMP_<ID>_LORE`; " / " = line break; en = the sheets)
 
@@ -1510,6 +1543,12 @@ and beats are on each hero sheet (Сірко's on §6.28, Ольга's on §6.29
 | taras | Тарас прийшов у Рунічний ліс із торбою книжок і навчив звіролюдей записувати власні пісні. / Його слово не горить: коли Жаророгі підпалили ліс, сторінки його книжок знялися в повітря й розтяли полум'я, мов леза. / Він вірить, що вчасно сказане слово сильніше за будь-яку зброю, — і кожен бій починає з рядка. |
 | snaryad | Снаряд був найменшим цуценям у псарні Небесної гавані, а нюх мав найкращий у всьому Ордені Світанку. / Він чує пастку Жаророгих за три кроки й знешкоджує її раніше, ніж до неї ступить бодай один воїн. / Кожне висмикнуте запобіжне кільце він носить на грудях, як медаль, — і щоразу чекає, що його назвуть молодцем. |
 | dovbush | Довбуш — син гір: він виріс на перевалі Крижаних вершин, і скелі Кам'яного Серця досі звуть його своїм. / Він забирає в жорстоких ватажків Жаророгих награбоване й віддає тим, кого вони пограбували, а прості стріли його не беруть. / Його бартка летить туди, куди він покаже, — і завжди повертається до руки. |
+| franko | Франко виріс у кузні на перевалі Крижаних вершин і змалку знав, що кожен камінь має свою тріщину. / Жаророгі закували каменярів Кам'яного Серця в кайдани й звеліли тесати їм фортецю, та він першим підняв молот на скелю, а не на брата. / Відтоді кайдани на його зап'ястях завжди розбиті, а скеля перед ним завжди тріскає. |
+| rukavychka | Дід загубив рукавичку на стежці Рунічного лісу, і першою в ній оселилася мишка-шкряботушка. / Відтоді в рукавичці зимують усі, кому холодно: жабка, зайчик, лисичка, вовчик, кабан і ведмідь, і місце знаходиться завжди. / У бою вона ховає туди полеглих воїнів, а коли гавкає собака, вони вискакують зігріті й знову стають у стрій. |
+| odarka | Баба Одарка тримає найбільшу кухню в Небесній гавані, і жоден воїн Ордену Світанку ще не пішов від неї голодним. / Її погріб — легенда: закрутки стоять там рядами, як військо, а маринований перець пече сильніше за вогонь Жаророгих. / Полеглих вона годує, доки ті не встануть, а в летунів Жаророгих кидає банку — і ще жодного разу не схибила. |
+| hohotun | Гоготун — найгучніший гусак Диких Іклів: його «Га-га-га!» чути від Коралового рифу до Рунічного лісу. / Він сам приміряв шолом і стьобанку й записався до війська, бо «хтось мусить стерегти небо». / На лапі він носить таємне кільце з номером 001 і нікому не каже, що воно означає. |
+| skovoroda | Сковорода все життя мандрував шляхами від Небесної гавані до Рунічного лісу з ціпком, сопілкою й торбою книжок. / Жаророгі сплели для нього золоту сітку й не раз її закидали, та він щоразу проходив крізь неї, мов вітер. / На його ціпку вирізано «Світ ловив мене, та не спіймав», і він досі усміхається, коли це читає. |
+| motyvator | Мотиватор живе в найглибшій гущавині Рунічного лісу, де мох м'якший за перину, а кора тепліша за кожух. / Ліс навчив його одного: хто вміє радіти, того не зламати, — і він кричить про це так, що гнуться сосни. / Коли армія втомлюється, він здіймає кулак до неба, і воїни знову відчувають силу лісу. |
 
 Champion en lore (3 lines each, same order as uk; en for heroes is on the hero sheets):
 **mila** Mila was the youngest apprentice in the orbital temple's infirmary, and always the first one out to the field. /
@@ -1547,7 +1586,26 @@ trap three steps away and defuses it before a single soldier sets foot on it. / 
 on his chest like a medal, and every time he waits to be called a good boy. **dovbush** Dovbush is a son of the
 mountains: he grew up on the Frost Peaks pass, and the Stoneheart rocks still call him their own. / He takes back what
 the cruel Emberhorn chieftains have plundered and returns it to those they robbed, and ordinary arrows cannot touch him.
-/ His bartka flies wherever he points, and it always comes back to his hand.
+/ His bartka flies wherever he points, and it always comes back to his hand. **franko** Franko grew up in a forge on the
+Frost Peaks pass and learned as a boy that every stone has its crack. / The Emberhorn chained the Stoneheart stonebreakers
+and made them hew a fortress, but he was the first to raise his hammer at the rock, not at his brother. / Since then the
+shackles on his wrists are always broken, and the rock in front of him always cracks. **rukavychka** An old man lost his
+mitten on a Rune Forest path, and the first to move in was the scrabble-mouse. / Ever since, everyone who is cold winters
+in the mitten: the frog, the hare, the fox, the wolf, the boar and the bear, and there is always room. / In battle she
+tucks the fallen soldiers inside, and when the dog barks they jump out warm and take their place in the line again.
+**odarka** Granny Odarka keeps the biggest kitchen in the Sky Harbour, and no Dawn Order soldier has ever left it hungry.
+/ Her cellar is a legend: the jars stand in rows like an army, and her pickled peppers burn hotter than Emberhorn fire.
+/ She feeds the fallen until they get up, throws a jar at the Emberhorn fliers, and has never missed once. **hohotun**
+Honker is the loudest goose of the Wildfang: his honk carries from the Coral Reef to the Rune Forest. / He tried on the
+helmet and the quilted vest himself and joined the army, because "someone has to guard the sky". / He wears a secret
+ring numbered 001 on his leg and tells no one what it means. **skovoroda** Skovoroda spent his whole life wandering the
+roads from the Sky Harbour to the Rune Forest with a staff, a pipe and a satchel of books. / The Emberhorn wove a golden
+net for him and cast it many times, but each time he passed through it like the wind. / His staff is carved with the
+words "The world tried to catch me, and missed", and he still smiles when he reads them. **motyvator** The Motivator
+lives in the deepest thicket of the Rune Forest, where the moss is softer than a feather bed and the bark is warmer than
+a sheepskin coat. / The forest taught him one thing: whoever knows how to rejoice cannot be broken, and he shouts it so
+loud the pines bend. / When the army tires, he raises his fist to the sky, and the soldiers feel the power of the forest
+again.
 
 **Skill-name keys:** heroes `ULT_<ID>` (starters keep `ULT_STORM`, `ULT_QUAKE`, `ULT_RIFT`), `ATK_<ID>`, `RALLY_<ID>`,
 `AWK_<ID>`, beats `ATK_<ID>_B3/B6/B9`, forms `ULT_<ID>_F2…F5` (names = the bold names on each sheet); champions
@@ -1823,6 +1881,259 @@ gem never share a class). Ranger goes from 5 to 6, Plasma from 4 to 5, and Ди�
 pairs: Ольга + Альба (Wildfang + Ranger pair: the lady of the birds and the snowy owl) · Ольга + Снаряд (FLARE: his MARK,
 her BURN; his charge clears the traps, her doves the walls).
 
+### 6.30–6.35 Wave 9 champions — what they share
+
+Six champions joined together (owner-approved wave 9, 2026-10-10), from `heroes_ua_icons.md` §1 items 4–8 and §5;
+collector numbers C28–C33 continue the one shared line after H27 Ольга, in joining order. The common rules of
+§6.11–6.22 apply to each. **Every kit is its class template** (HP × `FRONT_HP_MULT` for the front classes, Action,
+aura, radius of §4.3): the twist changes the target, the rhythm or the side effect, never the class strength. Each
+twist's *(knob)* numbers are tuned in LevelSim so that `KIT_INDEX` = kit / P0_c stays within 1 ± 3% (§4.4; P0_c is
+each champion's own bare template, measured 2026-10-10). A twist whose effect LevelSim cannot see yet (Flying squads,
+STAGGER, a chest of stone LevelGen does not build) is UNMEASURED and keeps the template's number until it can be
+measured, like Альба and Дара. The art is the owner's card per champion (`assets/heroes/<id>/card.png`, the 4K source in
+`art_src/heroes/<id>/<id>_card_src.jpg`); the splash slot holds the same picture until a splash is painted.
+
+### 6.30 C28 `franko` — Франко — Каменяр / Franko — the Stonebreaker (committed look)
+Топаз · Warrior · Kinetic · Stoneheart · human · m · slot **front** (→ left behind a Guardian) · joined after launch
+(wave 9, 2026-10-10); Hero Chests only, like every champion.
+
+**Fantasy:** the stonebreaker who always picks the rock: his granite hammer goes for the wall, the barricade or the
+gate before any squad, and the rock's debris knocks back whoever hides behind it. A tribute to Ivan Franko (1856–1916),
+poet, prose writer and scholar, after his poem «Каменярі» (1878) and its line «Лупайте сю скалу!»; the broken shackles
+on his wrists are the poem's image (the chained stonebreakers who break the rock for the ones who come after). The face
+is drawn fresh (a red-blond moustache and beard); no banknote portrait is copied and no photograph is traced. **Tone
+(binding):** revered and warm; never a joke at his expense, no political slogans, the line is a battle cry of work and
+will, never a catchphrase against anyone. **Personality:** stubborn, tireless, kind to the young and sharp with the lazy;
+works first and talks after. **Voice:** pick «Нехай ні жар, ні холод не спинить нас!» / "Let neither heat nor cold stop
+us!" · action «Лупайте сю скалу!» / "Break this rock!"
+
+| Part | Rule | f0 Lv1 / f5 Lv20 |
+|---|---|---|
+| HP | takes the front clash share (fractional accumulator) | 67 / 122 |
+| Action — Cleave + leap | the template: +0.07 kills per FIGHT_TICK in his clash; every 5 s a leap at a squad ≤ 3 u ahead: 3 × power kills | 3.78 / 6.89 leap kills |
+| Twist — Лупайте сю скалу! / Break This Rock! | the leap **prefers stone**: when a barricade, wall, geode or the fortress gate is in leap reach he leaps at it instead of a squad: the stone takes the leap's 3 × power as structure damage ×1.0 *(knob)*, and the debris STAGGERs the nearest squad ≤ 2 u behind it for 1 s; «ЛУПАЙТЕ!» flashes over the stone. With no stone in reach, the template leap. In the siege every leap hits the fortress gate | 3.78 / 6.89 stone damage |
+| Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.126 → 4.4% / 0.264 → 9.2% |
+| Tier | IV (native only): II leap 4 kills, reach 4 u · III the leap applies STAGGER (Kinetic) · IV cleave hits 2 squads in contact; leap cd 4 s | — |
+| Relic Розбиті кайдани / The Broken Shackles | +4 leap reach +0.5 u · +8 debris STAGGER +0.5 s · +12 leap cd −0.5 s | — |
+
+Budget: the same leap with the same 3 × power; only the target moves from a squad to the stone (the value of §4.4 counts
+kills and structure damage one to one), so the knob is the stone factor (×1.0 to start). STAGGER changes nothing the
+run's Statuses or LevelSim count (as Борко's and Довбуш's), so the debris is the twist's look, not extra power. The relic
+is the shackles he broke in the poem.
+
+**Fall:** he drops to one knee, the hammer head on the ground, both hands on the haft; a little stone dust settles.
+**Visual (the owner's card, `assets/heroes/franko/`):** a broad-shouldered man of about forty (≈ 1.80 m, realistic
+proportions), short swept-back red-blond hair, a full curled moustache and a short beard, a stern, focused look; a white
+linen shirt with red-and-black cross-stitch on the collar, chest and sleeves, sleeves pushed up; a brown leather
+stonebreaker's apron with buckled straps; a wide leather belt with a small rock hammer and a chisel; dark trousers; a
+huge **war hammer whose head is a rough granite block** in brass bands on a long wooden haft with a brass collar; **broken
+iron shackles with hanging chain links on both wrists**; stone dust on his clothes. **COLOR LOCK: topaz** (the
+cushion-cut golden topaz set in the hammer's granite head = heart gem; no other crystals). Card **P2 Advance**: the
+hammer raised over the right shoulder mid-swing, a wide step toward the viewer. **Special:** a two-handed overhead blow
+that cracks the road (the leap at stone).
+
+**Why these tags (coverage note):** Топаз already had a Warrior champion since Довбуш (Kinetic, Stoneheart, front);
+Франко repeats all four tags and differs by target (stone, not squads). The owner's concept (the stonebreaker of the
+poem) is a hammer Warrior, so the tags stay. Kinetic goes to 6, Кам'яне Серце to 5 champions, Топаз to 6 champions.
+Designed pairs: Тарас + Франко («Класики» / "The Classics": a lore banner pair, no shared tag, lines to each other on
+the Team screen) · Горан + Франко (Stoneheart + Kinetic ×2: STAGGER twice, walls fall faster) · Ольга + Франко (the
+siege pair: her doves and his hammer both go for the gate).
+
+### 6.31 C29 `rukavychka` — Рукавичка — Мишка-шкряботушка / The Mitten — Scrabble-Mouse (committed look)
+Кварц · Healer · Frost · Wildfang · beast (mouse-kin) · f · slot **left** (→ right when Міла holds the left) · joined
+after launch (wave 9, 2026-10-10); Hero Chests only.
+
+**Fantasy:** the scrabble-mouse of the folk tale «Рукавичка» / "The Mitten": an old man lost his mitten in the snow,
+the mouse moved in first, then the frog, the hare, the fox, the wolf, the boar and the bear, until a dog barked and
+everyone ran. She carries the mitten as a little knitted house on her back and tucks the fallen soldiers into it to
+warm up. **Tone (binding):** cosy, funny, a fairy tale for every age; one spelling, «шкряботушка»; the illustrations of
+Jan Brett and Yaroslava are never copied, the mitten-house is our own design. **Personality:** cheerful, hospitable,
+a little fussy; always finds room for one more. **Voice:** pick «Тісно — але влізе!» / "It's a squeeze, but there's
+room!" · action «Хто, хто в рукавичці живе?» / "Who, who lives in the mitten?"
+
+| Part | Rule | f0 Lv1 / f5 Lv20 / recut Топаз |
+|---|---|---|
+| HP | — | 30 / 55 / 61 |
+| Action — Mend | the template: 30% of soldiers lost feed the pool (cap 30 × power per level); every 3 s returns up to 3 × power | 3.00 / 5.47 / 6.09 per pulse |
+| Twist — Хто в рукавичці живе? / Who Lives in the Mitten? | each Mend that returns ≥ 1 soldier lets a guest into her mitten (mouse, frog, hare, fox, wolf, boar, bear: **7 slots** on her medallion); the Mend that fills the 7th slot makes the dog bark: that Mend returns ×2 *(knob)*, the guests jump out, the mitten empties, and her **next Mend beat is skipped**. Over one cycle (8 beats) she returns 7 × 3 = 24, the template's 8 × 3 = 24: the same total in a rhythm the player can see | 6.00 / 10.94 / 12.18 on the bark |
+| Aura (r 1.3) | hazard losses − value × 0.30 (left) | 0.120 → 3.6% / 0.252 → 7.6% |
+| Tier | I (a recut keeps I) | — |
+| Relic Дідова рукавичка / Grandpa's Mitten | +4 pool cap +5 · +8 pulse −0.25 s · +12 the dog barks at 6 guests (the cycle is one beat shorter, the total per beat the same) | — |
+
+Budget: the cycle total equals the template's; the pool cap can clip the doubled Mend (a full pool returns less), so the
+bark factor ×2 is the knob that keeps `KIT_INDEX` = 1 ± 3% in LevelSim. The relic is the very mitten the old man lost.
+
+**Fall:** she pulls her headscarf over her eyes and hides in the mitten; only her tail sticks out, the frog peeks out of
+the window. **Visual (the owner's card, `assets/heroes/rukavychka/`):** a small upright mouse-kin girl (≈ 1.20 m, the
+scale exception of a beast-kin, plausible anatomy), grey fur, big round pink-lined ears, dark shiny eyes, a pink nose and
+long whiskers, a happy buck-toothed smile; a **red headscarf with a white flower print** tied under the chin; a white
+blouse with red-and-black cross-stitch; a cream sheepskin vest with fleece trim and red-and-gold edging; a dark cherry
+skirt and a woven sash; a long thin tail; on her back, on a leather strap, a **huge cream knitted mitten with a red
+pattern, built like a little house**: a wooden window with open shutters, a tiny brick chimney; a hare, a frog and a fox
+peek out of the cuff. **COLOR LOCK: clear quartz** (the round faceted quartz brooch on the vest = heart gem; no other
+crystals). Card **P3 Cast**: one hand raised in a friendly wave toward the viewer, the other on the mitten's strap.
+**Special:** she swings the mitten off her back and opens the window wide (the big Mend).
+
+**Why these tags (coverage note):** Кварц had one Healer (Міла, Tech, Dawn); Рукавичка is the Frost and Wildfang one,
+and the Frost tag was the thinnest (3). Frost goes to 4, Дикі Ікла to 5 champions, Кварц to 5. Designed pairs: Ейра +
+Рукавичка (Healer pair + Frost ×2) · Пава + Рукавичка (Wildfang + Healer pair).
+
+### 6.32 C30 `odarka` — Баба Одарка — Берегиня борщу / Granny Odarka — Keeper of the Borscht (committed look)
+Сапфір · Healer · Plasma · Dawn Order · human · f · slot **right** (→ left when the right is taken) · joined after
+launch (wave 9, 2026-10-10); Hero Chests only.
+
+**Fantasy:** every Ukrainian granny in one: "You've lost weight, eat!", a pot of borscht on her hip and a cellar of
+preserves that are a weapon in her hands. She feeds the fallen until they stand up again and throws a jar of pickled
+peppers at anything that flies. A **fictional** granny: never a real person, never a woman from a war video; the name
+nods to the opera «Запорожець за Дунаєм». **Tone (binding):** warm and bossy-funny; the jokes are about food and care,
+never about her age; her jars fly at the Emberhorn's fantasy fliers only, never at drones or anything real. **Personality:**
+stern on the outside, all heart inside; feeds everyone, takes no refusal. **Voice:** pick «Ти щось схуд. Їж!» / "You've
+lost weight. Eat!" · action «Ще борщику? Я не питаю.» / "More borscht? I'm not asking."
+
+| Part | Rule | f0 Lv1 / f5 Lv20 / recut Топаз |
+|---|---|---|
+| HP | — | 32 / 59 / 63 |
+| Action — Mend | the template: 30% of soldiers lost feed the pool (cap 30 × power per level); every 3 s returns up to 3 × power | 3.24 / 5.91 / 6.35 per pulse |
+| Twist — Банка / The Jar | a Mend that returns ≥ 1 soldier also throws a jar of pickled peppers on a high arc at the nearest **Flying** squad ≤ 12 u: 1 × power damage *(knob)* + BURN 3 s; no flier in range, no jar (she never throws at ground squads, so she does not repeat Міла's vial) | 1.08 / 1.97 / 2.12 jar damage |
+| Aura (r 1.3) | hazard losses − value × 0.30 (right) | 0.130 → 3.9% / 0.272 → 8.2% |
+| Tier | II: +1 per pulse; returns land at the blob front (a recut keeps II) | — |
+| Relic Бабусин половник / Granny's Ladle | +4 pool cap +5 · +8 the jar's BURN +1 s · +12 the jar splashes every Flying squad ≤ 1 u of its target | — |
+
+Budget: the Mend is the template's; the jar is the twist. LevelGen builds no Flying squads before Meta-2, so in LevelSim
+the jar never flies and the kit measures as the bare template: UNMEASURED (like Альба's flier rule); the jar damage is
+the knob to tune once fliers exist. The relic is the ladle from her apron pocket.
+
+**Fall:** she sits down on an upturned pot, fans herself with the headscarf and wags a finger at the enemy.
+**Visual (the owner's card, `assets/heroes/odarka/`):** a sturdy, rosy-cheeked woman of about sixty-five (≈ 1.62 m,
+realistic proportions), grey hair under a **cream headscarf with big red roses**, a matching shawl over the shoulders, a
+sharp, knowing look and a small smile; a white embroidered shirt with red-and-black cross-stitch; a white apron with a
+pocket and a steel **ladle** hanging from it; a black skirt; an **enamel pot of red borscht** with sour cream and dill on
+her hip; her raised right hand holds a **glass jar of pickled red peppers** ready to throw. **COLOR LOCK: sapphire** (the
+oval sapphire brooch on the shawl = heart gem; no other crystals). Card **P3 Cast**: the jar raised high in the right
+hand, the pot on the left hip. **Special:** a big overarm jar throw; the jar bursts in a cloud of red peppers.
+
+**Why these tags (coverage note):** Сапфір had no Healer champion (Альба, Отто, Тая); Одарка fills it with Plasma (the
+BURN of the peppers) and the Dawn Order (the Sky Harbour's kitchen). Plasma goes to 6, Орден Світанку to 5 champions,
+Сапфір to 5. Designed pairs: Веста + Одарка (Dawn + Plasma ×2: BURN twice) · Ейра + Одарка (Dawn + Healer pair) ·
+Ольга + Одарка (Plasma ×2: two burning things that fly).
+
+### 6.33 C31 `hohotun` — Гоготун — Бойовий гусак / Honker — the Battle Goose (committed look)
+Сапфір · Warrior · Tech · Wildfang · beast (grey goose) · m · slot **front** (→ left behind a Guardian) · joined after
+launch (wave 9, 2026-10-10); Hero Chests only.
+
+**Fantasy:** the battle goose, a beloved Ukrainian mascot: a big grey village goose in a steel helmet who honks before
+every charge, marks his target and drops on it with his wings spread. Geese fly, so he is the only Warrior whose leap
+reaches the fliers. **Tone (binding):** loud, proud and funny; the word "biolab" never appears anywhere (game, store,
+press), no flags, no enemy or war symbols, and outside Ukraine the store text never mentions the war; he is a grey goose,
+never white and never with a bell. **Personality:** brave, loud, territorial, hisses at anyone who comes too close; secretly
+very proud of his helmet. **Voice:** pick «Га-га-га! В атаку!» / "Honk-honk! Charge!" · action «Ш-ш-ш!» / "Hsssss!"
+
+| Part | Rule | f0 Lv1 / f5 Lv20 / recut Топаз |
+|---|---|---|
+| HP | takes the front clash share (fractional accumulator) | 57 / 104 / 112 |
+| Action — Cleave + leap | the template: +0.07 kills per FIGHT_TICK in his clash; every 5 s a leap at a squad ≤ 3 u ahead: 3 × power kills | 3.24 / 5.91 / 6.35 leap kills |
+| Twist — Га-га-га! / Honk-Honk-Honk! | before each leap he honks (0.4 s, «ГА-ГА-ГА!») and MARKs the target squad for 1 s *(knob)*; then he flies up and drops on it with his wings spread. His leap may pick a **Flying** squad ≤ 3 u (the only Warrior leap that reaches fliers) | — |
+| Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.108 → 3.8% / 0.227 → 7.9% |
+| Tier | II: leap 4 kills, reach 4 u (a recut keeps II) | — |
+| Relic Таємне кільце / The Secret Ring | +4 MARK +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
+
+Budget: the leap is the template's; the MARK makes the target take more from everyone (soldiers, machines, the hero)
+for its length, so the MARK length is the knob that keeps `KIT_INDEX` = 1 ± 3% (Міла's 3 s MARK measured ×1.11, so
+expect well under 1 s). Reaching fliers is UNMEASURED until LevelGen builds them. The relic is the ring on his leg,
+numbered 001, whose meaning he keeps to himself.
+
+**Fall:** he flops on his belly with his wings spread flat, the helmet slides over his eyes; one indignant honk.
+**Visual (the owner's card, `assets/heroes/hohotun/`):** a big upright grey goose (≈ 1.30 m with the neck, plausible
+bird anatomy, wings used like arms), grey-brown plumage with lighter barring, an orange beak open in a honk, orange legs
+and webbed feet; a round **steel kettle helmet** with rivets and a leather chin strap; an **olive quilted vest** with brass
+buttons and a few torn stitches; a plain metal **ring on his left leg**. **COLOR LOCK: sapphire** (the square-cut
+sapphire in a gold mount on the front of the helmet = heart gem; no other crystals). Card **P6 Prowl**: wings spread
+wide, one foot lifted mid-stride toward the viewer, beak open. **Special:** a running take-off, a short flight and a
+wings-first drop.
+
+**Why these tags (coverage note):** Сапфір had no Warrior champion; Гоготун fills it and adds Tech (4 → 5). Дикі Ікла
+goes to 6 champions, Сапфір to 5. Designed pairs: Ольга + Гоготун (Wildfang + FLARE: his MARK, her BURN) · Вартан +
+Гоготун (Tech ×2) · Руді + Гоготун (Wildfang: the fox and the goose own the sky).
+
+### 6.34 C32 `skovoroda` — Сковорода — Невловимий / Skovoroda — the Uncaught (committed look)
+Аметист · Guardian · Kinetic · Dawn Order · human · m · slot **front** · joined after launch (wave 9, 2026-10-10);
+Hero Chests only.
+
+**Fantasy:** the wandering philosopher whom the world tried to catch and never did: blades pass through the swirl of
+his cloak, and the golden net that was meant for him falls on the squad behind. A tribute to Hryhorii Skovoroda
+(1722–1794), philosopher, poet and teacher who walked the roads with a staff, a sopilka and a satchel of books, and wrote
+his own epitaph «Світ ловив мене, та не спіймав». **Tone (binding):** calm, wise, gently ironic; the phrase is about the
+freedom of the spirit and is **never** tied to mobilisation, the draft or evading it; the museum destroyed in May 2022 is
+not mentioned anywhere a player can see. **Personality:** serene, curious, kind; answers a question with a better
+question; never in a hurry and never late. **Voice:** pick «Світ ловив мене, та не спіймав.» / "The world tried to catch
+me, and missed." · action «Мимо!» / "Missed!"
+
+| Part | Rule | f0 Lv1 / f5 Lv20 / recut Топаз |
+|---|---|---|
+| HP | takes the front clash share (fractional accumulator) | 77 / 140 / 146 |
+| Action — Block | the template: absorbs one blade / spike / barricade contact on soldiers within 1.0 u (0 losses) + 1 × power kills on the squad behind; cd 5 s; the stamp reads «МИМО!» / "MISSED!" instead of «БЛОК» (the blade passes through his cloak) | 1.17 / 2.13 / 2.21 kills |
+| Twist — Світ ловив мене / The World Tried to Catch Me | every 3rd Block the golden net that was meant for him falls on the squad behind instead of that Block's kill: the squad is held 0.5 s *(knob)* and «НЕ СПІЙМАВ!» / "NOT CAUGHT!" flashes over it | — |
+| Aura (r 1.0) | clash losses − value × 0.35 (front) | 0.117 → 4.1% / 0.245 → 8.6% |
+| Tier | III: II block radius 1.4 u · III after a Block a 1.5 s front shield (the next clash tick costs 0) (a recut keeps III) | — |
+| Relic Сопілка мандрівника / The Wanderer's Pipe | +4 block radius +0.1 u · +8 the net's hold +0.2 s · +12 Block cd −0.5 s | — |
+
+Budget: two Blocks in three keep the template's kill; the third trades its kill for the net's hold (holds are booked as
+the soldiers they spare, §4.4), so the hold length is the knob that keeps `KIT_INDEX` = 1 ± 3% (Тая's lull showed holds
+are strong: expect well under 1 s). The relic is the sopilka on his belt.
+
+**Fall:** he lays down his satchel, plays three notes on the sopilka and simply walks out of frame.
+**Visual (the owner's card, `assets/heroes/skovoroda/`):** a tall, lean man of about fifty (≈ 1.82 m, realistic
+proportions), a long ascetic face, short dark hair, a calm half-smile; a wanderer's **dust-coloured cape** with gold
+Cossack-baroque embroidery and a fringed edge, swirling around him; a plain white linen shirt with a small embroidered
+collar; a cloth sash; a leather **satchel of books** across the body; a wooden **sopilka** tucked in the sash; a tall
+gnarled **wanderer's staff** topped with an amethyst crystal; a **golden net** unravelling and falling behind him.
+**COLOR LOCK: amethyst** (the long amethyst crystal held in the staff's head = heart gem; no other crystals). Card **P1
+Guard**: the staff planted upright in his left hand, the right hand open toward the viewer as if mid-thought, the cape
+and the net streaming to the right. **Special:** a half-turn inside the swirling cape; the net drops past him.
+
+**Why these tags (coverage note):** Аметист had one Guardian (Снаряд, Tech); Сковорода is the Kinetic one, and the
+Dawn Order is the Sky Harbour's road. Kinetic goes to 7 (with Франко), Орден Світанку to 6 champions, Аметист to 5.
+Designed pairs: Горан + Сковорода (Guardian pair + Kinetic ×2) · Арін + Сковорода (Dawn + Kinetic ×2) · Снаряд +
+Сковорода (Guardian pair + Dawn: «ЧИСТО!» and «МИМО!»).
+
+### 6.35 C33 `motyvator` — Мотиватор — Сила лісу / The Motivator — Power of the Forest (committed look)
+Кварц · Warrior · Rune · Wildfang · human · m · slot **front** (→ left behind a Guardian) · joined after launch (wave 9,
+2026-10-10, the owner's request); Hero Chests only.
+
+**Fantasy:** a wild, joyful forest man in moss and birch bark who never stops cheering: every leap ends with a roar of
+«Сила лісу!» that steadies the whole army for a moment. **An original character (binding):** he carries no real
+person's name or surname and is never drawn after a real face; no text anywhere (game, store, prompts, press) refers to a
+real person. The idea is the spirit of the forest only: moss, bark, acorns and a happy shout. **Tone (binding):** kind,
+loud and uplifting; the humour is his joy, never mockery. **Personality:** boundlessly cheerful, generous, never tired;
+believes the forest gives strength to anyone who asks. **Voice:** pick «Ліс дає силу!» / "The forest gives strength!" ·
+action «Сила лісу!» / "Power of the forest!"
+
+| Part | Rule | f0 Lv1 / f5 Lv20 / recut Топаз |
+|---|---|---|
+| HP | takes the front clash share (fractional accumulator) | 53 / 97 / 108 |
+| Action — Cleave + leap | the template: +0.07 kills per FIGHT_TICK in his clash; every 5 s a leap at a squad ≤ 3 u ahead: 3 × power kills | 3.00 / 5.47 / 6.09 leap kills |
+| Twist — Сила лісу! / Power of the Forest! | each leap ends with his shout: for 1.5 s the army loses 5% *(knob)* fewer soldiers in clashes (leaves and moss swirl over the crowd); the twist adds no kills | — |
+| Aura (r 1.1) | squads in contact lose + value × 0.35 (front) | 0.100 → 3.5% / 0.210 → 7.3% |
+| Tier | I (a recut keeps I) | — |
+| Relic Жолудеве намисто / The Acorn Necklace | +4 shout +0.5 s · +8 leap reach +0.5 u · +12 leap cd −0.5 s | — |
+
+Budget: the leap is the template's; the shout's cut is booked as the soldiers it spares (like Менгір's circle cut), so
+its size and length are the knobs that keep `KIT_INDEX` = 1 ± 3%. The relic is the acorn necklace on his chest.
+
+**Fall:** he sits down heavily against a tree stump, still grinning, and raises a tired fist.
+**Visual (the owner's card, `assets/heroes/motyvator/`):** a sturdy man of about fifty-five (≈ 1.78 m, realistic
+proportions), wild grey-brown hair and a big bushy beard with twigs and green leaves caught in it, bushy eyebrows, a
+wide-open joyful shout; a white linen shirt with red-and-black cross-stitch; a **vest of green moss over birch bark**; an
+**acorn necklace**; a braided rope belt with long tassels; light linen trousers; a **knotted wooden club** in his right
+hand. **COLOR LOCK: clear quartz** (the round faceted quartz set in the club's knot = heart gem; no other crystals; the
+Rune element lives only in the VFX of the shout). Card **P2 Advance**: the left fist raised high, the club low and
+forward, mid-shout, stepping toward the viewer. **Special:** a fist to the sky and a roar; leaves burst outward.
+
+**Why these tags (coverage note):** Кварц had one Warrior (Борко, Kinetic); Мотиватор is the Rune one (a forest spirit
+of the Rune Forest). Rune goes to 7, Дикі Ікла to 7 champions, Кварц to 5. Designed pairs: Мейра + Мотиватор (Wildfang +
+Rune ×2) · Сірко + Мотиватор (Warrior pair + Rune ×2: two laughs) · Арін + Мотиватор (Warrior pair: the clash cut and
+the drill).
+
 ## 7. Portal, Seals, Hero Chests, Workshop, odds and pity
 
 Everything random in this section is **earned by play only** (P2). All odds below are printed by `heroes_sim.py` §3–§4
@@ -1934,7 +2245,7 @@ runs. Measured income per day is in §8.4.
 | Tomes | none | 2 (after L30) |
 | Best card (exact, no pity) | Кварц 38.44% · Сапфір 40.77% · Аметист 16.83% · Топаз 3.96% | Аметист 78.58% · Топаз 21.42% |
 | Pity | a Топаз champion card by the 15th chest without one (both kinds count; hard) | same counter |
-| Inside a gem | unowned champion first; a complete gem → the champion Focus gets **exactly 60%**, the others share 40% evenly (20% each of two; 13.33% each of three in Аметист; 10% each of four in Топаз) | same |
+| Inside a gem | unowned champion first; a complete gem → the champion Focus gets **exactly 60%**, the others share 40% evenly (10% each of four in Кварц, Сапфір and Аметист; 8% each of five in Топаз) | same |
 | Reveal | inline on the result screen: **1.6 s**, 1.2 s when nothing is NEW; a NEW champion adds the 2.0 s cameo | same, inside the boss's Altar visit |
 
 Measured stream (300 000 chests, 5 Hero : 1 Grand, with pity, sim §4): per card Кварц 56.45% · Сапфір 24.49% · Аметист
@@ -1946,10 +2257,10 @@ against `DISCLOSED_CHAMP` and by `--check` per champion through `HeroChest.pick_
 
 | Gem | Champions | Each, no Focus | Focus | Each other |
 |---|---|---|---|---|
-| Кварц | 3 | 20.67% | 37.20% | 12.40% |
-| Сапфір | 3 | 9.00% | 16.20% | 5.40% |
-| Аметист | 4 | 2.25% | 5.40% | 1.20% |
-| Топаз | 5 | 0.40% | 1.20% | 0.20% |
+| Кварц | 5 | 12.40% | 37.20% | 6.20% |
+| Сапфір | 5 | 5.40% | 16.20% | 2.70% |
+| Аметист | 5 | 1.80% | 5.40% | 0.90% |
+| Топаз | 6 | 0.33% | 1.20% | 0.16% |
 
 **Odds changelog** (`odds_table.gd ODDS_CHANGELOG`; the (i) sheet marks these rows «Змінено у …» for one version):
 
@@ -1965,13 +2276,23 @@ against `DISCLOSED_CHAMP` and by `--check` per champion through `HeroChest.pick_
 | 2.4.0 | Portal, Опал (3 heroes) | each non-Focus hero | 0.56% → 0.28% | same; the Focus keeps exactly 60% of the gem (0.84%) |
 | 2.4.0 | Portal, Опал (4 heroes) | each hero, no Focus | 0.47% → 0.35% | H27 Ольга joins the Opal heroes (3 → 4) |
 | 2.4.0 | Portal, Опал (4 heroes) | each non-Focus hero | 0.28% → 0.19% | same; the Focus keeps exactly 60% of the gem (0.84%) |
+| 2.5.0 | Hero Chest, Кварц card (5 champions) | each champion, no Focus | 20.67% → 12.40% | C29 Рукавичка and C33 Мотиватор join the Quartz champions (3 → 5) |
+| 2.5.0 | Hero Chest, Кварц card (5 champions) | each non-Focus champion | 12.40% → 6.20% | same; the Focus keeps exactly 60% of the gem (37.20%) |
+| 2.5.0 | Hero Chest, Сапфір card (5 champions) | each champion, no Focus | 9.00% → 5.40% | C30 Одарка and C31 Гоготун join the Sapphire champions (3 → 5) |
+| 2.5.0 | Hero Chest, Сапфір card (5 champions) | each non-Focus champion | 5.40% → 2.70% | same; the Focus keeps exactly 60% of the gem (16.20%) |
+| 2.5.0 | Hero Chest, Аметист card (5 champions) | each champion, no Focus | 2.25% → 1.80% | C32 Сковорода joins the Amethyst champions (4 → 5) |
+| 2.5.0 | Hero Chest, Аметист card (5 champions) | each non-Focus champion | 1.20% → 0.90% | same; the Focus keeps exactly 60% of the gem (5.40%) |
+| 2.5.0 | Hero Chest, Топаз card (6 champions) | each champion, no Focus | 0.40% → 0.33% | C28 Франко joins the Topaz champions (5 → 6) |
+| 2.5.0 | Hero Chest, Топаз card (6 champions) | each non-Focus champion | 0.20% → 0.16% | same; the Focus keeps exactly 60% of the gem (1.20%) |
 
 `version` is the release the player sees in «Змінено у %s». `--diff` fails when a chest gem's pool differs from the
 launch pools (`LAUNCH_POOLS`, 3 per gem) or a Portal gem's hero pool from `LAUNCH_HERO_POOLS` (2 per gem) without a row
 whose `pool_after` is the current pool; only those current rows are checked against the exact table, so older rows stay
 as history.
 
-The gem odds of a card, the best-card tables and the chest pity are unchanged (Тарас, Снаряд and Довбуш are champions:
+Wave 9's rows carry 2.5.0: the 2.4.0 build (version code 8) already shipped with 15 champions, so the six arrive in the
+next release; the version string is the owner's to confirm. The gem odds of a card, the best-card tables and the chest
+pity are unchanged (Тарас, Снаряд, Довбуш and the six of wave 9 are champions:
 never in the Portal); the Portal changed only inside the Opal share (Сірко and Ольга, §7.2).
 
 **Scripted chests:** chest #1 at the unlock = Альба if Руді is the team hero, else Отто (+ one rolled card + fragments);
@@ -2690,7 +3011,8 @@ champion card and splash (already supplied by the owner), one Action icon, one r
 Сірко adds one hero splash (supplied by the owner), four model-sheet views, four skill icons, one relic icon, one Meshy
 character (+ the sabre and letter props) and the hero clips; H27 Ольга the same (one hero splash supplied by the owner,
 four model-sheet views, four skill icons, one relic icon, one Meshy character + the bow, quiver and dove props, the hero
-clips).
+clips). Wave 9 (C28–C33) adds six champion cards (supplied by the owner; the splash slot shows the card until a splash is
+painted), six Action icons, six relic icons and six sets of champion clips.
 
 ### 14.2 Rules for every prompt (the prompt writer applies them in `heroes/heroes_prompts.md`)
 
@@ -2735,7 +3057,7 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 |---|---|---|
 | R1 | 60 fps on mid Android is unmeasured | H0 phone baseline; absolute gates + fallback ladder (§10.6) before art lock |
 | R2 | Art is the long pole (≈ 220 images, 19 Meshy characters, Meshy credits already short) | waves + `HeroArt.state`; release waits for every character `complete` |
-| R3 | Scope (4 hub systems, 25 characters, save v3) | phased gates H0–H5; Workshop may slip to release 2 losslessly |
+| R3 | Scope (4 hub systems, 33 characters, save v3) | phased gates H0–H5; Workshop may slip to release 2 losslessly |
 | R4 | The Meta-1 integration is adding Мейра at L5 right now | Q7; the guest level keeps her at L5 either way |
 | R5 | `TEAM_DEMAND` is a model (sim) value | LevelSim re-bake on the EXPECTED profile in H2 with real kits (done 2026-10-10, §8.2, `scripts/dev/demand_bake.gd`); re-bake again when Meta-2 Frost / Rune machines switch Affinity on |
 | R6 | Casual win rate 84% sits near the 85% ceiling; EXPECTED-only Invasion floor is 57% (no invariant; Meta-1's own was 53%) | watch telemetry; the Invasion margin `INV_DEMAND_MU` is one knob |
@@ -2752,7 +3074,7 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 | Q5 | Machine rarity labels adopt the gem names in the same release | yes |
 | Q6 | Names: «Грані» (your UI answer said «Зірки») and «Майстерня» (you said «Кузня») | Грані · Майстерня |
 | Q7 | Мейра: L5 guest level + joins at L24, or joins at L5 as today | guest L5, join L24 |
-| Q8 | Store / trademark search on every name + title (27 with Тарас, Снаряд, Довбуш, Сірко and Ольга) before splash prompts are final | owner runs it |
+| Q8 | Store / trademark search on every name + title (33 with Тарас, Снаряд, Довбуш, Сірко, Ольга and the six of wave 9) before splash prompts are final | owner runs it |
 | Q9 | Люмен's pronoun «воно» / "it" | воно |
 | Q10 | Workshop in release 1 or release 2 | release 1 if green |
 | Q11 | Пава as a peacock-kin · Німб's tier IV turret catch · Веста's cape crimson-orange vs crimson-rose | keep · keep · crimson-rose in the regenerated splash |

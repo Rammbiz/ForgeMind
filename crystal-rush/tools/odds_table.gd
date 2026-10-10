@@ -37,10 +37,10 @@ const LAUNCH_HERO_POOLS := {"C": 2, "R": 2, "E": 2, "L": 2, "M": 2}
 ## §7.5 per-champion odds of one free chest card, every gem complete: champions per gem, each champion's % without a
 ## Focus, and with a chest Focus on that gem (the Focus champion / each other one).
 const DISCLOSED_CHAMP := {
-	"C": {"pool": 3, "each": 20.67, "focus": 37.20, "other": 12.40},
-	"R": {"pool": 3, "each": 9.00, "focus": 16.20, "other": 5.40},
-	"E": {"pool": 4, "each": 2.25, "focus": 5.40, "other": 1.20},
-	"L": {"pool": 5, "each": 0.40, "focus": 1.20, "other": 0.20},
+	"C": {"pool": 5, "each": 12.40, "focus": 37.20, "other": 6.20},
+	"R": {"pool": 5, "each": 5.40, "focus": 16.20, "other": 2.70},
+	"E": {"pool": 5, "each": 1.80, "focus": 5.40, "other": 0.90},
+	"L": {"pool": 6, "each": 0.33, "focus": 1.20, "other": 0.16},
 }
 ## Champions per chest gem at the launch of the Heroes system: a gem whose pool differs from this baseline must have an
 ## ODDS_CHANGELOG row recording the current pool (`pool_after`).
@@ -59,6 +59,14 @@ const ODDS_CHANGELOG := [
 	{"version": "2.4.0", "pool": "portal M", "pool_after": 3, "why": "H26 Сірко joins the Opal heroes (2 -> 3)", "row": "other", "was": 0.56, "now": 0.28},
 	{"version": "2.4.0", "pool": "portal M", "pool_after": 4, "why": "H27 Ольга joins the Opal heroes (3 -> 4)", "row": "each", "was": 0.47, "now": 0.35},
 	{"version": "2.4.0", "pool": "portal M", "pool_after": 4, "why": "H27 Ольга joins the Opal heroes (3 -> 4)", "row": "other", "was": 0.28, "now": 0.19},
+	{"version": "2.5.0", "pool": "chest C", "pool_after": 5, "why": "C29 Рукавичка and C33 Мотиватор join the Quartz champions (3 -> 5)", "row": "each", "was": 20.67, "now": 12.40},
+	{"version": "2.5.0", "pool": "chest C", "pool_after": 5, "why": "C29 Рукавичка and C33 Мотиватор join the Quartz champions (3 -> 5)", "row": "other", "was": 12.40, "now": 6.20},
+	{"version": "2.5.0", "pool": "chest R", "pool_after": 5, "why": "C30 Одарка and C31 Гоготун join the Sapphire champions (3 -> 5)", "row": "each", "was": 9.00, "now": 5.40},
+	{"version": "2.5.0", "pool": "chest R", "pool_after": 5, "why": "C30 Одарка and C31 Гоготун join the Sapphire champions (3 -> 5)", "row": "other", "was": 5.40, "now": 2.70},
+	{"version": "2.5.0", "pool": "chest E", "pool_after": 5, "why": "C32 Сковорода joins the Amethyst champions (4 -> 5)", "row": "each", "was": 2.25, "now": 1.80},
+	{"version": "2.5.0", "pool": "chest E", "pool_after": 5, "why": "C32 Сковорода joins the Amethyst champions (4 -> 5)", "row": "other", "was": 1.20, "now": 0.90},
+	{"version": "2.5.0", "pool": "chest L", "pool_after": 6, "why": "C28 Франко joins the Topaz champions (5 -> 6)", "row": "each", "was": 0.40, "now": 0.33},
+	{"version": "2.5.0", "pool": "chest L", "pool_after": 6, "why": "C28 Франко joins the Topaz champions (5 -> 6)", "row": "other", "was": 0.20, "now": 0.16},
 ]
 const STAGES := {
 	"A": {"own": ["bolt", "titan"], "focus": {}, "level": 21},
