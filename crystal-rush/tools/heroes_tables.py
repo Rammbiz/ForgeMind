@@ -103,6 +103,17 @@ FRONT_HP_MULT = 1.1
 CHAMPS = [row[:6] + (int(row[6] * FRONT_HP_MULT + 0.5) if row[12] == "front" else row[6],) + row[7:] for row in CHAMPS]
 AURA_SHARE = {"front": 0.35, "left": 0.30, "right": 0.30, "rear": 0.25}
 AURA_CAP = 0.40
+# Twist budget P0_c (§2.3, §4.1, §4.4; owner decision 2026-10-10: the class strength stays and the budget follows the
+# measured values; it replaces the design's 1.00 value / s): each champion's bare class template measured in LevelSim
+# by scripts/dev/test_champion_twists.gd --budget at its own gem f0, Action tier, slot and element, the EXPECTED
+# account's Champion Level, no relic: its kills + heals + soldiers saved + structure damage + what its statuses and
+# holds did, per second of play (aura left out); Руді + Мейра pooled, levels 15-112 step 4, gates frozen, 50 runs.
+# Every kit's KIT_INDEX = kit value / P0_c lies within 1 +- CHAMP_KIT_TOL. The test fails when a template moves past
+# that band from its row (LevelSim, LevelGen, a class template, a kit's HP or Action, the EXPECTED account): re-measure
+# and paste its CHAMP_P0 line (--emit), then gen_heroes_data.py --refresh. Measured 2026-10-10.
+CHAMP_P0 = {"mila": 0.3940, "ivo": 0.0773, "borko": 0.0750, "alba": 0.2099, "otto": 0.1304, "taya": 0.2003,
+            "brant": 0.2567, "teo": 0.4394, "olena": 0.4806, "nimb": 0.1478, "dara": 0.2442, "menhir": 0.3840,
+            "taras": 0.3902, "snaryad": 0.1308, "dovbush": 0.2582}
 
 # ------------------------------------------------------------------------------------------------ ult and attack rules
 # The §6 hero sheets as data (§6.1-6.10, §6.28 Сірко, §6.29 Ольга; bot policies §10.4), read by gen_heroes_data.py
@@ -603,6 +614,17 @@ def main():
                                                               ["I", "II", "III", "IV"][n] + (" (recut keeps it)" if n < 3 else "")))
     print("\nChampion Level cl(L) = 1 + %.2f (L - 1): Lv20 x%.2f · relic +12 x%.2f · Action tier step +%.0f%% per native gem" % (
         H.CL_STEP, cl20, rel12, 100 * H.ACTION_TIER_STEP))
+    # ---- twist budget
+    print("\n## E. Twist budget P0_c: the bare class template measured in LevelSim, value / s (CHAMP_P0; the champion")
+    print("it was measured on: its gem f0, Action tier, slot and element; aura left out)")
+    print("| Class | %s |" % " | ".join("%s (%s)" % (GEM[n], ["I", "II", "III", "IV"][n]) for n in range(4)))
+    print("|---|---|---|---|---|")
+    for cls in ("Warrior", "Ranger", "Mage", "Guardian", "Healer"):
+        cells = []
+        for n in range(4):
+            got = ["%.4f %s (%s)" % (CHAMP_P0[c[0]], c[1], c[12]) for c in CHAMPS if c[3] == cls and c[2] == n]
+            cells.append(" · ".join(got) or "—")
+        print("| %s | %s |" % (cls, " | ".join(cells)))
 
 
 if __name__ == "__main__":

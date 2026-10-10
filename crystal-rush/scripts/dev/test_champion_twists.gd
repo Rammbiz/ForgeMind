@@ -23,10 +23,17 @@ extends Node
 ##   Statuses either; groundings and reveals need Flying / Phantom squads, Meta-2 properties; a tether needs
 ##   two squads <= 4 u apart): it is UNMEASURED, counted apart (never a pass) and listed on the BUDGET_TABLE
 ##   line. (c) = (b) != (a) is measured: the twist lives in the champion's own Action (Іво's barricade).
+##   The budget P0_c is ChampionData.KIT_P0 (heroes_tables.CHAMP_P0, the column (a) of P0_SPREAD, owner
+##   decision 2026-10-10: the measured class values replace the design's 1.00 / s). On P0_SPREAD (the default
+##   spread) two more checks: column (a) within 1 +- CHAMP_KIT_TOL of its KIT_P0 row (else the table is stale:
+##   re-measure, paste the --emit line into heroes_tables.py, gen_heroes_data.py --refresh), and KIT_INDEX =
+##   (c) / KIT_P0 within 1 +- CHAMP_KIT_TOL for every measured twist. Other spreads check the ratio only.
 ##
 ## godot --headless --path . res://scenes/dev/test_champion_twists.tscn -- --autotest [--verbose]
 ##     [--budget=0] [--from=15] [--to=112] [--step=4] [--hero=bolt,seer] [--only=ivo,otto]
 ##     (defaults: both heroes pooled, 50 runs; the planner paths take ~4 min without --paths)
+##     [--emit]   (also prints column (a) as the heroes_tables.py CHAMP_P0 line)
+##     [--tiers]   (each template at Action tier I..its own: what each tier rule adds; no verdict)
 ##     [--sweep=otto:plant_cd=8,12,16]   (prints the ratio per value of one twist field; no verdict)
 ##     [--set=field=v;field=v]   (with --sweep: fixed overrides of the same twist row; "+" also separates)
 ##     [--paths=FILE]   (caches the planner's no-team paths as JSON between runs)
@@ -36,6 +43,8 @@ extends Node
 ## §4.3 template Action per class at f0 Lv1 (Quartz-normalised; x mult): leap kills, shot damage,
 ## spell kills per squad, kills per Block, soldiers per pulse.
 const TEMPLATE_ACTION := {"warrior": 3.0, "ranger": 1.0, "mage": 4.0, "guardian": 1.0, "healer": 3.0}
+## The spread ChampionData.KIT_P0 was measured on (the --budget defaults).
+const P0_SPREAD := {"from": 15, "to": 112, "step": 4, "hero": "bolt,seer"}
 
 var _fails := 0
 var _passes := 0
@@ -52,7 +61,7 @@ func _ready() -> void:
 	var old := EconData.phase_override
 	EconData.phase_override = HeroKinds.CHAMPIONS_PHASE
 	_ok(HeroKinds.champions_live(), "champions are live under the override")
-	if not _args.has("sweep") and not _args.has("probe"):
+	if not _args.has("sweep") and not _args.has("probe") and not _args.has("tiers"):
 		_test_rows()
 		_test_healers()
 		_test_guardians()
@@ -206,6 +215,11 @@ func _test_rows() -> void:
 		var m := _mem(id, ChampionData.action_tier(id), 1.0)
 		_ok(m["tw"] == tw, "%s: member() carries its TWISTS row" % id)
 	_ok(known == ChampionData.CHAMPION_ORDER.size(), "every champion has a twist row (%d of %d)" % [known,
+			ChampionData.CHAMPION_ORDER.size()])
+	var budgeted := ChampionData.CHAMPION_ORDER.filter(func(id: String) -> bool:
+		return float(ChampionData.KIT_P0.get(id, 0.0)) > 0.0)
+	_ok(budgeted.size() == ChampionData.CHAMPION_ORDER.size() and ChampionData.KIT_P0.size() == budgeted.size(),
+			"every champion has a twist budget P0_c in KIT_P0 (%d of %d)" % [budgeted.size(),
 			ChampionData.CHAMPION_ORDER.size()])
 	var bare := _mem("ivo", 1, 3.0, 60.0, {})
 	_ok((bare["tw"] as Dictionary).is_empty(), "a stats row with twist {} runs the bare template")
@@ -754,10 +768,13 @@ func _test_cost() -> void:
 
 ## The budget table (see the header). With --sweep=id:field=v1,v2 only that champion, once per value.
 func _budget() -> void:
-	var from := maxi(1, int(_args.get("from", "15")))
-	var to := maxi(from, int(_args.get("to", "112")))
-	var step := maxi(1, int(_args.get("step", "4")))
-	var heroes := str(_args.get("hero", "bolt,seer")).split(",", false)
+	var from := maxi(1, int(_args.get("from", str(P0_SPREAD["from"]))))
+	var to := maxi(from, int(_args.get("to", str(P0_SPREAD["to"]))))
+	var step := maxi(1, int(_args.get("step", str(P0_SPREAD["step"]))))
+	var heroes := str(_args.get("hero", P0_SPREAD["hero"])).split(",", false)
+	# KIT_P0 was measured on P0_SPREAD: only there is column (a) comparable with it.
+	var on_p0 := from == int(P0_SPREAD["from"]) and to == int(P0_SPREAD["to"]) and step == int(P0_SPREAD["step"]) \
+			and ",".join(heroes) == str(P0_SPREAD["hero"])
 	var ids: Array[String] = []
 	for id in str(_args.get("only", ",".join(ChampionData.CHAMPION_ORDER))).split(",", false):
 		if ChampionData.CHAMPIONS.has(id):
@@ -817,6 +834,9 @@ func _budget() -> void:
 	if _args.has("probe"):
 		_probe_levels(cases, ids, army, str(_args["probe"]).split(",", false))
 		return
+	if _args.has("tiers"):
+		_tier_steps(cases, ids, army, t_total)
+		return
 	if not sweep_vals.is_empty():
 		# --set=field=v;field=v: fixed overrides of the same twist row under the sweep.
 		var tw0: Dictionary = ChampionKinds.twist(sweep_id).duplicate()
@@ -835,39 +855,119 @@ func _budget() -> void:
 	print("  its holds' spared soldiers, per second of play (the aura is the same in every column and left out);")
 	print("  ratio = twist / template, target 1 +- %.2f; statuses + holds = that part of the twist column" %
 			ChampionData.CHAMP_KIT_TOL)
-	print("  %-8s %-8s %-4s %-5s | %8s %8s %8s | %8s | %7s" % ["id", "class", "tier", "slot", "template", "no twist",
-			"twist", "st+hold", "ratio"])
+	if on_p0:
+		print("  P0_c = ChampionData.KIT_P0 (the template column as measured on this spread);")
+		print("  KIT_INDEX = twist / P0_c, target 1 +- %.2f; template / P0_c past that band = a stale row (STALE)" %
+				ChampionData.CHAMP_KIT_TOL)
+	else:
+		print("  (not the KIT_P0 spread L%d-%d step %d %s: P0_c and KIT_INDEX are shown, not checked)" % [
+				int(P0_SPREAD["from"]), int(P0_SPREAD["to"]), int(P0_SPREAD["step"]), str(P0_SPREAD["hero"])])
+	print("  %-8s %-8s %-4s %-5s | %8s %8s %8s | %8s | %7s | %8s %8s" % ["id", "class", "tier", "slot", "template",
+			"no twist", "twist", "st+hold", "ratio", "P0_c", "KIT_IDX"])
 	var tol := ChampionData.CHAMP_KIT_TOL
 	var misses: PackedStringArray = PackedStringArray()
 	var unmeasured: PackedStringArray = PackedStringArray()
+	var stale: PackedStringArray = PackedStringArray()
+	var p0_now := {}
 	var within := 0
 	for id in ids:
 		var r := _measure(id, cases, army, ChampionKinds.twist(id))
 		var row: Dictionary = ChampionData.CHAMPIONS[id]
 		var ratio := float(r["ratio"])
 		var ok := absf(ratio - 1.0) <= tol + 1e-9
+		var tpl := float(r["tpl"]) / t_total
+		var p0 := float(ChampionData.KIT_P0.get(id, 0.0))
+		var kit_index := float(r["twist"]) / t_total / maxf(p0, 1e-6)
+		p0_now[id] = tpl
 		# The twist changed nothing LevelSim models: not measured, so never a pass (see the header). A twist
 		# carried by the champion's own Action (Іво's barricade damage) shows in the no-twist column instead.
 		var eps := 1e-6 * maxf(absf(float(r["plain"])), 1.0)
 		var same := absf(float(r["twist"]) - float(r["plain"])) <= eps \
 				and absf(float(r["plain"]) - float(r["tpl"])) <= eps
-		var verdict := "UNMEASURED" if same else ("" if ok else "MISS")
+		var fresh_p0 := absf(tpl / maxf(p0, 1e-6) - 1.0) <= tol + 1e-9
+		var ok_index := absf(kit_index - 1.0) <= tol + 1e-9
+		var verdict := "UNMEASURED" if same else ("" if ok and (ok_index or not on_p0) else "MISS")
+		if on_p0 and not fresh_p0:
+			verdict = (verdict + " STALE").strip_edges()
+			stale.append("%s x%.3f" % [id, tpl / maxf(p0, 1e-6)])
 		if same:
 			unmeasured.append(id)
-		elif not ok:
-			misses.append("%s %.3f" % [id, ratio])
+		elif not ok or (on_p0 and not ok_index):
+			misses.append("%s %s %.3f" % [id, "ratio" if not ok else "KIT_INDEX", ratio if not ok else kit_index])
 		else:
 			within += 1
-		print("  %-8s %-8s %-4d %-5s | %8.4f %8.4f %8.4f | %8.4f | %7.4f %s" % [id, str(row["class"]),
-				ChampionData.action_tier(id), str(row["slot"]), float(r["tpl"]) / t_total,
-				float(r["plain"]) / t_total, float(r["twist"]) / t_total, float(r["twist_st"]) / t_total, ratio, verdict])
+		print("  %-8s %-8s %-4d %-5s | %8.4f %8.4f %8.4f | %8.4f | %7.4f | %8.4f %8.4f %s" % [id, str(row["class"]),
+				ChampionData.action_tier(id), str(row["slot"]), tpl, float(r["plain"]) / t_total,
+				float(r["twist"]) / t_total, float(r["twist_st"]) / t_total, ratio, p0, kit_index, verdict])
 		if not same:
 			_ok(ok, "budget %s: twist / template %.4f within 1 +- %.2f" % [id, ratio, tol])
-	var verdict_all := "MISS" if not misses.is_empty() else ("UNMEASURED" if not unmeasured.is_empty() else "PASS")
-	print("BUDGET_TABLE %s: %d champions, %d runs, %d measured within, %d misses%s, %d unmeasured%s (%.1f s)" % [verdict_all,
-			ids.size(), cases.size(), within, misses.size(), "" if misses.is_empty() else " [" + ", ".join(misses) + "]",
-			unmeasured.size(), "" if unmeasured.is_empty() else " [" + ", ".join(unmeasured) + "]",
-			float(Time.get_ticks_msec() - t0) / 1000.0])
+		if on_p0:
+			_ok(fresh_p0, "P0_c %s: template %.4f / s vs KIT_P0 %.4f within 1 +- %.2f (else re-measure: --emit)" % [id,
+					tpl, p0, tol])
+			if not same:
+				_ok(ok_index, "KIT_INDEX %s: twist / P0_c %.4f within 1 +- %.2f" % [id, kit_index, tol])
+	var verdict_all := "MISS" if not misses.is_empty() else ("STALE" if not stale.is_empty() else (
+			"UNMEASURED" if not unmeasured.is_empty() else "PASS"))
+	var head := "BUDGET_TABLE %s: %d champions, %d runs, %d measured within, %d misses%s, %d unmeasured%s, P0_c %s"
+	print((head + " (%.1f s)") % [verdict_all, ids.size(), cases.size(), within, misses.size(),
+			"" if misses.is_empty() else " [" + ", ".join(misses) + "]", unmeasured.size(),
+			"" if unmeasured.is_empty() else " [" + ", ".join(unmeasured) + "]",
+			("not checked (another spread)" if not on_p0 else ("%d stale [%s]" % [stale.size(), ", ".join(stale)]
+			if not stale.is_empty() else "in step")), float(Time.get_ticks_msec() - t0) / 1000.0])
+	if _args.has("emit"):
+		_emit_p0(p0_now, on_p0)
+
+
+## --tiers: each champion's bare class template (its own gem f0 stats, the EXPECTED account's Champion
+## Level) at Action tier I up to its own tier: value / s and what each tier rule added, as a share of the
+## tier I template (§2.3 designs every Action tier rule at +4%). A report, no verdict.
+func _tier_steps(cases: Array, ids: Array[String], army: int, t_total: float) -> void:
+	print("  tier rules: template value / s at tier I..its own; step = (tier k - tier k-1) / tier I (design +0.04)")
+	for id in ids:
+		var cls := str(ChampionData.CHAMPIONS[id]["class"])
+		var top := ChampionData.action_tier(id)
+		var vals: Array[float] = []
+		for k in range(1, top + 1):
+			var sum := 0.0
+			for cs: Dictionary in cases:
+				var hero := str(cs["hero"])
+				var tpl := _stats(id, int(cs["cl"]))
+				tpl["twist"] = {}
+				tpl["tier"] = k
+				tpl["action"] = float(TEMPLATE_ACTION[cls]) * float(tpl["mult"])
+				var prof: Dictionary = (cs["prof"] as Dictionary).duplicate()
+				prof["team"] = {"hero": hero, "champions": [tpl], "synergy": {}, "synergy_ids": []}
+				var s := LevelSim.simulate(cs["lv"], hero, army, cs["path"], {"profile": prof})
+				var m: Dictionary = s.champs.members[0]
+				sum += float(m["kills"]) + float(m["heals"]) + float(m["saved"]) + float(m["struct"]) + s.st_kills \
+						+ s.hold_saved
+			vals.append(sum / t_total)
+		var cells: PackedStringArray = PackedStringArray()
+		for k in vals.size():
+			var step := "" if k == 0 else " (%+.3f)" % ((vals[k] - vals[k - 1]) / maxf(vals[0], 1e-6))
+			cells.append("%s %.4f%s" % [["I", "II", "III", "IV"][k], vals[k], step])
+		print("  TIERS %-8s %-8s %s" % [id, cls, " | ".join(cells)])
+
+
+## --emit: the measured template column as the heroes_tables.py CHAMP_P0 line (roster order; a champion
+## left out by --only keeps its KIT_P0 value).
+func _emit_p0(p0_now: Dictionary, on_p0: bool) -> void:
+	var items: PackedStringArray = PackedStringArray()
+	for id: String in ChampionData.CHAMPION_ORDER:
+		items.append("\"%s\": %.4f" % [id, float(p0_now.get(id, ChampionData.KIT_P0.get(id, 0.0)))])
+	var lines: PackedStringArray = PackedStringArray()
+	var cur := "CHAMP_P0 = {"
+	for i in items.size():
+		var piece := items[i] + ("}" if i == items.size() - 1 else ",")
+		if cur.length() + 1 + piece.length() > 116:
+			lines.append(cur)
+			cur = " ".repeat(12) + piece
+		else:
+			cur += ("" if cur.ends_with("{") else " ") + piece
+	lines.append(cur)
+	print("CHAMP_P0_EMIT%s" % ("" if on_p0 else " (NOT the KIT_P0 spread: do not paste)"))
+	for ln in lines:
+		print(ln)
 
 
 ## Sums over `cases` of each variant's value (the member's kills + heals + saved + struct + the State's

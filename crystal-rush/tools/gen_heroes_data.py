@@ -311,6 +311,11 @@ def refresh(src_dir: str) -> None:
                        "action_note": a_note, "aura_note": au_note}
     if list(champs) != list(H.CHAMPS):
         sys.exit("champion order differs between heroes_tables.CHAMPS and heroes_sim.CHAMPS")
+    # the twist budget P0_c (§4.4): one measured value per champion, in roster order
+    if set(T.CHAMP_P0) != set(champs) or any(not float(v) > 0.0 for v in T.CHAMP_P0.values()):
+        sys.exit("heroes_tables.CHAMP_P0 must hold one positive value per champion: %s" % sorted(
+            set(T.CHAMP_P0) ^ set(champs)))
+    champ_p0 = {c: float(T.CHAMP_P0[c]) for c in champs}
 
     home: dict = {f: [] for f in H.FACTIONS}
     for w, f in sorted(H.HOME.items()):
@@ -354,7 +359,7 @@ def refresh(src_dir: str) -> None:
                             "second": H.SCRIPTED_SECOND},
         "factions": list(H.FACTIONS), "faction_home": home,
         "aura_share": dict(T.AURA_SHARE), "aura_cap": T.AURA_CAP,
-        "heroes": heroes, "champions": champs, "index_terms": index_terms, "oracle": oracle,
+        "heroes": heroes, "champions": champs, "champion_p0": champ_p0, "index_terms": index_terms, "oracle": oracle,
         "ults": ults, "attacks": attacks, "kind_vocab": kind_vocab,
     }
     with open(ROSTER_JSON, "w", encoding="utf-8", newline="\n") as fh:   # LF on every OS (the stamp hashes raw bytes)
@@ -609,6 +614,10 @@ def block_champion(b: Block) -> None:
     b.head("champion budgets (§4.1, §2.3)")
     for k in CHAMPION_BUDGETS:
         b.consts(k, "budgets." + k)
+    b.roster("KIT_P0", "champion_p0",
+             "Twist budget P0_c (§4.4, heroes_tables.CHAMP_P0): id -> its bare class template measured in\n"
+             "LevelSim, value per second of play (its gem f0, Action tier, slot and element; EXPECTED profile).\n"
+             "KIT_INDEX = kit / P0_c within 1 +- CHAMP_KIT_TOL (scripts/dev/test_champion_twists.gd --budget).")
     b.docv("RELIC_BEAT_AT", "Relic tempering ranks with a beat (+Ladder.RELIC_BEAT each; heroes and champions).")
 
 

@@ -96,8 +96,9 @@ const CLASS := {
 ## and JOLT (expected values), holds (clash damage), tethers. CHILL, SEAL and STAGGER change nothing (as in
 ## the Run's Statuses); groundings and reveals need Flying / Phantom squads and a tether two squads <= 4 u
 ## apart, which LevelGen levels do not have: Борко, Альба, Дара and Тарас measure UNMEASURED (twist = no
-## twist). The class templates measure far below §4.3's ~1.0 / s (owner decision: kept; the budget is
-## re-computed from measured values later), so the twists that move clash losses keep only a small share.
+## twist). The class templates measure far below §4.3's ~1.0 / s (owner decision: kept; since 2026-10-10 the
+## budget P0_c is the measured template, ChampionData.KIT_P0, §4.4), so the twists that move clash losses keep
+## only a small share.
 ##
 ## Every class: status (replaces the element status) · status_at [tiers] (the sheet's tiers that add
 ## the status before the template's tier III) · fight_status / fight_every / fight_s (a status on the

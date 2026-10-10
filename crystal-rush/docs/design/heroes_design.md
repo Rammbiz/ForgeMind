@@ -267,7 +267,7 @@ whole profile is measured:
 | Awakening rank | +4.0% hero index / rank | ±0.5 pp | team-only rules measured by the team delta |
 | Hero relic beat (+4 / +8 / +12) | +3.0% | ±0.5 pp | one named modifier each |
 | Rally hook base | ≈ 3 Barracks levels (§5.4 table) | ±5% (`test_rally_parity`) | one hook per hero |
-| Champion kit (`ChampionData.KIT_INDEX`) | P0_c = 1.00 value / s at f0 Lv1 | ±3% | every Action tier rule +4% inside it |
+| Champion kit (`KIT_INDEX` = kit / P0_c) | P0_c = `ChampionData.KIT_P0`: the bare class template at the champion's gem, tier, slot and element, measured in LevelSim (0.075–0.481 value / s, §4.4; the design's 1.00 / s at f0 Lv1 is retired) | ±3% | Action tier rules designed at +4% each; measured +0% to +119% of the tier I template (§4.4), inside P0_c |
 
 Champions across classes: a recut champion is compared with the **weakest native of its current gem, any class** (Topaz
 has no native Warrior or Healer). With every champion kit at ±3%: worst 0.9827 < 1.
@@ -302,7 +302,9 @@ the cap at (g, 5) equals the cap at (g + 1, 0) for natives and rises by 1 for re
 6. `test_monotone`: no number decreases along a ladder path.
 7. `test_kit_budget`: every hero's KIT_INDEX profile within ±1.5% of P0 at every reference state; every item inside its
    band (table above).
-7c. `test_champion_budget`: every champion's KIT_INDEX within ±3% of P0_c; each Action tier rule +4% ± 0.5 pp.
+7c. `test_champion_budget`: every champion's KIT_INDEX within ±3% of P0_c; each Action tier rule +4% ± 0.5 pp. Today
+    `test_champion_twists --budget` holds the first half (P0_c = `ChampionData.KIT_P0`, measured, §4.4); the tier half
+    is a report (`--tiers`), far from +4% (§4.4).
 8. `test_no_loss_migration`: a v2 hero's damage, HP and ult power after migration ≥ its v2 numbers (sim §1d: Titan Lv5
    ×1.20 → ×1.20, Lv25 ×1.60 → ×1.96).
 9. `test_rule3_equal_ranks`: ∀ n < g, ∀ f, ∀ r ≤ awaken_cap(n, g): index(recut, r) < index(native, r).
@@ -503,7 +505,7 @@ counting machine Feats only), so no paid or coin-bought progress can reach a ran
 | Duplicates | `DUP_FRAGS[native]`; past Топаз f5 → Tomes 20 : 1. |
 | Chest Focus | when every champion of a gem is owned, the Focus champion gets exactly **60%** of that gem's champion cards; the others share 40% evenly (20% each of two; 13.33% each of three in Аметист; 10% each of four in Топаз). |
 | Synergy | counts fully, native-blind and gem-blind. |
-| Budget (critique M2) | power weight `W_C = 0.012` per champion-index point (a native champion at f0 Lv1 ≈ 4.8% of the Lv1 hero term); expected uptime 0.94 (champions can fall); invariant **champions + synergy ≤ 12% of power growth at L60** (measured 7.7–8.6%). Every kit's `ChampionData.KIT_INDEX` = P0_c ± 3% in LevelSim (§2.3). |
+| Budget (critique M2) | power weight `W_C = 0.012` per champion-index point (a native champion at f0 Lv1 ≈ 4.8% of the Lv1 hero term); expected uptime 0.94 (champions can fall); invariant **champions + synergy ≤ 12% of power growth at L60** (measured 7.7–8.6%). Every kit's `KIT_INDEX` (kit / P0_c, P0_c = `ChampionData.KIT_P0`, measured, §4.4) = 1 ± 3% in LevelSim (§2.3). |
 
 ### 4.2 The commander in the run (framework §5.2 with the fixes)
 
@@ -560,9 +562,11 @@ Kit HP of the two front classes = template × `FRONT_HP_MULT` 1.1 (H2, the one s
 templates stay 48 and 60, `heroes_tables.py` rounds the product).
 
 Trims against part R (critique M2): Warrior Cleave 0.20 → 0.07 kills/tick and leap 4 → 3; Mage Spell 3 → 4 kills,
-cooldown 5 → 4 s; Guardian Block cooldown 6 → 5 s + 1 kill; Healer pulse 2 → 3 soldiers. Each class lands at value
-≈ 1.0 / s at f0 Lv1 (Warrior ≈ 0.3 clash + 0.4 leap + aura; Ranger 0.83 + aura; Mage 1.0–1.2; Guardian ≈ 4 soldiers
-per 5 s + 0.2; Healer ≤ 1.0 pool-limited). Twists (§6.11–6.22, §6.25–6.27) are tuned inside ±3%.
+cooldown 5 → 4 s; Guardian Block cooldown 6 → 5 s + 1 kill; Healer pulse 2 → 3 soldiers. The design aimed every class
+at value ≈ 1.0 / s at f0 Lv1 (Warrior ≈ 0.3 clash + 0.4 leap + aura; Ranger 0.83 + aura; Mage 1.0–1.2; Guardian ≈ 4
+soldiers per 5 s + 0.2; Healer ≤ 1.0 pool-limited). LevelSim measures 0.075–0.481 / s without the aura (§4.4); the owner
+kept the class strength (2026-10-09/10), so the budget follows the measured values: P0_c = `ChampionData.KIT_P0`, and
+twists (§6.11–6.22, §6.25–6.27) are tuned inside P0_c ± 3%.
 
 ### 4.4 Champion numbers by gem (generated, `heroes_tables.py` §D)
 
@@ -590,15 +594,57 @@ slot share (value capped 0.40; right column with relic +12):
 Max-investment ratio of a recut champion to the weakest native Topaz of any class (rule #3, cross-class): ≤ 0.983 with
 every kit at ±3% (§2.3). The Champion Showcase prints the ceiling: «Ярус IV — лише для корінних Топазів».
 
-Twist budget, measured 2026-10-09 (`test_champion_twists`: each champion's kills + heals + soldiers saved + structure
-damage + what its statuses and holds did, per second of play, against its bare class template of the same gem, tier
-and slot; Руді + Мейра pooled, levels 15–112 step 4, EXPECTED profile, 50 runs): the templates measure far below the
-≈ 1.0 / s of §4.3 (Guardian 0.08–0.15, Warrior 0.08–0.26, Ranger 0.21–0.44, Mage 0.20–0.39, Healer 0.39–0.48). Owner
-decision: the class strength stays (budget and difficulty are re-computed from measured values later), and every twist
-over the band is cut to it (§6.11–6.27 carry the old value and its ratio): Міла ×1.03, Іво ×1.02 (Action 3 → 1.4, the
-only generated number that moved), Отто ×1.02, Тая ×1.02, Тео ×1.02, Брант ×1.02, Олена ×1.02, Німб ×1.01, Менгір
-×1.02, Снаряд ×1.00, Довбуш ×1.01. Борко, Альба, Дара and Тарас are not measured yet: STAGGER and CHILL change nothing
-in the run's statuses, and their other effects need Flying squads or squads ≤ 4 u apart that LevelGen does not build.
+Twist budget P0_c, re-counted 2026-10-10 (`heroes_tables.py` `CHAMP_P0` → `ChampionData.KIT_P0`, measured by
+`test_champion_twists --budget`): each champion's kills + heals + soldiers saved + structure damage + what its statuses
+and holds did, per second of play, aura left out (the same in every column), for its bare class template at its own gem
+f0, Action tier, slot and element, the EXPECTED account's Champion Level, no relic; Руді + Мейра pooled, levels 15–112
+step 4, gates frozen, 50 runs. The templates measure far below the ≈ 1.0 / s of §4.3. Owner decision (2026-10-09/10):
+the class strength stays and the budget is re-counted to the measured values, so P0_c of a champion is its own
+template's measured value and every kit's `KIT_INDEX` = kit / P0_c lies within 1 ± 3%. The test fails when a template
+moves more than 3% off its P0_c row (LevelSim, LevelGen, a class template, kit HP or Action, the EXPECTED account): then
+re-measure, paste the `--emit` line into `heroes_tables.py` and run `gen_heroes_data.py --refresh`.
+
+P0_c by class and gem, value / s (the champion it was measured on; element and slot matter, so it is kept per champion):
+
+| Class | Кварц (I) | Сапфір (II) | Аметист (III) | Топаз (IV) |
+|---|---|---|---|---|
+| Воїн / Warrior | 0.0750 Борко | — | 0.2567 Брант | 0.2582 Довбуш |
+| Стрілець / Ranger | — | 0.2099 Альба | 0.4394 Тео | 0.2442 Дара |
+| Маг / Mage | — | 0.2003 Тая | — | 0.3840 Менгір · 0.3902 Тарас |
+| Страж / Guardian | 0.0773 Іво | 0.1304 Отто | 0.1308 Снаряд | 0.1478 Німб |
+| Цілитель / Healer | 0.3940 Міла | — | 0.4806 Олена | — |
+
+Every measured kit sits inside the band; no kit number moved in the re-count (the twists were cut against the same
+templates on 2026-10-09, §6.11–6.27 carry the old value and its ratio):
+
+| Champion | P0_c | kit | `KIT_INDEX` | Champion | P0_c | kit | `KIT_INDEX` |
+|---|---|---|---|---|---|---|---|
+| Міла | 0.3940 | 0.4039 | 1.025 | Олена | 0.4806 | 0.4919 | 1.023 |
+| Іво | 0.0773 | 0.0790 | 1.022 | Німб | 0.1478 | 0.1495 | 1.012 |
+| Отто | 0.1304 | 0.1330 | 1.020 | Менгір | 0.3840 | 0.3912 | 1.019 |
+| Тая | 0.2003 | 0.2049 | 1.023 | Снаряд | 0.1308 | 0.1308 | 1.000 |
+| Брант | 0.2567 | 0.2611 | 1.017 | Довбуш | 0.2582 | 0.2599 | 1.006 |
+| Тео | 0.4394 | 0.4468 | 1.017 | | | | |
+
+Борко, Альба, Дара and Тарас are not measured yet (kit = P0_c): STAGGER and CHILL change nothing in the run's
+statuses, and their other effects need Flying squads or squads ≤ 4 u apart that LevelGen does not build.
+
+The template's tier rules, measured on each champion's own stats (`--tiers`: what a rule adds, as a share of the same
+champion's tier I template), are far from the designed +4% each, so a tier IV template is worth 1.6–2.8× its tier I
+(Довбуш 0.104 → 0.258, Менгір 0.226 → 0.384). +0% means nothing the value counts moved (in a one-champion team the
+Healer III heal has no front champion; the Guardian III shield's free clash tick is not booked as saved, so P0_c of
+Снаряд and Німб leaves it out):
+
+| Tier | Warrior | Ranger | Mage | Guardian | Healer |
+|---|---|---|---|---|---|
+| II | leap 4 kills, 4 u: +81–86% | +1 arrow every 3rd: +28–30% | radius 2.0: +0% | Block radius 1.4 u: +67–68% | +1 per pulse: +12% |
+| III | leap status + cleave ×2 (the code cleaves 2 squads from III, §4.3 says IV): +94% (plasma) / +67% (kinetic) | status proc 0.5: +119% (tech MARK) / +0% (volt) | structures ×1.5: +0% | front shield: +0% | cleanse + heal: +0% |
+| IV | leap cd 4 s: +0% | pierce every 5th: +0% | cd 3.5 s + field: +67–70% | blocked barricade +5: +21% | — |
+
+Two model numbers still count every class at the design's 1.00 / s and every tier at +4%: the power weight `W_C` (with
+`champ_index`, §4.1) and the cross-class rule #3 test (§2.3, class-blind index; in measured value a native Quartz
+Healer, Міла 0.394, is worth 2.7× a native Topaz Guardian, Німб 0.148). They are not re-counted here: `W_C` feeds the
+`TEAM_DEMAND` re-bake (§8.2).
 
 ## 5. Classes, elements, factions, synergies
 
@@ -1151,7 +1197,8 @@ These rules cover C23 Тарас, C24 Снаряд and C25 Довбуш too (the
 § numbers above stay).
 
 - **Numbers** are the §4.4 generated rows (kit × ladder × `cl(L)` × relic): *native f0 Lv1 / native f5 Lv20 / recut to
-  Топаз f5 Lv20*. Tier extras (II–IV) come on top of the main number and are counted in `KIT_INDEX` (P0_c ± 3%).
+  Топаз f5 Lv20*. Tier extras (II–IV) come on top of the main number; the class template's own tier rules are part of
+  P0_c (the template at the champion's tier, §4.4), the twist's are counted in `KIT_INDEX` (P0_c ± 3%).
   Durations, radii, counts and ticks never scale.
 - **Proportions:** realistic adult proportions for every champion (owner addendum 5 overrides the "slightly chibi" note
   of prompts batch 1); beast-kin and creatures keep plausible anatomy. Card art 3:4 from mid-thigh, 1536 × 2048, the
@@ -2508,7 +2555,7 @@ nested keys filled, `gem` clamped to `[native, max_gem]`, facets 0..5, ranks cla
 |---|---|---|
 | `scripts/core/ladder.gd` `Ladder` | `Q_NATIVE 1.08`, `FACET_STEP 0.0073`, `RECUT_STEP 1.0365`, `CEILING 0.96`, `SKILL_BASE`, `FORM_AT_RANK [1,3,5,7,9]`, `AWAKEN_CAP {E 2, L 3, M 4}`, `BORN_AWAKENED_MIN "L"`, `ULT/ATK/RALLY_RANK_STEP 0.05/0.01/0.10`, `LV_ULT 0.036`; `mult`, `skill_cap` (F-CAP), `ult_form`, `can_awaken`, `awaken_cap`, `check()` | `test_rule3_*` |
 | `scripts/core/hero_data.gd` `HeroData` | `HEROES` (kits, skills, forms, beats, Awakening, relic, sim rows, `KIT_INDEX`), `PROGRESS` | `heroes_tables.py` → §6 tables; `test_kit_budget` |
-| `scripts/core/champion_data.gd` `ChampionData` | `CHAMPIONS`, `AURA_SHARE`, `AURA_CAP 0.40`, `CLASH_SHARE 0.25`, `SLOTS_AT {14: 2, 40: 3}`, `CHAMP_LEVEL`, `KIT_INDEX` | `test_champion_budget` |
+| `scripts/core/champion_data.gd` `ChampionData` | `CHAMPIONS`, `AURA_SHARE`, `AURA_CAP 0.40`, `CLASH_SHARE 0.25`, `SLOTS_AT {14: 2, 40: 3}`, `CHAMP_LEVEL`, `KIT_P0` (the twist budget P0_c; `KIT_INDEX` = kit / P0_c is measured, not stored) | `heroes_tables.py` `CHAMP_P0`; `test_champion_twists --budget` |
 | `scripts/core/team_data.gd` `TeamData` | classes, elements, factions, tiers, pairs, Affinity, `TEAM_B2_CAP 0.20`, `RALLY_HOOKS` | `level_check --budget` |
 | `scripts/core/portal_data.gd` `PortalData` | odds, pity, `FOCUS_TOTAL 0.60`, Seals, welcome rule, `BEACON` nodes, chests, `CHEST_*`, scripted chests | `odds_table --check / --diff` |
 | `scripts/core/gear_data.gd` `GearData` | items, sets, relic stats, `CRAFT_ORE`, `TEMPER_ORE`, trophies, `ORE_PER_WIN`, `ORE_BOSS` | `test_gear_numbers` |
@@ -2567,7 +2614,7 @@ champion_blocks, champions_lost, wins_full_team, wins_with_hero {id}, synergy_wi
 | 2 | `test_rule3_caps` | F-CAP skill cap, form cap, Awakening cap and born-awakened rule for all 5 × 5 states |
 | 3 | `test_rule3_kits` | every hero's `KIT_INDEX` profile within ±1.5% of P0 at every reference state; worst recut / native ratio ≤ 0.98 (§2.3; the full list of 14 rule-#3 tests is §2.5) |
 | 4 | `test_kit_budget` | forms 3% ± 0.5 (Opal V 5%), Attack beats 1% ± 0.3, relic beats 3% ± 0.5, Awakening 4% ± 0.5 pp per rank, Rally parity ± 5% |
-| 5 | `test_champion_budget` | champion `KIT_INDEX` = P0_c ± 3%; cross-class recut champion ≤ 0.983 of the weakest native Topaz; AURA_CAP applied |
+| 5 | `test_champion_budget` | champion `KIT_INDEX` = P0_c ± 3% (P0_c = `ChampionData.KIT_P0`, measured; `test_champion_twists --budget`); cross-class recut champion ≤ 0.983 of the weakest native Topaz (class-blind index); AURA_CAP applied |
 | 6 | `test_odds` | `odds_table --check`: per-character 1 000 000-roll Monte Carlo per pool state, |z| ≤ 4; pity gaps (Amethyst+ ≤ 10, Topaz+ ≤ 30, chest Topaz ≤ 15); Focus exactly 60%; welcome rule; Loc odds strings match data |
 | 7 | `test_two_track_property` | same-seed 112-level runs with and without each SKU: Beacons, Seals, chest charge, Caches, pity and per-hero odds identical; no Beacon node keyed to rating or money |
 | 8 | `test_no_loss_migration` + fixtures | v1 → v3 and v2 → v3 chains; run numbers ≥ v2; lump grant values |
@@ -2692,7 +2739,7 @@ palette and size tests. Until then it stays out of every pool (no player ever se
 | R4 | The Meta-1 integration is adding Мейра at L5 right now | Q7; the guest level keeps her at L5 either way |
 | R5 | `TEAM_DEMAND` is a model (sim) value | LevelSim re-bake on the EXPECTED profile in H2 with real kits (done 2026-10-10, §8.2, `scripts/dev/demand_bake.gd`); re-bake again when Meta-2 Frost / Rune machines switch Affinity on |
 | R6 | Casual win rate 84% sits near the 85% ceiling; EXPECTED-only Invasion floor is 57% (no invariant; Meta-1's own was 53%) | watch telemetry; the Invasion margin `INV_DEMAND_MU` is one knob |
-| R7 | Kit budgets are designed, not yet measured | `test_kit_budget` / `test_rule3_kits` in LevelSim close every *(knob)* value before release |
+| R7 | Kit budgets are designed, not yet measured (champion twists: measured against P0_c since 2026-10-10, §4.4) | `test_kit_budget` / `test_rule3_kits` in LevelSim close every *(knob)* value before release |
 
 ### 15.2 Questions for the owner (defaults already wired in)
 

@@ -740,6 +740,23 @@
    "aura_note": "squad clash loss +"
   }
  },
+ "champion_p0": {
+  "mila": 0.394,
+  "ivo": 0.0773,
+  "borko": 0.075,
+  "alba": 0.2099,
+  "otto": 0.1304,
+  "taya": 0.2003,
+  "brant": 0.2567,
+  "teo": 0.4394,
+  "olena": 0.4806,
+  "nimb": 0.1478,
+  "dara": 0.2442,
+  "menhir": 0.384,
+  "taras": 0.3902,
+  "snaryad": 0.1308,
+  "dovbush": 0.2582
+ },
  "index_terms": {
   "power_w": {
    "mach": 0.5,
