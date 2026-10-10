@@ -156,16 +156,10 @@ static func world_key(level: int) -> int:
 
 # ------------------------------------------------------------------ profiles and plays
 
-## Meta.run_profile(level) for `acc` led by `hero` (the account and Save.hero swapped in, restored), under the
-## phase in effect: phase 0 gives the Meta-1 hero block, HEROES_RUN_PHASE the v3 block and the team block.
+## Meta.run_profile(level) for `acc` led by `hero` under the phase in effect (champ_survival.run_profile_of):
+## phase 0 gives the Meta-1 hero block, HEROES_RUN_PHASE the v3 block and the team block.
 static func run_profile_of(acc: Dictionary, level: int, hero: String) -> Dictionary:
-	var keep := [Meta.account, str(Save.hero)]
-	Meta.account = acc
-	Save.hero = hero
-	var prof: Dictionary = Meta.run_profile(level)
-	Meta.account = keep[0]
-	Save.hero = str(keep[1])
-	return prof
+	return CS.run_profile_of(acc, level, hero)
 
 
 ## The Meta-1 EXPECTED profile (phase 0) of `level` led by `hero`. Leaves the phase at 0.
@@ -188,19 +182,11 @@ static func profile_p2(level: int, hero: String) -> Dictionary:
 ## --inv_fix: Meta.synthetic_account caps the EXPECTED hero level and Barracks by world_of(level), which starts
 ## again at 1 past CAMPAIGN_LEVELS (the hero at L60 is Lv9, at L56 Lv15); a real account keeps world_reached 7
 ## and the Invasion hero cap. With the flag, an Invasion level's account gets world_reached 7, its leveled
-## heroes the EXPECTED hero level under the Invasion cap and its Barracks the EXPECTED row under the W7 cap.
+## heroes the EXPECTED hero level under the Invasion cap and its Barracks the EXPECTED row under the W7 cap
+## (champ_survival.invasion_fix, which its --inv_fix shares).
 static func invasion_fix(acc: Dictionary, level: int) -> void:
-	if not inv_fix or level <= ArsenalData.CAMPAIGN_LEVELS:
-		return
-	var row: Dictionary = Meta._expected_row(level)
-	(acc["progress"] as Dictionary)["world_reached"] = 7
-	var hs: Dictionary = acc["heroes"]
-	for h: String in hs:
-		if h in Meta.SYNTH_HERO_ENTRIES or EconData.heroes_run():
-			(hs[h] as Dictionary)["lvl"] = clampi(int(row["hero_lvl"]), 1, EconData.hero_cap(7, true))
-	var bar: Dictionary = row["barracks"]
-	for t in EconData.BARRACKS_ORDER:
-		(acc["barracks"] as Dictionary)[t] = mini(EconData.barracks_cap(7), int(bar.get(t, 0)))
+	if inv_fix:
+		CS.invasion_fix(acc, level)
 
 
 ## `level` with its enemy side x m.

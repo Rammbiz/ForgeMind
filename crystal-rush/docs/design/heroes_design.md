@@ -520,6 +520,29 @@ counting machine Feats only), so no paid or coin-bought progress can reach a ran
 | Input | none: no tap targets; HUD medallions ignore input |
 | LevelSim / bot | one `sim` row per champion through the shared `KindView` rules (§10.4); survival measured, not assumed |
 
+**H2 survival measurement (LevelSim, 2026-10-10).** `scripts/dev/champ_survival.gd --run=1 --inv_fix=1`: every level
+L15–112, the three starters with their scripted pair (Горан and Мейра: Отто front + Міла left; Руді: Альба rear +
+Міла left, no front), the profile a phase-2 run builds (the hero's v3 kit and the team block, `Meta.run_profile`), the
+H2 `TEAM_DEMAND` (§8.2) and the Invasion world caps lifted as in its bake. The one HP knob is
+`heroes_tables.FRONT_HP_MULT`: kit HP × k for every champion whose slot is front (Guardian, Warrior), never per
+champion; `--front_hp=k` sweeps it without regenerating the data. Samples: 170 front on plain levels, 26 on boss
+levels, 392 side / rear; Руді's runs do not move with k.
+
+| front HP × k | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1.0 | 1.1 | 1.2 | 1.3 | 1.4 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| front, plain levels (target ≥ 75%) | 44.7 | 51.2 | 57.1 | 62.9 | 69.4 | 72.9 | 77.6 | 80.0 | 81.2 | 84.7 |
+| front, boss levels (target 40–60%) | 57.7 | 69.2 | 73.1 | 73.1 | 73.1 | 80.8 | 88.5 | 92.3 | 96.2 | 92.3 |
+| side / rear (target ≥ 90%) | 99.0 | 99.0 | 99.0 | 99.0 | 98.7 | 99.0 | 99.0 | 99.0 | 99.0 | 99.0 |
+| front plain: L15–56 · L57–112 | 60 · 34 | 69 · 38 | 74 · 45 | 79 · 51 | 83 · 59 | 86 · 63 | 89 · 69 | 93 · 70 | 93 · 72 | 96 · 77 |
+| front plain: Горан · Мейра | 68 · 21 | 75 · 27 | 81 · 33 | 87 · 39 | 93 · 46 | 93 · 53 | 94 · 61 | 94 · 66 | 96 · 66 | 99 · 71 |
+
+The planner wins all 294 runs at every k, with and without the team. The two front targets cannot both be met with
+HP: in LevelSim the boss levels cost the front champion less than plain ones (median damage taken 48% of its HP on
+a boss level, 60% on a plain one, at k 1.0), so the boss band needs k ≈ 0.5, where plain levels fall to 45%. HP alone
+keeps the plain-level and side / rear targets (k ≥ 1.1); a boss band of 40–60% would need a rule (for example a
+boss-level clash share), which this row forbids without the owner. The spread is the hero: a Guardian hero halves
+the front clash share (`CLASH_SHARE_GUARDIAN_HERO`), so Горан's Отто lives, Мейра's falls on most Invasion levels.
+
 ### 4.3 Class templates (final numbers; Quartz-normalised; × ladder × cl × relic)
 
 | Class | Kit HP | Action (template) | Aura (hook × fixed slot share) | Radius | Tier II | Tier III | Tier IV |

@@ -7,14 +7,23 @@ extends Node
 ## decides what changes.
 ##
 ##   godot --headless --path . res://scenes/dev/champ_survival.tscn -- --autotest [--from=15] [--to=112]
-##        [--profile=expected|fresh|max] [--hero=bolt,titan,seer] [--step=1] [--out=DIR]
+##        [--profile=expected|fresh|max] [--hero=bolt,titan,seer] [--step=1] [--levels=16,24,..]
+##        [--run=1] [--inv_fix=1] [--front_hp=1.0] [--out=DIR]
 ##
 ## The team is the synthetic account's (Meta.synthetic_account: the two scripted champions from
 ## L > UNLOCK_AT.champions, the first one picked by the team hero: Bolt -> Альба, Titan / Seer -> Отто,
 ## then Міла) built into the run's team block by Meta.team_block_of. The run with the team plays the
 ## level with the heroes-phase enemy budget (LevelGen.team_demand, as the Run builds it), the run without
 ## it the level as built. Phase 2 is forced for the measurement (EconData.phase_override, restored at
-## the end). `--autotest` keeps the save read-only.
+## the end). `--autotest` keeps the save read-only. --levels replaces from / to / step.
+##
+## By default both runs field the Meta-1 hero block (LevelSim.profile_from_account). --run=1 builds the
+## profile as a phase-2 dev run does (Meta.run_profile: the hero's v3 block and the team block; the run
+## without the team drops the team block), the profile TEAM_DEMAND was re-baked on (demand_bake p2).
+## --inv_fix=1 lifts the synthetic account's world caps on Invasion levels (invasion_fix, as demand_bake's
+## H2 bake did). --front_hp=K multiplies the HP of every champion whose kit slot is front (Guardian,
+## Warrior; ChampionData.CHAMPIONS slot) by K, wherever it stands: a sweep of the generator's one HP knob
+## (heroes_tables.FRONT_HP_MULT) without regenerating the data.
 ##
 ## Final line: CHAMP_SURVIVAL front_campaign=..% front_boss=..% side_rear=..% levels=N wins=W
 ## (+ the win rate without the team and the delta), after one CHAMP_SURVIVAL_HERO line per hero
@@ -39,11 +48,23 @@ func _ready() -> void:
 	for h in str(args.get("hero", "bolt,titan,seer")).split(",", false):
 		if Balance.HEROES.has(h):
 			heroes.append(h)
+	var levels: Array[int] = []
+	for l in str(args.get("levels", "")).split(",", false):
+		if int(l) >= 1:
+			levels.append(int(l))
+	if levels.is_empty():
+		for l in range(from, to + 1, step):
+			levels.append(l)
+	var run_prof := int(args.get("run", "0")) != 0
+	var inv := int(args.get("inv_fix", "0")) != 0
+	var front_hp := float(args.get("front_hp", "1.0"))
 	var old_phase := EconData.phase_override
 	EconData.phase_override = maxi(EconData.HEROES_RUN_PHASE, HeroKinds.CHAMPIONS_PHASE)
 	var t0 := Time.get_ticks_msec()
-	_say("CHAMP_SURVIVAL_RUN profile=%s levels %d..%d step %d heroes %s (phase %d)" % [kind, from, to, step,
-			",".join(heroes), EconData.heroes_phase()])
+	_say("CHAMP_SURVIVAL_RUN profile=%s levels %d..%d step %d heroes %s (phase %d)" % [kind, levels[0],
+			levels[-1], step, ",".join(heroes), EconData.heroes_phase()]
+			+ " n=%d hero_block=%s inv_fix=%d front_hp=%.3f" % [levels.size(), "v3" if run_prof else "meta1",
+			int(inv), front_hp])
 	# Tallies: "all" and per hero -> bucket (fc front campaign, fb front boss, side) -> [alive, total];
 	# runs and wins with / without the team.
 	var tally := {"all": _buckets()}
@@ -55,16 +76,25 @@ func _ready() -> void:
 	var falls: PackedStringArray = PackedStringArray()
 	var side_falls: PackedStringArray = PackedStringArray()
 	var army := Balance.start_army(0)
-	for level in range(from, to + 1, step):
+	for level in levels:
 		var def := LevelGen.build(level, Balance.START_ARMY)
 		var lv := LevelSim.make_level(def, level)
 		var boss := ArsenalData.is_boss(level)
 		for hero in heroes:
 			var acc := account_for(level, kind, hero)
-			var prof := LevelSim.profile_from_account(acc, level, kind)
-			var team := Meta.team_block_of(acc, hero)
-			var prof_t := prof.duplicate()
-			prof_t["team"] = team
+			if inv:
+				invasion_fix(acc, level)
+			var prof: Dictionary
+			var prof_t: Dictionary
+			if run_prof:
+				prof_t = run_profile_of(acc, level, hero)
+				prof = prof_t.duplicate()
+				prof.erase("team")
+			else:
+				prof = LevelSim.profile_from_account(acc, level, kind)
+				prof_t = prof.duplicate()
+				prof_t["team"] = Meta.team_block_of(acc, hero)
+			scale_front_hp(prof_t["team"], front_hp)
 			# The team's run meets the heroes-phase enemy budget (LevelGen.team_demand), as the Run builds it.
 			var dem := LevelGen.team_demand(level, prof_t)
 			var lv_t := LevelSim.make_level(LevelGen.build(level, Balance.START_ARMY, dem), level)
@@ -115,7 +145,9 @@ func _ready() -> void:
 	_say("  %s; targets front >= 75%%, boss 40-60%%, side / rear >= 90%%" % _counts(ta))
 	EconData.phase_override = old_phase
 	if args.has("out"):
-		_write(str(args["out"]), "champ_survival_%s_%d_%d_%s.txt" % [kind, from, to, "_".join(heroes)])
+		_write(str(args["out"]), "champ_survival_%s_%d_%d_%s%s%s%s.txt" % [kind, levels[0], levels[-1],
+				"_".join(heroes), "_run" if run_prof else "", "_inv" if inv else "",
+				"" if is_equal_approx(front_hp, 1.0) else "_fhp%.2f" % front_hp])
 	get_tree().quit(0)
 
 
@@ -140,6 +172,45 @@ static func account_for(level: int, kind: String, hero: String) -> Dictionary:
 			roster[first] = EconData.new_champion_state(first, true, "chest")
 			champs[0] = first
 	return acc
+
+
+## Meta.run_profile(level) for `acc` led by `hero` (the account and Save.hero swapped in, restored), under the
+## phase in effect: phase 0 gives the Meta-1 hero block, HEROES_RUN_PHASE the v3 block and the team block.
+static func run_profile_of(acc: Dictionary, level: int, hero: String) -> Dictionary:
+	var keep := [Meta.account, str(Save.hero)]
+	Meta.account = acc
+	Save.hero = hero
+	var prof: Dictionary = Meta.run_profile(level)
+	Meta.account = keep[0]
+	Save.hero = str(keep[1])
+	return prof
+
+
+## Meta.synthetic_account caps the EXPECTED hero level and Barracks by world_of(level), which starts again at 1
+## past CAMPAIGN_LEVELS (the hero at L60 is Lv9, at L56 Lv15); a real account keeps world_reached 7 and the
+## Invasion hero cap. An Invasion level's account gets world_reached 7, its leveled heroes the EXPECTED hero
+## level under the Invasion cap and its Barracks the EXPECTED row under the W7 cap. Campaign levels: no change.
+static func invasion_fix(acc: Dictionary, level: int) -> void:
+	if level <= ArsenalData.CAMPAIGN_LEVELS:
+		return
+	var row: Dictionary = Meta._expected_row(level)
+	(acc["progress"] as Dictionary)["world_reached"] = 7
+	var hs: Dictionary = acc["heroes"]
+	for h: String in hs:
+		if h in Meta.SYNTH_HERO_ENTRIES or EconData.heroes_run():
+			(hs[h] as Dictionary)["lvl"] = clampi(int(row["hero_lvl"]), 1, EconData.hero_cap(7, true))
+	var bar: Dictionary = row["barracks"]
+	for t in EconData.BARRACKS_ORDER:
+		(acc["barracks"] as Dictionary)[t] = mini(EconData.barracks_cap(7), int(bar.get(t, 0)))
+
+
+## --front_hp: the HP of every team row whose kit slot is front (Guardian, Warrior) x k, wherever it stands.
+static func scale_front_hp(team: Dictionary, k: float) -> void:
+	if is_equal_approx(k, 1.0):
+		return
+	for st: Dictionary in team.get("champions", []):
+		if str((ChampionData.CHAMPIONS.get(str(st["id"]), {}) as Dictionary).get("slot", "")) == "front":
+			st["hp"] = float(st["hp"]) * k
 
 
 static func _buckets() -> Dictionary:
