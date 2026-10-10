@@ -8,7 +8,6 @@ with ~/.claude/mcp/set-gemini-key.py; it never goes into the repo or a chat). Se
 saved as <out>_2.png, <out>_3.png ...; the model's text, if any, is printed. Needs `pip install google-genai`.
 """
 import argparse
-import base64
 import mimetypes
 import os
 import sys
@@ -41,40 +40,39 @@ def main() -> None:
     a = ap.parse_args()
     prompt = a.prompt if a.prompt else open(a.prompt_file, encoding="utf-8").read()
     from google import genai
+    from google.genai import types
 
-    content = [{"type": "text", "text": prompt}]
+    contents = [prompt]
     for path in a.ref:
         mime = mimetypes.guess_type(path)[0] or "image/png"
         with open(path, "rb") as f:
-            content.append({"type": "image", "mime_type": mime, "data": base64.b64encode(f.read()).decode()})
-    image_config = {"image_size": a.size}
-    if a.aspect:
-        image_config["aspect_ratio"] = a.aspect
-    client = genai.Client(api_key=api_key())
-    interaction = client.interactions.create(
-        model=a.model,
-        input=content if a.ref else prompt,
-        tools=[{"type": "google_search"}] if a.search else [],
-        generation_config={"max_output_tokens": 65536, "thinking_level": "medium", "image_config": image_config},
-        response_modalities=["image", "text"],
+            contents.append(types.Part.from_bytes(data=f.read(), mime_type=mime))
+    config = types.GenerateContentConfig(
+        response_modalities=["IMAGE", "TEXT"],
+        image_config=types.ImageConfig(image_size=a.size, aspect_ratio=a.aspect),
+        tools=[types.Tool(google_search=types.GoogleSearch())] if a.search else None,
     )
+    # generate_content, not the interactions API: the latter retried a quota error (429) silently for minutes.
+    client = genai.Client(api_key=api_key(), http_options={"timeout": 300000, "retry_options": {"attempts": 1}})
+    try:
+        r = client.models.generate_content(model=a.model, contents=contents, config=config)
+    except Exception as e:
+        text = str(e)
+        if "429" in text and "free_tier" in text:
+            sys.exit("Quota: this model has no free tier on the key's project; billing must be on in AI Studio.")
+        sys.exit("Gemini error: %s %s" % (type(e).__name__, text[:500]))
     saved = []
-    for step in interaction.steps or []:
-        if getattr(step, "type", "") != "model_output":
-            continue
-        if getattr(step, "error", None):
-            print("model error:", step.error)
-        for c in step.content or []:
-            if getattr(c, "type", "") == "image" and getattr(c, "data", None):
+    for cand in r.candidates or []:
+        for part in (cand.content.parts if cand.content else None) or []:
+            if part.inline_data and part.inline_data.data:
                 root, ext = os.path.splitext(a.out)
                 path = a.out if not saved else "%s_%d%s" % (root, len(saved) + 1, ext or ".png")
-                data = c.data if isinstance(c.data, bytes) else base64.b64decode(c.data)
                 os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
                 with open(path, "wb") as f:
-                    f.write(data)
+                    f.write(part.inline_data.data)
                 saved.append(path)
-            elif getattr(c, "type", "") == "text" and getattr(c, "text", ""):
-                print(c.text)
+            elif part.text and not part.thought:
+                print(part.text)
     if not saved:
         sys.exit("No image in the answer.")
     print("saved", ", ".join(saved))
