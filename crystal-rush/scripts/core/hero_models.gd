@@ -306,10 +306,7 @@ static func animate_hero(model: Node3D, t: float, moving: bool, attack: float, a
 		"proxy":
 			_animate_proxy(model, t, moving, attack, ult, combat)
 		"art":
-			# Only the run clip so far: full pace while moving, slow in place otherwise.
-			var ap: AnimationPlayer = model.get_meta("player", null)
-			if ap:
-				ap.speed_scale = 1.0 if moving else 0.35
+			_animate_art(model, t, moving, attack, ult, combat)
 		_:
 			_animate_rig(model, t, moving, attack, ability, ult, alt, combat, pace)
 
@@ -604,6 +601,24 @@ static var _proxy_meshes := {}
 
 ## Where a hero's Meshy art model lands (§14 art waves): it replaces the grey-box proxy once present.
 const ART_DIR := "res://assets/heroes/%s/model.glb"
+## Looping clips of an art model (the rest play once: attack_a / attack_b / ult_cast / hit / victory ...).
+const ART_LOOPS: Array[String] = ["run", "idle"]
+## One-shot clip speeds (Meshy's presets run long; heroes_prompts §(d) gives the in-game lengths).
+const ART_SPEED := {"attack_a": 3.0, "attack_b": 1.3, "ult_cast": 1.4, "hit": 3.0, "victory": 1.0}
+## Every n-th strike plays attack_b (the dove shot, heroes_prompts H12 (d)); the others attack_a.
+const ART_ALT_EVERY := 6
+## Props on the art rig, per hero: [glb in the hero's folder, bone, position, rotation (degrees), scale,
+## clips it shows in ([] = always)]. Positions / rotations are in the bone's frame (model units, before
+## the model's scale).
+const ART_PROPS := {
+	"olha": [
+		["prop_bow.glb", "LeftHand", Vector3(0.0, 0.08, 0.02), Vector3(0.0, 90.0, 0.0), 1.15, []],
+		# Her left hip, clear of the mantle (Hips' frame is the model's: +X her left, +Z her front).
+		["prop_quiver.glb", "Hips", Vector3(0.21, -0.06, 0.05), Vector3(0.0, 0.0, -12.0), 0.5, []],
+		# On the fingertips of the raised hand (the hand bone's +Y runs along the fingers): victory only.
+		["prop_dove.glb", "RightHand", Vector3(0.0, 0.14, 0.0), Vector3(0.0, 0.0, 0.0), 0.3, ["victory"]],
+	],
+}
 
 
 ## A hero's Meshy art model (ART_DIR): the rigged GLB scaled to the proxy's height, facing +Z like every
@@ -627,10 +642,17 @@ static func art(type: String) -> Node3D:
 	if not players.is_empty():
 		var ap := players[0] as AnimationPlayer
 		var clips := ap.get_animation_list()
-		if not clips.is_empty():
-			ap.get_animation(clips[0]).loop_mode = Animation.LOOP_LINEAR
-			ap.play(clips[0])
+		for loop in ART_LOOPS:
+			if ap.has_animation(loop):
+				ap.get_animation(loop).loop_mode = Animation.LOOP_LINEAR
+		var first := "idle" if ap.has_animation("idle") else (clips[0] if not clips.is_empty() else "")
+		if first != "":
+			ap.get_animation(first).loop_mode = Animation.LOOP_LINEAR
+			ap.play(first)
 		root.set_meta("player", ap)
+	_art_props(type, model)
+	root.set_meta("props", model.get_meta("props", []))
+	root.set_meta("state", {"t": -1.0, "attack": 0.0, "ult": 0.0, "shots": 0, "busy": 0.0, "clip": ""})
 	root.set_meta("anim", "art")
 	root.set_meta("type", type)
 	root.set_meta("style", "art")
@@ -638,6 +660,81 @@ static func art(type: String) -> Node3D:
 	root.set_meta("portrait", [face + Vector3(0.05, 0.08, 1.6), face])
 	root.set_meta("bar_y", h + 0.12)
 	return root
+
+
+## Hangs hero `type`'s ART_PROPS on `model`'s skeleton (BoneAttachment3D per prop; meta "props" on the
+## model: [[node, clips], ...] for _animate_art).
+static func _art_props(type: String, model: Node3D) -> void:
+	var rows: Array = ART_PROPS.get(type, [])
+	var skels := model.find_children("*", "Skeleton3D", true, false)
+	if rows.is_empty() or skels.is_empty():
+		return
+	var sk := skels[0] as Skeleton3D
+	var out: Array = []
+	for r: Array in rows:
+		var path := "res://assets/heroes/%s/%s" % [type, str(r[0])]
+		if not ResourceLoader.exists(path) or sk.find_bone(str(r[1])) < 0:
+			continue
+		var att := BoneAttachment3D.new()
+		att.bone_name = str(r[1])
+		sk.add_child(att)
+		# Meshy rigs carry scale on the armature and the bones (often 0.01): undo it so ART_PROPS sizes
+		# and offsets stay in model units.
+		var k := _chain_scale(sk, model) * sk.get_bone_global_rest(sk.find_bone(str(r[1]))).basis.get_scale().x
+		var inv := 1.0 / maxf(k, 0.0001)
+		var prop := (load(path) as PackedScene).instantiate() as Node3D
+		prop.position = (r[2] as Vector3) * inv
+		prop.rotation_degrees = r[3]
+		prop.scale = Vector3.ONE * float(r[4]) * inv
+		att.add_child(prop)
+		out.append([prop, r[5]])
+	model.set_meta("props", out)
+
+
+## Product of the scales from `top` (exclusive) down to `n` (inclusive): x axis, uniform scales.
+static func _chain_scale(n: Node, top: Node) -> float:
+	var k := 1.0
+	while n != null and n != top:
+		if n is Node3D:
+			k *= (n as Node3D).scale.x
+		n = n.get_parent()
+	return k
+
+
+## Art heroes: idle / run loop by motion; a new ult plays ult_cast, a new strike attack_a (every
+## ART_ALT_EVERY-th attack_b); one-shots finish before the loops resume; props show in their clips.
+static func _animate_art(model: Node3D, t: float, moving: bool, attack: float, ult: float, combat: bool) -> void:
+	var ap: AnimationPlayer = model.get_meta("player", null)
+	if ap == null:
+		return
+	var st: Dictionary = model.get_meta("state")
+	var dt := clampf(t - float(st["t"]), 0.0, 0.1) if float(st["t"]) >= 0.0 else 0.0
+	st["t"] = t
+	st["busy"] = maxf(float(st["busy"]) - dt, 0.0)
+	var clip := ""
+	if ult > float(st["ult"]) + 0.3 and ap.has_animation("ult_cast"):
+		clip = "ult_cast"
+	elif attack > float(st["attack"]) + 0.3 and ult <= 0.05 and float(st["busy"]) <= 0.0:
+		st["shots"] = int(st["shots"]) + 1
+		clip = "attack_b" if int(st["shots"]) % ART_ALT_EVERY == 0 else "attack_a"
+	st["attack"] = attack
+	st["ult"] = ult
+	if clip != "" and ap.has_animation(clip):
+		var sp := float(ART_SPEED.get(clip, 1.0))
+		ap.play(clip, 0.12, sp)
+		st["busy"] = ap.get_animation(clip).length / sp
+		st["clip"] = clip
+	elif float(st["busy"]) <= 0.0:
+		var loop := "run" if moving and not combat else "idle"
+		if not ap.has_animation(loop):
+			loop = "run"
+		if ap.current_animation != loop:
+			ap.play(loop, 0.2)
+		st["clip"] = loop
+	var props: Array = model.get_meta("props", [])
+	for p: Array in props:
+		var clips: Array = p[1]
+		(p[0] as Node3D).visible = clips.is_empty() or clips.has(str(st["clip"]))
 
 
 ## A hero without its 3D model yet (PROXY): RunChampion's procedural rig (one draw, +1 shadow) with this
