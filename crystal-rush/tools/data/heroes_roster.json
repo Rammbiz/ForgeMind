@@ -523,7 +523,7 @@
    "faction": "dawn",
    "slot": "front",
    "kit": {
-    "hp": 60,
+    "hp": 66,
     "action": 1.4,
     "aura": 0.1,
     "radius": 1.0
@@ -539,7 +539,7 @@
    "faction": "wildfang",
    "slot": "front",
    "kit": {
-    "hp": 48,
+    "hp": 53,
     "action": 3,
     "aura": 0.1,
     "radius": 1.1
@@ -571,7 +571,7 @@
    "faction": "stoneheart",
    "slot": "front",
    "kit": {
-    "hp": 60,
+    "hp": 66,
     "action": 1,
     "aura": 0.1,
     "radius": 1.0
@@ -603,7 +603,7 @@
    "faction": "stoneheart",
    "slot": "front",
    "kit": {
-    "hp": 48,
+    "hp": 53,
     "action": 3,
     "aura": 0.1,
     "radius": 1.1
@@ -651,7 +651,7 @@
    "faction": "celestial",
    "slot": "front",
    "kit": {
-    "hp": 60,
+    "hp": 66,
     "action": 2,
     "aura": 0.1,
     "radius": 1.0
@@ -715,7 +715,7 @@
    "faction": "dawn",
    "slot": "front",
    "kit": {
-    "hp": 60,
+    "hp": 66,
     "action": 2,
     "aura": 0.1,
     "radius": 1.0
@@ -731,7 +731,7 @@
    "faction": "stoneheart",
    "slot": "front",
    "kit": {
-    "hp": 48,
+    "hp": 53,
     "action": 1.5,
     "aura": 0.1,
     "radius": 1.1

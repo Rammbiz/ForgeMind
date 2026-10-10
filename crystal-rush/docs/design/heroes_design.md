@@ -542,16 +542,22 @@ a boss level, 60% on a plain one, at k 1.0), so the boss band needs k ≈ 0.5, w
 keeps the plain-level and side / rear targets (k ≥ 1.1); a boss band of 40–60% would need a rule (for example a
 boss-level clash share), which this row forbids without the owner. The spread is the hero: a Guardian hero halves
 the front clash share (`CLASH_SHARE_GUARDIAN_HERO`), so Горан's Отто lives, Мейра's falls on most Invasion levels.
+**Adopted (H2, the lead may drop it): `FRONT_HP_MULT = 1.1`**, the smallest k that meets the plain-level target
+(Guardian kit HP 60 → 66, Warrior 48 → 53): front 77.6% of plain levels, 88.5% of boss levels (above the band),
+side / rear 99.0%; survivors +0.8% against the run without the team (+0.7% at 1.0), so `TEAM_DEMAND` stands.
 
 ### 4.3 Class templates (final numbers; Quartz-normalised; × ladder × cl × relic)
 
 | Class | Kit HP | Action (template) | Aura (hook × fixed slot share) | Radius | Tier II | Tier III | Tier IV |
 |---|---|---|---|---|---|---|---|
-| Воїн / Warrior | 48 | **Cleave**: in a clash +0.07 kills per FIGHT_TICK (≈ 1.0 kill/s, fractions carry); outside clashes every 5 s leaps at a squad ≤ 3 u ahead: 3 kills | squads in contact lose +10% in clashes | 1.1 | leap 4 kills, range 4 u | the leap applies the element status | cleave hits 2 squads in contact; leap cd 4 s |
+| Воїн / Warrior | 48 × 1.1 = 53 | **Cleave**: in a clash +0.07 kills per FIGHT_TICK (≈ 1.0 kill/s, fractions carry); outside clashes every 5 s leaps at a squad ≤ 3 u ahead: 3 kills | squads in contact lose +10% in clashes | 1.1 | leap 4 kills, range 4 u | the leap applies the element status | cleave hits 2 squads in contact; leap cd 4 s |
 | Стрілець / Ranger | 26 | **Shot**: every 1.2 s at the PAINT target, else the nearest hostile ahead ≤ 14 u; dmg 1.0; hits Flying | army volley damage +15% | 1.4 | +1 arrow every 3rd shot | shots apply the element status (proc 0.5) | every 5th shot pierces 3 |
 | Маг / Mage | 26 | **Spell**: every 4 s an area hit r 1.5 on the densest squad ≤ 12 u ahead: 4 kills per squad + element status | **soldiers in the ring apply the champion's element status with their volleys (proc 0.15)** (decision 14: nearby soldiers get stronger) | 1.2 | radius 2.0 | structures ×1.5 | cd 3.5 s + a 2 s field (1 kill / 0.5 s) |
-| Страж / Guardian | 60 | **Block**: absorbs one blade / spike / barricade contact on soldiers within 1.0 u (0 losses, «БЛОК») + 1 kill on the squad behind it; cooldown 5 s; takes the front clash share | clash losses −10% | 1.0 | block radius 1.4 u | after a Block a 1.5 s front shield (next clash tick costs 0) | the blocked barricade takes 5 |
+| Страж / Guardian | 60 × 1.1 = 66 | **Block**: absorbs one blade / spike / barricade contact on soldiers within 1.0 u (0 losses, «БЛОК») + 1 kill on the squad behind it; cooldown 5 s; takes the front clash share | clash losses −10% | 1.0 | block radius 1.4 u | after a Block a 1.5 s front shield (next clash tick costs 0) | the blocked barricade takes 5 |
 | Цілитель / Healer | 30 | **Mend**: 30% of soldiers lost feed the revive pool (cap 30 per level × power); every 3 s returns up to 3 | hazard losses −12% | 1.3 | +1 per pulse; returns land at the blob front | every 15 s cleanses a curse lane / DoT and heals the front champion 10% | pool cap +50%, pulse every 2 s |
+
+Kit HP of the two front classes = template × `FRONT_HP_MULT` 1.1 (H2, the one survival knob of §4.2; the
+templates stay 48 and 60, `heroes_tables.py` rounds the product).
 
 Trims against part R (critique M2): Warrior Cleave 0.20 → 0.07 kills/tick and leap 4 → 3; Mage Spell 3 → 4 kills,
 cooldown 5 → 4 s; Guardian Block cooldown 6 → 5 s + 1 kill; Healer pulse 2 → 3 soldiers. Each class lands at value
@@ -566,20 +572,20 @@ slot share (value capped 0.40; right column with relic +12):
 | Champion | Gem · class · slot | HP | Action (main number) | Aura value → effect | Tier |
 |---|---|---|---|---|---|
 | Міла `mila` | Кварц · Healer · left | 30 / 55 / 61 | returned per pulse 3.00 / 5.47 / 6.09 | hazard −0.120 → 3.6% / 0.252 → 7.6% | I |
-| Іво `ivo` | Кварц · Guardian · front | 60 / 109 / 122 | blocked-barricade damage 1.40 / 2.55 / 2.84 | clash −0.100 → 3.5% / 0.210 → 7.3% | I |
-| Борко `borko` | Кварц · Warrior · front | 48 / 88 / 98 | Undermine kills 3.00 / 5.47 / 6.09 | squad clash loss +0.100 → 3.5% / 0.210 → 7.3% | I |
+| Іво `ivo` | Кварц · Guardian · front | 66 / 120 / 134 | blocked-barricade damage 1.40 / 2.55 / 2.84 | clash −0.100 → 3.5% / 0.210 → 7.3% | I |
+| Борко `borko` | Кварц · Warrior · front | 53 / 97 / 108 | Undermine kills 3.00 / 5.47 / 6.09 | squad clash loss +0.100 → 3.5% / 0.210 → 7.3% | I |
 | Альба `alba` | Сапфір · Ranger · rear | 28 / 51 / 55 | shot dmg (×1.5 vs Flying) 1.08 / 1.97 / 2.12 | volleys +0.162 → 4.0% / 0.340 → 8.5% | II |
-| Отто `otto` | Сапфір · Guardian · front | 65 / 118 / 127 | kills per Block 1.08 / 1.97 / 2.12 (+ planted ticks 2) | clash −0.108 → 3.8% / 0.227 → 7.9% | II |
+| Отто `otto` | Сапфір · Guardian · front | 71 / 130 / 140 | kills per Block 1.08 / 1.97 / 2.12 (+ planted ticks 2) | clash −0.108 → 3.8% / 0.227 → 7.9% | II |
 | Тая `taya` | Сапфір · Mage · rear | 28 / 51 / 55 | Spell kills per squad 4.32 / 7.88 / 8.47 | volley status proc 0.162 → 4.0% / 0.340 → 8.5% | II |
-| Брант `brant` | Аметист · Warrior · front | 56 / 102 / 106 | leap kills 3.50 / 6.38 / 6.62 | squad clash loss +0.117 → 4.1% / 0.245 → 8.6% | III |
+| Брант `brant` | Аметист · Warrior · front | 62 / 113 / 117 | leap kills 3.50 / 6.38 / 6.62 | squad clash loss +0.117 → 4.1% / 0.245 → 8.6% | III |
 | Тео `teo` | Аметист · Ranger · rear | 30 / 55 / 57 | shot dmg (homing) 1.17 / 2.13 / 2.21 | volleys +0.175 → 4.4% / 0.367 → 9.2% | III |
 | Олена `olena` | Аметист · Healer · right | 35 / 64 / 66 | returned per pulse 3.50 / 6.38 / 6.62 | hazard −0.140 → 4.2% / 0.294 → 8.8% | III |
-| Снаряд `snaryad` | Аметист · Guardian · front | 70 / 128 / 132 | Sapper's Nose charge kills (per Block, every 6 s; + MARK) 2.33 / 4.26 / 4.41 | clash −0.117 → 4.1% / 0.245 → 8.6% | III |
-| Німб `nimb` | Топаз · Guardian · front | 76 / 138 / — | Lightning Rod dmg ×3 targets 2.52 / 4.60 | clash −0.126 → 4.4% / 0.264 → 9.2% | IV |
+| Снаряд `snaryad` | Аметист · Guardian · front | 77 / 140 / 146 | Sapper's Nose charge kills (per Block, every 6 s; + MARK) 2.33 / 4.26 / 4.41 | clash −0.117 → 4.1% / 0.245 → 8.6% | III |
+| Німб `nimb` | Топаз · Guardian · front | 83 / 152 / — | Lightning Rod dmg ×3 targets 2.52 / 4.60 | clash −0.126 → 4.4% / 0.264 → 9.2% | IV |
 | Дара `dara` | Топаз · Ranger · rear | 33 / 60 / — | shot dmg (harpoon every 3rd) 1.26 / 2.30 | volleys +0.189 → 4.7% / 0.396 → 9.9% | IV |
 | Менгір `menhir` | Топаз · Mage · right | 33 / 60 / — | rune-strike kills per squad 5.04 / 9.19 | volley status proc 0.189 → 5.7% / 0.396 → 11.9% | IV |
 | Тарас `taras` | Топаз · Mage · rear | 33 / 60 / — | The Word kills per squad 5.04 / 9.19 | volley status proc 0.189 → 4.7% / 0.396 → 9.9% | IV |
-| Довбуш `dovbush` | Топаз · Warrior · front | 60 / 110 / — | bartka kills per squad ×2 squads (+ STAGGER) 1.89 / 3.45 | squad clash loss +0.126 → 4.4% / 0.264 → 9.2% | IV |
+| Довбуш `dovbush` | Топаз · Warrior · front | 67 / 122 / — | bartka kills per squad ×2 squads (+ STAGGER) 1.89 / 3.45 | squad clash loss +0.126 → 4.4% / 0.264 → 9.2% | IV |
 
 Max-investment ratio of a recut champion to the weakest native Topaz of any class (rule #3, cross-class): ≤ 0.983 with
 every kit at ±3% (§2.3). The Champion Showcase prints the ceiling: «Ярус IV — лише для корінних Топазів».

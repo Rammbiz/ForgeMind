@@ -1159,15 +1159,16 @@ func _test_champions() -> void:
 	_ok(n == 5 and ChampionsMeta.level(acc) == 6 and MetaAcc.amount(acc, "coins") == 10000 - (40 + 110 + 210 + 320 + 450),
 			"levels 1 -> 6 for 1 130 coins")
 	_ok(ChampionData.level_cap(1, true) == 20, "Invasion cap 20")
-	# §4.4: HP f0 Lv1 / Full facets Lv20 / recut to Topaz f5 Lv20; Action; aura -> effect, relic +12.
-	var rows := {"mila": [30, 55, 61, 3.00, 5.47, 6.09, 0.120, 0.036, 0.252], "ivo": [60, 109, 122, 1.40, 2.55, 2.84, 0.100, 0.035, 0.210],
-			"borko": [48, 88, 98, 3.00, 5.47, 6.09, 0.100, 0.035, 0.210], "alba": [28, 51, 55, 1.08, 1.97, 2.12, 0.162, 0.040, 0.340],
-			"otto": [65, 118, 127, 1.08, 1.97, 2.12, 0.108, 0.038, 0.227], "taya": [28, 51, 55, 4.32, 7.88, 8.47, 0.162, 0.040, 0.340],
-			"brant": [56, 102, 106, 3.50, 6.38, 6.62, 0.117, 0.041, 0.245], "teo": [30, 55, 57, 1.17, 2.13, 2.21, 0.175, 0.044, 0.367],
-			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [76, 138, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
+	# §4.4: HP f0 Lv1 / Full facets Lv20 / recut to Topaz f5 Lv20 (front kits x FRONT_HP_MULT 1.1, §4.2); Action;
+	# aura -> effect, relic +12.
+	var rows := {"mila": [30, 55, 61, 3.00, 5.47, 6.09, 0.120, 0.036, 0.252], "ivo": [66, 120, 134, 1.40, 2.55, 2.84, 0.100, 0.035, 0.210],
+			"borko": [53, 97, 108, 3.00, 5.47, 6.09, 0.100, 0.035, 0.210], "alba": [28, 51, 55, 1.08, 1.97, 2.12, 0.162, 0.040, 0.340],
+			"otto": [71, 130, 140, 1.08, 1.97, 2.12, 0.108, 0.038, 0.227], "taya": [28, 51, 55, 4.32, 7.88, 8.47, 0.162, 0.040, 0.340],
+			"brant": [62, 113, 117, 3.50, 6.38, 6.62, 0.117, 0.041, 0.245], "teo": [30, 55, 57, 1.17, 2.13, 2.21, 0.175, 0.044, 0.367],
+			"olena": [35, 64, 66, 3.50, 6.38, 6.62, 0.140, 0.042, 0.294], "nimb": [83, 152, -1, 2.52, 4.60, -1, 0.126, 0.044, 0.264],
 			"dara": [33, 60, -1, 1.26, 2.30, -1, 0.189, 0.047, 0.396], "menhir": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.057, 0.396],
-			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [70, 128, 132, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245],
-			"dovbush": [60, 110, -1, 1.89, 3.45, -1, 0.126, 0.044, 0.264]}
+			"taras": [33, 60, -1, 5.04, 9.19, -1, 0.189, 0.047, 0.396], "snaryad": [77, 140, 146, 2.33, 4.26, 4.41, 0.117, 0.041, 0.245],
+			"dovbush": [67, 122, -1, 1.89, 3.45, -1, 0.126, 0.044, 0.264]}
 	for cid: String in rows:
 		var w: Array = rows[cid]
 		var nat := Roster.native(cid)
@@ -1237,14 +1238,14 @@ func _test_taras() -> void:
 ## +1 kill becomes the carried charge, kit action 2), Loc rows in uk and en, rule #3 against him.
 func _test_snaryad() -> void:
 	_test_joined_champion("snaryad", "Снаряд", 24, {"native": "E", "class": "guardian", "element": "tech", "faction": "dawn", "slot": "front"},
-			"ivo", {"hp": 60, "action": 2, "aura": 0.1, "radius": 1.0}, "Пес-сапер")
+			"ivo", {"hp": 66, "action": 2, "aura": 0.1, "radius": 1.0}, "Пес-сапер")
 
 
 ## C25 Довбуш (heroes_design.md §6.27): a native Topaz Warrior of Kinetic and Stoneheart on the Warrior template (the
 ## leap becomes the bartka throw through two squads, kit action 1.5 per squad), Loc rows, rule #3 against him.
 func _test_dovbush() -> void:
 	_test_joined_champion("dovbush", "Довбуш", 25, {"native": "L", "class": "warrior", "element": "kinetic", "faction": "stoneheart", "slot": "front"},
-			"brant", {"hp": 48, "action": 1.5, "aura": 0.1, "radius": 1.1}, "Опришок")
+			"brant", {"hp": 53, "action": 1.5, "aura": 0.1, "radius": 1.1}, "Опришок")
 
 
 ## H26 Сірко (heroes_design.md §6.28), the 11th hero: a native Opal Warrior of Rune and Dawn (form V adds Tech), his kit

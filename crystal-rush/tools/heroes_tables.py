@@ -99,7 +99,7 @@ CHAMPS = [
 # templates), never per champion. The rows above keep the §4.3 template HP; CHAMPS below carries hp x FRONT_HP_MULT
 # (rounded), which gen_heroes_data writes into ChampionData and §4.4 prints. Swept in LevelSim by champ_survival
 # --run=1 --inv_fix=1 --front_hp=K (EXPECTED profile, re-baked TEAM_DEMAND); 1.0 = the template HP.
-FRONT_HP_MULT = 1.0
+FRONT_HP_MULT = 1.1
 CHAMPS = [row[:6] + (int(row[6] * FRONT_HP_MULT + 0.5) if row[12] == "front" else row[6],) + row[7:] for row in CHAMPS]
 AURA_SHARE = {"front": 0.35, "left": 0.30, "right": 0.30, "rear": 0.25}
 AURA_CAP = 0.40
