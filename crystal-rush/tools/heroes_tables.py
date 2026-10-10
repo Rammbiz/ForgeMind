@@ -111,9 +111,9 @@ AURA_CAP = 0.40
 # Every kit's KIT_INDEX = kit value / P0_c lies within 1 +- CHAMP_KIT_TOL. The test fails when a template moves past
 # that band from its row (LevelSim, LevelGen, a class template, a kit's HP or Action, the EXPECTED account): re-measure
 # and paste its CHAMP_P0 line (--emit), then gen_heroes_data.py --refresh. Measured 2026-10-10.
-CHAMP_P0 = {"mila": 0.3940, "ivo": 0.0773, "borko": 0.0750, "alba": 0.2099, "otto": 0.1304, "taya": 0.2003,
-            "brant": 0.2567, "teo": 0.4394, "olena": 0.4806, "nimb": 0.1478, "dara": 0.2442, "menhir": 0.3840,
-            "taras": 0.3902, "snaryad": 0.1308, "dovbush": 0.2582}
+CHAMP_P0 = {"mila": 0.3940, "ivo": 0.0773, "borko": 0.0775, "alba": 0.2099, "otto": 0.1304, "taya": 0.2003,
+            "brant": 0.2608, "teo": 0.4394, "olena": 0.4806, "nimb": 0.1478, "dara": 0.2442, "menhir": 0.3840,
+            "taras": 0.3902, "snaryad": 0.1308, "dovbush": 0.2628}
 
 # ------------------------------------------------------------------------------------------------ ult and attack rules
 # The §6 hero sheets as data (§6.1-6.10, §6.28 Сірко, §6.29 Ольга; bot policies §10.4), read by gen_heroes_data.py

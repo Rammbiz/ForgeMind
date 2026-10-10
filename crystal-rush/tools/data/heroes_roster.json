@@ -743,11 +743,11 @@
  "champion_p0": {
   "mila": 0.394,
   "ivo": 0.0773,
-  "borko": 0.075,
+  "borko": 0.0775,
   "alba": 0.2099,
   "otto": 0.1304,
   "taya": 0.2003,
-  "brant": 0.2567,
+  "brant": 0.2608,
   "teo": 0.4394,
   "olena": 0.4806,
   "nimb": 0.1478,
@@ -755,7 +755,7 @@
   "menhir": 0.384,
   "taras": 0.3902,
   "snaryad": 0.1308,
-  "dovbush": 0.2582
+  "dovbush": 0.2628
  },
  "index_terms": {
   "power_w": {
