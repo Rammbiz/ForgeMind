@@ -93,6 +93,10 @@ var _glyph_col: Array[Color] = []
 var _spell_at: Array[Vector3] = []
 ## Дара's tethers: [squad a, squad b, seconds left, colour, age].
 var _tethers: Array = []
+## Per member: its Meshy art model (_art_model) or null for the grey-box placeholder.
+var _art: Array = []
+## Height the art models are scaled to (the champions' 1.10 u, §4.2).
+const ART_HEIGHT := 1.10
 var _stamp: Label3D
 var _stamp_t := -1.0
 var _stamp_at := Vector3.ZERO
@@ -130,6 +134,10 @@ func setup(p_run: Run) -> void:
 		var acc: Color = (fam.get("accent", MARK) as Color).lerp(MARK, 0.45)
 		_glyph_col.append(Color(acc.r, acc.g, acc.b, GLYPH_ALPHA))
 		_spell_at.append(Vector3.INF)
+		var art := _art_model(str(m["id"]))
+		_art.append(art)
+		if art:
+			add_child(art)
 	_build_bodies(classes)
 	_build_marks()
 	_build_stamp()
@@ -275,8 +283,55 @@ func _draw_bodies() -> void:
 	anchor.y = 0.0
 	_bodies.position = anchor
 	for i in models.size():
-		models[i].pose_into(_pose, i * RunChampion.POSE_ROWS, anchor)
+		var c := models[i]
+		c.pose_into(_pose, i * RunChampion.POSE_ROWS, anchor)
+		var art: Node3D = _art[i]
+		if art == null:
+			continue
+		# The art model stands in for the placeholder: hidden in the batch, it follows the rules'
+		# champion (place, yaw, fall pitch) and plays its run clip.
+		var o := i * RunChampion.POSE_ROWS + 5
+		_pose[o] = Vector4(_pose[o].x, 0.0, 0.0, 0.0)
+		art.visible = c.visible
+		art.position = c.position
+		art.rotation = Vector3(-c.pitch(), c.yaw() + PI, 0.0)
+		var ap: AnimationPlayer = art.get_meta("player", null)
+		if ap:
+			ap.speed_scale = 0.0 if not c.alive else lerpf(0.35, 1.0, c.run_weight())
 	_bmat.set_shader_parameter(&"pose", _pose)
+
+
+## The champion's Meshy art model when assets/heroes/<id>/model.glb exists (§14 art waves; null =
+## the grey-box placeholder): scaled to the champions' 1.10 u, its first clip looping. One skinned
+## draw (+1 in the shadow pass) each.
+func _art_model(id: String) -> Node3D:
+	var path := "res://assets/heroes/%s/model.glb" % id
+	if not ResourceLoader.exists(path):
+		return null
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return null
+	var model := scene.instantiate() as Node3D
+	var holder := Node3D.new()
+	holder.name = "Art_%s" % id
+	holder.add_child(model)
+	var h := 0.0
+	for n: Node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.mesh:
+			h = maxf(h, mi.mesh.get_aabb().size.y)
+	if h > 0.01:
+		model.scale = Vector3.ONE * (ART_HEIGHT / h)
+	var players := model.find_children("*", "AnimationPlayer", true, false)
+	if not players.is_empty():
+		var ap := players[0] as AnimationPlayer
+		var clips := ap.get_animation_list()
+		if not clips.is_empty():
+			var anim := ap.get_animation(clips[0])
+			anim.loop_mode = Animation.LOOP_LINEAR
+			ap.play(clips[0])
+		holder.set_meta("player", ap)
+	return holder
 
 
 # ------------------------------------------------------------------ the marks and the VFX (one draw)

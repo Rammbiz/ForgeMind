@@ -320,6 +320,19 @@ func setup(p_cls: String, _element := "", p_batched := false) -> void:
 	add_child(body)
 
 
+## The drawn yaw / fall pitch / run weight this frame (ChampionView's art models follow them).
+func yaw() -> float:
+	return _p[P.YAW]
+
+
+func pitch() -> float:
+	return _pitch
+
+
+func run_weight() -> float:
+	return _run_w
+
+
 ## Triangles of this champion's mesh (perf budget, §10.6).
 func triangles() -> int:
 	return tri_count(mesh_for(cls))
