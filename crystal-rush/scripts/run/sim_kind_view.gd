@@ -24,6 +24,8 @@ var fx_count := 0
 ## army()'s answer, refreshed in place on every call (as RunKindView's: the rules read it at once and never keep
 ## it across a verb; hero_step and the champions ask every step, so it allocates nothing).
 var _army := {"n": 0.0, "x": 0.0, "d": 0.0, "radius": 0.0, "reserves": 0.0, "revive_pool": 0.0, "lost": 0.0}
+## clock()'s answer for a Meta-1 row (no State.uc): refilled from the State's scalars on every call.
+var _spare := HeroKinds.Clock.new()
 
 
 func _init(p_lv: LevelSim.Level, p_s: LevelSim.State) -> void:
@@ -39,9 +41,10 @@ func ult_power() -> float:
 	return s.ult_pow
 
 
-## A v3 row: the State's own clock (State.uc) with the Meta-1 scalars synced in; else a fresh one from them.
+## A v3 row: the State's own clock (State.uc) with the Meta-1 scalars synced in; else the view's spare clock
+## refilled from them (a Meta-1 row's rules read and write only those four fields).
 func clock() -> HeroKinds.Clock:
-	var c := s.uc if s.uc != null else HeroKinds.Clock.new()
+	var c := s.uc if s.uc != null else _spare
 	c.left = s.ult_left
 	c.tick = s.ult_tick
 	c.wave = s.quake_wave

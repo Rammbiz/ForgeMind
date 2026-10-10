@@ -730,9 +730,9 @@ static func _fed(s: State, n: float) -> void:
 static var _pool_view: SimKindView = null
 
 
-## The champion rules' view of (lv, s): one pooled SimKindView rebound per call (the planner steps
-## thousands of states; the rules never keep the view). Kept off State: a State -> view -> State
-## cycle would never be freed.
+## The rules' view of (lv, s) (champions, the hero kind, the ult and its auto policy): one pooled
+## SimKindView rebound per call (the planner steps thousands of states; the rules never keep the view).
+## Kept off State: a State -> view -> State cycle would never be freed.
 static func _view(lv: Level, s: State) -> SimKindView:
 	if _pool_view == null:
 		_pool_view = SimKindView.new(lv, s)
@@ -1839,14 +1839,14 @@ static func ult_ready(s: State) -> bool:
 ## is there enough to hit right now? A Meta-1 row: the quake also fires for its armour when a hazard
 ## is about to cut into a decent army; a v3 row: the §10.4 policy of its kind.
 static func ult_worth(lv: Level, s: State) -> bool:
-	return HeroKinds.ult_worth(HeroKinds.ult_kind(s.hero), SimKindView.new(lv, s), s.def["ult"]) >= 1.0
+	return HeroKinds.ult_worth(HeroKinds.ult_kind(s.hero), _view(lv, s), s.def["ult"]) >= 1.0
 
 
 static func use_ult(lv: Level, s: State) -> bool:
 	if not ult_ready(s):
 		return false
 	s.ult = 0.0
-	HeroKinds.ult_cast(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), s.def["ult"])
+	HeroKinds.ult_cast(_view(lv, s), HeroKinds.ult_kind(s.hero), s.def["ult"])
 	_log(s, "ult at %d" % int(s.d))
 	return true
 
@@ -1854,7 +1854,7 @@ static func use_ult(lv: Level, s: State) -> bool:
 ## A running ult (HeroKinds.ult_step: timed ticks, travelling bands or an H2 shape).
 static func _ult_step(lv: Level, s: State, def: Dictionary, dt: float) -> void:
 	if s.ult_left > 0.0 or s.quake_wave < 99:
-		HeroKinds.ult_step(SimKindView.new(lv, s), HeroKinds.ult_kind(s.hero), def["ult"], dt)
+		HeroKinds.ult_step(_view(lv, s), HeroKinds.ult_kind(s.hero), def["ult"], dt)
 
 
 static func _ult_hit(lv: Level, s: State, a: float, b: float, kills: float, breaks: float, gates: bool) -> void:

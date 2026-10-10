@@ -355,6 +355,12 @@ static func _v3_row(hero_id: String, b: Dictionary) -> Dictionary:
 	var gk: Array = gp.get("kinds", ["turret"])
 	out["guard_cd"] = float(gp.get("cd", 10.0)) if not gp.is_empty() else 0.0
 	out["guard_kind"] = StringName(str(gk[0])) if not gk.is_empty() else &"turret"
+	# A reviving Awakening (AWAKEN_REVIVE, Пава): the wait at the row's Awakening rank (0 = none) and the HP share.
+	var aw: Dictionary = AWAKEN_REVIVE.get(hero_id, {})
+	var awk := int(out["awakened"])
+	var waits: Array = aw.get("after", [])
+	out["awaken_wait"] = float(waits[clampi(awk, 1, waits.size()) - 1]) if awk > 0 and not waits.is_empty() else 0.0
+	out["awaken_hp"] = float(aw.get("hp", 0.0))
 	var u := HeroData.ult_numbers(String(kind), form)
 	for k: String in POWER_KEYS:
 		if u.has(k):
@@ -1543,9 +1549,11 @@ static func _hit_one(view: KindView, def: Dictionary, c: Clock, t: Dictionary, n
 					c.grounded[id] = c.now + float(atk.get("reground", 0.0))
 			_on_kill(view, def, c, t, got)
 		_:
-			view.hit(id, n * float(atk.get("structure_mult", 1.0)), {"src": "hero", "kind": &"attack"})
+			# Горан's structures x1.5: the echo repeats a share of, and a break is weighed by, what landed.
+			var hit_n := n * float(atk.get("structure_mult", 1.0))
+			view.hit(id, hit_n, {"src": "hero", "kind": &"attack"})
 			if riders:
-				_on_structure(view, def, c, t, n)
+				_on_structure(view, def, c, t, hit_n)
 
 
 ## The attack's statuses (`statuses` of `p`: id -> proc per hit; lengths `<status>_s`) on squad `id`.
@@ -1777,11 +1785,10 @@ static func _eyes(view: KindView, c: Clock) -> void:
 ## Пава's Awakening «Пробуджені очі» (AWAKEN_REVIVE; born, rank 1..4): a fallen champion stands up again after
 ## 10 / 9 / 8 / 7 s at 30% HP, once per level (a Healer-hero revive, §6.10).
 static func _awakening(view: KindView, def: Dictionary, c: Clock) -> void:
-	var aw: Dictionary = AWAKEN_REVIVE.get(str(def.get("kind", "")), {})
-	if aw.is_empty() or int(def.get("awakened", 0)) <= 0 or c.revived:
+	# The row's cached wait and HP share (_v3_row: awaken_wait 0 = no reviving Awakening).
+	var wait := float(def.get("awaken_wait", 0.0))
+	if wait <= 0.0 or c.revived:
 		return
-	var waits: Array = aw["after"]
-	var wait := float(waits[clampi(int(def["awakened"]), 1, waits.size()) - 1])
 	for m: Dictionary in view.champions():
 		var id := str(m["id"])
 		if bool(m.get("alive", true)):
@@ -1789,7 +1796,7 @@ static func _awakening(view: KindView, def: Dictionary, c: Clock) -> void:
 			continue
 		if not c.fallen.has(id):
 			c.fallen[id] = c.now
-		elif c.now - float(c.fallen[id]) >= wait and view.revive_champion(StringName(id), float(aw["hp"])):
+		elif c.now - float(c.fallen[id]) >= wait and view.revive_champion(StringName(id), float(def["awaken_hp"])):
 			c.revived = true
 			return
 
