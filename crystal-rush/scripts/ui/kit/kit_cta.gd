@@ -73,6 +73,9 @@ static var style: String:
 const BODY_MAX := 96.0
 const MAX_BODY_H := BODY_MAX
 const MAX_LABEL := 38
+## The plain face of the owner's painted body: the share of the body height between its carved rims.
+const PAINTED_FACE := 0.68
+const PAINTED_TWO_LINE_LABEL := 32
 var _flash := 0.0
 var _sweep_rect: ColorRect
 var _sweep_mat: ShaderMaterial
@@ -169,7 +172,13 @@ func _gem_zone() -> float:
 
 
 func _has_slot() -> bool:
-	return gem_icon != "" or (topaz and (ctx_gem != "" or disabled))
+	return gem_icon != "" or (topaz and (ctx_gem != "" or disabled or _bitmap_topaz()))
+
+
+## The owner's painted body (primary.png) comes with its cut topaz (cta_topaz.png): a topaz CTA shows it even
+## in the refined styles (ГРАТИ, Покращити), where the vector gem appears only with a meaning.
+func _bitmap_topaz() -> bool:
+	return _painted and UIKit.kit_texture("cta_topaz") != null
 
 
 ## The label area [x0, x1] right of the gem slot (HeroPriceCTA places its coin with it).
@@ -247,7 +256,7 @@ func _draw() -> void:
 	if gem_w > 0.0:
 		var gs := _gem_size(br)
 		var gc := Vector2(br.position.x + ch + 4.0 + gs * 0.5, br.get_center().y - 1.0)
-		if refined():
+		if refined() and not (gem_icon == "" and ctx_gem == "" and not dis and _bitmap_topaz()):
 			_draw_refined_gem(gc, gs, down, dis)
 		elif gem_icon != "":
 			Icons.draw_icon(self, gem_icon, Rect2(gc - Vector2(gs, gs) * 0.5, Vector2(gs, gs)), Color(1, 1, 1, 0.55 if dis else 1.0))
@@ -267,7 +276,8 @@ func _draw() -> void:
 	# Label (+ optional icon and second line), centred in the area right of the gem.
 	if text == "" and sub == "":
 		return
-	var fs := mini(label_size, MAX_LABEL)
+	# Two lines inside a painted body's carved rims: the verb a little smaller so the second line clears them.
+	var fs := mini(label_size, MAX_LABEL if not (_painted and sub != "") else PAINTED_TWO_LINE_LABEL)
 	# Porcelain speaks in Bold ink caps for every verb (the brief); ink keeps the caller's case.
 	var txt := text.to_upper() if style == "porcelain" else text
 	var caps := txt == txt.to_upper() and txt != txt.to_lower()
@@ -295,7 +305,10 @@ func _draw() -> void:
 	var ss := mini(sub_size, maxi(20, int(h * 0.24)))
 	var sub_h := (fsub.get_ascent(ss) + fsub.get_descent(ss) - 2.0) if has_sub else 0.0
 	var block := line_h * 0.86 + sub_h
-	var top_y := br.position.y + (h - block) * 0.5 - 1.0
+	# A painted body (primary.png) has a deep carved rim: centre the lines on its plain face (PAINTED_FACE of the
+	# height, centred), not on the whole body, so a second line never sits on the lower gold line.
+	var face_h := h * (PAINTED_FACE if _painted else 1.0)
+	var top_y := br.position.y + (h - face_h) * 0.5 + (face_h - block) * 0.5 - ((3.0 + (h * 0.05 if has_sub else 0.0)) if _painted else 1.0)
 	var base_y := top_y + asc * 0.93
 	var col: Color = UIKit.INK_DIM if dis else (UIKit.CTA_TEXT if style == "amber" else _spec()["label"])
 	var sub_col: Color = UIKit.INK_DIM if dis else (UIKit.CTA_TEXT if style == "amber" else _spec()["sub"])

@@ -155,6 +155,17 @@ static func kit_texture(name: String) -> Texture2D:
 	var tex: Texture2D = null
 	if ResourceLoader.exists(path):
 		tex = load(path) as Texture2D
+		# kit.json "scale": 2 = art painted at 2x: the texture reports its 1x size (margins, rects and
+		# nine-patches stay in canvas px) and samples the full-resolution pixels (crisp on phones).
+		var sc := float(kit_spec(name).get("scale", 1.0))
+		if tex and sc > 1.0:
+			var img := tex.get_image()
+			if img:
+				if img.is_compressed():
+					img.decompress()
+				var it := ImageTexture.create_from_image(img)
+				it.set_size_override(Vector2i(roundi(img.get_width() / sc), roundi(img.get_height() / sc)))
+				tex = it
 	_kit_tex[name] = tex
 	return tex
 

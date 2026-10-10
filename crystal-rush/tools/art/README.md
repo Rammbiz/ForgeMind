@@ -12,3 +12,10 @@
   --size 2K --aspect 3:4` (references repeatable; `--search` lets the model use Google Search). The key is the owner's Windows
   user variable `GEMINI_API_KEY` (set by them with `~/.claude/mcp/set-gemini-key.py`; never in the repo or a chat). Each call
   costs the owner's AI Studio billing, so ask before batches.
+- `cut_icons.py` — cuts a Gemini icon sheet (icons on flat #BFBFBF in a cols x rows grid) into transparent 256² PNGs:
+  `py cut_icons.py sheet.jpg out 4 3 name1,name2,... 256 40` (enclosed background holes cleared, edges defringed, preview.png
+  on cream and ink). Install as `assets/ui/kit/icon_<name>.png`; a coloured stand-in for a line kind needs
+  `"icon_<name>": {"painted": true}` in kit.json.
+- `cut_parts.py` + `build_buttons.py` — the button skins: `py cut_parts.py parts.jpg p25 25` cuts each part, `py
+  build_buttons.py p25 kit` rebuilds them as 2x nine-patches ([carved cap | averaged plain middle | cap], derived pressed and
+  disabled states) and writes the kit.json entries (spec.json, with "scale": 2). Source: `art_src/ui/buttons_porcelain_parts_src.jpg`.
