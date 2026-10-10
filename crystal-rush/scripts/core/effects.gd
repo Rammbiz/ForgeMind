@@ -550,8 +550,8 @@ func projectile(from: Vector3, to: Vector3, kind: String, time: float, on_hit: C
 				"time": time * randf_range(0.9, 1.1), "on_hit": on_hit if i == 0 else Callable(), "seed": randf(),
 				"held": held})
 		return
-	_projectiles.append({"kind": kind, "from": from, "to": to, "t": 0.0, "time": time, "on_hit": on_hit, "seed": randf(),
-		"puff": 0.0, "held": held})
+	_projectiles.append({"kind": kind, "from": from, "to": to, "t": 0.0, "time": time, "on_hit": on_hit,
+		"seed": randf(), "puff": 0.0, "held": held})
 
 
 func _step_projectiles(delta: float) -> void:

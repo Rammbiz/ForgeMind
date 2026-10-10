@@ -21,10 +21,14 @@ extends Node3D
 ##          GRID (frost), PARCHMENT (Сірко's scroll: abstract lines, a darker edge), RAMPART (Вартан's wall:
 ##          basalt below 0.3 u, faint crystal above), RAY (fades toward its far end), CHAIN (links)
 ##
-## Gate legibility (§10.2): the shader caps every pixel whose view ray crosses a panel of the next gate
-## rows at GATE_CAP alpha (gates[], refreshed each frame from Run), the gate labels draw above it (render
-## priority 3 over this draw's 1, and it writes no depth), Вартан's rampart stays <= 0.6 u tall with
-## alpha <= 0.5 above 0.3 u, Люмен's rays are <= 0.12 u wide, and there is no full-screen flash at all.
+## Gate legibility (§10.2): over a panel of the next gate rows (gates[], refreshed each frame from Run) the
+## whole stack of this draw stays <= GATE_CAP (rule 3): the shader caps every pixel whose view ray crosses a
+## panel at that panel's share gate_cap[k], 1 - (1 - GATE_CAP)^(1 / m) for the m primitives that may reach
+## it this frame (_share_caps; one alone keeps GATE_CAP), and flecks (sparks, embers, dust: _flecks) draw
+## nothing there (the gate's own hit flash marks a hit). It draws at render priority 0, before every gate label
+## layer (an idle plate is 1, the ult draw 120) and writes no depth, so the labels read over it whether an ult
+## runs or not. Вартан's rampart stays <= 0.6 u tall with alpha <= 0.5 above 0.3 u, Люмен's rays are <= 0.12 u
+## wide, and there is no full-screen flash at all.
 ##
 ## Pool rules (ChampionFx's): POOL slots, a new primitive takes the next free slot (the oldest when all
 ## are busy); ages run on the run's frame time; a delay holds a primitive back unseen. The live ult shapes
@@ -43,12 +47,16 @@ const STRIDE := 20
 const FADE_IN := 0.05
 ## Seconds an anchor or a glaive falls before it lands (the drop's first pulse waits for it).
 const FALL := 0.24
-## Gate panels the shader checks (the next gate rows), and the alpha cap over them (§10.2.3).
+## Gate panels the shader checks (the next gate rows), and the alpha cap of the whole stack over them (§10.2.3;
+## each panel shares it out among the primitives that may reach it: _share_caps).
 const GATES := 6
 const GATE_CAP := 0.35
 const GATE_AHEAD := 45.0
 ## Gate panel height the cap covers (Models.GATE_H plus the crossbar and its label).
 const GATE_TOP := 2.7
+## _share_caps counts a primitive this much bigger: the camera moves after this draw (Run._camera ends
+## Run._visuals: about a run step a frame) and shakes.
+const REACH_PAD := 0.4
 
 ## Palette (§10.3).
 const MARK := Color("#FFE7A3")
@@ -72,11 +80,12 @@ const SHADER := "shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 // HeroFx: the new heroes' ult shapes and attacks, one MultiMesh of unit quads. INSTANCE_CUSTOM.x = the
 // primitive (0 ring, 1 disc, 2 mote, 3 camera ring, 4 band, 5 rect), y / z its parameters; COLOR = tint +
-// alpha. Matte, no glow. Every pixel whose view ray crosses a panel of the next gate rows is capped at
-// gate_cap alpha (heroes design §10.2).
+// alpha. Matte, no glow. Every pixel whose view ray crosses a panel k of the next gate rows is capped at
+// gate_cap[k], that panel's share of the stack's cap (heroes design §10.2); a fleck (INSTANCE_CUSTOM.w 1: a
+// spark, an ember, dust) draws nothing there.
 uniform vec4 gates[6];
 uniform float gate_z[6];
-uniform float gate_cap = 0.35;
+uniform float gate_cap[6];
 // Colours are drawn as authored (GL Compatibility writes them out as they are; no linear decode).
 uniform vec3 line_color = vec3(1.0, 0.906, 0.639);
 uniform vec3 ink_color = vec3(0.05, 0.06, 0.12);
@@ -248,7 +257,7 @@ void fragment() {
 		}
 	}
 	float alpha = COLOR.a * a;
-	// Gate legibility: a pixel whose view ray crosses a panel of the next gate rows is capped.
+	// Gate legibility: a pixel whose view ray crosses a panel of the next gate rows is capped at its share.
 	vec3 cam = INV_VIEW_MATRIX[3].xyz;
 	vec3 ray = v_w - cam;
 	for (int i = 0; i < 6; i++) {
@@ -262,7 +271,7 @@ void fragment() {
 		}
 		vec3 hit = cam + ray * t;
 		if (hit.x > g.x && hit.x < g.y && hit.y > g.z && hit.y < g.w) {
-			alpha = min(alpha, gate_cap);
+			alpha = min(alpha, v_c.w > 0.5 ? 0.0 : gate_cap[i]);
 		}
 	}
 	ALBEDO = col;
@@ -283,6 +292,8 @@ var _cap := 0
 var _shown := -1
 var _gate_box := PackedVector4Array()
 var _gate_z := PackedFloat32Array()
+## Per gate: the alpha one primitive may draw over its panel (_share_caps).
+var _gate_caps := PackedFloat32Array()
 ## Index into run._gates (sorted by d) of the first gate not yet behind the hero (_update_gates' cursor).
 var _gate_k := 0
 
@@ -303,8 +314,12 @@ var _spin := PackedFloat32Array()
 var _ang := PackedFloat32Array()
 var _fo := PackedFloat32Array()
 var _col := PackedColorArray()
+## 1 = a fleck (a spark, an ember, dust: spawned while _flecks is on), drawn nowhere over a gate panel.
+var _fleck := PackedByteArray()
 var _next := 0
 var _live := 0
+## On while _burst, _rise, _embers_on and _spark (and a dove's landing embers) spawn: their primitives are flecks.
+var _flecks := false
 
 ## The live ult shape drawn from state (one ult at a time): {kind, shape, t, life, end (fade-out start,
 ## -1 while it runs), ...its own keys}. Empty when none.
@@ -340,8 +355,8 @@ func setup(p_run: Run, p_hero: String) -> void:
 	_mm.multimesh = mm
 	_mat = ShaderMaterial.new()
 	_mat.shader = _shader
-	_mat.render_priority = 1
-	_mat.set_shader_parameter(&"gate_cap", GATE_CAP)
+	# Below every gate label layer (an idle plate draws at 1): this draw writes no depth, so a label reads over it.
+	_mat.render_priority = 0
 	_mm.material_override = _mat
 	_mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mm.extra_cull_margin = 2.0
@@ -350,6 +365,9 @@ func setup(p_run: Run, p_hero: String) -> void:
 	_buf.resize(_cap * STRIDE)
 	_gate_box.resize(GATES)
 	_gate_z.resize(GATES)
+	_gate_caps.resize(GATES)
+	_gate_caps.fill(GATE_CAP)
+	_mat.set_shader_parameter(&"gate_cap", _gate_caps)
 
 
 func _init_pool() -> void:
@@ -369,6 +387,7 @@ func _init_pool() -> void:
 	_p1.resize(POOL)
 	_p2.resize(POOL)
 	_col.resize(POOL)
+	_fleck.resize(POOL)
 	_life.fill(0.0)
 
 
@@ -802,9 +821,11 @@ func _doves(ph: StringName, data: Dictionary) -> void:
 					var ctrl := (from + to) * 0.5 + Vector3(randf_range(-1.4, 1.4), 3.0 + 0.6 * float(j2), 0.0)
 					curve(from, ctrl, to + Vector3(0.0, 0.3 * float(j2), 0.0), t, 0.6 - 0.12 * float(j2), IVORY,
 							0.02 * k2 + 0.08 * float(j2), DOVE)
+				_flecks = true
 				for j in 3:
 					mote(to + Vector3(randf_range(-0.3, 0.3), 0.2, 0.0), Vector3(randf_range(-0.4, 0.4), randf_range(0.6, 1.2),
 							0.0), 0.6, 0.1, accent, t + 0.05 * j, -0.3, ROUND)
+				_flecks = false
 				ring(Vector3(to.x, 0.04, to.z), 0.2, 0.8, 0.05, 0.4, Color(MARK.r, MARK.g, MARK.b, 0.75), t)
 				k2 += 1
 			Audio.play("plasma", -10.0, 0.2)
@@ -842,6 +863,7 @@ func draw(dt: float) -> void:
 	var mm := _mm.multimesh
 	if n > 0:
 		_update_gates()
+		_share_caps(n)
 		mm.custom_aabb = _bounds(n)
 		mm.buffer = _buf
 	mm.visible_instance_count = n
@@ -880,6 +902,86 @@ func _update_gates() -> void:
 		_gate_z[j] = 0.0
 	_mat.set_shader_parameter(&"gates", _gate_box)
 	_mat.set_shader_parameter(&"gate_z", _gate_z)
+
+
+## §10.2 rule 3 for the whole stack: the m primitives of the first `n` instances that may reach gate k's panel this
+## frame (counted conservatively: where their bounds' view rays cross its plane, _reach) each draw over it at
+## <= 1 - (1 - GATE_CAP)^(1 / m), so all of them blended stay <= GATE_CAP (one alone keeps GATE_CAP). Flecks draw
+## nothing there and are not counted, nor is a primitive drawn at alpha 0.
+func _share_caps(n: int) -> void:
+	var cam := get_viewport().get_camera_3d()
+	var c := cam.global_position if cam else Vector3.ZERO
+	# The panels in ray space: x and y over the distance ahead of the camera (one scale for a whole row); a gate the
+	# shader skips gets an empty box.
+	var panels := PackedVector4Array()
+	panels.resize(GATES)
+	panels.fill(Vector4(INF, -INF, INF, -INF))
+	var counts := PackedInt32Array()
+	counts.resize(GATES)
+	counts.fill(0)
+	var live := 0
+	for k in GATES:
+		var g := _gate_box[k]
+		var depth := c.z - _gate_z[k]
+		if cam == null or g.w <= 0.0 or depth <= 0.01:
+			continue
+		panels[k] = Vector4(g.x - c.x, g.y - c.x, g.z - c.y, g.w - c.y) / depth
+		live = k + 1
+	for i in n:
+		if live == 0:
+			break
+		var o := i * STRIDE
+		if _buf[o + 19] > 0.5 or _buf[o + 15] <= 0.0:
+			continue
+		var r := _reach(i, c)
+		for k in live:
+			var p := panels[k]
+			if r.y > p.x and r.x < p.y and r.w > p.z and r.z < p.w:
+				counts[k] += 1
+	for k in GATES:
+		_gate_caps[k] = GATE_CAP if counts[k] <= 1 else 1.0 - pow(1.0 - GATE_CAP, 1.0 / float(counts[k]))
+	_mat.set_shader_parameter(&"gate_cap", _gate_caps)
+
+
+## Where the view rays from `c` through instance `i` may go, in ray space ([x0, x1, y0, y1] of (point - c) over its
+## distance ahead): a planar quad (ring, disc, rect) by its four corners, a band by its two ends, a camera-facing
+## mote or ring by its bounding sphere, each grown by REACH_PAD. Everything when part of it is not ahead of the camera.
+func _reach(i: int, c: Vector3) -> Vector4:
+	var o := i * STRIDE
+	var at := Vector3(_buf[o + 3], _buf[o + 7], _buf[o + 11])
+	var ax := Vector3(_buf[o], _buf[o + 4], _buf[o + 8])
+	var ay := Vector3(_buf[o + 1], _buf[o + 5], _buf[o + 9])
+	var r := Vector4(INF, -INF, INF, -INF)
+	match int(_buf[o + 16]):
+		MOTE, VRING:
+			r = _ray_box(r, c, at, 0.5 * Vector2(ax.x, ay.y).length() + REACH_PAD)
+		BAND:
+			# put_band: the axis from end to end, the band ay.y wide.
+			var s := ay.y * 0.5 + REACH_PAD
+			r = _ray_box(_ray_box(r, c, at - ax * 0.5, s), c, at + ax * 0.5, s)
+		_:
+			for q: Vector3 in [at - (ax + ay) * 0.5, at + (ax - ay) * 0.5, at + (ay - ax) * 0.5, at + (ax + ay) * 0.5]:
+				r = _ray_box(r, c, q, REACH_PAD)
+	return r
+
+
+## Ray-space box `r` grown by the sphere at `w` of radius `s` seen from `c` (the extremes of (x - c.x) and (y - c.y)
+## over the distance ahead lie at the corners of the sphere's box); everything when the sphere reaches the camera's
+## plane.
+static func _ray_box(r: Vector4, c: Vector3, w: Vector3, s: float) -> Vector4:
+	var near := c.z - w.z - s
+	if near <= 0.01:
+		return Vector4(-INF, INF, -INF, INF)
+	var f0 := 1.0 / (near + 2.0 * s)
+	var f1 := 1.0 / near
+	var x0 := w.x - s - c.x
+	var x1 := w.x + s - c.x
+	var y0 := w.y - s - c.y
+	var y1 := w.y + s - c.y
+	return Vector4(minf(r.x, minf(minf(x0 * f0, x0 * f1), minf(x1 * f0, x1 * f1))),
+			maxf(r.y, maxf(maxf(x0 * f0, x0 * f1), maxf(x1 * f0, x1 * f1))),
+			minf(r.z, minf(minf(y0 * f0, y0 * f1), minf(y1 * f0, y1 * f1))),
+			maxf(r.w, maxf(maxf(y0 * f0, y0 * f1), maxf(y1 * f0, y1 * f1))))
 
 
 func _tick(dt: float) -> void:
@@ -1053,6 +1155,7 @@ func _write_pool(n: int, flat: bool) -> int:
 					at = _p0[i] * (u * u) + _p1[i] * (2.0 * u * k) + _p2[i] * (k * k)
 				put_face(_buf, o, at, s, s)
 				put_tail(_buf, o, c, MOTE, _param[i], _ang[i])
+		_buf[o + 19] = float(_fleck[i])
 		n += 1
 	return n
 
@@ -1213,6 +1316,7 @@ func _take(mode: int, motion: int, life: float, delay: float, col: Color, fo: fl
 		_live += 1
 	_mode[i] = mode
 	_motion[i] = motion
+	_fleck[i] = 1 if _flecks else 0
 	_life[i] = maxf(life, 0.02)
 	_age[i] = -delay
 	_col[i] = col
@@ -1237,34 +1341,45 @@ func _slash(from: Vector3) -> void:
 		prev = nxt
 
 
-## A small hit: a ring on the road and three sparks, `delay` s after now.
+## A small hit: a ring on the road and three sparks, `delay` s after now (flecks).
 func _spark(at: Vector3, col: Color, delay: float) -> void:
+	var was := _flecks
+	_flecks = true
 	ring(Vector3(at.x, 0.04, at.z), 0.1, 0.5, 0.05, 0.28, Color(col.r, col.g, col.b, 0.8), delay)
 	_burst(at, 3, 1.6, col, 0.08, delay, 1.2, 4.0)
+	_flecks = was
 
 
-## `n` motes bursting from `at` (radial, slightly up), after `delay`.
+## `n` motes bursting from `at` (radial, slightly up), after `delay` (flecks).
 func _burst(at: Vector3, n: int, speed: float, col: Color, size := 0.09, delay := 0.0, up := 1.0, grav := 4.0,
 		shape := DIAMOND) -> void:
+	var was := _flecks
+	_flecks = true
 	for k in n:
 		var a := TAU * (float(k) + randf() * 0.5) / float(n)
 		var v := Vector3(cos(a), 0.0, sin(a)) * speed * randf_range(0.6, 1.0)
 		v.y = up * randf_range(0.6, 1.2)
 		mote(at, v, randf_range(0.35, 0.55), size, col, delay, grav, shape, randf_range(-6.0, 6.0) if shape == BLADE else 0.0)
+	_flecks = was
 
 
-## `n` sparkles rising from a disc of radius `r` around `at`.
+## `n` sparkles rising from a disc of radius `r` around `at` (flecks).
 func _rise(at: Vector3, n: int, r: float, col: Color, delay := 0.0, shape := DIAMOND) -> void:
+	var was := _flecks
+	_flecks = true
 	for k in n:
 		var a := TAU * float(k) / float(n) + randf() * 0.6
 		var k2 := r * randf_range(0.3, 1.0)
 		var p := at + Vector3(cos(a) * k2, randf_range(0.1, 0.5), sin(a) * k2)
 		mote(p, Vector3(0.0, randf_range(0.8, 1.5), 0.0), randf_range(0.45, 0.7), 0.1, col, delay + randf() * 0.12, 0.0,
 				shape)
+	_flecks = was
 
 
-## Matte embers over every target id in `ids` (Burn), in `col`, after `delay`.
+## Matte embers over every target id in `ids` (Burn), in `col`, after `delay` (flecks).
 func _embers_on(ids: Array, col: Color, delay := 0.0) -> void:
+	var was := _flecks
+	_flecks = true
 	for id: int in ids:
 		var p := _target_at(id, 0.3)
 		if p == Vector3.INF:
@@ -1272,6 +1387,7 @@ func _embers_on(ids: Array, col: Color, delay := 0.0) -> void:
 		for k in 2:
 			mote(p + Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.2, 0.2)), Vector3(0.0, randf_range(0.7, 1.2), 0.0),
 					0.6, 0.1, col, delay + randf() * 0.2, -0.3, ROUND)
+	_flecks = was
 
 
 ## Where the shape event sits on the road: (x, 0, -data[key]) (the hero's x and d when missing).
