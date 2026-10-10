@@ -40,9 +40,9 @@ const LINK_FRAMES := 30
 ## Рукавичка's guest pips at the 72 px medallion (GUEST_AT, ChampionMedallions.SIZE; scaled with it): radius,
 ## pitch, the gap to its left edge.
 const GUEST_AT := 72.0
-const GUEST_PIP := 2.6
+const GUEST_PIP := 3.0
 const GUEST_PITCH := 8.6
-const GUEST_GAP := 7.0
+const GUEST_GAP := 8.0
 
 ## Tests and dev tools only: class name -> Script used instead of the global class (stand-ins).
 static var override_classes := {}
@@ -303,12 +303,14 @@ class _GuestPips extends Control:
 		var gold := UITokens.LINE_GOLD_DEEP
 		var dim := UITokens.INK_DIM_GLASS
 		var line := Color(dim.r, dim.g, dim.b, 0.5) if not _alive else gold
+		var paper := UITokens.PAPER_0 if _alive else UITokens.PAPER_3
 		for i in slots:
 			var c := Vector2(x, y0 - pitch * float(i))
-			if i < _count and _alive:
-				draw_circle(c, r, Color(gold.r, gold.g, gold.b, 1.0), true, -1.0, true)
-			else:
-				draw_arc(c, r - 0.5, 0.0, TAU, 16, line, UIKit.line_px(1.0), true)
+			# A porcelain bead with one 1 dpx gold line; a guest fills it deep gold.
+			var full := i < _count and _alive
+			draw_circle(c, r, Color(gold.r, gold.g, gold.b, 1.0) if full else Color(paper.r, paper.g, paper.b, 0.92), true,
+					-1.0, true)
+			draw_arc(c, r, 0.0, TAU, 16, line, UIKit.line_px(1.0), true)
 
 
 ## A new instance of the global script class `cls` (a Control with every method in `needs`), or

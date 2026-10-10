@@ -45,9 +45,10 @@ const DUST := Color(0.86, 0.82, 0.74)
 const BLADE_INK := Color(0.24, 0.26, 0.36, 0.95)
 const DIRT := Color(0.53, 0.46, 0.37, 0.55)
 const PAGE_TINT := Color(1.0, 0.98, 0.93, 0.95)
-## Франко's granite chips, Одарка's jar glass, Гоготун's grey feathers, Мотиватор's leaves (all matte).
+## Франко's granite chips, Одарка's jar glass and peppers, Гоготун's grey feathers, Мотиватор's leaves (all matte).
 const GRANITE := Color(0.45, 0.44, 0.45, 0.95)
-const JAR_GLASS := Color(0.9, 0.95, 0.93, 0.9)
+const JAR_GLASS := Color(0.9, 0.95, 0.93, 0.85)
+const PEPPER := Color(0.78, 0.2, 0.14, 0.95)
 const FEATHER := Color(0.7, 0.69, 0.66, 0.9)
 const LEAF := Color(0.45, 0.58, 0.33, 0.9)
 const CLASS_INDEX := {"warrior": 0, "ranger": 1, "mage": 2, "guardian": 3, "healer": 4}
@@ -919,10 +920,15 @@ func _twist(c: RunChampion, i: int, data: Dictionary) -> void:
 			var from4 := c.root + Vector3(0.15, 0.95, -0.2)
 			var to4 := tgt + Vector3(0.0, 1.0, 0.0)
 			# A high overarm throw; the jar bursts in a puff of red peppers (the Plasma accent).
-			fx.curve(from4, (from4 + to4) * 0.5 + Vector3(0.0, 2.4, 0.0), to4, 0.55, 0.16, JAR_GLASS, 0.0, ChampionFx.ROUND,
-					9.0)
-			fx.vring(to4, 0.15, 0.6, 0.04, 0.35, acc, 0.55)
-			_burst(to4, 9, 2.0, acc, 0.09, 0.55, 0.5, 5.0)
+			var arc := (from4 + to4) * 0.5 + Vector3(0.0, 2.4, 0.0)
+			# The jar: a glass bead with the red peppers inside and two pepper flecks trailing it.
+			fx.curve(from4, arc, to4, 0.55, 0.38, JAR_GLASS, 0.0, ChampionFx.ROUND, 9.0)
+			fx.curve(from4, arc, to4, 0.55, 0.24, PEPPER, 0.0, ChampionFx.ROUND, 9.0)
+			for k in 2:
+				fx.curve(from4, arc, to4, 0.55, 0.12 - 0.04 * k, PEPPER, 0.05 * float(k + 1), ChampionFx.ROUND)
+			fx.vring(to4, 0.15, 0.7, 0.04, 0.35, acc, 0.55)
+			_burst(to4, 10, 2.0, PEPPER, 0.1, 0.55, 0.5, 5.0)
+			_burst(to4, 5, 1.6, JAR_GLASS, 0.08, 0.55, 0.7, 5.0, ChampionFx.BLADE)
 		&"honk":
 			_honk(c, i, tgt, acc)
 		&"net":
