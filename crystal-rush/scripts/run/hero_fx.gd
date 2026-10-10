@@ -725,27 +725,33 @@ func _forgewall(ph: StringName, data: Dictionary) -> void:
 			_close(&"forgewall")
 
 
-## Вартан's Rivet Turrets (form III; the rules' `rivets` event every period): a hot rivet flies a short arc from
-## the wall (the live rampart, else just ahead of the hero) to each target, a spark where it lands.
+## Вартан's Rivet Turrets (form III; the rules' `rivets` event every period): the rivets leave from turret
+## points spread along the wall's crest (the live rampart, else a short span just ahead of the hero), one each,
+## and fly a short arc to their targets (several may share one), a spark where each lands.
 func _rivets(data: Dictionary) -> void:
+	var targets: Array = data.get("targets", [])
+	if targets.is_empty():
+		return
 	var on_wall: bool = _shape.get("kind", &"") == &"forgewall"
 	var c := _wall_center()
 	if not on_wall:
 		c = Vector3(float(data.get("x", run.hx)), 0.0, -float(data.get("d", run.d)) - 2.0)
-	var hw := float(_shape.get("w", 6.0)) * 0.5 if on_wall else 1.0
+	var hw := (float(_shape.get("w", 6.0)) * 0.5 if on_wall else 1.0) - 0.3
+	var n := targets.size()
 	var k := 0
-	for id: int in data.get("targets", []):
+	for id: int in targets:
 		var to := _target_at(id, 0.5)
 		if to == Vector3.INF:
+			k += 1
 			continue
-		var from := Vector3(clampf(to.x, c.x - hw + 0.3, c.x + hw - 0.3), 0.5, c.z - 0.1)
-		var t := clampf(from.distance_to(to) / 30.0, 0.08, 0.3)
-		curve(from, (from + to) * 0.5 + Vector3(0.0, 0.45, 0.0), to, t, 0.15, Color(accent.r, accent.g, accent.b, 0.95),
-				0.02 * k, ROUND)
-		_spark(to, MARK, t + 0.02 * k)
+		var from := Vector3(c.x - hw + 2.0 * hw * (float(k) + 0.5) / float(n), 0.55, c.z - 0.1)
+		to += Vector3(0.25 * (float(k) - 0.5 * float(n - 1)), 0.0, 0.0)
+		var t := clampf(from.distance_to(to) / 30.0, 0.1, 0.3)
+		curve(from, (from + to) * 0.5 + Vector3(0.0, 0.5, 0.0), to, t, 0.22, Color(accent.r, accent.g, accent.b, 0.95),
+				0.03 * k, ROUND)
+		_spark(to, MARK, t + 0.03 * k)
 		k += 1
-	if k > 0:
-		Audio.play("arrow", -18.0, 0.3)
+	Audio.play("arrow", -18.0, 0.3)
 
 
 ## Пава's Thousand Eyes (ward): her fan of eyes opens behind her in a wave and stays `s` seconds, the

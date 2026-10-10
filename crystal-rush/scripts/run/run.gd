@@ -2713,9 +2713,11 @@ func _volley_procs(it: Dictionary) -> void:
 
 ## Healer Mend (RunKindView.add_soldiers): `n` soldiers come back at the blob front. Their «+N» is the
 ## champions' one-draw stamp over the Healer (ChampionView.mend_stamp on the champ_mend that follows), not
-## an outlined popup (three Label3D, ~6 draws every pulse: §10.6).
+## an outlined popup (three Label3D, ~6 draws every pulse: §10.6). At army 0 too, as SimKindView.add_soldiers
+## adds them: a hero kind's return after a wipe (Пава's ward close, Ейра's rime, the mend / eye procs) stands the
+## army up again while the hero holds; the Healer champions' Mend asks for a living army itself.
 func champion_mend(n: int) -> void:
-	if n <= 0 or army <= 0:
+	if n <= 0:
 		return
 	var front := army_view.front_point()
 	_change_army(n, front + Vector3(0.0, 0.5, 0.0), Vector3(0.45, 0.3, 0.2))
