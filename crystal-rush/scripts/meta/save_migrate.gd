@@ -28,7 +28,7 @@ class_name SaveMigrate
 
 const VERSION := 3
 const CARD := "MIGRATION_HEROES_CARD"
-const VIA: Array[String] = ["start", "progress", "portal", "seal", "chest", "migration", "guest"]
+const VIA: Array[String] = ["start", "progress", "portal", "seal", "chest", "migration", "guest", "fair"]
 const SKILLS: Array[String] = ["ult", "attack", "rally", "awakened"]
 const GEAR_SLOTS: Array[String] = ["weapon", "armour", "charm"]
 const CHEST_TYPES: Array[String] = ["hero_chest", "grand_hero_chest"]
@@ -260,6 +260,8 @@ static func sanitize_v3(acc: Dictionary) -> void:
 			tr.append(int(b))
 	ws["trophies"] = tr
 	ws["migration_ore"] = maxi(0, int(ws["migration_ore"]))
+	# The Fair mini-games section (added after v3 shipped): created, migrated and repaired here.
+	MinigamesMeta.sanitize(acc)
 
 
 ## §9.6 orphans are never deleted: an entry an older build parked in `_orphans` (an id it did not know yet, e.g. a

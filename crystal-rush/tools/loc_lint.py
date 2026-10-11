@@ -29,6 +29,10 @@ Checks
              (that would change shipped copy); any table row that shares a Loc key has the same placeholders
   length     _DESC / _VALUE <= 90 characters, TUT_* <= 60, HINT_* <= 60 (part U §5.4)
   fonts      every character of every value exists in all four M PLUS Rounded 1c weights (no tofu)
+  minigames  the Fair's text tables (scripts/minigames/<id>/texts.gd and core/texts.gd, `const ROWS`, merged into
+             Loc at startup) get the same row / format / text / glossary / font checks as LIVE rows, plus: no «…»
+             or "...", keys start with MG_<ID>_ (core: MG_), never a Loc key, never in two tables, the INFO keys of
+             the game's info.gd (title, tent, intro, rules) exist, and the Fair's content words (MG_FORBIDDEN)
 """
 from __future__ import annotations
 
@@ -45,6 +49,9 @@ LOC = os.path.join(ROOT, "scripts", "autoload", "loc.gd")
 DOC = os.path.join(ROOT, "docs", "design", "heroes_design.md")
 ROSTER = os.path.join(ROOT, "tools", "data", "heroes_roster.json")
 FONTS = [os.path.join(ROOT, "assets", "fonts", "MPLUSRounded1c-%s.ttf" % w) for w in ("Regular", "Medium", "Bold", "ExtraBold")]
+
+MG_DIR = os.path.join(ROOT, "scripts", "minigames")
+MG_CORE = "core"
 
 HEROES_BEGIN = "# ==== HEROES BEGIN"
 HEROES_END = "# ==== HEROES END"
@@ -157,6 +164,16 @@ FORBIDDEN = [
     ("ore-materials", r"[Мм]атеріал|\bMaterials?\b", "both", "heroes", r"^(WORKSHOP_|CUR_ORE|GEAR_)", set(), "one material: «Зоряна руда / Star Ore»"),
 ]
 # "allowed keys" = None above means: allowed only in heroes-block keys (computed at run time).
+
+# The Fair's content rules (side_content_ideas.md «Спільні правила для всіх ідей»), for the mini-game tables only:
+# (name, regex, lang "uk" | "en" | "both", why).
+MG_FORBIDDEN = [
+    ("mine", r"(?<![\w’])[Мм]ін(а|и|у|і|ою|ам|ами|ах)?(?![\w’])", "uk", "Снаряд finds a «пастка», never a «міна»"),
+    ("mine-en", r"\b[Mm]ines?\b", "en", "a trap, never a mine"),
+    ("shchur-name", r"Петр\w*\s+Щур|Petro\s+Shchur", "both", "Щур is never «Петро Щур»"),
+    ("carol", r"Carol of the Bells", "both", "«Щедрик»: the melody and the Ukrainian text only"),
+    ("sorochyntsi", r"Сорочинськ|Sorochyn", "both", "the Fair is just «Ярмарок»"),
+]
 
 # Keys of the shipped (2.2.1) table that already print a literal percentage; nothing new joins this list.
 LEGACY_PCT = {
@@ -797,6 +814,79 @@ def check_baseline(L: Lint, ref: str, shipped: dict, heroes_keys: set[str]) -> N
         L.err("baseline", "SHIPPED %s added outside the heroes block" % k)
 
 
+def minigame_tables() -> list[tuple[str, str, Table]]:
+    """(game id or "core", folder, ROWS table) of every scripts/minigames/<dir>/texts.gd, core first."""
+    out = []
+    if not os.path.isdir(MG_DIR):
+        return out
+    dirs = sorted(d for d in os.listdir(MG_DIR) if os.path.isdir(os.path.join(MG_DIR, d)) and not d.startswith((".", "_")))
+    dirs.sort(key=lambda d: d != MG_CORE)
+    for d in dirs:
+        p = os.path.join(MG_DIR, d, "texts.gd")
+        if not os.path.exists(p):
+            continue
+        t, _ = parse_dict(open(p, encoding="utf8").read(), "ROWS")
+        t.name = "MG " + d
+        out.append((d, os.path.join(MG_DIR, d), t))
+    return out
+
+
+def check_minigames(L: Lint, tables: list, shipped: dict, live: dict, heroes_keys: set[str]) -> None:
+    seen: dict[str, str] = {}
+    for gid, folder, t in tables:
+        check_rows(L, t)
+        check_format(L, t, None)
+        check_text(L, t.rows, set(), t.name)
+        prefix = "MG_" if gid == MG_CORE else "MG_" + gid.upper() + "_"
+        for key, vals in t.rows.items():
+            if not key.startswith(prefix) or (gid == MG_CORE and any(key.startswith("MG_" + o.upper() + "_")
+                                                                     for o, _, _ in tables if o != MG_CORE)):
+                L.err("minigames", "%s: key %s must start with %s" % (t.name, key, prefix))
+            if key in live or key in shipped:
+                L.err("minigames", "%s: key %s is a Loc key (a merged row never shadows Loc)" % (t.name, key))
+            if key in seen:
+                L.err("minigames", "%s: key %s is also in %s" % (t.name, key, seen[key]))
+            seen[key] = t.name
+            for li, v in enumerate(vals[:2]):
+                if "…" in v or "..." in v:
+                    L.err("ellipsis", "%s %s.%s: no «…» anywhere (wrap the text, never cut it): «%s»" % (t.name, key, ("uk", "en")[li], v))
+                for name, rx, lang, why in MG_FORBIDDEN:
+                    if (lang == "uk" and li != 0) or (lang == "en" and li != 1):
+                        continue
+                    m = re.search(rx, v)
+                    if m:
+                        L.err("minigames", "%s %s.%s «%s» (%s): %s" % (t.name, key, ("uk", "en")[li], m.group(0), name, why))
+        # The glossary rules that bind every LIVE row bind these rows too.
+        for name, rx, lang, where, scope, allowed, why in FORBIDDEN:
+            if where not in ("live", "all"):
+                continue
+            ok = set() if allowed is None else allowed
+            for key, vals in t.rows.items():
+                if (scope and not re.search(scope, key)) or key in ok:
+                    continue
+                for li, v in enumerate(vals[:2]):
+                    if (lang == "uk" and li != 0) or (lang == "en" and li != 1):
+                        continue
+                    m = re.search(rx, v)
+                    if m:
+                        L.err("glossary", "%s %s.%s «%s» (%s): %s" % (t.name, key, ("uk", "en")[li], m.group(0), name, why))
+        info = os.path.join(folder, "info.gd")
+        if gid != MG_CORE:
+            if not os.path.exists(info):
+                L.err("minigames", "%s: %s missing" % (t.name, os.path.relpath(info, ROOT)))
+                continue
+            src = open(info, encoding="utf8").read()
+            for k in ("title", "tent", "intro", "rules"):
+                m = re.search(r'"%s"\s*:\s*"([A-Z][A-Z0-9_]*)"' % k, src)
+                if not m:
+                    L.err("minigames", "%s: info.gd INFO.%s (a Loc key) missing" % (t.name, k))
+                elif m.group(1) not in t.rows:
+                    L.err("minigames", "%s: INFO.%s key %s is not in its texts.gd" % (t.name, k, m.group(1)))
+            for m in re.finditer(r'"name"\s*:\s*"([A-Z][A-Z0-9_]*)"', src):
+                if m.group(1) not in t.rows:
+                    L.err("minigames", "%s: cosmetic name key %s is not in its texts.gd" % (t.name, m.group(1)))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--baseline", help="git ref whose STRINGS the shipped table must equal outside the heroes block")
@@ -832,9 +922,12 @@ def main() -> int:
     check_names(L, live, "LIVE")
     check_doc(L, live)
     check_coverage(L, live)
-    check_code(L, shipped)
+    mg = minigame_tables()
+    mg_rows = {k: v for _, _, t in mg for k, v in t.rows.items()}
+    check_minigames(L, mg, shipped, live, heroes_keys)
+    check_code(L, {**shipped, **mg_rows})
     check_tables(L, shipped, heroes_keys)
-    check_fonts(L, [("SHIPPED", shipped), ("LIVE", overlay.rows)])
+    check_fonts(L, [("SHIPPED", shipped), ("LIVE", overlay.rows)] + [(t.name, t.rows) for _, _, t in mg])
     if a.baseline:
         check_baseline(L, a.baseline, shipped, heroes_keys)
 
@@ -844,9 +937,10 @@ def main() -> int:
     for e in L.errors:
         print(e)
     n_chars = len({c for vals in live.values() for v in vals for c in v})
-    print("LOC_LINT %s: %d keys shipped (%d in the heroes block), %d overlay rows, %d distinct characters, "
-          "%d errors%s" % ("PASS" if not L.errors else "FAIL", len(shipped), len(heroes_keys - set(overlay.rows)),
-                           len(overlay.rows), n_chars, len(L.errors),
+    print("LOC_LINT %s: %d keys shipped (%d in the heroes block), %d overlay rows, %d mini-game rows in %d tables, "
+          "%d distinct characters, %d errors%s" % ("PASS" if not L.errors else "FAIL", len(shipped),
+                                                   len(heroes_keys - set(overlay.rows)), len(overlay.rows), len(mg_rows),
+                                                   len(mg), n_chars, len(L.errors),
                            (" (" + ", ".join("%s %d" % kv for kv in sorted(L.counts.items())) + ")") if L.errors else ""))
     return 1 if L.errors else 0
 

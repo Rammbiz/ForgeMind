@@ -16,7 +16,8 @@ class_name Roster
 const KIND_HERO := "hero"
 const KIND_CHAMPION := "champion"
 ## got.via values that count for the hero Feats (§3.6): every copy earned by play. "guest" never owns.
-const EARNED_VIA: Array[String] = ["start", "progress", "portal", "seal", "chest", "migration"]
+## "fair": a Кварц–Аметист character a Fair mini-game or story granted (MinigamesMeta.grant_character).
+const EARNED_VIA: Array[String] = ["start", "progress", "portal", "seal", "chest", "migration", "fair"]
 ## Hero-system unlock ids (HeroData.UNLOCK_AT keys).
 const SYSTEMS: Array[String] = ["champions", "portal", "seer", "skills", "workshop", "slot3"]
 

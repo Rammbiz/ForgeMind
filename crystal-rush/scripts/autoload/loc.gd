@@ -1420,6 +1420,10 @@ const HEROES_LIVE := {
 
 
 var lang := "uk"
+## Rows merged in at startup from feature-owned tables (the Fair's mini-games: scripts/minigames/<id>/texts.gd,
+## installed by MinigameRegistry.install_texts()), so their owners never edit this file. A merged row never
+## replaces a STRINGS key; tools/loc_lint.py lints these tables with the same rules.
+var _extra := {}
 
 
 func _ready() -> void:
@@ -1430,6 +1434,21 @@ func _ready() -> void:
 	if wanted == "":
 		wanted = "uk" if OS.get_locale_language() == "uk" else "en"
 	set_language(wanted, false)
+	MinigameRegistry.install_texts()
+
+
+## Merges `rows` ({KEY: [uk, en]}) into the table. Keys STRINGS already has are skipped (never shadowed). Returns
+## the keys that were skipped.
+func add_rows(rows: Dictionary) -> Array[String]:
+	var skipped: Array[String] = []
+	for k in rows:
+		var key := str(k)
+		var row: Variant = rows[k]
+		if STRINGS.has(key) or not row is Array or (row as Array).size() < LANGS.size():
+			skipped.append(key)
+			continue
+		_extra[key] = row
+	return skipped
 
 
 func set_language(code: String, persist := true) -> void:
@@ -1451,14 +1470,16 @@ func t(key: String) -> String:
 		row = HEROES_LIVE[key]
 	elif STRINGS.has(key):
 		row = STRINGS[key]
+	elif _extra.has(key):
+		row = _extra[key]
 	else:
 		return key
 	return row[maxi(LANGS.find(lang), 0)]
 
 
-## True when `key` has a row (STRINGS; the HEROES_LIVE overlay only renames STRINGS rows).
+## True when `key` has a row (STRINGS or a merged table; the HEROES_LIVE overlay only renames STRINGS rows).
 func has(key: String) -> bool:
-	return STRINGS.has(key)
+	return STRINGS.has(key) or _extra.has(key)
 
 
 ## «із» / «з» before a gem's genitive (part U §6.1): "із Кварцу", "із Сапфіру", "з Аметисту",

@@ -243,6 +243,24 @@ const TRACK := {"step": 10, "cycle": [["coins", 0], ["coins", 0], ["cache", "sto
 		"coins_base": 100, "coins_per_frontier": 10, "wild_L_at": [150, 300, 450]}
 const ROAD := {"chapters": 12, "tiers": 10, "xp_per_tier": 100, "xp_win": 5, "wins_per_day": 20}
 
+# ------------------------------------------------------------------ Fair mini-games (docs/design/minigames/README.md)
+
+## The Fair's mini-game reward rules (side_content_ideas.md «Рішення власника (11.10.2026)»; the budget and why
+## is in docs/design/minigames/README.md «Rewards»). Per game and local day: `rewarded_per_day` rewarded WINS,
+## then one more reward after a player-started rewarded ad (`ad_per_day`); free plays without a reward forever.
+## Every game's own table (scripts/minigames/<id>/info.gd REWARDS) must stay under these caps (test_minigames):
+##   coins_3star_max   coins of a 3-star rewarded play at frontier 1 (scaled like the daily mission coins, so a
+##                     3-star play is worth <= 0.63 of a daily mission at every frontier)
+##   coins_day_missions the whole Fair pays at most this many daily missions' coins in one local day (a heavy player
+##                     who clears every game adds <= 6 missions a day, never a second campaign)
+##   road_xp_play_max  Road XP of one rewarded play (= one counted campaign win, ROAD.xp_win)
+##   road_xp_day_cap   Road XP the whole Fair can give in one local day (= one daily mission, DAILY.road_xp)
+##   ore_per_game_max  one-time Star Ore of one game over all its star tiers (= one Weekly 5/5)
+##   ore_coins         coins paid per Star Ore while the hero systems are off (side_content_ideas.md «Спільні
+##                     правила»: until the heroes, ore in rewards is paid as coins)
+const FAIR := {"rewarded_per_day": 3, "ad_per_day": 1, "coins_3star_max": 40, "coins_day_missions": 6,
+		"road_xp_play_max": 5, "road_xp_day_cap": 40, "ore_per_game_max": 10, "ore_coins": 25}
+
 
 ## What one Road node pays (arsenal_design.md §8.3; Road is Meta-3 data until road.gd ships):
 ## {cur, n}. From the heroes phase the paid lane (`road_premium`) pays no Gems (heroes_design.md §7.7,
@@ -449,6 +467,15 @@ static func mission_coins(frontier: int) -> int:
 	return int(DAILY["coins_base"]) + int(DAILY["coins_per_frontier"]) * frontier
 
 
+## Coins of a Fair mini-game reward whose table value is `base` (written at frontier 1), at campaign
+## `frontier`: scaled like the daily mission coins, rounded to 5.
+static func fair_coins(base: int, frontier: int) -> int:
+	if base <= 0:
+		return 0
+	var k := float(mission_coins(mini(maxi(1, frontier), ArsenalData.CAMPAIGN_LEVELS))) / float(mission_coins(1))
+	return maxi(5, int(round(float(base) * k / 5.0)) * 5)
+
+
 ## Unlock entry by id ({} when unknown) in the rows of the current phase (unlocks()).
 static func unlock_entry(id: String) -> Dictionary:
 	for u: Dictionary in unlocks():
@@ -571,6 +598,9 @@ static func fresh_account() -> Dictionary:
 		"pity": {"since_epic": 0, "since_leg": 0, "leg_welcome_done": false},
 		"vault": {"caches": [], "stone_total": 0, "hero_chests": []},
 		"daily": {}, "track": {}, "expedition": {},
+		# Fair mini-games (MinigamesMeta.SECTION; schema MinigamesMeta.SCHEMA, docs/design/minigames/README.md).
+		"fair": {"v": 1, "day": 0, "today": {}, "ads": {}, "xp_day": 0, "coins_day": 0, "road_xp": 0, "games": {},
+				"cosmetics": [], "chars": []},
 		"counters": {}, "feats": {},
 		"unlocks": {"done": [], "pending": [], "session_count": 0},
 		"shop": {"entitlements": {}},

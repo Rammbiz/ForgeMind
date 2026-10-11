@@ -170,8 +170,12 @@ func draw_ground(ci: CanvasItem) -> void:
 	var pts := _shape()
 	var tex := UIKit.kit_texture("card_" + gem)
 	if tex:
-		ci.draw_colored_polygon(pts, Color.WHITE)
-		ci.draw_texture_rect(tex, Rect2(Vector2.ZERO, size), false)
+		# The painted ground is an opaque rectangle: map it onto the chamfered card shape, so its corners never
+		# show outside the 45-degree cuts (and the clip mask the art uses is the chamfer, not the rectangle).
+		var uvs := PackedVector2Array()
+		for p in pts:
+			uvs.append(p / Vector2(maxf(size.x, 1.0), maxf(size.y, 1.0)))
+		ci.draw_colored_polygon(pts, Color.WHITE, uvs, tex)
 		return
 	var top: Color = g["top"]
 	var bot: Color = g["bot"]

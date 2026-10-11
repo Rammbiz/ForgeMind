@@ -476,7 +476,7 @@ keeps three). The sim's policy buys pages only from Tomes above a reserve of
 
 ### 3.6 Hero Feats (new rows; earned copies only; F-42 Overdrive and F-49 Glory retire)
 
-| id | Feat (uk / en) | Counter (counts only `got.via ∈ {start, progress, portal, seal, chest, migration}`) | Tiers | Reward per tier |
+| id | Feat (uk / en) | Counter (counts only `got.via ∈ {start, progress, portal, seal, chest, migration, fair}`) | Tiers | Reward per tier |
 |---|---|---|---|---|
 | F-61 | Герої в колекції / Heroes collected | heroes owned | 4 / 7 / 10 | 2 / 4 / 8 Tomes |
 | F-62 | Огранки / Recuts | recuts (heroes + champions) | 1 / 6 / 20 | 2 / 4 / 8 Tomes |
@@ -2854,7 +2854,7 @@ wallet     {... Meta-1 keys, beacons: int, tomes: int, ore: int, beacon_charge: 
 heroes     {<id>: {owned, lvl (own), gem "C".."M", facets 0..5, frags,
                    skills {ult, attack, rally, awakened (0 = sealed)}, skills_peak {ult, attack, rally, awakened},
                    loadout {weapon, armour, charm}, skin, boss_wins, seen, chronicle 0..5,
-                   got {t, via: "start|progress|portal|seal|chest|migration|guest"}}}
+                   got {t, via: "start|progress|portal|seal|chest|migration|guest|fair"}}}
 champions  {level, roster {<id>: {owned, gem, facets, frags, seen, got}}}
 team       {hero, champions [], presets [{hero, champions}] x3, preset}
 summon     {seals, since_e, since_l, total, focus {gem: id}, history [≤ 100], welcome_done}

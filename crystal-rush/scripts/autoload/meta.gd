@@ -1688,6 +1688,60 @@ func finish_run(result: Dictionary) -> Dictionary:
 	return bundle
 
 
+# ======================================================================== Fair mini-games
+
+## The Fair's mini-games (docs/design/minigames/README.md; rules MinigamesMeta, games MinigameRegistry). Every
+## call books on the account and saves before it returns (dev runs never write). Day = the device's LOCAL day.
+
+## Game `id` now: {rewarded_left, rewarded_per_day, ad_left, mode ("rewarded" | "free"), best_score, best_stars,
+## plays, wins, starts}.
+func fair_status(id: String) -> Dictionary:
+	return MinigamesMeta.status(account, id, _now(), MinigamesMeta.system_bias())
+
+
+## A play of `id` begins (MinigameShell calls it before the intro card): {seed, mode, start}. Counted and saved,
+## so quitting and reopening deals a new board.
+func fair_begin(id: String) -> Dictionary:
+	var out := MinigamesMeta.begin(account, id, _now(), MinigamesMeta.system_bias())
+	save()
+	return out
+
+
+## Books a finished play (`result` from MinigameGame.finished, `mode` the play started in) and saves BEFORE the
+## result panel shows. Returns MinigamesMeta.book()'s bundle ({ok false, reason "save"} after a failed write).
+func fair_book(id: String, result: Dictionary, mode: String) -> Dictionary:
+	var rw := MinigameRegistry.rewards(id)
+	return _transact(func() -> Dictionary:
+		return MinigamesMeta.book(account, id, result, mode, rw, _now(), MinigamesMeta.system_bias()))
+
+
+## A rewarded ad finished for the latest play of `id` (number `play_n` from fair_book): its one ad reward of the day.
+func fair_book_ad(id: String, result: Dictionary, play_n: int) -> Dictionary:
+	var rw := MinigameRegistry.rewards(id)
+	return _transact(func() -> Dictionary:
+		return MinigamesMeta.book_ad(account, id, result, play_n, rw, _now(), MinigamesMeta.system_bias()))
+
+
+## Hook (no game uses it yet): a Fair game grants character `char_id` (Кварц–Аметист joins, Топаз / Опал only
+## fragments; live phase only). `game_id` goes to the telemetry.
+func fair_grant_character(game_id: String, char_id: String) -> Dictionary:
+	var res := _transact(func() -> Dictionary: return MinigamesMeta.grant_character(account, char_id, _now()))
+	if bool(res.get("ok", false)):
+		note("fair_character", {"game": game_id, "id": char_id, "joined": bool(res.get("joined", false))})
+		_changed(char_id)
+	return res
+
+
+## Owned Fair cosmetics (titles, card frames, card backs), oldest first.
+func fair_cosmetics() -> Array[String]:
+	return MinigamesMeta.cosmetics(account)
+
+
+## Road XP the Fair banked for the Road (arsenal_design.md §8.3; the Road reads it once it ships).
+func fair_road_xp() -> int:
+	return int(MinigamesMeta.section(account)["road_xp"])
+
+
 # ======================================================================== settings and telemetry
 
 func setting(key: String, default: Variant = null) -> Variant:
