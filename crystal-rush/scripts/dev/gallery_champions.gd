@@ -135,7 +135,7 @@ func _make_play(ids: Array) -> Node:
 ## The planner's path for `ids` (best_path with that team's profile).
 func _plan(ids: Array) -> PackedFloat32Array:
 	var prof := KP.profile_of(KP.account_with(level, hero, ids), level, hero)
-	var bp: Dictionary = LevelSim.best_path(KP.level_of(level), hero, Balance.START_ARMY, {"profile": prof,
+	var bp: Dictionary = LevelSim.best_path(KP.level_of(level, prof), hero, Balance.START_ARMY, {"profile": prof,
 			"candidates": PLAN_CANDIDATES})
 	return bp["path"]
 

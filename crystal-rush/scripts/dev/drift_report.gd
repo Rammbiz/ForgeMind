@@ -406,10 +406,10 @@ func _ready() -> void:
 	print("  %-4s %-5s %-2s %-2s | %-5s | %6s %6s %6s | %s %6s | %5s %5s %5s %5s | %s" % ["lvl", "hero", "pt", "sd",
 			"W r/s", "run", "own", "rc", " ".join(head), "x mach", "bar", "rotor", "sweep", "turr", "flags"])
 	for level in levels:
-		var lv0 := KP.level_of(level)
 		for hero in heroes:
 			var t1 := Time.get_ticks_msec()
 			var prof := KP.profile_of(KP.account(level, hero, "none"), level, hero)
+			var lv0 := KP.level_of(level, prof)
 			var bp: Dictionary = LevelSim.best_path(lv0, hero, Balance.START_ARMY, {"profile": prof,
 					"candidates": cands})
 			var path: PackedFloat32Array = bp["path"]
@@ -462,10 +462,10 @@ func _case(level: int, hero: String, k: int, path: PackedFloat32Array, path_id: 
 	var res: Dictionary = await _drive(run, path, first)
 	var crates := KP.run_crates(run)
 	# LevelSim: its own draws (the self-check against LevelSim.simulate), then the Run's crates and the toggles.
-	var lv_own := KP.level_of(level)
+	var lv_own := KP.level_of(level, prof)
 	var own_x := Ctx.new()
 	var own := _sim(lv_own, hero, path, prof, {}, own_x)
-	var ref := LevelSim.simulate(KP.level_of(level), hero, Balance.START_ARMY, path, {"profile": prof})
+	var ref := LevelSim.simulate(KP.level_of(level, prof), hero, Balance.START_ARMY, path, {"profile": prof})
 	var self_ok := ref.t == own.t and ref.d == own.d and ref.army == own.army and ref.kills == own.kills \
 			and ref.hazard_deaths == own.hazard_deaths and ref.army_at_fortress == own.army_at_fortress \
 			and ref.mode == own.mode
@@ -489,7 +489,7 @@ func _case(level: int, hero: String, k: int, path: PackedFloat32Array, path_id: 
 			var before := "rc" if togs.size() == 1 else "c_" + CHAIN[CHAIN.find("mach") - 1]
 			var mk := ((reps[before] as Array)[1] as Ctx).machine_kills()
 			x.mach_k = clampf(run_mach / mk, 0.0, 3.0) if mk >= MACH_MIN else 1.0
-		var lv := KP.level_of(level)
+		var lv := KP.level_of(level, prof)
 		reps[name] = [_sim(lv, hero, path, prof, crates, x), x]
 	var rc_s: LevelSim.State = (reps["rc"] as Array)[0]
 	var rc_x: Ctx = (reps["rc"] as Array)[1]
