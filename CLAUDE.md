@@ -97,6 +97,10 @@ All paths below are from the repo root.
   `version/name` and `version/code` in `crystal-rush/export_presets.cfg` (now 2.3.0 / 7). Never commit keystores or passwords.
 
 ## State of play (update this section when it changes)
+- **PAUSED 2026-10-11 ~08:55 by the owner.** Every paused thread (team idle hint, H3b, wave 10, 14 Fair mini-games +
+  Bastion + Sich cards, side content part 1) with its worktree, commits and next step: `crystal-rush/docs/design/pause_2026-10-11.md`.
+  Do not delete `.claude/worktrees/*` until those are merged. Specs approved: `side_part1_fair_spec.md`; `world_bosses_spec.md`
+  (owner answers 1-8, questions 9-15 pending). Mini-game framework is merged (c737b45).
 - Done: Taras, Snaryad, Dovbush (champions), Sirko, Olha (heroes), prompts page, art tools.
 - **UI v3 "porcelain glass" + the «Порцеляна» key button are IN this branch** (merge c65e6a2: hub, Heroes, Portal restyle;
   `UITokens.CTA_STYLE = "porcelain"`, `--cta=ink|amber` only for dev comparisons). Spec: `crystal-rush/docs/design/ui_v3_spec.md`.
