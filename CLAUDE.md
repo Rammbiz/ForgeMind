@@ -20,8 +20,9 @@ All paths below are from the repo root.
   none if none are given). No model names anywhere else: commit text, PR text, code comments, docs.
 
 ## Secrets and git
-- Never ask for keys or tokens in chat and never write one into a repo file. The repo is PUBLIC. The root `.env` is tracked: never
-  add keys to it and never print it; tell the owner once that the Telegram token in it should be rotated. Keys go into Windows user
+- Never ask for keys or tokens in chat and never write one into a repo file. The repo is PUBLIC. The root `.env` is no longer tracked
+  (2026-10-15, e2f8d32; `.gitignore` keeps it, `files/`, `.claude/` out). Never print it; the old Telegram token stays in
+  git history, so the owner was told to rotate it (and `main` on GitHub still tracks `.env` unless they said to untrack it). Keys go into Windows user
   environment variables that the owner sets themselves (then restarts the Claude app). Never create a variable named
   `ANTHROPIC_API_KEY` (Claude Code would switch to API-key login).
 - Branch `ccr-ea3be44f-lbour0`. A cloud session works on the same branch. Start with `git fetch`, `git status`, `git pull --ff-only`;
