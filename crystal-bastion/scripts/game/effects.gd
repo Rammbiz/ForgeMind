@@ -7,6 +7,7 @@ var _lightning: Array = []   # [{mesh: MeshInstance3D, t: float, life: float}]
 var _rings: Array = []       # [{node, t, life, from, to}]
 var _flashes: Array = []     # [{node, t, life, from, to}]
 var _coins: Array = []       # [{node, t, vel}]
+var _spikes: Array = []      # [{node, rot, t, life}]
 
 
 func _process(delta: float) -> void:
@@ -34,6 +35,17 @@ func _process(delta: float) -> void:
 			if k >= 1.0:
 				n.queue_free()
 				arr.remove_at(i)
+	for i in range(_spikes.size() - 1, -1, -1):
+		var sp: Dictionary = _spikes[i]
+		sp["t"] += delta
+		var k: float = sp["t"] / sp["life"]
+		var n: Node3D = sp["node"]
+		var up := smoothstep(0.0, 0.12, k) * (1.0 - smoothstep(0.6, 1.0, k))
+		var thin := 1.0 - 0.4 * smoothstep(0.6, 1.0, k)
+		n.basis = (sp["rot"] as Basis) * Basis.from_scale(Vector3(thin, maxf(up, 0.01), thin))
+		if k >= 1.0:
+			n.queue_free()
+			_spikes.remove_at(i)
 	for i in range(_coins.size() - 1, -1, -1):
 		var c: Dictionary = _coins[i]
 		c["t"] += delta
@@ -102,6 +114,32 @@ func ring(pos: Vector3, color: Color, radius := 1.0, life := 0.45) -> void:
 	_rings.append({"node": mi, "t": 0.0, "life": life, "from": 0.1, "to": radius, "alpha": 0.9})
 
 
+## Glowing crystal spikes bursting out of the ground at `points` (leaning away from
+## `center`), then sinking back.
+func crystal_spikes(points: Array[Vector3], center: Vector3, color: Color) -> void:
+	var mat := Mats.glow(color, 0.55)
+	for i in points.size():
+		var p := points[i]
+		var out := Vector3(p.x - center.x, 0.0, p.z - center.z)
+		out = out.normalized() if out.length_squared() > 1e-6 else Vector3.FORWARD
+		var tilt := Basis(Vector3.UP.cross(out).normalized(), 0.45)
+		# A big spike with a smaller one beside it.
+		for k in 2:
+			var h := (1.0 + 0.12 * float((i * 7) % 4)) * (1.0 if k == 0 else 0.6)
+			var mi := MeshInstance3D.new()
+			mi.mesh = Mats.crystal(0.17 if k == 0 else 0.11, h)
+			mi.material_override = mat
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var side := out.cross(Vector3.UP) * (0.0 if k == 0 else 0.18 * (1.0 if i % 2 == 0 else -1.0))
+			mi.position = p + side + Vector3(0, 0.05, 0)
+			var rot := tilt * Basis(Vector3.UP, float(i * 37 % 6)) * Basis(Vector3.RIGHT, 0.25 * k)
+			mi.basis = rot * Basis.from_scale(Vector3(1.0, 0.01, 1.0))
+			add_child(mi)
+			_spikes.append({"node": mi, "rot": rot, "t": -0.04 * k, "life": 1.0})
+		if i % 3 == 0:
+			burst(p + Vector3(0, 0.1, 0), Color(0.5, 0.44, 0.38), 6, 2.2, 0.1, 0.5, -6.0, false)
+
+
 func explosion(pos: Vector3, radius: float) -> void:
 	flash(pos + Vector3(0, 0.15, 0), Color(1.0, 0.65, 0.25), radius * 0.9, 0.3)
 	ring(Vector3(pos.x, pos.y, pos.z), Color(1.0, 0.7, 0.35), radius, 0.4)
@@ -166,8 +204,8 @@ func upgrade_fx(pos: Vector3, color: Color) -> void:
 	get_tree().create_timer(1.3, false).timeout.connect(p.queue_free)
 
 
-## Jagged lightning through the given points.
-func lightning(points: Array[Vector3], color: Color, life := 0.18, width := 0.05) -> void:
+## Jagged lightning through the given points (with a spark at each unless `sparks` is off).
+func lightning(points: Array[Vector3], color: Color, life := 0.18, width := 0.05, sparks := true) -> void:
 	if points.size() < 2:
 		return
 	var im := ImmediateMesh.new()
@@ -196,8 +234,9 @@ func lightning(points: Array[Vector3], color: Color, life := 0.18, width := 0.05
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	_lightning.append({"mesh": mi, "t": 0.0, "life": life})
-	for p in points:
-		burst(p, color, 5, 1.4, 0.06, 0.25, -2.0)
+	if sparks:
+		for p in points:
+			burst(p, color, 5, 1.4, 0.06, 0.25, -2.0)
 
 
 func _ribbon(im: ImmediateMesh, a: Vector3, b: Vector3, w: float, cam_pos: Vector3, col: Color) -> void:

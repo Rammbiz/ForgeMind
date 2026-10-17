@@ -1,0 +1,238 @@
+<title>Арт-промти Кришталевого Ривка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; a porcelain ledger of prompt cards grouped by character, gem-coloured marks, a sticky section bar. */
+:root {
+  --bg: #F4EEE2;         /* porcelain ground */
+  --panel: #FBF7EF;      /* raised plate */
+  --well: #EFE7D8;       /* prompt well */
+  --ink: #3F4859;        /* slate ink */
+  --ink-dim: #6B6458;
+  --gold: #C9A86A;       /* the game's hairline */
+  --gold-text: #8A6A2F;
+  --amber: #E8962E;      /* key verb */
+  --amber-ink: #3B2508;
+  --ok: #3E8A5B;
+  --quartz: #B9C4CF; --sapphire: #3FA9FF; --amethyst: #9B5BEA; --topaz: #FFB52E; --opal: #1A1530;
+  --f-display: "M PLUS Rounded 1c", "Nunito", "Segoe UI", system-ui, sans-serif;
+  --f-body: "M PLUS Rounded 1c", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #16141D; --panel: #1F1C28; --well: #26222F; --ink: #ECE5D8; --ink-dim: #B5AC9C;
+  --gold: #8F7A4E; --gold-text: #D9B877; --amber: #F2A93B; --amber-ink: #2A1A05; --ok: #6FC08C;
+  --quartz: #C9D2DB; --opal: #8C7CC9; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #16141D; --panel: #1F1C28; --well: #26222F; --ink: #ECE5D8; --ink-dim: #B5AC9C;
+  --gold: #8F7A4E; --gold-text: #D9B877; --amber: #F2A93B; --amber-ink: #2A1A05; --ok: #6FC08C;
+  --quartz: #C9D2DB; --opal: #8C7CC9; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-weight: 500; font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 64px; }
+h1, h2, h3, h4, h5 { font-family: var(--f-display); text-wrap: balance; line-height: 1.25; }
+h1 { font-size: 28px; font-weight: 800; margin: 8px 0 4px; }
+.lede { color: var(--ink-dim); margin: 0 0 18px; max-width: 62ch; }
+h2.sec { scroll-margin-top: 64px; font-size: 21px; font-weight: 800; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gold); }
+code { font-family: var(--f-mono); font-size: 0.88em; background: var(--well); padding: 1px 5px; border-radius: 3px; word-break: break-word; }
+a { color: var(--gold-text); }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--gold); display: flex; gap: 6px; overflow-x: auto; padding-block: 8px; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
+.bar a { flex: none; text-decoration: none; color: var(--ink); font-weight: 700; font-size: 13.5px; padding: 6px 11px; border: 1px solid var(--gold); clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); background: var(--panel); }
+.bar .total { margin-left: auto; flex: none; align-self: center; font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; padding-left: 8px; }
+
+.start { background: var(--panel); border: 1px solid var(--gold); padding: 16px 18px; display: grid; gap: 10px; }
+.start ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.start .tool { font-size: 13.5px; color: var(--ink-dim); border-top: 1px solid var(--gold); padding-top: 10px; }
+
+.batch { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 6px; }
+.batch li { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); padding: 8px 10px; min-width: 0; }
+.batch a { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 8px; text-decoration: none; color: var(--ink); }
+.bname { font-weight: 700; }
+.bkind { color: var(--ink-dim); font-size: 13px; white-space: nowrap; }
+.bstate { width: 18px; text-align: center; color: var(--ok); font-weight: 800; }
+
+details.char { scroll-margin-top: 64px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent); margin-bottom: 8px; }
+details.char > summary { cursor: pointer; list-style: none; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "mark name prog" "mark meta prog"; column-gap: 12px; align-items: center; padding: 12px 14px; }
+details.char > summary::-webkit-details-marker { display: none; }
+details.char > summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+details.char[open] > summary { border-bottom: 1px solid var(--gold); }
+.gemmark { grid-area: mark; width: 22px; height: 22px; background: var(--gem, var(--quartz)); clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+.gem-quartz { --gem: var(--quartz); } .gem-sapphire { --gem: var(--sapphire); } .gem-amethyst { --gem: var(--amethyst); }
+.gem-topaz { --gem: var(--topaz); } .gem-opal { --gem: conic-gradient(from 30deg, #ff6b9a, #ffd36b, #7dffb2, #6bc8ff, #b88bff, #ff6b9a); }
+.gem-amethyst .gemmark { clip-path: polygon(50% 4%, 100% 92%, 0 92%); }
+.gem-sapphire .gemmark { clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%); }
+.gem-quartz .gemmark { border-radius: 50%; clip-path: none; }
+.gem-topaz .gemmark { clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+.gem-opal .gemmark { clip-path: polygon(50% 0, 85% 50%, 50% 100%, 15% 50%); }
+.cname { grid-area: name; min-width: 0; font-size: 17px; }
+.ctitle { color: var(--ink-dim); font-size: 14px; font-weight: 500; }
+.cmeta { grid-area: meta; color: var(--ink-dim); font-size: 13px; min-width: 0; }
+.cprog { grid-area: prog; font-size: 13px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cprog.full { color: var(--ok); font-weight: 800; }
+.cbody { padding: 4px 14px 16px; min-width: 0; }
+.cbody h3, .cbody h4, .cbody h5 { font-size: 16px; margin: 18px 0 6px; }
+.cbody p { margin: 10px 0; max-width: 68ch; }
+.cbody ul, .cbody ol { padding-left: 20px; }
+.tablewrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+th, td { border-bottom: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { font-weight: 700; color: var(--gold-text); white-space: nowrap; }
+hr { border: 0; border-top: 1px solid var(--gold); margin: 18px 0; }
+
+.prompt { scroll-margin-top: 64px; background: var(--well); border-left: 2px solid var(--gem, var(--gold)); margin: 10px 0 16px; min-width: 0; }
+.ptools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px; border-bottom: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+.plabel { flex: 1 1 200px; font-weight: 700; font-size: 13.5px; min-width: 0; }
+.done { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; }
+.done input { width: 18px; height: 18px; accent-color: var(--ok); }
+.copy { font-family: var(--f-display); font-weight: 800; font-size: 14px; color: var(--amber-ink); background: var(--amber); border: 0; padding: 9px 16px; min-height: 40px; cursor: pointer; clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
+.copy:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.copy.ok { background: var(--ok); color: #fff; }
+.prompt pre { margin: 0; padding: 10px 12px 12px; white-space: pre-wrap; word-break: break-word; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.5; max-height: 420px; overflow: auto; }
+.prompt.isdone { opacity: 0.72; }
+.prompt.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { box-shadow: 0 0 0 3px var(--amber); } to { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .prompt.flash { animation: none; } }
+.ref { margin: 4px 0 0; display: grid; grid-template-columns: minmax(0, 150px) 1fr; gap: 12px; align-items: start; }
+.ref img { width: 100%; height: auto; border: 1px solid var(--gold); background: #BFBFBF; }
+.ref figcaption { font-size: 13.5px; color: var(--ink-dim); min-width: 0; }
+.ref.big { grid-template-columns: minmax(0, 220px) 1fr; margin: 12px 0; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 104px), 1fr)); gap: 8px; }
+.gal { display: grid; gap: 4px; text-decoration: none; color: var(--ink); font-weight: 700; font-size: 13px; text-align: center; min-width: 0; }
+.gal img, .art img { width: 100%; height: auto; aspect-ratio: 768 / 1376; object-fit: cover; background: #BFBFBF; border: 1px solid var(--gold); display: block; }
+.artrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr)); gap: 10px; margin: 12px 0 4px; max-width: 420px; }
+.art { margin: 0; display: grid; gap: 4px; }
+.art figcaption { font-size: 12.5px; color: var(--ink-dim); text-align: center; }
+.got { font-size: 13.5px; font-weight: 700; color: var(--ok); }
+.bstate.got { color: var(--ok); }
+.note { font-size: 13.5px; color: var(--ink-dim); }
+</style>
+
+<div class="wrap">
+  <h1>Арт-промти Кришталевого Ривка</h1>
+  <p class="lede">Усі {{NPROMPTS}} {{NPROMPTS_WORD}} для героїв, чемпіонів і спільних речей. Кожен промт повний: формат, роздільність, сірий фон <code>#BFBFBF</code>, порожній лівий верх, колір кристалів і список «уникати». Натисни «Копіювати» і встав у генератор без змін. Готові картинки просто надсилай у чат, перейменовувати не треба.</p>
+
+  <nav class="bar" aria-label="Розділи">
+    <a href="#start" data-goto="start">Почни тут</a><a href="#done" data-goto="done">Готові</a><a href="#batchA" data-goto="batchA">Партія A</a><a href="#heroes" data-goto="heroes">Герої</a><a href="#champs" data-goto="champs">Чемпіони</a><a href="#shared" data-goto="shared">Спільне</a><a href="#guide" data-goto="guide">Як генерувати</a><a href="#order" data-goto="order">Порядок</a>
+    <span class="total" id="total"></span>
+  </nav>
+
+  <h2 class="sec" id="start">Почни тут</h2>
+  <div class="start">
+    <ol>
+      <li><strong>Сплеші героїв: {{NGOT}} з {{NHEROES}} готові, картки чемпіонів: {{NGOTC}} з {{NCHAMPS}}</strong> (галерея нижче). Лишилось {{MISSING}}.</li>
+      <li><strong>Картки чемпіонів ({{NCHAMPS}})</strong>, тільки 2D. Першими Отто, Альба й Міла: вони раніше за інших вийдуть у забіг. Як референс стилю прикріплюй нову Весту з галереї «Готові сплеші» (натисни й утримуй, щоб зберегти).</li>
+      <li><strong>Потім 3D для Отто, Альби й Міли</strong> (листи для Meshy у їхніх розділах). Решта йде за розділом «Порядок».</li>
+    </ol>
+    <p class="tool">Генератор: Gemini «Nano Banana Pro» (AI Studio або Gemini), сплеш 9:16 у 4K, картка 3:4 у 2K–4K, 2–4 варіанти. Один чат на персонажа. Завантажуй оригінал кнопкою «Завантажити» (PNG), не скріншот. <strong>Перейменовувати файли не треба:</strong> просто надсилай картинки в чат, я сам впізнаю, хто це і що це, і назву файли. Назви біля промтів тільки для мене. Якщо генератор щось проігнорував, не правь промт, а напиши в тому ж чаті коротку правку (список у «Як генерувати», пункт 1.5).</p>
+  </div>
+
+  <h2 class="sec" id="done">Готовий арт · герої {{NGOT}} з {{NHEROES}} · чемпіони {{NGOTC}} з {{NCHAMPS}}</h2>
+  <p class="note">Уже в грі: Зала героїв, Вітрина, виходи з Порталу. Лишилось: {{MISSING}}. Тапни героя, щоб відкрити його розділ; щоб зберегти картинку на телефон, натисни й утримуй її.</p>
+  <div class="gallery">{{GALLERY}}</div>
+
+  <h2 class="sec" id="batchA">Партія A · {{NBATCH}} зображень</h2>
+  <p class="note">Тапни ім'я, щоб відкрити промт. Галочка «Готово» біля промту зберігається тільки в цьому браузері.</p>
+  <ul class="batch">{{BATCH}}</ul>
+
+  <h2 class="sec" id="heroes">Герої · 10</h2>
+  {{HEROES}}
+
+  <h2 class="sec" id="champs">Чемпіони · 12</h2>
+  {{CHAMPS}}
+
+  <h2 class="sec" id="shared">Спільне: значки, валюти, Портал, фони, спорядження, реліквії</h2>
+  {{SHARED}}
+
+  <h2 class="sec" id="guide">Як генерувати</h2>
+  <details class="char"><summary><span class="cname"><b>Біблія стилю, палітри, пози, налаштування, що надсилати</b></span></summary><div class="cbody">{{GUIDE}}</div></details>
+
+  <h2 class="sec" id="order">Порядок і чекліст</h2>
+  <details class="char"><summary><span class="cname"><b>Повний порядок генерації (8 кроків) і чеклісти</b></span></summary><div class="cbody">{{ORDER}}</div></details>
+  <details class="char"><summary><span class="cname"><b>Що вже вирішено за замовчуванням</b></span></summary><div class="cbody">{{OPEN}}</div></details>
+</div>
+
+<script>
+(function () {
+  var INDEX = {{INDEX}};
+  var KEY = 'crystal-rush-art-done-v1';
+  var done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { done = {}; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {} }
+
+  function refresh() {
+    var n = 0, per = {};
+    INDEX.forEach(function (p) {
+      var d = !!done[p.id] || !!p.got;
+      if (d) n++;
+      per[p.char] = per[p.char] || [0, 0];
+      per[p.char][1]++; if (d) per[p.char][0]++;
+      var box = document.getElementById(p.id);
+      if (box) box.classList.toggle('isdone', d);
+      var st = document.querySelector('[data-state="' + p.id + '"]');
+      if (st && !p.got) st.textContent = d ? '✓' : '';
+    });
+    document.querySelectorAll('[data-prog]').forEach(function (el) {
+      var v = per[el.getAttribute('data-prog')];
+      if (!v) { el.textContent = ''; return; }
+      el.textContent = v[0] + ' / ' + v[1];
+      el.classList.toggle('full', v[0] === v[1]);
+    });
+    document.getElementById('total').textContent = 'Готово ' + n + ' з ' + INDEX.length;
+  }
+
+  document.querySelectorAll('[data-done]').forEach(function (cb) {
+    var id = cb.getAttribute('data-done');
+    cb.checked = !!done[id];
+    cb.addEventListener('change', function () { if (cb.checked) done[id] = 1; else delete done[id]; save(); refresh(); });
+  });
+
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = document.querySelector('#' + btn.getAttribute('data-copy') + ' pre');
+      var txt = pre.textContent;
+      function ok() { btn.textContent = 'Скопійовано'; btn.classList.add('ok'); setTimeout(function () { btn.textContent = 'Копіювати'; btn.classList.remove('ok'); }, 1600); }
+      function fallback() {
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent = 'Виділено: скопіюй вручну';
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(ok, fallback);
+      } else { fallback(); }
+    });
+  });
+
+  function jump(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var d = el.closest('details');
+    while (d) { d.open = true; d = d.parentElement ? d.parentElement.closest('details') : null; }
+    el.scrollIntoView({ block: 'start' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  }
+  // In-page navigation is done in script: some hosts (htmlpreview) rewrite plain #anchor links into
+  // links to the raw file, so a bare href would leave the page.
+  document.querySelectorAll('[data-goto]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var el = document.getElementById(a.getAttribute('data-goto'));
+      if (el) el.scrollIntoView({ block: 'start' });
+    });
+  });
+  document.querySelectorAll('[data-open]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var d = document.getElementById(a.getAttribute('data-open'));
+      if (d) { d.open = true; d.scrollIntoView({ block: 'start' }); }
+    });
+  });
+  document.querySelectorAll('[data-jump]').forEach(function (a) {
+    a.addEventListener('click', function (e) { e.preventDefault(); jump(a.getAttribute('data-jump')); });
+  });
+  if (/^#p\d+$/.test(location.hash)) jump(location.hash.slice(1));
+  else if (location.hash && document.querySelector(location.hash + '.char')) document.querySelector(location.hash).open = true;
+  refresh();
+})();
+</script>

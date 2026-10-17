@@ -22,6 +22,10 @@ var enemies_root: Node3D
 var towers_root: Node3D
 var projectiles_root: Node3D
 var enemies: Array[Enemy] = []
+var heroes: Array[Hero] = []
+var heroes_root: Node3D
+var selected_hero: Hero
+var _hero_prompt := ""
 var towers := {}               # Vector2i -> Tower
 var gold := 0
 var lives := 0
@@ -49,7 +53,7 @@ func setup(index: int) -> void:
 
 
 func _ready() -> void:
-	level = GameData.get_level(level_index)
+	level = Arena.prepare_level(GameData.get_level(level_index))
 	quality_high = Save.quality == "high"
 	gold = int(level["start_gold"])
 	lives = int(level["lives"])
@@ -63,13 +67,15 @@ func _ready() -> void:
 	map.name = "Map"
 	add_child(map)
 	map.build(level, quality_high)
-	for n in ["Towers", "Enemies", "Projectiles"]:
+	for n in ["Towers", "Enemies", "Heroes", "Projectiles"]:
 		var node := Node3D.new()
 		node.name = n
 		add_child(node)
 	towers_root = $Towers
 	enemies_root = $Enemies
+	heroes_root = $Heroes
 	projectiles_root = $Projectiles
+	_spawn_heroes()
 	effects = Effects.new()
 	effects.name = "Effects"
 	effects.quality_high = quality_high
@@ -341,6 +347,92 @@ func enemies_in_radius(pos: Vector3, radius: float, air: bool, ground: bool) -> 
 	return out
 
 
+# ------------------------------------------------------------------ heroes
+
+## Both heroes start on the main path just in front of the crystal.
+## (`--noheroes` leaves them out, for measuring tower/wave balance alone.)
+func _spawn_heroes() -> void:
+	if map.curves.is_empty() or "--noheroes" in OS.get_cmdline_user_args():
+		return
+	var curve: Curve3D = map.curves[0]
+	var length: float = map.path_lengths[0]
+	for i in GameData.HERO_ORDER.size():
+		var type: String = GameData.HERO_ORDER[i]
+		var at := curve.sample_baked(maxf(length - 1.6 - 1.5 * i, 0.0))
+		at.y = map.ground_y(at)
+		var h := Hero.new()
+		h.name = "Hero_" + type
+		h.setup(self, type, at)
+		heroes_root.add_child(h)
+		heroes.append(h)
+
+
+## The hero drawn under a screen point (generous radius for fingers), or null.
+func hero_at_screen(screen_pos: Vector2, radius := 56.0) -> Hero:
+	var best: Hero = null
+	var best_d := radius
+	for h in heroes:
+		if not h.alive:
+			continue
+		var p := cam.world_to_screen(h.global_position + Vector3(0, 0.6, 0))
+		var d := p.distance_to(screen_pos)
+		if d < best_d:
+			best_d = d
+			best = h
+	return best
+
+
+func select_hero(h: Hero) -> void:
+	hud.close_menus()
+	deselect_hero()
+	if h == null or not h.alive:
+		return
+	selected_hero = h
+	h.selected = true
+	Audio.play("click", -6.0)
+	_hero_prompt = Loc.f("HERO_PICK_SPOT", [Loc.t(h.def["name"])])
+	hud.toast(_hero_prompt, h.color.lightened(0.35), 2.5)
+
+
+func deselect_hero() -> void:
+	if selected_hero == null:
+		return
+	if is_instance_valid(selected_hero):
+		selected_hero.selected = false
+	selected_hero = null
+	hud.hide_toast_text(_hero_prompt)
+
+
+## Heroes stand on open ground or the path, never in water, on trees, rocks, towers or the crystal.
+func can_post_hero(c: Vector2i) -> bool:
+	return str(map.cells.get(c, "")) in [".", "#", "S"] and not towers.has(c)
+
+
+## Sends the selected hero to a tapped ground point.
+func _command_selected_hero(ground: Vector3) -> void:
+	var h := selected_hero
+	deselect_hero()
+	if not h.alive or not can_post_hero(map.world_to_cell(ground)):
+		hud.toast(Loc.t("HERO_CANT_GO"))
+		Audio.play("error")
+		return
+	h.command_move(ground)
+	effects.ring(Vector3(ground.x, map.ground_y(ground), ground.z), h.color, 0.45, 0.4)
+	Audio.play("click", -4.0)
+
+
+func use_hero_ability(h: Hero) -> void:
+	if h == null or not h.use_ability():
+		Audio.play("error")
+
+
+func use_hero_ult(h: Hero) -> void:
+	if h == null or not h.use_ult():
+		Audio.play("error")
+		return
+	hud.toast(Loc.t(h.ult["name"]), h.color.lightened(0.4), 1.4)
+
+
 # ------------------------------------------------------------------ economy & towers
 
 func add_gold(amount: int, earned := true) -> void:
@@ -489,7 +581,7 @@ func hide_cursor() -> void:
 
 func show_range(pos: Vector3, radius: float, color := Color(0.6, 0.9, 1.0)) -> void:
 	_range_ring.visible = true
-	_range_ring.position = Vector3(pos.x, 0.05, pos.z)
+	_range_ring.position = Vector3(pos.x, pos.y + 0.05, pos.z)
 	_range_ring.scale = Vector3(radius, 1.0, radius)
 	(_range_ring.material_override as ShaderMaterial).set_shader_parameter("tint", color)
 
@@ -543,6 +635,24 @@ func world_tap(screen_pos: Vector2) -> void:
 		return
 	var ground := cam.screen_to_ground(screen_pos)
 	var c := map.world_to_cell(ground)
+	# A tap on a tower or a free build tile only picks a hero when it lands right on it.
+	var on_cell := towers.has(c) or can_build(c)
+	var tapped_hero := hero_at_screen(screen_pos, 26.0 if on_cell else 56.0)
+	if selected_hero:
+		if tapped_hero == selected_hero:
+			deselect_hero()
+			return
+		if tapped_hero:
+			select_hero(tapped_hero)
+			return
+		if not towers.has(c):
+			_command_selected_hero(ground)
+			return
+		# Tapping a tower while a hero waits for orders opens the tower instead.
+		deselect_hero()
+	elif tapped_hero:
+		select_hero(tapped_hero)
+		return
 	if towers.has(c):
 		Audio.play("click", -6.0)
 		hud.open_tower_panel(towers[c])

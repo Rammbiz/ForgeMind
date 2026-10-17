@@ -58,6 +58,23 @@ func _draw() -> void:
 		draw_rect(Rect2(p - Vector2(w * 0.5, h * 0.5), Vector2(w * ratio, h * 0.4)), Color(1, 1, 1, 0.25))
 		if e.boss:
 			Icons.draw_icon(self, "skull", Rect2(p - Vector2(w * 0.5 + 26.0, 12.0), Vector2(22, 22)), Color(1.0, 0.85, 0.75))
+	for h in game.heroes:
+		if not h.alive:
+			continue
+		var top := h.bar_point()
+		if cam.is_behind(top):
+			continue
+		var hp_ := cam.world_to_screen(top)
+		var hw := 48.0
+		var hh := 7.0
+		var hr := clampf(h.hp / h.max_hp, 0.0, 1.0)
+		var frame := UIKit.GOLD if h.selected else Color(0.02, 0.02, 0.05, 0.8)
+		draw_rect(Rect2(hp_ - Vector2(hw * 0.5 + 2.0, hh * 0.5 + 2.0), Vector2(hw + 4.0, hh + 4.0)), frame)
+		draw_rect(Rect2(hp_ - Vector2(hw * 0.5, hh * 0.5), Vector2(hw, hh)), Color(0.08, 0.08, 0.12, 0.9))
+		var hcol := h.color.lightened(0.25).lerp(Color(1.0, 0.3, 0.25), clampf((0.4 - hr) / 0.4, 0.0, 1.0))
+		draw_rect(Rect2(hp_ - Vector2(hw * 0.5, hh * 0.5), Vector2(hw * hr, hh)), hcol)
+		draw_rect(Rect2(hp_ - Vector2(hw * 0.5, hh * 0.5), Vector2(hw * hr, hh * 0.4)), Color(1, 1, 1, 0.3))
+		Icons.draw_icon(self, "star", Rect2(hp_ - Vector2(hw * 0.5 + 22.0, 10.0), Vector2(18, 18)), h.color.lightened(0.4))
 	for tx in _texts:
 		var k: float = tx["t"] / tx["life"]
 		var pos: Vector2

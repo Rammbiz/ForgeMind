@@ -24,6 +24,9 @@ var slow_time := 0.0
 var hit_flash := 0.0
 var spawn_in := 0.0
 var hp_mult := 1.0
+var atk := 0.0               # damage per second dealt to a blocking hero
+var blocker: Hero = null     # hero holding this enemy in place
+var stun_time := 0.0
 var _curve: Curve3D
 var _model: Node3D
 var _anim_t := 0.0
@@ -51,6 +54,8 @@ func setup(p_game: Game, p_type: String, p_path: int, p_hp_mult: float) -> void:
 	lives_cost = int(def["lives"])
 	size = float(def["size"])
 	color = def["color"]
+	# Hits on heroes grow slower than health so late waves stay fightable.
+	atk = float(def.get("atk", 0.0)) * sqrt(maxf(hp_mult, 0.01))
 	path_index = p_path
 	_curve = game.map.curves[path_index]
 	path_len = game.map.path_lengths[path_index]
@@ -82,14 +87,30 @@ func _process(raw_delta: float) -> void:
 		if slow_time <= 0.0:
 			slow_factor = 1.0
 			_set_frost(false)
-	dist += speed * slow_factor * delta
-	if dist >= path_len:
-		alive = false
-		game.on_enemy_leaked(self)
-		queue_free()
-		return
-	_update_transform(delta)
-	_anim_t += delta * slow_factor
+	if blocker != null and (not is_instance_valid(blocker) or not blocker.alive):
+		blocker = null
+	var anim_speed := slow_factor
+	if stun_time > 0.0:
+		stun_time -= delta
+		anim_speed = 0.0
+		_model.rotation.z = sin(_anim_t * 40.0 + stun_time * 30.0) * 0.08
+		if stun_time <= 0.0:
+			_model.rotation.z = 0.0
+	elif blocker != null:
+		# Held by a hero: stand and fight instead of walking on. (A killing blow makes the
+		# hero release everyone it holds, so keep a local reference.)
+		var hero := blocker
+		_face(hero.global_position, delta)
+		hero.take_damage(atk * delta, self)
+	else:
+		dist += speed * slow_factor * delta
+		if dist >= path_len:
+			alive = false
+			game.on_enemy_leaked(self)
+			queue_free()
+			return
+		_update_transform(delta)
+	_anim_t += delta * anim_speed
 	Models.animate_enemy(_model, _anim_t, slow_factor)
 	if spawn_in > 0.0:
 		spawn_in = maxf(spawn_in - delta, 0.0)
@@ -115,6 +136,18 @@ func _update_transform(delta: float) -> void:
 			_model.rotation.y = yaw
 		else:
 			_model.rotation.y = lerp_angle(_model.rotation.y, yaw, minf(1.0, delta * 10.0))
+
+
+func _face(target: Vector3, delta: float) -> void:
+	var dir := target - global_position
+	if Vector2(dir.x, dir.z).length_squared() > 1e-4:
+		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), minf(1.0, delta * 10.0))
+
+
+## Stops the enemy in place for a moment (bosses shrug it off twice as fast).
+func stun(duration: float) -> void:
+	if alive:
+		stun_time = maxf(stun_time, duration * (0.5 if boss else 1.0))
 
 
 ## Point used for aiming (center of the body).

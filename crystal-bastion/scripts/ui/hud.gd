@@ -40,6 +40,10 @@ var _gold_shown := 0.0
 var _preview: VBoxContainer
 var _preview_key := ""
 var _enemy_icons := {}
+var _hero_btns := {}           # Hero -> RoundButton (portrait: select, ring = health)
+var _ability_btns := {}        # Hero -> RoundButton (super ability, ring = cooldown)
+var _ult_btns := {}            # Hero -> RoundButton (ultimate, ring = charge)
+var _hero_icons := {}
 
 
 func bind(g: Game) -> void:
@@ -58,6 +62,7 @@ func bind(g: Game) -> void:
 	_build_vignette()
 	_build_top_bar()
 	_build_controls()
+	_build_hero_bar()
 	_build_banner()
 	_build_toast()
 	_build_hint()
@@ -183,6 +188,92 @@ func _build_controls() -> void:
 	root.add_child(_preview)
 
 
+func _build_hero_bar() -> void:
+	for h: Hero in game.heroes:
+		var b := RoundButton.new(36.0)
+		b.base_color = Color(0.08, 0.1, 0.18, 0.92)
+		b.ring_color = h.color
+		b.progress_color = UIKit.GREEN
+		b.pressed.connect(_on_hero_pressed.bind(h))
+		root.add_child(b)
+		_hero_btns[h] = b
+		var a := RoundButton.new(26.0)
+		a.icon_kind = str(h.ability["icon"])
+		a.icon_tint = h.color.lightened(0.45)
+		a.base_color = h.color.darkened(0.65)
+		a.ring_color = UIKit.GOLD
+		a.progress_color = h.color.lightened(0.3)
+		a.pressed.connect(_on_ability_pressed.bind(h))
+		root.add_child(a)
+		_ability_btns[h] = a
+		var u := RoundButton.new(26.0)
+		u.icon_kind = str(h.ult["icon"])
+		u.icon_tint = Color(1.0, 0.9, 0.55)
+		u.base_color = Color(0.22, 0.08, 0.3, 0.95)
+		u.ring_color = Color(1.0, 0.55, 0.95)
+		u.progress_color = Color(1.0, 0.6, 0.95)
+		u.pressed.connect(_on_ult_pressed.bind(h))
+		root.add_child(u)
+		_ult_btns[h] = u
+
+
+func _on_hero_pressed(h: Hero) -> void:
+	_hide_hint()
+	if game.selected_hero == h:
+		game.deselect_hero()
+	elif h.alive:
+		game.select_hero(h)
+	else:
+		toast(Loc.f("HERO_RESPAWN", [Loc.t(h.def["name"]), int(ceil(h.respawn_left))]), h.color.lightened(0.3))
+		Audio.play("error")
+
+
+func _on_ability_pressed(h: Hero) -> void:
+	_hide_hint()
+	game.use_hero_ability(h)
+
+
+func _on_ult_pressed(h: Hero) -> void:
+	_hide_hint()
+	game.use_hero_ult(h)
+
+
+func _update_hero_bar() -> void:
+	for h: Hero in _hero_btns:
+		var b: RoundButton = _hero_btns[h]
+		var a: RoundButton = _ability_btns[h]
+		var tex: Texture2D = _hero_icons.get(h.type, null)
+		b.icon_texture = tex
+		if tex == null:
+			b.icon_kind = "star"
+		b.icon_tint = Color.WHITE if tex else h.color
+		b.highlight = h.selected
+		if h.alive:
+			var ratio := clampf(h.hp / h.max_hp, 0.0, 1.0)
+			b.progress = ratio
+			b.progress_color = UIKit.GREEN.lerp(UIKit.RED, clampf((0.6 - ratio) / 0.5, 0.0, 1.0))
+			b.caption = ""
+			b.disabled = false
+		else:
+			b.progress = 1.0 - h.respawn_left / float(h.def["respawn"])
+			b.progress_color = Color(0.6, 0.62, 0.7)
+			b.caption = "%d" % int(ceil(h.respawn_left))
+			b.disabled = true
+		var cd := float(h.ability["cooldown"])
+		a.disabled = not h.can_use_ability()
+		a.progress = 1.0 - h.cooldown / cd if h.cooldown > 0.0 else -1.0
+		a.pulse = h.can_use_ability()
+		var u: RoundButton = _ult_btns[h]
+		var ucd := float(h.ult["cooldown"])
+		u.disabled = not h.can_use_ult()
+		u.progress = 1.0 - h.ult_cooldown / ucd if h.ult_cooldown > 0.0 else -1.0
+		u.highlight = h.can_use_ult()
+		var running := game.is_running()
+		b.visible = running
+		a.visible = running
+		u.visible = running
+
+
 func _build_banner() -> void:
 	_banner = VBoxContainer.new()
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -210,7 +301,7 @@ func _build_hint() -> void:
 	_hint = PanelContainer.new()
 	_hint.theme_type_variation = "TipPanel"
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hint_label = UIKit.label(Loc.t("HINT_BUILD") + "\n" + Loc.t("HINT_START"), 22, UIKit.TEXT)
+	_hint_label = UIKit.label(_hint_text(), 22, UIKit.TEXT)
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_child(_hint_label)
 	root.add_child(_hint)
@@ -220,7 +311,7 @@ func _build_hint() -> void:
 
 func _on_language_changed() -> void:
 	_wave_label.text = Loc.f("WAVE_FMT", [game.wave, game.waves.size()])
-	_hint_label.text = Loc.t("HINT_BUILD") + "\n" + Loc.t("HINT_START")
+	_hint_label.text = _hint_text()
 	_preview_key = ""
 
 
@@ -257,6 +348,17 @@ func _layout_controls() -> void:
 	_toast.position = Vector2((vp.x - _toast.size.x) * 0.5, vp.y * 0.72)
 	_hint.reset_size()
 	_hint.position = Vector2((vp.x - _hint.size.x) * 0.5, bottom - _hint.size.y - 18)
+	var left := _safe.position.x
+	var i := 0
+	for h: Hero in _hero_btns:
+		var b: RoundButton = _hero_btns[h]
+		var a: RoundButton = _ability_btns[h]
+		var x := left + 14.0 + i * 150.0
+		b.position = Vector2(x, bottom - 118)
+		a.position = Vector2(x + 84.0, bottom - 70)
+		# Far enough above the ability that the two touch circles (radius + 10) never overlap.
+		(_ult_btns[h] as RoundButton).position = Vector2(x + 84.0, bottom - 146)
+		i += 1
 
 
 # ------------------------------------------------------------------ per frame
@@ -296,6 +398,7 @@ func _process(delta: float) -> void:
 		_wave_hint.text = ""
 	_wave_btn.visible = game.is_running() and game.wave < game.waves.size()
 	_update_preview(can)
+	_update_hero_bar()
 
 
 ## Shows the composition of the next wave next to the wave button.
@@ -440,7 +543,9 @@ func _notification(what: int) -> void:
 
 
 func _on_back() -> void:
-	if _menu:
+	if game.selected_hero:
+		game.deselect_hero()
+	elif _menu:
 		close_menus()
 	elif _modal and _modal_kind == "settings":
 		_back_to_pause()
@@ -464,6 +569,10 @@ func _on_wave_pressed() -> void:
 	_hide_hint()
 	close_menus()
 	game.start_next_wave()
+
+
+func _hint_text() -> String:
+	return Loc.t("HINT_BUILD") + "\n" + Loc.t("HINT_HEROES") + "\n" + Loc.t("HINT_START")
 
 
 func _hide_hint() -> void:
@@ -532,15 +641,27 @@ func show_banner(title: String, sub := "") -> void:
 	_banner_tween.chain().tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
-func toast(text: String) -> void:
+func toast(text: String, color := UIKit.RED, hold := 1.0) -> void:
 	_toast.text = text
+	_toast.add_theme_color_override("font_color", color)
 	if _toast_tween:
 		_toast_tween.kill()
 	_toast.modulate.a = 1.0
 	_toast_tween = _toast.create_tween()
 	_toast_tween.set_ignore_time_scale(true)
-	_toast_tween.tween_interval(1.0)
+	_toast_tween.tween_interval(hold)
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.4)
+
+
+## Fades the toast out early, but only if it still shows `text` (so newer messages stay).
+func hide_toast_text(text: String) -> void:
+	if text == "" or _toast.text != text or _toast.modulate.a <= 0.0:
+		return
+	if _toast_tween:
+		_toast_tween.kill()
+	_toast_tween = _toast.create_tween()
+	_toast_tween.set_ignore_time_scale(true)
+	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.15)
 
 
 func damage_flash() -> void:
@@ -583,6 +704,18 @@ func _render_tower_icons() -> void:
 		var h := size * (1.2 if etype != "golem" else 2.2)
 		cam2.look_at_from_position(Vector3(0, h + size * 1.6 + 0.2, size * 4.2 + 0.5), Vector3(0, h * 0.55, 0))
 		vps["enemy:" + etype] = vp2
+	for htype: String in GameData.HERO_ORDER:
+		var vp3 := _icon_viewport(128)
+		var hm := Models.hero(htype)
+		hm.rotation_degrees.y = 18.0
+		vp3.add_child(hm)
+		var cam3 := Camera3D.new()
+		cam3.fov = 30.0
+		vp3.add_child(cam3)
+		# Head-and-shoulders framing reads best at button size.
+		var frame: Array = hm.get_meta("portrait")
+		cam3.look_at_from_position(frame[0], frame[1])
+		vps["hero:" + htype] = vp3
 	await RenderingServer.frame_post_draw
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
@@ -592,6 +725,8 @@ func _render_tower_icons() -> void:
 		if img and not img.is_empty():
 			if type.begins_with("enemy:"):
 				_enemy_icons[type.trim_prefix("enemy:")] = ImageTexture.create_from_image(img)
+			elif type.begins_with("hero:"):
+				_hero_icons[type.trim_prefix("hero:")] = ImageTexture.create_from_image(img)
 			else:
 				_icons[type] = ImageTexture.create_from_image(img)
 		vp.queue_free()
@@ -626,6 +761,7 @@ func _icon_viewport(px: int) -> SubViewport:
 func _make_modal() -> PanelContainer:
 	_close_modal()
 	close_menus()
+	game.deselect_hero()
 	_modal = Control.new()
 	_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal.mouse_filter = Control.MOUSE_FILTER_STOP

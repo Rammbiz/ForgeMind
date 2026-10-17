@@ -464,6 +464,574 @@ static func animate_enemy(model: Node3D, t: float, speed_factor: float) -> void:
 				(arms[i] as Node3D).rotation.x = -sin(p + PI * i) * 0.4
 
 
+# ================================================================= heroes
+
+const HERO_DIR := "res://assets/models/heroes/"
+## World height of the sculpted heroes (rigged Meshy models, 1 unit tall in the file).
+const HERO_HEIGHT := {"bolt": 1.35, "titan": 1.45}
+const HERO_STYLE := {"bolt": "speedster", "titan": "giant"}
+## Scale of the procedural stand-ins, used when a hero has no sculpted model.
+const HERO_SCALE := {"bolt": 1.45, "titan": 1.3}
+
+
+## A hero at its in-game size, facing +Z: the sculpted model from assets/models/heroes when
+## there is one (see tools/rig_hero.py), otherwise a procedural stand-in. Metadata: "anim",
+## "bar_y" (health bar height) and "portrait" ([eye, target] for the HUD portrait camera).
+static func hero(type: String) -> Node3D:
+	var path := HERO_DIR + type + ".glb"
+	if ResourceLoader.exists(path):
+		return _rigged_hero(type, path)
+	var m := _instance("hero|" + type, _build_hero.bind(type))
+	var s := float(HERO_SCALE.get(type, 1.0))
+	m.scale = Vector3.ONE * s
+	m.set_meta("bar_y", 1.3 if type == "bolt" else 1.8)
+	if type == "bolt":
+		m.set_meta("portrait", [Vector3(0.05, 0.78, 1.0) * s, Vector3(0, 0.66, 0) * s])
+	else:
+		m.set_meta("portrait", [Vector3(0.05, 1.12, 1.75) * s, Vector3(0, 0.86, 0) * s])
+	return m
+
+
+static func _rigged_hero(type: String, path: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Model"
+	var rig := (load(path) as PackedScene).instantiate() as Node3D
+	var h := float(HERO_HEIGHT.get(type, 1.0))
+	rig.scale = Vector3.ONE * h
+	root.add_child(rig)
+	var sk := rig.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var bones := {}
+	for i in sk.get_bone_count():
+		bones[sk.get_bone_name(i)] = i
+	_tune_hero(rig, Save.quality == "high")
+	root.set_meta("anim", "rig")
+	root.set_meta("style", HERO_STYLE.get(type, "giant"))
+	root.set_meta("skeleton", sk)
+	root.set_meta("bones", bones)
+	root.set_meta("hips_rest", sk.get_bone_rest(bones["hips"]).origin)
+	# Thigh and shin lengths, for keeping the feet on the ground when the legs bend.
+	root.set_meta("leg", Vector2(sk.get_bone_rest(bones["shin.L"]).origin.length(), sk.get_bone_rest(bones["foot.L"]).origin.length()))
+	root.set_meta("state", {"t": -1.0, "move": 0.0, "fight": 0.0})
+	# Head-and-shoulders framing, from where the head sits in the rig file.
+	var head := sk.get_bone_global_rest(bones["head"]).origin * h
+	var face := head + Vector3(0, (0.12 if type == "bolt" else 0.06) * h, 0)
+	root.set_meta("portrait", [face + Vector3(0.05, 0.08, 1.45 if type == "bolt" else 1.6), face])
+	root.set_meta("bar_y", h + 0.12)
+	return root
+
+
+static func _tune_hero(n: Node, quality_high: bool) -> void:
+	if n is MeshInstance3D:
+		var mi := n as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality_high else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for s in mi.mesh.get_surface_count():
+			var src := mi.get_active_material(s) as StandardMaterial3D
+			if src:
+				mi.set_surface_override_material(s, _hero_material(src, quality_high))
+	for ch in n.get_children():
+		_tune_hero(ch, quality_high)
+
+
+static var _hero_mats := {}
+
+
+## The painted Meshy texture already carries the shading; keep it matte with a soft rim so
+## the hero reads against busy arenas.
+static func _hero_material(src: StandardMaterial3D, quality_high: bool) -> StandardMaterial3D:
+	var key := [src, quality_high]
+	if _hero_mats.has(key):
+		return _hero_mats[key]
+	var m := src.duplicate() as StandardMaterial3D
+	m.metallic = 0.0
+	m.roughness = 0.8
+	m.metallic_specular = 0.35
+	m.rim_enabled = true
+	m.rim = 0.35
+	m.rim_tint = 0.6
+	if not quality_high:
+		m.normal_enabled = false
+	_hero_mats[key] = m
+	return m
+
+
+static func _build_hero(type: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Model"
+	match type:
+		"bolt":
+			_speedster(root)
+		"titan":
+			_giant(root)
+	return root
+
+
+## "Блискавка": a cartoon fox speedster. Big head with swept-back ears, white muzzle and
+## big blue eyes, a crimson armour suit with gold chevrons and a winged gold helmet band,
+## white gloves, oversized sneakers and a fluffy tail whose tip glows like a spark.
+static func _speedster(root: Node3D) -> void:
+	var fur := Mats.solid(Color(0.98, 0.45, 0.12), 0.75)
+	var cream := Mats.solid(Color(1.0, 0.94, 0.86), 0.8)
+	var armor := Mats.solid(Color(0.8, 0.07, 0.1), 0.3, 0.35, 0.45)
+	var armor_dark := Mats.solid(Color(0.42, 0.03, 0.06), 0.4, 0.3)
+	var gold := Mats.solid(Color(1.0, 0.78, 0.25), 0.25, 0.8, 0.3)
+	var white := Mats.solid(Color(0.97, 0.97, 1.0), 0.6)
+	var black := Mats.solid(Color(0.05, 0.05, 0.08), 0.4)
+	var iris := Mats.solid(Color(0.15, 0.55, 1.0), 0.3, 0.0, 0.3)
+	var spark := Mats.glow(Color(0.35, 0.85, 1.0), 0.9)
+	var body := Node3D.new()
+	body.name = "Body"
+	root.add_child(body)
+	# Torso: crimson armour with a gold V on the chest, a glowing core and a gold belt.
+	Mats.part(body, Mats.sphere(0.115, 0.27, 14, 8, false), armor, Vector3(0, 0.44, 0))
+	Mats.part(body, Mats.cyl(0.1, 0.098, 0.04, 14, false), gold, Vector3(0, 0.34, 0))
+	for sgn in [-1.0, 1.0]:
+		Mats.part(body, Mats.box(Vector3(0.022, 0.12, 0.02)), gold, Vector3(0.045 * sgn, 0.47, 0.1), Vector3(0, 0, 28 * sgn))
+	Mats.part(body, Mats.sphere(0.022, -1, 8, 4, false), spark, Vector3(0, 0.43, 0.112), Vector3.ZERO, Vector3.ONE, false)
+	# Head.
+	var head := Node3D.new()
+	head.name = "Head"
+	head.position = Vector3(0, 0.72, 0.01)
+	body.add_child(head)
+	Mats.part(head, Mats.sphere(0.155, 0.29, 16, 10, false), fur, Vector3.ZERO)
+	Mats.part(head, Mats.sphere(0.075, 0.09, 12, 6, false), cream, Vector3(0, -0.06, 0.1), Vector3(-10, 0, 0), Vector3(1.0, 1.0, 1.35))
+	Mats.part(head, Mats.sphere(0.022, -1, 8, 4, false), black, Vector3(0, -0.045, 0.2))
+	for sgn in [-1.0, 1.0]:
+		# Big eyes with blue irises and a white glint.
+		Mats.part(head, Mats.sphere(0.045, 0.062, 12, 6, false), white, Vector3(0.058 * sgn, 0.025, 0.122), Vector3(0, 18 * sgn, 0))
+		Mats.part(head, Mats.sphere(0.027, 0.04, 10, 5, false), iris, Vector3(0.056 * sgn, 0.02, 0.152), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(head, Mats.sphere(0.014, -1, 8, 4, false), black, Vector3(0.055 * sgn, 0.02, 0.167), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(head, Mats.sphere(0.007, -1, 6, 3, false), white, Vector3(0.048 * sgn, 0.032, 0.172), Vector3.ZERO, Vector3.ONE, false)
+		# Confident brows.
+		Mats.part(head, Mats.box(Vector3(0.055, 0.014, 0.02)), Mats.solid(Color(0.45, 0.12, 0.05)), Vector3(0.06 * sgn, 0.072, 0.142), Vector3(0, 0, 20 * sgn), Vector3.ONE, false)
+		# Cream cheek fluff.
+		Mats.part(head, Mats.cone(0.04, 0.1, 6), cream, Vector3(0.12 * sgn, -0.07, 0.04), Vector3(0, 0, 100 * sgn), Vector3.ONE, false)
+		# Tall swept-back ears with dark tips.
+		var ear := Node3D.new()
+		ear.position = Vector3(0.085 * sgn, 0.11, -0.02)
+		ear.rotation_degrees = Vector3(-38, 0, -20 * sgn)
+		head.add_child(ear)
+		Mats.part(ear, Mats.cone(0.055, 0.2, 8), fur, Vector3(0, 0.1, 0))
+		Mats.part(ear, Mats.cone(0.03, 0.08, 8), armor_dark, Vector3(0, 0.17, 0.005))
+		# Winged gold helmet band.
+		Mats.part(head, Mats.prism(Vector3(0.03, 0.1, 0.2)), gold, Vector3(0.165 * sgn, 0.05, -0.05), Vector3(-30, 0, 0))
+	Mats.part(head, Mats.torus(0.142, 0.178, 24, 6), armor, Vector3(0, 0.06, -0.01), Vector3(-12, 0, 0), Vector3(1.0, 1.3, 1.0))
+	for i in 3:
+		# Fur tufts swept back over the helmet.
+		Mats.part(head, Mats.cone(0.045, 0.16, 6), fur, Vector3((i - 1) * 0.06, 0.08 - absf(i - 1) * 0.02, -0.12), Vector3(-115, 0, (i - 1) * 18))
+	# Arms with gold bracers and white gloves.
+	var arms: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var sh := Node3D.new()
+		sh.position = Vector3(0.12 * sgn, 0.52, 0)
+		body.add_child(sh)
+		Mats.part(sh, Mats.sphere(0.04, -1, 10, 5, false), armor, Vector3.ZERO, Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(sh, Mats.cyl(0.026, 0.03, 0.17, 10, false), armor, Vector3(0, -0.09, 0), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(sh, Mats.cyl(0.036, 0.034, 0.045, 10, false), gold, Vector3(0, -0.17, 0), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(sh, Mats.sphere(0.042, -1, 10, 5, false), white, Vector3(0, -0.22, 0.005), Vector3.ZERO, Vector3.ONE, false)
+		arms.append(sh)
+	# Legs ending in oversized sneakers.
+	var legs: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var hip := Node3D.new()
+		hip.position = Vector3(0.05 * sgn, 0.33, 0)
+		body.add_child(hip)
+		Mats.part(hip, Mats.cyl(0.036, 0.03, 0.21, 10, false), armor_dark, Vector3(0, -0.1, 0), Vector3.ZERO, Vector3.ONE, false)
+		Mats.part(hip, Mats.sphere(0.062, 0.085, 12, 6, false), armor, Vector3(0, -0.245, 0.045), Vector3.ZERO, Vector3(1.0, 1.0, 1.7), false)
+		Mats.part(hip, Mats.sphere(0.064, 0.03, 12, 4, false), white, Vector3(0, -0.285, 0.045), Vector3.ZERO, Vector3(1.0, 1.0, 1.75), false)
+		Mats.part(hip, Mats.box(Vector3(0.11, 0.02, 0.045)), gold, Vector3(0, -0.235, 0.085), Vector3(0, 0, 0), Vector3.ONE, false)
+		legs.append(hip)
+	# Fluffy tail with a glowing spark tip.
+	var tail := Node3D.new()
+	tail.name = "Tail"
+	tail.position = Vector3(0, 0.36, -0.09)
+	tail.rotation_degrees = Vector3(-55, 0, 0)
+	body.add_child(tail)
+	Mats.part(tail, Mats.sphere(0.06, 0.3, 12, 7, false), fur, Vector3(0, 0.13, 0))
+	Mats.part(tail, Mats.sphere(0.05, 0.11, 10, 5, false), cream, Vector3(0, 0.27, 0))
+	Mats.part(tail, Mats.crystal(0.03, 0.08), spark, Vector3(0, 0.33, 0), Vector3.ZERO, Vector3.ONE, false)
+	root.set_meta("anim", "speedster")
+	root.set_meta("body", body)
+	root.set_meta("head", head)
+	root.set_meta("tail", tail)
+	root.set_meta("arms", arms)
+	root.set_meta("legs", legs)
+
+
+## "Громило": a cartoon stone colossus. Barrel chest with glowing emerald veins, a small
+## stern head sunk between mossy shoulders, crystal clusters on the back, huge rounded
+## fists with gold bracers and short stubby legs. Warm greens and gold keep it apart from
+## the grey, cyan-cored golem enemy.
+static func _giant(root: Node3D) -> void:
+	var stone := Mats.solid(Color(0.46, 0.52, 0.4), 0.9)
+	var stone_dark := Mats.solid(Color(0.3, 0.35, 0.28), 0.9)
+	var moss := Mats.solid(Color(0.34, 0.68, 0.22), 0.95)
+	var gold := Mats.solid(Color(1.0, 0.76, 0.25), 0.25, 0.8, 0.3)
+	var gem := Mats.glow(Color(0.15, 0.95, 0.4), 1.15)
+	var vein := Mats.glow(Color(0.1, 0.85, 0.35), 0.7)
+	var eye := Mats.glow(Color(1.0, 0.8, 0.2), 1.2)
+	var body := Node3D.new()
+	body.name = "Body"
+	root.add_child(body)
+	# Barrel chest and belly.
+	Mats.part(body, Mats.sphere(0.36, 0.58, 14, 8), stone, Vector3(0, 0.74, 0.02), Vector3(12, 0, 0), Vector3(1.1, 1.0, 0.9))
+	Mats.part(body, Mats.sphere(0.25, 0.32, 12, 6), stone_dark, Vector3(0, 0.5, 0.02))
+	Mats.part(body, Mats.cyl(0.25, 0.26, 0.07, 14), gold, Vector3(0, 0.5, 0.02))
+	Mats.part(body, Mats.box(Vector3(0.11, 0.1, 0.05)), gold, Vector3(0, 0.5, 0.27))
+	# Glowing emerald veins across the chest.
+	for v in [[Vector3(-0.12, 0.8, 0.3), 30.0], [Vector3(0.1, 0.74, 0.31), -25.0], [Vector3(0.0, 0.88, 0.27), 80.0]]:
+		Mats.part(body, Mats.box(Vector3(0.17, 0.03, 0.03)), vein, v[0], Vector3(-20, 0, v[1]), Vector3.ONE, false)
+	# Mossy mantle over the shoulders and back crystals.
+	Mats.part(body, Mats.sphere(0.34, 0.2, 14, 6), moss, Vector3(0, 0.98, -0.06), Vector3.ZERO, Vector3(1.15, 1.0, 0.95))
+	for i in 5:
+		Mats.part(body, Mats.crystal(0.065, 0.36 - absf(i - 2) * 0.07), gem, Vector3((i - 2) * 0.12, 1.0, -0.25), Vector3(-35, 0, (i - 2) * 18), Vector3.ONE, false)
+	# Small stern head sunk between the shoulders.
+	var head := Node3D.new()
+	head.name = "Head"
+	head.position = Vector3(0, 1.03, 0.2)
+	body.add_child(head)
+	Mats.part(head, Mats.sphere(0.13, 0.19, 12, 6), stone, Vector3.ZERO, Vector3.ZERO, Vector3(1.15, 1.0, 1.0))
+	# Heavy brow ridge, glowing eyes underneath, a wide jaw with two crystal tusks.
+	Mats.part(head, Mats.box(Vector3(0.25, 0.06, 0.09)), stone_dark, Vector3(0, 0.045, 0.09), Vector3(-10, 0, 0))
+	Mats.part(head, Mats.sphere(0.11, 0.1, 12, 5), stone_dark, Vector3(0, -0.075, 0.06), Vector3.ZERO, Vector3(1.35, 1.0, 1.1))
+	for sgn in [-1.0, 1.0]:
+		Mats.part(head, Mats.box(Vector3(0.05, 0.024, 0.02)), eye, Vector3(0.055 * sgn, 0.0, 0.122), Vector3(0, 0, 8 * sgn), Vector3.ONE, false)
+		Mats.part(head, Mats.crystal(0.018, 0.07), gem, Vector3(0.07 * sgn, -0.06, 0.15), Vector3(-10, 0, 0), Vector3.ONE, false)
+	# Huge arms: rounded shoulders with crystals, thick forearms, gold bracers, big fists.
+	var arms: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var sh := Node3D.new()
+		sh.position = Vector3(0.42 * sgn, 0.92, 0)
+		body.add_child(sh)
+		Mats.part(sh, Mats.sphere(0.16, 0.2, 12, 6), stone, Vector3(0, 0.02, 0))
+		Mats.part(sh, Mats.sphere(0.13, 0.09, 12, 4), moss, Vector3(0, 0.1, 0))
+		for k in 2:
+			Mats.part(sh, Mats.crystal(0.05, 0.22 - k * 0.06), gem, Vector3((0.03 + k * 0.06) * sgn, 0.15, -0.03 + k * 0.05), Vector3(-10, 0, -(20 + k * 25) * sgn), Vector3.ONE, false)
+		Mats.part(sh, Mats.sphere(0.1, 0.32, 10, 6), stone, Vector3(0.02 * sgn, -0.2, 0))
+		Mats.part(sh, Mats.cyl(0.125, 0.125, 0.08, 14), gold, Vector3(0.02 * sgn, -0.34, 0.01))
+		Mats.part(sh, Mats.sphere(0.15, 0.24, 12, 6), stone_dark, Vector3(0.02 * sgn, -0.48, 0.03))
+		arms.append(sh)
+	# Short stubby legs.
+	var legs: Array[Node3D] = []
+	for sgn in [-1.0, 1.0]:
+		var hip := Node3D.new()
+		hip.position = Vector3(0.17 * sgn, 0.38, 0)
+		body.add_child(hip)
+		Mats.part(hip, Mats.sphere(0.12, 0.3, 10, 6), stone_dark, Vector3(0, -0.16, 0))
+		Mats.part(hip, Mats.sphere(0.13, 0.12, 10, 5), stone, Vector3(0, -0.32, 0.05), Vector3.ZERO, Vector3(1.0, 1.0, 1.3))
+		legs.append(hip)
+	root.set_meta("anim", "giant")
+	root.set_meta("body", body)
+	root.set_meta("head", head)
+	root.set_meta("arms", arms)
+	root.set_meta("legs", legs)
+
+
+## Per-frame hero animation. `attack` runs 1 -> 0 over one swing, `ability` and `ult` 1 -> 0
+## over the super moves; `alt` alternates the striking hand and `combat` raises the guard.
+static func animate_hero(model: Node3D, t: float, moving: bool, attack: float, ability := 0.0, ult := 0.0, alt := false, combat := false) -> void:
+	if str(model.get_meta("anim", "")) == "rig":
+		_animate_rig(model, t, moving, attack, ability, ult, alt, combat)
+		return
+	attack = maxf(attack, maxf(ability, ult))
+	var body: Node3D = model.get_meta("body")
+	var arms: Array = model.get_meta("arms")
+	var legs: Array = model.get_meta("legs")
+	var swing := sin(PI * clampf(1.0 - attack, 0.0, 1.0)) if attack > 0.0 else 0.0
+	match str(model.get_meta("anim", "")):
+		"speedster":
+			var tail: Node3D = model.get_meta("tail")
+			var head: Node3D = model.get_meta("head")
+			if moving:
+				var p := t * 22.0
+				body.position.y = absf(sin(p)) * 0.035
+				body.rotation.x = 0.45
+				head.rotation.x = -0.35
+				tail.rotation.x = deg_to_rad(-85.0) + sin(p * 0.5) * 0.12
+				for i in 2:
+					(legs[i] as Node3D).rotation.x = sin(p + PI * i) * 1.2
+					(arms[i] as Node3D).rotation.x = 0.9 + sin(p + PI * i) * 0.25
+			else:
+				var p := t * 3.0
+				body.position.y = sin(p) * 0.012
+				body.rotation.x = 0.05
+				head.rotation.x = 0.0
+				head.rotation.z = sin(p * 0.5) * 0.05
+				tail.rotation.x = deg_to_rad(-50.0) + sin(p) * 0.08
+				tail.rotation.z = sin(p * 0.7) * 0.25
+				for i in 2:
+					(legs[i] as Node3D).rotation.x = 0.0
+					(arms[i] as Node3D).rotation.x = -0.15 + sin(p + i) * 0.05
+				if attack > 0.0:
+					# Flurry of punches, alternating hands.
+					var punch := sin(attack * TAU * 2.0)
+					(arms[0] as Node3D).rotation.x = -1.6 * maxf(punch, 0.0) - 0.15
+					(arms[1] as Node3D).rotation.x = -1.6 * maxf(-punch, 0.0) - 0.15
+		"giant":
+			var p := t * (5.0 if moving else 1.6)
+			body.position.y = absf(sin(p)) * (0.05 if moving else 0.015)
+			body.rotation.z = sin(p) * (0.06 if moving else 0.02)
+			for i in 2:
+				(legs[i] as Node3D).rotation.x = sin(p + PI * i) * (0.45 if moving else 0.0)
+				(arms[i] as Node3D).rotation.x = -sin(p + PI * i) * (0.35 if moving else 0.08) - 2.4 * swing
+			body.rotation.x = 0.25 * swing
+
+
+## Rigged heroes: bone rotations (degrees, about the model's own axes, since every rest
+## rotation is identity) are blended from layered poses. Everything is a function of time
+## plus a little smoothed state kept on the model, so the rig needs no animation clips.
+static func _animate_rig(model: Node3D, t: float, moving: bool, attack: float, ability: float, ult: float, alt: bool, combat: bool) -> void:
+	var sk: Skeleton3D = model.get_meta("skeleton")
+	var bones: Dictionary = model.get_meta("bones")
+	var st: Dictionary = model.get_meta("state")
+	var dt := clampf(t - float(st["t"]), 0.0, 0.1)
+	st["t"] = t
+	st["move"] = move_toward(float(st["move"]), 1.0 if moving else 0.0, dt * 7.0)
+	st["fight"] = move_toward(float(st["fight"]), 1.0 if combat and not moving else 0.0, dt * 4.0)
+	var pose := {}
+	# x: extra hip height (bobs, jumps), y: how much the standing-leg contact applies.
+	var lift: Vector2
+	if str(model.get_meta("style")) == "speedster":
+		lift = _pose_speedster(pose, t, float(st["move"]), float(st["fight"]), attack, ability, ult, alt)
+	else:
+		lift = _pose_giant(pose, t, float(st["move"]), float(st["fight"]), attack, ability, ult, alt)
+	var hips_y := lift.x + _leg_contact(pose, model.get_meta("leg")) * lift.y
+	for bname: String in bones:
+		var e: Vector3 = pose.get(bname, Vector3.ZERO)
+		sk.set_bone_pose_rotation(bones[bname], Quaternion.from_euler(e * (PI / 180.0)))
+	sk.set_bone_pose_position(bones["hips"], (model.get_meta("hips_rest") as Vector3) + Vector3(0, hips_y, 0))
+
+
+## How far the hips must drop so the straighter leg still reaches the ground (<= 0).
+static func _leg_contact(pose: Dictionary, leg: Vector2) -> float:
+	var reach := 0.0
+	for s in ["L", "R"]:
+		var thigh: Vector3 = pose.get("thigh." + s, Vector3.ZERO)
+		var shin: Vector3 = pose.get("shin." + s, Vector3.ZERO)
+		var spread := cos(deg_to_rad(thigh.z))
+		reach = maxf(reach, (leg.x * cos(deg_to_rad(thigh.x)) + leg.y * cos(deg_to_rad(thigh.x + shin.x))) * spread)
+	return reach - leg.x - leg.y
+
+
+## Adds `part` (bone -> Euler degrees) to `pose` with weight `w`.
+static func _mix(pose: Dictionary, w: float, part: Dictionary) -> void:
+	if w <= 0.0:
+		return
+	for k: String in part:
+		pose[k] = (pose.get(k, Vector3.ZERO) as Vector3) + (part[k] as Vector3) * w
+
+
+## Moves the bones named in `part` towards it by `w`, leaving the others as they are.
+static func _lean(pose: Dictionary, w: float, part: Dictionary) -> void:
+	if w <= 0.0:
+		return
+	for k: String in part:
+		pose[k] = (pose.get(k, Vector3.ZERO) as Vector3).lerp(part[k], w)
+
+
+## Moves the whole body towards `part` by `w` (bones it does not name go back to rest).
+static func _override(pose: Dictionary, w: float, part: Dictionary) -> void:
+	if w <= 0.0:
+		return
+	for k: String in pose.keys():
+		if not part.has(k):
+			pose[k] = (pose[k] as Vector3) * (1.0 - w)
+	_lean(pose, w, part)
+
+
+## 0 -> 1 -> 0 envelope of a move that runs `v` from 1 to 0 over `0..1` of its time.
+static func _env(v: float, rise: float, fall: float) -> float:
+	var u := 1.0 - v
+	return smoothstep(0.0, rise, u) * (1.0 - smoothstep(fall, 1.0, u))
+
+
+## Thunderfox: relaxed sway, a boxer's guard in a fight, a lean "swept-arms" sprint, quick
+## alternating jabs, a crouched launch for the dash and a spinning storm stance for the ult.
+static func _pose_speedster(pose: Dictionary, t: float, move: float, fight: float, attack: float, ability: float, ult: float, alt: bool) -> Vector2:
+	var b := sin(t * 2.4)
+	var still := 1.0 - move
+	var lift := 0.0
+	var contact := still
+	_mix(pose, still * (1.0 - fight), {
+		"spine": Vector3(2.0 + b, 0, 0), "chest": Vector3(b * 1.5, 0, 0),
+		"head": Vector3(-2.0, sin(t * 0.7) * 9.0, sin(t * 0.9) * 3.0),
+		"upperarm.L": Vector3(4, 0, -32.0 + b), "upperarm.R": Vector3(4, 0, 32.0 - b),
+		"forearm.L": Vector3(-18, 0, 0), "forearm.R": Vector3(-18, 0, 0),
+		"tail1": Vector3(12.0 + b * 3.0, sin(t * 1.3) * 12.0, 0),
+		"tail2": Vector3(0, sin(t * 1.3 - 0.6) * 12.0, 0),
+		"tail3": Vector3(0, sin(t * 1.3 - 1.2) * 14.0, 0),
+		"tail4": Vector3(0, sin(t * 1.3 - 1.8) * 16.0, 0),
+	})
+	var hop := sin(t * 7.0)
+	_mix(pose, still * fight, {
+		"spine": Vector3(8, 0, 0), "chest": Vector3(4.0 + hop, -10, 0), "head": Vector3(-8, 8, 0),
+		"upperarm.L": Vector3(-28, 0, -40), "upperarm.R": Vector3(-34, 0, 40),
+		"forearm.L": Vector3(-105, 0, 0), "forearm.R": Vector3(-95, 0, 0),
+		"thigh.L": Vector3(-16, 0, -3), "shin.L": Vector3(20, 0, 0), "foot.L": Vector3(-4, 0, 0),
+		"thigh.R": Vector3(10, 0, 3), "shin.R": Vector3(14, 0, 0), "foot.R": Vector3(-24, 0, 0),
+		"tail1": Vector3(28, sin(t * 3.0) * 10.0, 0), "tail2": Vector3(6, sin(t * 3.0 - 0.7) * 10.0, 0),
+		"tail3": Vector3(4, sin(t * 3.0 - 1.4) * 12.0, 0), "tail4": Vector3(0, sin(t * 3.0 - 2.1) * 14.0, 0),
+	})
+	lift += still * fight * absf(hop) * 0.006
+	if move > 0.0:
+		var p := t * 17.0
+		var run := {
+			"hips": Vector3(0, -sin(p) * 8.0, 0), "spine": Vector3(18, 0, 0), "chest": Vector3(8, sin(p) * 10.0, 0),
+			"neck": Vector3(-8, 0, 0), "head": Vector3(-18, 0, sin(p) * 3.0),
+			"upperarm.L": Vector3(70.0 + sin(p) * 6.0, 0, -12), "upperarm.R": Vector3(70.0 - sin(p) * 6.0, 0, 12),
+			"forearm.L": Vector3(-12, 0, 0), "forearm.R": Vector3(-12, 0, 0),
+			"hand.L": Vector3(15, 0, 0), "hand.R": Vector3(15, 0, 0),
+			"tail1": Vector3(55, sin(p * 0.5) * 8.0, 0), "tail2": Vector3(5, sin(p * 0.5 - 0.7) * 10.0, 0),
+			"tail3": Vector3(5, sin(p * 0.5 - 1.4) * 12.0, 0), "tail4": Vector3(0, sin(p * 0.5 - 2.1) * 14.0, 0),
+		}
+		for side in [["L", p], ["R", p + PI]]:
+			var ph: float = side[1]
+			run["thigh." + side[0]] = Vector3(-55.0 * sin(ph) - 12.0, 0, 0)
+			run["shin." + side[0]] = Vector3(12.0 + 85.0 * maxf(cos(ph), 0.0), 0, 0)
+			run["foot." + side[0]] = Vector3(25.0 * maxf(cos(ph), 0.0), 0, 0)
+		_mix(pose, move, run)
+		lift += move * (absf(sin(p)) * 0.035 - 0.012)
+	if attack > 0.0 and still > 0.0:
+		# A quick straight jab, hands alternating; the chest twists into it.
+		var e := sin(PI * clampf((1.0 - attack) * 1.4, 0.0, 1.0)) * still
+		var s := "R" if alt else "L"
+		var sgn := -1.0 if alt else 1.0
+		_lean(pose, e, {
+			"upperarm." + s: Vector3(-85, -8.0 * sgn, -37.0 * sgn), "forearm." + s: Vector3(-5, 0, 0),
+			"hand." + s: Vector3(0, 0, 0),
+		})
+		_mix(pose, e, {"chest": Vector3(0, -22.0 * sgn, 0), "spine": Vector3(6, 0, 0)})
+	if ability > 0.0:
+		# Dash: a crouched sprinter's launch with the arms swept back.
+		var w := _env(ability, 0.15, 0.55)
+		_override(pose, w, {
+			"spine": Vector3(35, 0, 0), "chest": Vector3(12, 0, 0), "neck": Vector3(-10, 0, 0), "head": Vector3(-30, 0, 0),
+			"upperarm.L": Vector3(85, 0, -15), "upperarm.R": Vector3(85, 0, 15),
+			"forearm.L": Vector3(-5, 0, 0), "forearm.R": Vector3(-5, 0, 0),
+			"thigh.L": Vector3(-55, 0, 0), "shin.L": Vector3(95, 0, 0), "foot.L": Vector3(-40, 0, 0),
+			"thigh.R": Vector3(45, 0, 0), "shin.R": Vector3(35, 0, 0), "foot.R": Vector3(-50, 0, 0),
+			"tail1": Vector3(70, 0, 0), "tail2": Vector3(8, 0, 0), "tail3": Vector3(8, 0, 0), "tail4": Vector3(8, 0, 0),
+		})
+		lift *= 1.0 - w
+		contact = lerpf(contact, 1.0, w)
+	if ult > 0.0:
+		# Storm: running the vortex, leaning hard into the turn (the hero moves the model
+		# around the circle; this is the body).
+		var w := _env(ult, 0.06, 0.9)
+		var p := t * 20.0
+		var storm := {
+			"spine": Vector3(24, 0, 14), "chest": Vector3(8, 0, 6), "head": Vector3(-20, -15, 0),
+			"upperarm.L": Vector3(75, 0, -5), "upperarm.R": Vector3(75, 0, 5),
+			"forearm.L": Vector3(-10, 0, 0), "forearm.R": Vector3(-10, 0, 0),
+			"tail1": Vector3(70, -20, 0), "tail2": Vector3(5, -15, 0), "tail3": Vector3(5, -15, 0), "tail4": Vector3(0, -10, 0),
+		}
+		for side in [["L", p], ["R", p + PI]]:
+			var ph: float = side[1]
+			storm["thigh." + side[0]] = Vector3(-60.0 * sin(ph) - 12.0, 0, 0)
+			storm["shin." + side[0]] = Vector3(12.0 + 90.0 * maxf(cos(ph), 0.0), 0, 0)
+			storm["foot." + side[0]] = Vector3(25.0 * maxf(cos(ph), 0.0), 0, 0)
+		_override(pose, w, storm)
+		lift = lerpf(lift, absf(sin(p)) * 0.03 - 0.012, w)
+		contact *= 1.0 - w
+	return Vector2(lift, contact)
+
+
+## Stone guardian: heavy breathing, a low brawler's stance in a fight, a rolling stomp,
+## alternating hammer fists, a two-fisted ground slam and a leaping quake for the ult.
+static func _pose_giant(pose: Dictionary, t: float, move: float, fight: float, attack: float, ability: float, ult: float, alt: bool) -> Vector2:
+	var b := sin(t * 1.5)
+	var still := 1.0 - move
+	var lift := 0.0
+	var contact := still
+	_mix(pose, still * (1.0 - fight), {
+		"spine": Vector3(3.0 + b * 1.5, 0, 0), "chest": Vector3(b * 2.0, 0, 0),
+		"head": Vector3(-3, sin(t * 0.45) * 12.0, 0),
+		"upperarm.L": Vector3(6, 0, -12.0 + b), "upperarm.R": Vector3(6, 0, 12.0 - b),
+		"forearm.L": Vector3(-12, 0, 0), "forearm.R": Vector3(-12, 0, 0),
+	})
+	lift += still * (1.0 - fight) * b * 0.005
+	_mix(pose, still * fight, {
+		"spine": Vector3(10, 0, 0), "chest": Vector3(6.0 + b * 2.0, 0, 0), "head": Vector3(-10, 0, 0),
+		"upperarm.L": Vector3(-25, 0, -8), "upperarm.R": Vector3(-25, 0, 8),
+		"forearm.L": Vector3(-40, 0, 0), "forearm.R": Vector3(-40, 0, 0),
+		"thigh.L": Vector3(-14, 0, -4), "shin.L": Vector3(20, 0, 0), "foot.L": Vector3(-6, 0, 0),
+		"thigh.R": Vector3(-14, 0, 4), "shin.R": Vector3(20, 0, 0), "foot.R": Vector3(-6, 0, 0),
+	})
+	if move > 0.0:
+		var p := t * 6.2
+		var walk := {
+			"hips": Vector3(0, sin(p) * 5.0, sin(p) * 4.0), "spine": Vector3(6, 0, 0),
+			"chest": Vector3(2, -sin(p) * 7.0, -sin(p) * 3.0), "head": Vector3(-4, sin(p) * 3.0, 0),
+		}
+		for side in [["L", p, -1.0], ["R", p + PI, 1.0]]:
+			var ph: float = side[1]
+			var thigh := -26.0 * sin(ph) - 4.0
+			var shin := 6.0 + 34.0 * maxf(cos(ph), 0.0)
+			walk["thigh." + side[0]] = Vector3(thigh, 0, 0)
+			walk["shin." + side[0]] = Vector3(shin, 0, 0)
+			walk["foot." + side[0]] = Vector3(-(thigh + shin) * 0.6, 0, 0)
+			walk["upperarm." + side[0]] = Vector3(22.0 * sin(ph), 0, 10.0 * side[2])
+			walk["forearm." + side[0]] = Vector3(-15.0 - 10.0 * maxf(-sin(ph), 0.0), 0, 0)
+		_mix(pose, move, walk)
+		lift += move * (absf(sin(p)) * 0.022 - 0.012)
+	if attack > 0.0 and still > 0.0:
+		# Hammer fist, hands alternating: up, down, then back into the stance.
+		var u := 1.0 - attack
+		var up := smoothstep(0.0, 0.16, u) * (1.0 - smoothstep(0.16, 0.3, u))
+		var down := smoothstep(0.16, 0.3, u) * (1.0 - smoothstep(0.55, 1.0, u))
+		var s := "R" if alt else "L"
+		var sgn := -1.0 if alt else 1.0
+		_lean(pose, up * still, {"upperarm." + s: Vector3(-140, 0, 8.0 * sgn), "forearm." + s: Vector3(-60, 0, 0)})
+		_lean(pose, down * still, {"upperarm." + s: Vector3(-35, 0, -10.0 * sgn), "forearm." + s: Vector3(-5, 0, 0)})
+		_mix(pose, still, {"spine": Vector3(-10.0 * up + 18.0 * down, 0, 0), "chest": Vector3(0, -15.0 * sgn * (up + down), 0)})
+	if ability > 0.0:
+		# Slam: both fists overhead, then down into the ground (the hit lands at SLAM_WINDUP).
+		var u := 1.0 - ability
+		var up := smoothstep(0.0, 0.3, u) * (1.0 - smoothstep(0.3, 0.42, u))
+		var down := smoothstep(0.3, 0.42, u) * (1.0 - smoothstep(0.65, 1.0, u))
+		_override(pose, up, {
+			"spine": Vector3(-14, 0, 0), "chest": Vector3(-10, 0, 0), "head": Vector3(-18, 0, 0),
+			"upperarm.L": Vector3(-125, 0, 12), "upperarm.R": Vector3(-125, 0, -12),
+			"forearm.L": Vector3(-45, 0, 0), "forearm.R": Vector3(-45, 0, 0),
+		})
+		_override(pose, down, {
+			"spine": Vector3(26, 0, 0), "chest": Vector3(12, 0, 0), "head": Vector3(8, 0, 0),
+			"upperarm.L": Vector3(-40, 0, -22), "upperarm.R": Vector3(-40, 0, 22),
+			"forearm.L": Vector3(-5, 0, 0), "forearm.R": Vector3(-5, 0, 0),
+			"thigh.L": Vector3(-30, 0, -6), "shin.L": Vector3(40, 0, 0), "foot.L": Vector3(-10, 0, 0),
+			"thigh.R": Vector3(-30, 0, 6), "shin.R": Vector3(40, 0, 0), "foot.R": Vector3(-10, 0, 0),
+		})
+		lift = lerpf(lerpf(lift, 0.03, up), 0.0, down)
+		contact = maxf(contact, maxf(up, down))
+	if ult > 0.0:
+		# Quake: crouch, leap with the fists raised, crash down (at QUAKE_WINDUP), then hold the
+		# crouch while the crystal waves roll out.
+		var u := 1.0 - ult
+		var crouch := smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.08, 0.14, u))
+		var air := smoothstep(0.08, 0.16, u) * (1.0 - smoothstep(0.24, 0.3, u))
+		var land := smoothstep(0.24, 0.3, u) * (1.0 - smoothstep(0.7, 1.0, u))
+		_override(pose, crouch, {
+			"spine": Vector3(20, 0, 0), "upperarm.L": Vector3(30, 0, -10), "upperarm.R": Vector3(30, 0, 10),
+			"thigh.L": Vector3(-40, 0, -6), "shin.L": Vector3(55, 0, 0), "foot.L": Vector3(-15, 0, 0),
+			"thigh.R": Vector3(-40, 0, 6), "shin.R": Vector3(55, 0, 0), "foot.R": Vector3(-15, 0, 0),
+		})
+		_override(pose, air, {
+			"spine": Vector3(-16, 0, 0), "chest": Vector3(-10, 0, 0), "head": Vector3(-20, 0, 0),
+			"upperarm.L": Vector3(-150, 0, 20), "upperarm.R": Vector3(-150, 0, -20),
+			"forearm.L": Vector3(-30, 0, 0), "forearm.R": Vector3(-30, 0, 0),
+			"thigh.L": Vector3(-20, 0, -4), "shin.L": Vector3(35, 0, 0), "thigh.R": Vector3(10, 0, 4), "shin.R": Vector3(30, 0, 0),
+		})
+		_override(pose, land, {
+			"spine": Vector3(30, 0, 0), "chest": Vector3(14, 0, 0), "head": Vector3(10, 0, 0),
+			"upperarm.L": Vector3(-30, 0, -35), "upperarm.R": Vector3(-30, 0, 35),
+			"forearm.L": Vector3(-5, 0, 0), "forearm.R": Vector3(-5, 0, 0),
+			"thigh.L": Vector3(-45, 0, -10), "shin.L": Vector3(60, 0, 0), "foot.L": Vector3(-15, 0, 0),
+			"thigh.R": Vector3(-45, 0, 10), "shin.R": Vector3(60, 0, 0), "foot.R": Vector3(-15, 0, 0),
+		})
+		lift = lerpf(lerpf(lift * (1.0 - crouch), 0.35 * sin(PI * clampf((u - 0.08) / 0.2, 0.0, 1.0)), air), 0.0, land)
+		contact = maxf(contact, maxf(crouch, maxf(air, land)))
+	return Vector2(lift, contact)
+
+
 # ================================================================= props
 
 static func coin() -> Node3D:

@@ -1,0 +1,186 @@
+class_name RunHud
+extends CanvasLayer
+## In-run overlay wired to Run (spec §2). The visuals live in HudView (Run-independent, so dev
+## previews can drive them with mock data); this node connects Run's signals, owns pausing
+## (pause button, app focus loss, Android back) and the drag-hint lifetime.
+
+signal retry
+signal next
+signal menu
+
+## The drag hint hides once the player has dragged this far (px) or the run is past this d.
+const DRAG_HIDE_PX := 24.0
+const DRAG_HIDE_D := 6.0
+## The ult button's icon for the new hero kinds (one-colour line or legacy glyphs Icons draws; the starters
+## keep Balance.HEROES' storm / quake / fam_rift).
+const ULT_ICON := {
+	&"anchor": "slam", &"rime": "el_frost", &"comet": "el_volt", &"sunglaive": "el_plasma", &"forgewall": "cls_guardian",
+	&"spectrum": "glint", &"eyes": "el_rift", &"letter": "quests", &"doves": "wing",
+}
+const ULT_COLOR := Color(0.45, 0.75, 1.0)
+
+var run: Run
+var view: HudView
+var _dragged := false
+var _drag_px := 0.0
+var _finished := false
+var _leaving := false               # Menu / Retry / Next chosen: the scene is about to switch
+
+
+func setup(p_run: Run) -> void:
+	run = p_run
+
+
+func _ready() -> void:
+	layer = 10
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	view = HudView.new()
+	view.setup(run.level, ult_icon(), hero_color())
+	add_child(view)
+	view.pause_pressed.connect(pause)
+	view.resume_pressed.connect(resume)
+	view.ult_pressed.connect(_on_ult)
+	view.retry.connect(func(): _leave(); retry.emit())
+	view.next.connect(func(): _leave(); next.emit())
+	view.menu.connect(func(): _leave(); menu.emit())
+	view.set_coins(run.coins, false)
+	view.set_weapons(run.weapons)
+	view.set_arm(run.arm_tier)
+	view.set_ult(0.0, run.ult_ready())
+	view.show_drag_hint(run.state == Run.State.READY)
+	run.coins_changed.connect(func(n: int): view.set_coins(n))
+	run.ult_changed.connect(_on_ult_changed)
+	run.hint.connect(_on_hint)
+	run.weapon_added.connect(func(kind: String, level: int): view.weapon_added(kind, level, run.weapons))
+	run.rank_changed.connect(func(id: String, _rank: int): view.machine_ranked(id, run.weapons))
+	run.power_changed.connect(view.power_toast)
+	run.stairs_done.connect(_on_stairs_done)
+	run.finished.connect(_on_finished)
+	_load_portrait()
+
+
+func _load_portrait() -> void:
+	var tex := await UIKit.render_portrait(self, run.hero_type, 200)
+	if tex and is_instance_valid(view):
+		view.set_portrait(tex)
+
+
+## Tutorial banner; the drag hint already says "drag" while it is up, so that banner is skipped.
+func _on_hint(key: String) -> void:
+	if (key == "HINT_DRAG" or key == "DRAG_HINT") and view.drag_hint_shown():
+		return
+	view.show_hint(key)
+
+
+func _process(_delta: float) -> void:
+	# The ult button has nothing to do once the fortress fell (stairs, victory) or the run is over.
+	var ult_on := not _finished and run.state in [Run.State.READY, Run.State.RUNNING, Run.State.CLASH, Run.State.SIEGE]
+	if view.ult_btn.visible != ult_on:
+		view.set_ult_visible(ult_on)
+	if view.drag_hint_shown():
+		if _dragged or (run.state != Run.State.READY and run.d > DRAG_HIDE_D):
+			view.show_drag_hint(false)
+
+
+func _input(event: InputEvent) -> void:
+	if _dragged:
+		return
+	if event is InputEventScreenDrag:
+		_drag_px += absf((event as InputEventScreenDrag).relative.x)
+		if _drag_px > DRAG_HIDE_PX:
+			_dragged = true
+
+
+func _on_ult_changed(ratio: float, ready: bool) -> void:
+	# HudView toasts only on the not-ready → ready edge (Run may re-emit while full).
+	view.set_ult(ratio, ready)
+
+
+func _on_ult() -> void:
+	if get_tree().paused:
+		return
+	if run.use_ult():
+		view.toast(Loc.t(ult_popup()), hero_color().lerp(Color.WHITE, 0.25))
+	else:
+		Audio.play("error", -6.0)
+
+
+## The hero's colour from its run row (HeroKinds.def_for: Balance.HEROES' for the starters).
+func hero_color() -> Color:
+	var c: Variant = run.def.get("color", ULT_COLOR)
+	return c if c is Color else ULT_COLOR
+
+
+## The ult button's icon: a new kind's ULT_ICON (a v3 row names its ult kind, which Icons cannot draw), else
+## the run row's `ult.icon` (the starters' Balance.HEROES icon).
+func ult_icon() -> String:
+	var kind := HeroKinds.ult_kind(run.hero_type)
+	if ULT_ICON.has(kind):
+		return str(ULT_ICON[kind])
+	return str(run.ult.get("icon", "storm"))
+
+
+## The toast when the ult fires: the kind's cry (`<ult name>_POP`, the new heroes' voice lines) when Loc has
+## one, else the ult's name (the starters' «Громовий вихор!»).
+func ult_popup() -> String:
+	var key := str(run.ult.get("name", ""))
+	return key + "_POP" if Loc.has(key + "_POP") else key
+
+
+func _on_stairs_done(mult: float) -> void:
+	if mult > 1.0:
+		view.toast(Loc.t("STAIRS_MULT") % HudView._fmt_mult(mult), Color(1.0, 0.8, 0.3), 96)
+
+
+## The result panel moved to ResultFlow / LossScreen (WS5; main.gd shows them after
+## Meta.finish_run); the HUD only stops its in-run controls here.
+func _on_finished(_won: bool, _earned: int, _reason: String) -> void:
+	_finished = true
+	get_tree().paused = false
+
+
+# ------------------------------------------------------------------ pause
+
+## A won run (stairs) plays out into the result panel: pausing it there could leave it unpaid.
+func _in_play() -> bool:
+	return not _finished and not run._won and run.state != Run.State.WON and run.state != Run.State.LOST
+
+
+func pause() -> void:
+	if _leaving or view.has_modal() or not _in_play():
+		return
+	get_tree().paused = true
+	view.show_pause()
+
+
+func resume() -> void:
+	if view.modal_kind() == "pause":
+		view.close_modal()
+	get_tree().paused = false
+
+
+func _leave() -> void:
+	_leaving = true
+	view.close_modal()
+	get_tree().paused = false
+
+
+func _notification(what: int) -> void:
+	if _leaving:
+		return
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
+			# Auto-pause when the phone locks or another app comes up (not before the start).
+			if is_node_ready() and run and run.state != Run.State.READY:
+				pause()
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			if not is_node_ready():
+				return
+			match view.modal_kind():
+				"pause":
+					resume()
+				"result":
+					_leave()
+					menu.emit()
+				_:
+					pause()

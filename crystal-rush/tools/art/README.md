@@ -1,0 +1,25 @@
+# Art tools (moved from the cloud session's scratchpad so a local session has them)
+
+- `cutlib.py` — splash/card cut-out on the flat #BFBFBF background: `cutout(img, tol, sigma, seed_bottom, top_skip)` (border-seeded
+  flood against a local background field), `clean(arr, bg, hole_regions, ...)` (enclosed background holes + speck removal),
+  `preview(o, path, k)`. Typical use: scale the owner's 4K art to 1152 px wide, `cutout(im, tol=10)`, `clean(..., hole_std=3.0,
+  hole_d=8)`, look at the preview on dark, then install as `assets/heroes/<id>/splash.png` / `card.png` with framing in
+  `scripts/ui/heroes/hero_art.gd` (`META`). Sources go to `art_src/heroes/<id>/` (JPEG q88).
+- `net_holes.py` — clears the background seen through a net or lattice in an installed cut-out: `py net_holes.py src.jpg
+  card.png out.png y0 y1 x0 x1 [tol]` (region as fractions). A hole is a small neutral-grey patch close to the sheet's
+  background (tried at several tolerances) whose 3-px ring is mostly gold strand or already clear, so pale fabric next to
+  the net stays. Used for Сковорода's golden net (`0.30 0.86 0.62 1.0 28`); check the zoomed edges on dark afterwards.
+- `../art_prompts/build.py` — builds the owner's prompt page from `docs/design/heroes_prompts.md`: `python3 build.py --repo` writes
+  `docs/art_prompts/index.html` (opened in a browser via htmlpreview); without `--repo` it writes the self-contained page with
+  embedded images to `out/` (or `$ART_PROMPTS_OUT`). Add finished art to `RECEIVED` in build.py.
+- `gemini_image.py` — one image from Gemini (Google AI Studio): `py gemini_image.py --out x.png --prompt-file p.txt --ref card.png
+  --size 2K --aspect 3:4` (references repeatable; `--search` lets the model use Google Search). The key is the owner's Windows
+  user variable `GEMINI_API_KEY` (set by them with `~/.claude/mcp/set-gemini-key.py`; never in the repo or a chat). Each call
+  costs the owner's AI Studio billing, so ask before batches.
+- `cut_icons.py` — cuts a Gemini icon sheet (icons on flat #BFBFBF in a cols x rows grid) into transparent 256² PNGs:
+  `py cut_icons.py sheet.jpg out 4 3 name1,name2,... 256 40` (enclosed background holes cleared, edges defringed, preview.png
+  on cream and ink). Install as `assets/ui/kit/icon_<name>.png`; a coloured stand-in for a line kind needs
+  `"icon_<name>": {"painted": true}` in kit.json.
+- `cut_parts.py` + `build_buttons.py` — the button skins: `py cut_parts.py parts.jpg p25 25` cuts each part, `py
+  build_buttons.py p25 kit` rebuilds them as 2x nine-patches ([carved cap | averaged plain middle | cap], derived pressed and
+  disabled states) and writes the kit.json entries (spec.json, with "scale": 2). Source: `art_src/ui/buttons_porcelain_parts_src.jpg`.

@@ -1,0 +1,783 @@
+{
+ "_doc": "UI v2 bitmap override table. A PNG named <key>.png in this folder replaces the procedural element of the same name. margins = nine-patch [left, top, right, bottom] in source px; pad = content margin [x, y]; expand = how far the art extends past the control rect (shadows) [l, t, r, b]. See scratchpad uiv2/kit_asset_names.md (copied in README.md).",
+ "panel": {
+  "scale": 2,
+  "margins": [
+   48,
+   48,
+   48,
+   48
+  ],
+  "pad": [
+   36,
+   30
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "modal": {
+  "margins": [
+   44,
+   44,
+   44,
+   48
+  ],
+  "pad": [
+   36,
+   32
+  ],
+  "expand": [
+   24,
+   24,
+   24,
+   30
+  ]
+ },
+ "cream_glass": {
+  "margins": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "pad": [
+   22,
+   14
+  ],
+  "expand": [
+   14,
+   14,
+   14,
+   18
+  ]
+ },
+ "sheet": {
+  "margins": [
+   44,
+   56,
+   44,
+   40
+  ],
+  "pad": [
+   26,
+   28
+  ],
+  "expand": [
+   20,
+   30,
+   20,
+   20
+  ]
+ },
+ "card": {
+  "margins": [
+   28,
+   28,
+   28,
+   28
+  ],
+  "pad": [
+   16,
+   14
+  ],
+  "expand": [
+   10,
+   10,
+   10,
+   13
+  ]
+ },
+ "card_sel": {
+  "margins": [
+   32,
+   32,
+   32,
+   32
+  ],
+  "pad": [
+   16,
+   14
+  ],
+  "expand": [
+   14,
+   14,
+   14,
+   17
+  ]
+ },
+ "card_dim": {
+  "margins": [
+   28,
+   28,
+   28,
+   28
+  ],
+  "pad": [
+   16,
+   14
+  ],
+  "expand": [
+   6,
+   6,
+   6,
+   8
+  ]
+ },
+ "pill": {
+  "margins": [
+   22,
+   16,
+   22,
+   16
+  ],
+  "pad": [
+   16,
+   6
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
+ },
+ "plate": {
+  "margins": [
+   22,
+   16,
+   22,
+   16
+  ],
+  "pad": [
+   16,
+   6
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
+ },
+ "chip": {
+  "margins": [
+   16,
+   16,
+   16,
+   16
+  ],
+  "pad": [
+   14,
+   4
+  ],
+  "expand": [
+   5,
+   5,
+   5,
+   6
+  ]
+ },
+ "ribbon": {
+  "margins": [
+   39,
+   14,
+   39,
+   14
+  ],
+  "pad": [
+   30,
+   6
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
+ },
+ "toast": {
+  "scale": 2,
+  "margins": [
+   27,
+   20,
+   27,
+   20
+  ],
+  "pad": [
+   26,
+   14
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "banner": {
+  "scale": 2,
+  "margins": [
+   27,
+   20,
+   27,
+   20
+  ],
+  "pad": [
+   26,
+   14
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "button": {
+  "scale": 2,
+  "margins": [
+   44,
+   22,
+   44,
+   22
+  ],
+  "pad": [
+   28,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "button_pressed": {
+  "scale": 2,
+  "margins": [
+   44,
+   22,
+   44,
+   22
+  ],
+  "pad": [
+   28,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "button_disabled": {
+  "scale": 2,
+  "margins": [
+   44,
+   22,
+   44,
+   22
+  ],
+  "pad": [
+   28,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "primary": {
+  "scale": 2,
+  "margins": [
+   59,
+   29,
+   59,
+   29
+  ],
+  "pad": [
+   36,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "primary_pressed": {
+  "scale": 2,
+  "margins": [
+   59,
+   29,
+   59,
+   29
+  ],
+  "pad": [
+   36,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "primary_disabled": {
+  "scale": 2,
+  "margins": [
+   59,
+   29,
+   59,
+   29
+  ],
+  "pad": [
+   36,
+   10
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "primary_compact": {
+  "scale": 2,
+  "margins": [
+   39,
+   22,
+   39,
+   22
+  ],
+  "pad": [
+   24,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "ghost": {
+  "margins": [
+   24,
+   24,
+   24,
+   24
+  ],
+  "pad": [
+   24,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "seg": {
+  "scale": 2,
+  "margins": [
+   24,
+   18,
+   24,
+   18
+  ],
+  "pad": [
+   4,
+   4
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "seg_sel": {
+  "margins": [
+   22,
+   20,
+   22,
+   22
+  ],
+  "pad": [
+   18,
+   6
+  ],
+  "expand": [
+   5,
+   5,
+   5,
+   7
+  ]
+ },
+ "tabbar": {
+  "margins": [
+   40,
+   40,
+   40,
+   20
+  ],
+  "pad": [
+   8,
+   8
+  ],
+  "expand": [
+   0,
+   20,
+   0,
+   0
+  ]
+ },
+ "nav_bar": {
+  "margins": [
+   60,
+   48,
+   60,
+   24
+  ],
+  "pad": [
+   8,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "tab_sel": {
+  "margins": [
+   28,
+   28,
+   28,
+   28
+  ],
+  "pad": [
+   8,
+   8
+  ],
+  "expand": [
+   10,
+   10,
+   10,
+   13
+  ]
+ },
+ "well": {
+  "margins": [
+   16,
+   16,
+   16,
+   16
+  ],
+  "pad": [
+   12,
+   8
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "band_amber": {
+  "margins": [
+   24,
+   28,
+   24,
+   28
+  ],
+  "pad": [
+   24,
+   12
+  ],
+  "expand": [
+   0,
+   16,
+   0,
+   20
+  ]
+ },
+ "band_cool": {
+  "margins": [
+   24,
+   28,
+   24,
+   28
+  ],
+  "pad": [
+   24,
+   12
+  ],
+  "expand": [
+   0,
+   16,
+   0,
+   20
+  ]
+ },
+ "tag_new": {
+  "margins": [
+   18,
+   8,
+   18,
+   8
+  ],
+  "pad": [
+   8,
+   1
+  ],
+  "expand": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "scale": 2
+ },
+ "card_frame": {
+  "margins": [
+   24,
+   24,
+   24,
+   24
+  ],
+  "pad": [
+   0,
+   0
+  ],
+  "expand": [
+   2,
+   2,
+   2,
+   2
+  ]
+ },
+ "icon_events": {
+  "painted": true
+ },
+ "icon_mail": {
+  "painted": true
+ },
+ "icon_quests": {
+  "painted": true
+ },
+ "icon_chest": {
+  "painted": true
+ },
+ "icon_team": {
+  "painted": true
+ },
+ "icon_helmet": {
+  "painted": true
+ },
+ "icon_target": {
+  "painted": true
+ },
+ "icon_cls_warrior": {
+  "painted": true
+ },
+ "icon_cls_ranger": {
+  "painted": true
+ },
+ "icon_cls_mage": {
+  "painted": true
+ },
+ "icon_cls_guardian": {
+  "painted": true
+ },
+ "icon_cls_healer": {
+  "painted": true
+ },
+ "icon_odds": {
+  "painted": true
+ },
+ "icon_settings": {
+  "painted": true
+ },
+ "icon_trophy": {
+  "painted": true
+ },
+ "icon_el_kinetic": {
+  "painted": true
+ },
+ "icon_el_volt": {
+  "painted": true
+ },
+ "icon_el_frost": {
+  "painted": true
+ },
+ "icon_el_plasma": {
+  "painted": true
+ },
+ "icon_el_tech": {
+  "painted": true
+ },
+ "icon_el_rune": {
+  "painted": true
+ },
+ "icon_el_rift": {
+  "painted": true
+ },
+ "icon_deck": {
+  "painted": true
+ },
+ "icon_fac_dawn": {
+  "painted": true
+ },
+ "icon_fac_wildfang": {
+  "painted": true
+ },
+ "icon_fac_stoneheart": {
+  "painted": true
+ },
+ "icon_fac_celestial": {
+  "painted": true
+ },
+ "edge_button": {
+  "scale": 2
+ },
+ "cta_topaz": {
+  "scale": 2
+ },
+ "icon_portal": {
+  "painted": true
+ },
+ "icon_beacon": {
+  "painted": true
+ },
+ "icon_tome": {
+  "painted": true
+ },
+ "icon_fragment": {
+  "painted": true
+ },
+ "icon_lock": {
+  "painted": true
+ },
+ "icon_unlock": {
+  "painted": true
+ },
+ "icon_gift": {
+  "painted": true
+ },
+ "icon_calendar": {
+  "painted": true
+ },
+ "icon_map": {
+  "painted": true
+ },
+ "icon_globe": {
+  "painted": true
+ },
+ "icon_sound": {
+  "painted": true
+ },
+ "icon_music": {
+  "painted": true
+ },
+ "icon_vibrate": {
+  "painted": true
+ },
+ "icon_home": {
+  "painted": true
+ },
+ "icon_restart": {
+  "painted": true
+ },
+ "icon_help": {
+  "painted": true
+ },
+ "icon_fortress": {
+  "painted": true
+ },
+ "icon_gate": {
+  "painted": true
+ },
+ "icon_spikes": {
+  "painted": true
+ },
+ "icon_blade": {
+  "painted": true
+ },
+ "icon_cache_stone": {
+  "painted": true
+ },
+ "icon_cache_world": {
+  "painted": true
+ },
+ "icon_cache_royal": {
+  "painted": true
+ },
+ "icon_cache_xray": {
+  "painted": true
+ },
+ "icon_auto": {
+  "painted": true
+ },
+ "icon_fast": {
+  "painted": true
+ },
+ "icon_swap": {
+  "painted": true
+ },
+ "icon_sort": {
+  "painted": true
+ },
+ "icon_search": {
+  "painted": true
+ },
+ "icon_edit": {
+  "painted": true
+ },
+ "icon_soldier": {
+  "painted": true
+ },
+ "icon_star": {
+  "painted": true
+ },
+ "card_quartz": {
+  "scale": 2
+ },
+ "card_sapphire": {
+  "scale": 2
+ },
+ "card_amethyst": {
+  "scale": 2
+ },
+ "card_topaz": {
+  "scale": 2
+ },
+ "card_opal": {
+  "scale": 2
+ },
+ "socket_cream": {
+  "scale": 2
+ },
+ "socket_slate": {
+  "scale": 2
+ },
+ "badge_gem": {
+  "scale": 2
+ }
+}

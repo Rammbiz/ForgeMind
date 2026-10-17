@@ -60,13 +60,38 @@ const TOWERS := {
 const SELL_REFUND := 0.7
 
 const ENEMIES := {
-	"slime": {"name": "ENEMY_SLIME", "hp": 30.0, "speed": 1.0, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.34, "color": Color(0.2, 0.72, 0.7)},
-	"runner": {"name": "ENEMY_RUNNER", "hp": 22.0, "speed": 1.9, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.3, "color": Color(0.95, 0.55, 0.25)},
-	"beetle": {"name": "ENEMY_BEETLE", "hp": 90.0, "speed": 0.7, "reward": 9, "armor": 0.5, "flying": false, "lives": 2, "size": 0.38, "color": Color(0.3, 0.45, 0.85)},
-	"bat": {"name": "ENEMY_BAT", "hp": 28.0, "speed": 1.35, "reward": 5, "armor": 0.0, "flying": true, "lives": 1, "size": 0.3, "color": Color(0.6, 0.35, 0.8)},
-	"splitter": {"name": "ENEMY_SPLITTER", "hp": 75.0, "speed": 0.85, "reward": 6, "armor": 0.0, "flying": false, "lives": 2, "size": 0.42, "color": Color(0.85, 0.4, 0.75), "split": "slimelet", "split_count": 3},
-	"slimelet": {"name": "ENEMY_SLIME", "hp": 16.0, "speed": 1.3, "reward": 1, "armor": 0.0, "flying": false, "lives": 1, "size": 0.22, "color": Color(0.95, 0.55, 0.85)},
-	"golem": {"name": "ENEMY_GOLEM", "hp": 800.0, "speed": 0.45, "reward": 70, "armor": 0.3, "flying": false, "lives": 5, "size": 0.6, "color": Color(0.55, 0.52, 0.5), "boss": true},
+	"slime": {"name": "ENEMY_SLIME", "atk": 6.0, "hp": 30.0, "speed": 1.0, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.34, "color": Color(0.2, 0.72, 0.7)},
+	"runner": {"name": "ENEMY_RUNNER", "atk": 5.0, "hp": 22.0, "speed": 1.9, "reward": 4, "armor": 0.0, "flying": false, "lives": 1, "size": 0.3, "color": Color(0.95, 0.55, 0.25)},
+	"beetle": {"name": "ENEMY_BEETLE", "atk": 14.0, "hp": 90.0, "speed": 0.7, "reward": 9, "armor": 0.5, "flying": false, "lives": 2, "size": 0.38, "color": Color(0.3, 0.45, 0.85)},
+	"bat": {"name": "ENEMY_BAT", "atk": 0.0, "hp": 28.0, "speed": 1.35, "reward": 5, "armor": 0.0, "flying": true, "lives": 1, "size": 0.3, "color": Color(0.6, 0.35, 0.8)},
+	"splitter": {"name": "ENEMY_SPLITTER", "atk": 9.0, "hp": 75.0, "speed": 0.85, "reward": 6, "armor": 0.0, "flying": false, "lives": 2, "size": 0.42, "color": Color(0.85, 0.4, 0.75), "split": "slimelet", "split_count": 3},
+	"slimelet": {"name": "ENEMY_SLIME", "atk": 3.0, "hp": 16.0, "speed": 1.3, "reward": 1, "armor": 0.0, "flying": false, "lives": 1, "size": 0.22, "color": Color(0.95, 0.55, 0.85)},
+	"golem": {"name": "ENEMY_GOLEM", "atk": 55.0, "hp": 800.0, "speed": 0.45, "reward": 70, "armor": 0.3, "flying": false, "lives": 5, "size": 0.6, "color": Color(0.55, 0.52, 0.5), "boss": true},
+}
+
+# Heroes: player-controlled fighters available in every level. "atk" on enemies above is the
+# damage per second an enemy deals to the hero that blocks it.
+#   block    how many ground enemies the hero holds back at once
+#   aggro    radius around the hero's post in which it engages enemies
+#   reach    melee reach; "air_reach" lets a hero also hit flying enemies
+#   ability  super move on a short cooldown; "ult" is the ultimate: a long cooldown that
+#            starts every level with "charge" seconds left on it
+const HERO_ORDER: Array[String] = ["bolt", "titan"]
+const HEROES := {
+	"bolt": {
+		"name": "HERO_BOLT", "desc": "HERO_BOLT_DESC", "color": Color(0.3, 0.62, 1.0),
+		"hp": 320.0, "regen": 16.0, "speed": 4.2, "damage": 10.0, "rate": 2.6, "dmg_type": "magic",
+		"reach": 0.5, "air_reach": 1.4, "aggro": 1.8, "block": 1, "respawn": 10.0,
+		"ability": {"name": "ABILITY_DASH", "icon": "bolt", "cooldown": 16.0, "damage": 75.0, "length": 4.5, "width": 0.6, "slow": 0.5, "slow_time": 1.5},
+		"ult": {"name": "ULT_STORM", "icon": "storm", "cooldown": 45.0, "charge": 20.0, "anim": 2.6, "duration": 2.6, "radius": 2.4, "dps": 60.0, "tick": 0.25, "slow": 0.75},
+	},
+	"titan": {
+		"name": "HERO_TITAN", "desc": "HERO_TITAN_DESC", "color": Color(0.3, 0.9, 0.55),
+		"hp": 780.0, "regen": 20.0, "speed": 1.8, "damage": 40.0, "rate": 0.8, "dmg_type": "phys",
+		"reach": 0.6, "air_reach": 0.0, "aggro": 1.6, "block": 3, "respawn": 14.0, "splash": 0.7,
+		"ability": {"name": "ABILITY_SLAM", "icon": "slam", "cooldown": 20.0, "damage": 95.0, "radius": 1.9, "stun": 2.2},
+		"ult": {"name": "ULT_QUAKE", "icon": "quake", "cooldown": 55.0, "charge": 25.0, "anim": 1.6, "waves": 3, "spacing": 1.1, "damage": 130.0, "stun": 1.8, "armor": 0.5, "armor_time": 6.0},
+	},
 }
 
 # Wave group: [enemy_type, count, gap_seconds, start_delay, spawn_index (-1 = alternate)]
@@ -85,7 +110,7 @@ const LEVELS := [
 			"x..#######..t.Cx",
 			"xx.....t....r.xx",
 		],
-		"start_gold": 220, "lives": 20, "hp_scale": 1.05, "hp_growth": 0.009,
+		"start_gold": 220, "lives": 20, "hp_scale": 1.12, "hp_growth": 0.009,
 		"towers": ["arrow", "cannon", "frost"],
 		"music": "meadow",
 		"theme": {
@@ -102,6 +127,16 @@ const LEVELS := [
 			"ambient": Color(0.62, 0.72, 0.92), "ambient_energy": 0.45,
 			"particles": "pollen", "clouds": Color(1.0, 1.0, 1.0),
 			"flowers": [Color(1.0, 0.85, 0.3), Color(1.0, 0.5, 0.6), Color(0.95, 0.95, 1.0), Color(0.6, 0.7, 1.0)],
+		},
+		# Sculpted arena (assets/models/arenas/meadow.glb): golden hour over a sea of clouds.
+		"arena_theme": {
+			"sky_top": Color(0.33, 0.52, 0.86), "sky_horizon": Color(1.0, 0.86, 0.62),
+			"ground_horizon": Color(0.98, 0.88, 0.76), "ground_bottom": Color(0.6, 0.68, 0.88),
+			"fog": Color(1.0, 0.9, 0.74), "fog_density": 0.004,
+			"sun_color": Color(1.0, 0.92, 0.76), "sun_energy": 1.05,
+			"ambient": Color(0.78, 0.78, 0.84), "ambient_energy": 0.42,
+			# cloud sea: lit tops, shaded sides, sky between the puffs
+			"cloud_sea": [Color(1.0, 0.97, 0.9), Color(0.95, 0.76, 0.62), Color(0.55, 0.66, 0.88)],
 		},
 		"waves": [
 			[["slime", 6, 1.2, 0.0, -1]],
@@ -135,7 +170,7 @@ const LEVELS := [
 			"S####..r.......x",
 			"xx....t.....r.xx",
 		],
-		"start_gold": 280, "lives": 20, "hp_scale": 0.85, "hp_growth": 0.0082,
+		"start_gold": 280, "lives": 20, "hp_scale": 0.89, "hp_growth": 0.0082,
 		"towers": ["arrow", "cannon", "frost", "tesla"],
 		"music": "canyon",
 		"theme": {
@@ -152,6 +187,13 @@ const LEVELS := [
 			"ambient": Color(0.85, 0.62, 0.62), "ambient_energy": 0.42,
 			"particles": "dust", "clouds": Color(1.0, 0.82, 0.74),
 			"flowers": [Color(0.95, 0.35, 0.35), Color(1.0, 0.8, 0.35)],
+		},
+		# Sculpted arena: blazing sunset over peach clouds.
+		"arena_theme": {
+			"ground_horizon": Color(1.0, 0.66, 0.5), "ground_bottom": Color(0.42, 0.24, 0.46),
+			"cloud_sea": [Color(1.0, 0.8, 0.64), Color(0.88, 0.5, 0.52), Color(0.46, 0.3, 0.56)],
+			"fog_density": 0.004,
+			"ambient": Color(0.86, 0.68, 0.7), "ambient_energy": 0.45,
 		},
 		"waves": [
 			[["slime", 8, 1.0, 0.0, -1]],
@@ -190,7 +232,7 @@ const LEVELS := [
 			"xC#########..t.x",
 			"xx...t....r...xx",
 		],
-		"start_gold": 320, "lives": 20, "hp_scale": 0.66, "hp_growth": 0.0095,
+		"start_gold": 320, "lives": 20, "hp_scale": 0.76, "hp_growth": 0.0095,
 		"towers": ["arrow", "cannon", "frost", "tesla", "laser"],
 		"music": "frost",
 		"theme": {
